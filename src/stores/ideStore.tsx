@@ -111,8 +111,39 @@ export const useIDEState = () => useSyncExternalStore(subscribe, getState, getSt
 
 const autoSaveTimers = new Map<string, TimeoutHandle>();
 
+const normalizePath = (path: string) => path.replace(/\\/g, "/");
+
+const pathsEqual = (a: string, b: string) => normalizePath(a) === normalizePath(b);
+
+const isGitInternalPath = (path: string, workspacePath: string) => {
+  const normalizedPath = normalizePath(path);
+  const normalizedWorkspace = normalizePath(workspacePath);
+  const gitRoot = `${normalizedWorkspace}/.git`;
+  return normalizedPath === gitRoot || normalizedPath.startsWith(`${gitRoot}/`);
+};
+
 const ensureWorkspaceInRecents = (workspace: Workspace, recents: Workspace[]): Workspace[] => {
   return [workspace, ...recents.filter((w) => w.path !== workspace.path)];
+};
+
+const refreshWorkspaceContents = async (workspace: Workspace) => {
+  try {
+    const structure = await invoke<FileNode>("load_project_structure", { path: workspace.path });
+    const latestWorkspace = getState().workspace;
+    if (!latestWorkspace || !pathsEqual(latestWorkspace.path, workspace.path)) {
+      return;
+    }
+    setProjectTree(structure);
+  } catch (error) {
+    console.error("Failed to refresh workspace structure:", error);
+  }
+
+  try {
+    const { refreshStatus } = await import("./gitStore");
+    await refreshStatus();
+  } catch (error) {
+    console.warn("Failed to refresh git status after change", error);
+  }
 };
 
 const setCurrentView = (view: IDEView) => {
@@ -646,7 +677,7 @@ const saveFileAs = async (fileId: string) => {
 
     const currentWorkspace = getState().workspace;
     if (currentWorkspace) {
-      await openWorkspace(currentWorkspace, false);
+      await refreshWorkspaceContents(currentWorkspace);
     }
   } catch (error) {
     console.error("Failed to save as:", error);
@@ -777,17 +808,27 @@ const setupFileChangeListener = async (
     const unlisten = await listen("file-change", (event) => {
       const changedPaths = (event.payload as string[]) ?? [];
       const snapshot = getState();
+      const workspace = snapshot.workspace;
+      if (!workspace) {
+        return;
+      }
+
+      const hasRelevantChanges = changedPaths.some((path) => !isGitInternalPath(path, workspace.path));
+      if (!hasRelevantChanges) {
+        return;
+      }
+
       const hasDirtyOpenFile = changedPaths.some((path) =>
-        snapshot.openFiles.some((file) => file.path === path && file.isDirty),
+        snapshot.openFiles.some((file) => pathsEqual(file.path, path) && file.isDirty),
       );
 
-      if (!hasDirtyOpenFile && snapshot.workspace) {
+      if (!hasDirtyOpenFile) {
         setReloadTimeout((current) => {
           if (current) clearTimeout(current);
           return setTimeout(() => {
-            const workspace = getState().workspace;
-            if (workspace) {
-              void openWorkspace(workspace, false);
+            const latestWorkspace = getState().workspace;
+            if (latestWorkspace) {
+              void refreshWorkspaceContents(latestWorkspace);
             }
           }, 300);
         });

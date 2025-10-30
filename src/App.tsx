@@ -1,3 +1,4 @@
+import "./App.css";
 import { useEffect, useState } from "react";
 import IDE from "./components/ide/IDE";
 import { IDEProvider } from "./stores/ideStore";
