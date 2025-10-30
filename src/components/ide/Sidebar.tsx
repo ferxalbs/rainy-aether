@@ -16,7 +16,7 @@ interface ActivityButtonProps {
 const ActivityButton: React.FC<ActivityButtonProps> = ({ active, onClick, label, icon: Icon }) => (
   <button
     className={cn(
-      "w-12 h-12 flex items-center justify-center transition-colors",
+      "w-12 h-12 flex items-center justify-center transition-colors rounded-lg",
       active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"
     )}
     title={label}
@@ -52,7 +52,7 @@ const Sidebar: React.FC = () => {
 
       {/* Content Panel - Conditionally visible */}
       {isOpen && (
-        <div className="w-64 bg-sidebar flex flex-col">
+        <div className="w-64 bg-sidebar flex flex-col rounded-r-lg">
           {activeTab === "explorer" && <ProjectExplorer />}
           {activeTab === "git" && <GitHistoryPanel />}
         </div>

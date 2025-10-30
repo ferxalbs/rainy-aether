@@ -3,7 +3,6 @@ import { useIDEStore, FileNode } from "../../stores/ideStore";
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, FilePlus, FolderPlus } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
-import "../../css/ProjectExplorer.css";
 import { fileIconColorForExt } from "../../stores/settingsStore";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -80,7 +79,7 @@ const FileNodeComponent: React.FC<FileNodeProps> = ({
     <div>
       <div
         className={cn(
-          "w-full h-7 px-2 flex items-center text-left font-normal cursor-pointer",
+          "w-full h-7 px-2 flex items-center text-left font-normal cursor-pointer rounded-md",
           isSelected ? "bg-muted" : "hover:bg-muted",
         )}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
@@ -220,10 +219,10 @@ const ProjectExplorer: React.FC = () => {
   }, [projectRoot]);
 
   return (
-    <div className="flex flex-col h-full project-explorer">
-      <div className="p-3 border-b project-explorer-header">
+    <div className="flex flex-col h-full rounded-r-lg">
+      <div className="p-3">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm uppercase tracking-wide project-explorer-title">Project</h3>
+          <h3 className="font-semibold text-sm uppercase tracking-wide">Project</h3>
           <div className="flex items-center gap-1">
             <Button size="icon" variant="ghost" title="New File" onClick={handleNewFile}>
               <FilePlus size={16} />
