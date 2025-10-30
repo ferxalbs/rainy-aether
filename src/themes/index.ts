@@ -31,6 +31,7 @@ export const navyDayTheme: Theme = {
     '--text-secondary': '#334155',
     '--text-editor': '#0a1929',
     '--accent-primary': '#3b82f6',
+    '--accent-secondary': '#60a5fa',
     '--border-color': '#e2e8f0',
     '--diff-added': '#16a34a',
     '--diff-removed': '#ef4444',
