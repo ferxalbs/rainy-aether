@@ -1,0 +1,38 @@
+.file-viewer-main {
+  background-color: var(--bg-editor);
+}
+
+.file-viewer-tabs {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.file-viewer-tab {
+  border-color: var(--border-color);
+}
+
+.file-viewer-tab-button.active {
+  background-color: var(--bg-editor);
+}
+
+.file-viewer-tab-button {
+  color: var(--text-primary);
+  --hover-bg: var(--bg-tertiary);
+}
+
+.file-viewer-close-button {
+  --hover-bg: var(--accent-primary);
+  --hover-color: white;
+}
+
+.file-viewer-close-icon {
+  color: var(--text-secondary);
+}
+
+.file-viewer-fallback {
+  color: var(--text-secondary);
+}
+
+.file-viewer-dirty-indicator {
+  color: var(--accent-secondary);
+}

@@ -1,0 +1,65 @@
+/* Preview styles for theme cards - Updated with new color values */
+
+/* Navy Day Theme Preview */
+.theme-card[data-theme="navy-day"] {
+  --preview-bg-primary: #0a1929;
+  --preview-bg-secondary: #1e293b;
+  --preview-text-primary: #f1f5f9;
+  --preview-accent-primary: #3b82f6;
+}
+
+/* Navy Night Theme Preview */
+.theme-card[data-theme="navy-night"] {
+  --preview-bg-primary: #020617;
+  --preview-bg-secondary: #0f172a;
+  --preview-text-primary: #f8fafc;
+  --preview-accent-primary: #3b82f6;
+}
+
+/* Dark Day Theme Preview */
+.theme-card[data-theme="dark-day"] {
+  --preview-bg-primary: #1c1917;
+  --preview-bg-secondary: #292524;
+  --preview-text-primary: #fafaf9;
+  --preview-accent-primary: #a855f7;
+}
+
+/* Dark Night Theme Preview */
+.theme-card[data-theme="dark-night"] {
+  --preview-bg-primary: #0c0a09;
+  --preview-bg-secondary: #1c1917;
+  --preview-text-primary: #fafaf9;
+  --preview-accent-primary: #a855f7;
+}
+
+/* Light Day Theme Preview */
+.theme-card[data-theme="light-day"] {
+  --preview-bg-primary: #ffffff;
+  --preview-bg-secondary: #f8fafc;
+  --preview-text-primary: #0f172a;
+  --preview-accent-primary: #2563eb;
+}
+
+/* Light Night Theme Preview */
+.theme-card[data-theme="light-night"] {
+  --preview-bg-primary: #f8fafc;
+  --preview-bg-secondary: #f1f5f9;
+  --preview-text-primary: #334155;
+  --preview-accent-primary: #2563eb;
+}
+
+/* Monokai Day Theme Preview */
+.theme-card[data-theme="monokai-day"] {
+  --preview-bg-primary: #2d2a26;
+  --preview-bg-secondary: #49483e;
+  --preview-text-primary: #f8f8f2;
+  --preview-accent-primary: #66d9ef;
+}
+
+/* Monokai Night Theme Preview */
+.theme-card[data-theme="monokai-night"] {
+  --preview-bg-primary: #1e1e1e;
+  --preview-bg-secondary: #2d2a26;
+  --preview-text-primary: #f8f8f2;
+  --preview-accent-primary: #66d9ef;
+}

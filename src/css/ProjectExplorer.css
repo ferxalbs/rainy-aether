@@ -1,0 +1,21 @@
+.project-explorer {
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-color);
+}
+
+.project-explorer-header {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.project-explorer-title {
+  color: var(--text-secondary);
+}
+
+.file-node-name {
+  color: var(--text-primary);
+}
+
+.no-project-text {
+  color: var(--text-secondary);
+}

@@ -1,0 +1,7 @@
+.sidebar-activity-bar {
+  background: var(--bg-tertiary);
+}
+
+.sidebar-content {
+  background: var(--bg-secondary);
+}

@@ -1,0 +1,16 @@
+.tab-switcher-item {
+   display: flex;
+   flex-direction: column;
+   gap: 2px;
+   padding: 6px 8px;
+   border-radius: 4px;
+ }
+
+ .tab-switcher-item:hover {
+   background: var(--bg-muted);
+ }
+
+ .tab-switcher-item.active {
+   background: var(--bg-muted);
+   outline: 1px solid var(--border-color);
+ }

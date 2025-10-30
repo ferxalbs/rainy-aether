@@ -1,0 +1,858 @@
+import React, { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
+
+import { loadFromStore, saveToStore } from "./app-store";
+import { invoke } from "@tauri-apps/api/core";
+import { open, message, save } from "@tauri-apps/plugin-dialog";
+import { listen } from "@tauri-apps/api/event";
+
+type UnlistenFn = () => void;
+type TimeoutHandle = ReturnType<typeof setTimeout>;
+
+// Robust Tauri environment detection (align with terminalStore and TerminalPanel)
+const isTauriEnv = (): boolean => {
+  try {
+    if (typeof window === "undefined") return false;
+    const w = window as unknown as Record<string, unknown>;
+    const byGlobal = Boolean(w.__TAURI__ || w.__TAURI_INTERNALS__ || w.__TAURI_METADATA__);
+    const byEnv = Boolean((import.meta as any)?.env?.TAURI_PLATFORM || (import.meta as any)?.env?.TAURI);
+    const byUA = typeof navigator !== "undefined" && /\bTauri\b/i.test(navigator.userAgent || "");
+    return byGlobal || byEnv || byUA;
+  } catch {
+    return false;
+  }
+};
+
+type IDEView = "startup" | "editor" | "settings";
+
+export interface FileNode {
+  name: string;
+  path: string;
+  is_directory: boolean;
+  children?: FileNode[];
+  size?: number;
+  modified?: number;
+}
+
+export interface OpenFile {
+  id: string;
+  name: string;
+  path: string;
+  content: string;
+  isDirty: boolean;
+}
+
+export interface Workspace {
+  name: string;
+  path: string;
+  type: "folder" | "file";
+}
+
+export type SidebarTab = "explorer" | "git";
+
+export interface IDEState {
+  currentView: IDEView;
+  openFiles: OpenFile[];
+  activeFileId: string | null;
+  workspace: Workspace | null;
+  recentWorkspaces: Workspace[];
+  projectTree: FileNode | null;
+  isSidebarVisible: boolean;
+  autoSave: boolean;
+  isZenMode: boolean;
+  sidebarActive: SidebarTab;
+}
+
+const initialState: IDEState = {
+  currentView: "startup",
+  openFiles: [],
+  activeFileId: null,
+  workspace: null,
+  recentWorkspaces: [],
+  projectTree: null,
+  isSidebarVisible: true,
+  autoSave: false,
+  isZenMode: false,
+  sidebarActive: "explorer",
+};
+
+let currentState: IDEState = initialState;
+
+type IDEStateListener = () => void;
+const listeners = new Set<IDEStateListener>();
+
+const notifyListeners = () => {
+  listeners.forEach((listener) => {
+    try {
+      listener();
+    } catch (error) {
+      console.error("IDE state listener error:", error);
+    }
+  });
+};
+
+const setState = (updater: (prev: IDEState) => IDEState) => {
+  const next = updater(currentState);
+  currentState = next;
+  notifyListeners();
+  return next;
+};
+
+const getState = () => currentState;
+
+const subscribe = (listener: IDEStateListener) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+
+const useIDEState = () => useSyncExternalStore(subscribe, getState, getState);
+
+const autoSaveTimers = new Map<string, TimeoutHandle>();
+
+const ensureWorkspaceInRecents = (workspace: Workspace, recents: Workspace[]): Workspace[] => {
+  return [workspace, ...recents.filter((w) => w.path !== workspace.path)];
+};
+
+const setCurrentView = (view: IDEView) => {
+  setState((prev) => ({ ...prev, currentView: view }));
+  void saveToStore("rainy-coder-current-view", view);
+};
+
+const createFileAt = async (dirPath: string, name: string) => {
+  const workspace = getState().workspace;
+  if (!workspace) return;
+  const separator = dirPath.includes("\\") ? "\\" : "/";
+  const newPath = dirPath.endsWith(separator) ? `${dirPath}${name}` : `${dirPath}${separator}${name}`;
+  try {
+    await invoke("create_file", { path: newPath });
+    const newFileNode: FileNode = {
+      name,
+      path: newPath,
+      is_directory: false,
+      children: [],
+      size: 0,
+      modified: Date.now() / 1000,
+    };
+
+    setState((prev) => {
+      const updateTree = (node: FileNode): FileNode => {
+        if (node.path === dirPath) {
+          return {
+            ...node,
+            children: [...(node.children || []), newFileNode],
+          };
+        }
+        if (node.children) {
+          return {
+            ...node,
+            children: node.children.map(updateTree),
+          };
+        }
+        return node;
+      };
+
+      return {
+        ...prev,
+        projectTree: prev.projectTree ? updateTree(prev.projectTree) : prev.projectTree,
+      };
+    });
+
+    await openFile(newFileNode);
+  } catch (error) {
+    console.error("Failed to create file:", error);
+    await message(`Failed to create file: ${error}`, { title: "Error" });
+    await openWorkspace(workspace, false);
+  }
+};
+
+const createFolderAt = async (dirPath: string, name: string) => {
+  const workspace = getState().workspace;
+  if (!workspace) return;
+  const separator = dirPath.includes("\\") ? "\\" : "/";
+  const newPath = dirPath.endsWith(separator) ? `${dirPath}${name}` : `${dirPath}${separator}${name}`;
+  try {
+    await invoke("create_folder", { path: newPath });
+    const newFolderNode: FileNode = {
+      name,
+      path: newPath,
+      is_directory: true,
+      children: [],
+      size: 0,
+      modified: Date.now() / 1000,
+    };
+
+    setState((prev) => {
+      const updateTree = (node: FileNode): FileNode => {
+        if (node.path === dirPath) {
+          return {
+            ...node,
+            children: [...(node.children || []), newFolderNode],
+          };
+        }
+        if (node.children) {
+          return {
+            ...node,
+            children: node.children.map(updateTree),
+          };
+        }
+        return node;
+      };
+
+      return {
+        ...prev,
+        projectTree: prev.projectTree ? updateTree(prev.projectTree) : prev.projectTree,
+      };
+    });
+  } catch (error) {
+    console.error("Failed to create folder:", error);
+    await message(`Failed to create folder: ${error}`, { title: "Error" });
+    await openWorkspace(workspace, false);
+  }
+};
+
+const renameNode = async (node: FileNode, newName: string) => {
+  const oldPath = node.path;
+  const separator = oldPath.includes("\\") ? "\\" : "/";
+  const basePath = oldPath.includes(separator)
+    ? oldPath.substring(0, oldPath.lastIndexOf(separator))
+    : "";
+  const newPath = basePath ? `${basePath}${separator}${newName}` : newName;
+
+  try {
+    await invoke("rename_path", { oldPath, newPath });
+
+    setState((prev) => {
+      const updateTree = (current: FileNode): FileNode => {
+        if (current.path === oldPath) {
+          return { ...current, name: newName, path: newPath };
+        }
+        if (current.children) {
+          return {
+            ...current,
+            children: current.children.map(updateTree),
+          };
+        }
+        return current;
+      };
+
+      const updatedOpenFiles = prev.openFiles.map((file) =>
+        file.path === oldPath ? { ...file, id: newPath, path: newPath, name: newName } : file,
+      );
+
+      const updatedActive = prev.activeFileId === oldPath ? newPath : prev.activeFileId;
+
+      return {
+        ...prev,
+        projectTree: prev.projectTree ? updateTree(prev.projectTree) : prev.projectTree,
+        openFiles: updatedOpenFiles,
+        activeFileId: updatedActive,
+      };
+    });
+  } catch (error) {
+    console.error("Failed to rename:", error);
+    await message(`Failed to rename: ${error}`, { title: "Error" });
+    const workspace = getState().workspace;
+    if (workspace) {
+      await openWorkspace(workspace, false);
+    }
+  }
+};
+
+const deleteNode = async (node: FileNode) => {
+  try {
+    await invoke("delete_path", { path: node.path });
+
+    setState((prev) => {
+      const removeFromTree = (current: FileNode): FileNode | null => {
+        if (current.path === node.path) {
+          return null;
+        }
+        if (current.children) {
+          const filteredChildren = current.children
+            .map(removeFromTree)
+            .filter((child): child is FileNode => child !== null);
+          return { ...current, children: filteredChildren };
+        }
+        return current;
+      };
+
+      const filesToClose = prev.openFiles.filter(
+        (file) => file.path === node.path || (node.is_directory && file.path.startsWith(node.path)),
+      );
+
+      const remainingFiles = prev.openFiles.filter((file) => !filesToClose.includes(file));
+
+      const activeFileId = filesToClose.some((file) => file.id === prev.activeFileId)
+        ? remainingFiles[0]?.id ?? null
+        : prev.activeFileId;
+
+      return {
+        ...prev,
+        projectTree: prev.projectTree ? removeFromTree(prev.projectTree) ?? null : prev.projectTree,
+        openFiles: remainingFiles,
+        activeFileId,
+      };
+    });
+  } catch (error) {
+    console.error("Failed to delete:", error);
+    await message(`Failed to delete: ${error}`, { title: "Error" });
+    const workspace = getState().workspace;
+    if (workspace) {
+      await openWorkspace(workspace, false);
+    }
+  }
+};
+
+const setProjectTree = (tree: FileNode | null) => {
+  setState((prev) => ({ ...prev, projectTree: tree }));
+};
+
+const toggleSidebar = () => {
+  setState((prev) => {
+    const next = !prev.isSidebarVisible;
+    void saveToStore("rainy-coder-sidebar-visible", next);
+    return { ...prev, isSidebarVisible: next };
+  });
+};
+
+const setSidebarActive = (tab: SidebarTab) => {
+  setState((prev) => ({ ...prev, sidebarActive: tab }));
+  void saveToStore("rainy-coder-sidebar-active", tab);
+};
+
+const setAutoSave = (enabled: boolean) => {
+  setState((prev) => ({ ...prev, autoSave: enabled }));
+  void saveToStore("rainy-coder-auto-save", enabled);
+};
+
+const toggleZenMode = () => {
+  setState((prev) => {
+    const next = !prev.isZenMode;
+    void saveToStore("rainy-coder-zen-mode", next);
+    return { ...prev, isZenMode: next };
+  });
+};
+
+const closeAllEditors = () => {
+  setState((prev) => ({
+    ...prev,
+    openFiles: [],
+    activeFileId: null,
+    currentView: prev.workspace ? "editor" : "startup",
+  }));
+};
+
+const revealActiveFile = async () => {
+  const activeId = getState().activeFileId;
+  const file = getState().openFiles.find((openFile) => openFile.id === activeId);
+  if (!file || !file.path) {
+    await message("No hay archivo activo para revelar.", { title: "Reveal In Explorer" });
+    return;
+  }
+  if (!isTauriEnv()) {
+    await message("Reveal in Explorer solo está disponible en la app de escritorio.", {
+      title: "Reveal In Explorer",
+    });
+    return;
+  }
+  try {
+    await invoke("open_in_directory", { path: file.path });
+  } catch (error) {
+    console.error(error);
+    await message(`No se pudo revelar el archivo: ${error}`, { title: "Reveal In Explorer" });
+  }
+};
+
+const revealWorkspace = async () => {
+  const workspace = getState().workspace;
+  if (!workspace) {
+    await message("No hay workspace para abrir en Explorer.", { title: "Reveal In Explorer" });
+    return;
+  }
+  if (!isTauriEnv()) {
+    await message("Reveal in Explorer solo está disponible en la app de escritorio.", {
+      title: "Reveal In Explorer",
+    });
+    return;
+  }
+  try {
+    await invoke("open_in_directory", { path: workspace.path });
+  } catch (error) {
+    console.error(error);
+    await message(`No se pudo abrir el workspace en Explorer: ${error}`, {
+      title: "Reveal In Explorer",
+    });
+  }
+};
+
+const createNewFile = () => {
+  const newFile: OpenFile = {
+    id: `file-${Date.now()}`,
+    name: "Untitled-1",
+    path: "",
+    content: "",
+    isDirty: false,
+  };
+
+  setState((prev) => ({
+    ...prev,
+    currentView: "editor",
+    openFiles: [...prev.openFiles, newFile],
+    activeFileId: newFile.id,
+  }));
+};
+
+const openFile = async (fileNode: FileNode) => {
+  const existingFile = getState().openFiles.find((file) => file.path === fileNode.path);
+  if (existingFile) {
+    setState((prev) => ({ ...prev, activeFileId: existingFile.id }));
+    return;
+  }
+
+  try {
+    const content = await invoke<string>("get_file_content", { path: fileNode.path });
+    const newFile: OpenFile = {
+      id: fileNode.path,
+      name: fileNode.name,
+      path: fileNode.path,
+      content,
+      isDirty: false,
+    };
+
+    setState((prev) => ({
+      ...prev,
+      currentView: "editor",
+      openFiles: [...prev.openFiles, newFile],
+      activeFileId: newFile.id,
+    }));
+  } catch (error) {
+    console.error("Failed to read file content:", error);
+  }
+};
+
+const openFolderDialog = async () => {
+  const selected = await open({
+    directory: true,
+    multiple: false,
+    title: "Open Project",
+  });
+
+  if (typeof selected === "string") {
+    const folderName = selected.replace(/\\/g, "/").split("/").pop() || "Unknown";
+    const workspace: Workspace = {
+      name: folderName,
+      path: selected,
+      type: "folder",
+    };
+    await openWorkspace(workspace, true);
+  }
+};
+
+const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true) => {
+  try {
+    const structure = await invoke<FileNode>("load_project_structure", { path: workspace.path });
+    setProjectTree(structure);
+
+    await invoke("watch_project_changes", { path: workspace.path });
+
+    try {
+      if (isTauriEnv()) {
+        const { terminalActions, terminalState } = await import("./terminalStore");
+        const activeSessionId = terminalState().activeSessionId;
+        if (activeSessionId) {
+          await terminalActions.changeDirectory(activeSessionId, workspace.path);
+        } else {
+          await terminalActions.open(undefined, workspace.path);
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to align terminal to workspace", error);
+    }
+
+    setState((prev) => {
+      const recentWorkspaces = saveToRecents
+        ? ensureWorkspaceInRecents(workspace, prev.recentWorkspaces)
+        : prev.recentWorkspaces;
+
+      if (saveToRecents) {
+        void saveToStore("rainy-coder-recent-workspaces", recentWorkspaces);
+      }
+
+      return {
+        ...prev,
+        currentView: "editor",
+        workspace,
+        recentWorkspaces,
+      };
+    });
+
+    void saveToStore("rainy-coder-current-view", "editor");
+
+    try {
+      const { setWorkspacePath, refreshHistory, refreshStatus, refreshRepoDetection } = await import("./gitStore");
+      setWorkspacePath(workspace.path);
+      refreshRepoDetection();
+      await refreshHistory(100);
+      await refreshStatus();
+    } catch (error) {
+      console.warn("Failed to initialize git state", error);
+    }
+  } catch (error) {
+    console.error("Failed to open workspace:", error);
+    await message(`Failed to open workspace: ${error}`, { title: "Workspace Error" });
+  }
+};
+
+const openRecentWorkspace = async (workspace: Workspace) => {
+  const activeWorkspace = getState().workspace;
+  if (activeWorkspace?.path === workspace.path) {
+    return;
+  }
+  await openWorkspace(workspace, true);
+};
+
+const clearRecentWorkspaces = () => {
+  void saveToStore("rainy-coder-recent-workspaces", []);
+  setState((prev) => ({ ...prev, recentWorkspaces: [] }));
+};
+
+const cloneRepository = () => {
+  console.log("Clone repository functionality will be implemented");
+};
+
+const openTerminal = async () => {
+  setState((prev) => ({ ...prev, currentView: "editor" }));
+  void saveToStore("rainy-coder-current-view", "editor");
+  const { terminalActions } = await import("./terminalStore");
+  await terminalActions.open(undefined, getState().workspace?.path);
+};
+
+const openSettings = () => {
+  setState((prev) => ({ ...prev, currentView: "settings" }));
+  void saveToStore("rainy-coder-current-view", "settings");
+};
+
+const closeSettings = () => {
+  const hasWorkspace = Boolean(getState().workspace);
+  setState((prev) => ({ ...prev, currentView: hasWorkspace ? "editor" : "startup" }));
+  void saveToStore("rainy-coder-current-view", hasWorkspace ? "editor" : "startup");
+};
+
+const closeFile = (fileId: string) => {
+  setState((prev) => {
+    const openFiles = prev.openFiles.filter((file) => file.id !== fileId);
+    const activeFileId = prev.activeFileId === fileId ? openFiles[0]?.id ?? null : prev.activeFileId;
+    const currentView = openFiles.length === 0 && !prev.workspace ? "startup" : "editor";
+    void saveToStore("rainy-coder-current-view", currentView);
+    return {
+      ...prev,
+      openFiles,
+      activeFileId,
+      currentView,
+    };
+  });
+};
+
+const setActiveFile = (fileId: string) => {
+  setState((prev) => ({ ...prev, activeFileId: fileId }));
+};
+
+const activateNextTab = () => {
+  const files = getState().openFiles;
+  if (files.length === 0) return;
+  const activeId = getState().activeFileId;
+  const activeIndex = files.findIndex((file) => file.id === activeId);
+  const nextIndex = activeIndex >= 0 ? (activeIndex + 1) % files.length : 0;
+  setActiveFile(files[nextIndex].id);
+};
+
+const activatePrevTab = () => {
+  const files = getState().openFiles;
+  if (files.length === 0) return;
+  const activeId = getState().activeFileId;
+  const activeIndex = files.findIndex((file) => file.id === activeId);
+  const prevIndex = activeIndex >= 0 ? (activeIndex - 1 + files.length) % files.length : files.length - 1;
+  setActiveFile(files[prevIndex].id);
+};
+
+const updateFileContent = (fileId: string, content: string) => {
+  setState((prev) => ({
+    ...prev,
+    openFiles: prev.openFiles.map((file) =>
+      file.id === fileId ? { ...file, content, isDirty: true } : file,
+    ),
+  }));
+
+  if (getState().autoSave) {
+    const existing = autoSaveTimers.get(fileId);
+    if (existing) clearTimeout(existing);
+    const timeout = setTimeout(() => {
+      const file = getState().openFiles.find((openFile) => openFile.id === fileId);
+      if (file?.path) {
+        void saveFile(fileId);
+      }
+    }, 800);
+    autoSaveTimers.set(fileId, timeout);
+  }
+};
+
+const saveFile = async (fileId: string) => {
+  const file = getState().openFiles.find((openFile) => openFile.id === fileId);
+  if (!file) return;
+
+  try {
+    await invoke("save_file_content", { path: file.path, content: file.content });
+    setState((prev) => ({
+      ...prev,
+      openFiles: prev.openFiles.map((openFile) =>
+        openFile.id === fileId ? { ...openFile, isDirty: false } : openFile,
+      ),
+    }));
+  } catch (error) {
+    console.error("Failed to save file:", error);
+    await message(`Failed to save file: ${error}`, { title: "Save Error" });
+  }
+};
+
+const saveFileAs = async (fileId: string) => {
+  const file = getState().openFiles.find((openFile) => openFile.id === fileId);
+  if (!file) return;
+  const defaultName = file.name || "Untitled-1";
+  const workspacePath = getState().workspace?.path;
+
+  try {
+    const selected = await save({
+      title: "Save As...",
+      defaultPath: workspacePath ? `${workspacePath}/${defaultName}` : defaultName,
+    });
+    if (typeof selected !== "string" || !selected) return;
+
+    await invoke("save_file_content", { path: selected, content: file.content });
+    const name = selected.replace(/\\/g, "/").split("/").pop() || defaultName;
+
+    setState((prev) => ({
+      ...prev,
+      openFiles: prev.openFiles.map((openFile) =>
+        openFile.id === fileId
+          ? { ...openFile, id: selected, path: selected, name, isDirty: false }
+          : openFile,
+      ),
+      activeFileId: prev.activeFileId === fileId ? selected : prev.activeFileId,
+    }));
+
+    const currentWorkspace = getState().workspace;
+    if (currentWorkspace) {
+      await openWorkspace(currentWorkspace, false);
+    }
+  } catch (error) {
+    console.error("Failed to save as:", error);
+    await message(`Failed to Save As: ${error}`, { title: "Save As Error" });
+  }
+};
+
+const saveAllFiles = async () => {
+  const dirtyFiles = getState().openFiles.filter((file) => file.isDirty);
+  for (const file of dirtyFiles) {
+    // eslint-disable-next-line no-await-in-loop
+    await saveFile(file.id);
+  }
+};
+
+const closeProject = async () => {
+  const dirtyFiles = getState().openFiles.filter((file) => file.isDirty);
+  if (dirtyFiles.length > 0) {
+    const confirmed = await message(
+      `There are ${dirtyFiles.length} unsaved file(s). Do you want to save them before closing the project?`,
+      { title: "Unsaved Changes" },
+    );
+
+    if (confirmed) {
+      await saveAllFiles();
+    } else {
+      return;
+    }
+  }
+
+  const workspace = getState().workspace;
+  let recentWorkspaces = getState().recentWorkspaces;
+  if (workspace) {
+    recentWorkspaces = recentWorkspaces.filter((item) => item.path !== workspace.path);
+    void saveToStore("rainy-coder-recent-workspaces", recentWorkspaces);
+  }
+
+  setState((prev) => ({
+    ...prev,
+    currentView: "startup",
+    openFiles: [],
+    activeFileId: null,
+    workspace: null,
+    projectTree: null,
+    recentWorkspaces,
+  }));
+
+  void saveToStore("rainy-coder-current-view", "startup");
+};
+
+const ideActions = {
+  setCurrentView,
+  createFileAt,
+  createFolderAt,
+  renameNode,
+  deleteNode,
+  setProjectTree,
+  toggleSidebar,
+  setSidebarActive,
+  setAutoSave,
+  toggleZenMode,
+  closeAllEditors,
+  revealActiveFile,
+  revealWorkspace,
+  createNewFile,
+  openFile,
+  openFolderDialog,
+  openWorkspace,
+  openRecentWorkspace,
+  clearRecentWorkspaces,
+  cloneRepository,
+  openTerminal,
+  openSettings,
+  closeSettings,
+  closeFile,
+  setActiveFile,
+  activateNextTab,
+  activatePrevTab,
+  updateFileContent,
+  saveFile,
+  saveFileAs,
+  saveAllFiles,
+  closeProject,
+};
+
+interface IDEContextValue {
+  state: () => IDEState;
+  actions: typeof ideActions;
+}
+
+const IDEContext = createContext<IDEContextValue | undefined>(undefined);
+
+const initializeFromStorage = async () => {
+  const savedRecentWorkspaces = await loadFromStore<Workspace[]>("rainy-coder-recent-workspaces", []);
+  const lastWorkspace = savedRecentWorkspaces[0] ?? null;
+
+  if (lastWorkspace) {
+    await openWorkspace(lastWorkspace, false);
+    void saveToStore("rainy-coder-current-view", "editor");
+  }
+
+  const [sidebarVisible, autoSaveEnabled, zenModeEnabled, sidebarActive] = await Promise.all([
+    loadFromStore<boolean>("rainy-coder-sidebar-visible", true),
+    loadFromStore<boolean>("rainy-coder-auto-save", false),
+    loadFromStore<boolean>("rainy-coder-zen-mode", false),
+    loadFromStore<SidebarTab>("rainy-coder-sidebar-active", "explorer"),
+  ]);
+
+  setState((prev) => ({
+    ...prev,
+    currentView: lastWorkspace ? "editor" : "startup",
+    recentWorkspaces: savedRecentWorkspaces,
+    isSidebarVisible: sidebarVisible,
+    autoSave: autoSaveEnabled,
+    isZenMode: zenModeEnabled,
+    sidebarActive,
+  }));
+};
+
+const setupFileChangeListener = async (
+  setReloadTimeout: (updater: (handle: TimeoutHandle | null) => TimeoutHandle | null) => void,
+): Promise<UnlistenFn | null> => {
+  if (!isTauriEnv()) {
+    return null;
+  }
+
+  try {
+    const unlisten = await listen("file-change", (event) => {
+      const changedPaths = (event.payload as string[]) ?? [];
+      const snapshot = getState();
+      const hasDirtyOpenFile = changedPaths.some((path) =>
+        snapshot.openFiles.some((file) => file.path === path && file.isDirty),
+      );
+
+      if (!hasDirtyOpenFile && snapshot.workspace) {
+        setReloadTimeout((current) => {
+          if (current) clearTimeout(current);
+          return setTimeout(() => {
+            const workspace = getState().workspace;
+            if (workspace) {
+              void openWorkspace(workspace, false);
+            }
+          }, 300);
+        });
+      }
+    });
+
+    return unlisten;
+  } catch (error) {
+    console.error("Failed to register file-change listener:", error);
+    return null;
+  }
+};
+
+export const IDEProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
+  const stateSnapshot = useIDEState();
+
+  useEffect(() => {
+    let reloadTimeout: TimeoutHandle | null = null;
+    let cancelled = false;
+    let unlisten: UnlistenFn | null = null;
+
+    const setReloadTimeout = (updater: (handle: TimeoutHandle | null) => TimeoutHandle | null) => {
+      if (reloadTimeout) {
+        clearTimeout(reloadTimeout);
+      }
+      reloadTimeout = updater(reloadTimeout);
+    };
+
+    (async () => {
+      try {
+        await initializeFromStorage();
+      } catch (error) {
+        console.error("Failed to initialize IDE store:", error);
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      unlisten = await setupFileChangeListener(setReloadTimeout);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (reloadTimeout) {
+        clearTimeout(reloadTimeout);
+      }
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, []);
+
+  const contextValue = useMemo<IDEContextValue>(
+    () => ({
+      state: () => stateSnapshot,
+      actions: ideActions,
+    }),
+    [stateSnapshot],
+  );
+
+  return <IDEContext.Provider value={contextValue}>{children}</IDEContext.Provider>;
+};
+
+export const useIDEStore = () => {
+  const context = useContext(IDEContext);
+  if (!context) {
+    throw new Error("useIDEStore must be used within an IDEProvider");
+  }
+  return context;
+};
