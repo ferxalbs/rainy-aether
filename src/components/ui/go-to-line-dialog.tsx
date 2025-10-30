@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./dialog";
-import { Input } from "./input";
+import { useCallback, useEffect, useId, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog";
 import { Button } from "./button";
+import { Input } from "./input";
+import { Label } from "./label";
 
 interface GoToLineDialogProps {
   open: boolean;
@@ -10,94 +11,120 @@ interface GoToLineDialogProps {
   onConfirm: (line: number) => void;
 }
 
-const GoToLineDialog: React.FC<GoToLineDialogProps> = ({ open, onOpenChange, maxLine, onConfirm }) => {
+const GoToLineDialog: React.FC<GoToLineDialogProps> = ({
+  open,
+  onOpenChange,
+  maxLine,
+  onConfirm,
+}) => {
   const [value, setValue] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const inputId = useId();
 
   useEffect(() => {
     if (!open) {
-      setValue("");
-      setError(null);
+      return;
     }
+
+    setValue("");
+    setError("");
   }, [open]);
 
-  const parsedValue = useMemo(() => {
-    if (!value.trim()) return null;
-    const parsed = Number.parseInt(value, 10);
-    return Number.isNaN(parsed) ? null : parsed;
-  }, [value]);
-
-  useEffect(() => {
-    if (!value) {
-      setError(null);
-      return;
+  const parseLine = useCallback((raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return Number.NaN;
     }
 
-    if (parsedValue === null) {
-      setError("Enter a valid number");
-      return;
-    }
+    const parsed = Number.parseInt(trimmed, 10);
+    return Number.isFinite(parsed) ? parsed : Number.NaN;
+  }, []);
 
-    if (parsedValue < 1 || parsedValue > maxLine) {
-      setError(`Enter a value between 1 and ${maxLine}`);
-      return;
-    }
+  const validate = useCallback(
+    (lineNumber: number) => {
+      if (!Number.isFinite(lineNumber)) {
+        return "Enter a valid number";
+      }
 
-    setError(null);
-  }, [parsedValue, maxLine, value]);
+      if (lineNumber < 1 || lineNumber > maxLine) {
+        return `Enter a number between 1 and ${maxLine}`;
+      }
 
-  const handleClose = useCallback(() => {
-    onOpenChange(false);
-  }, [onOpenChange]);
+      return "";
+    },
+    [maxLine]
+  );
 
   const handleConfirm = useCallback(() => {
-    if (parsedValue === null || parsedValue < 1 || parsedValue > maxLine) {
+    const parsed = parseLine(value);
+    const validationError = validate(parsed);
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
-    onConfirm(parsedValue);
-    handleClose();
-  }, [handleClose, maxLine, onConfirm, parsedValue]);
+
+    onConfirm(parsed);
+    onOpenChange(false);
+  }, [onConfirm, onOpenChange, parseLine, validate, value]);
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleConfirm();
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onOpenChange(false);
+      }
+    },
+    [handleConfirm, onOpenChange]
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-[360px]" onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle>Go to Line</DialogTitle>
+          <DialogDescription>
+            Enter a line number between 1 and {maxLine}.
+          </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="go-to-line-input">
-            Line number (1 – {maxLine})
-          </label>
-          <Input
-            id="go-to-line-input"
-            autoFocus
-            inputMode="numeric"
-            placeholder="Enter line number"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                handleConfirm();
-              }
-              if (event.key === "Escape") {
-                event.preventDefault();
-                handleClose();
-              }
-            }}
-          />
-          {error && <p className="text-xs text-destructive">{error}</p>}
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor={inputId}>Line Number</Label>
+            <Input
+              id={inputId}
+              value={value}
+              onChange={(event) => {
+                setValue(event.target.value);
+                if (error) {
+                  setError("");
+                }
+              }}
+              inputMode="numeric"
+              placeholder="e.g. 42"
+              autoFocus
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${inputId}-error` : undefined}
+            />
+            <p
+              id={`${inputId}-error`}
+              role="alert"
+              className={error ? "text-destructive text-sm" : "hidden"}
+            >
+              {error}
+            </p>
+          </div>
         </div>
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={handleClose}>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={Boolean(error) || !parsedValue}>
-            Go
-          </Button>
-        </DialogFooter>
+          <Button onClick={handleConfirm}>Go</Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

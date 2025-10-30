@@ -61,10 +61,7 @@ const subscribe = (listener: TerminalListener) => {
   };
 };
 
-const getSnapshot = () => ({
-  ...terminalStateData,
-  sessions: terminalStateData.sessions.map((session) => ({ ...session })),
-});
+const getSnapshot = () => terminalStateData;
 
 export const useTerminalState = () =>
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

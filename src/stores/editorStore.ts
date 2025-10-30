@@ -46,7 +46,7 @@ const subscribe = (listener: EditorStateListener) => {
   };
 };
 
-const getSnapshot = () => ({ ...editorState });
+const getSnapshot = () => editorState;
 
 export const useEditorState = () =>
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

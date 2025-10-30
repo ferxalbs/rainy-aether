@@ -75,7 +75,7 @@ export const subscribeToThemeChanges = (listener: (theme: Theme) => void) => {
   };
 };
 
-const getThemeSnapshot = () => ({ ...themeState });
+const getThemeSnapshot = () => themeState;
 
 export const useThemeState = () =>
   useSyncExternalStore(subscribeToThemeState, getThemeSnapshot, getThemeSnapshot);

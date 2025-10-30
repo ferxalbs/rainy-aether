@@ -5,6 +5,32 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "opener:default"
+    "store:default",
+    "opener:default",
+    "dialog:default",
+    "dialog:allow-open",
+    "fs:default",
+    "fs:allow-read-dir",
+    "fs:allow-read-file",
+    "fs:allow-read-text-file",
+    "fs:allow-exists",
+    "fs:allow-stat",
+    "fs:allow-lstat",
+    "fs:allow-watch",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-is-registered",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$HOME/**" },
+        { "path": "$DESKTOP/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "C:/**" },
+        { "path": "D:/**" },
+        { "path": "E:/**" },
+        { "path": "**/*" }
+      ]
+    }
   ]
 }

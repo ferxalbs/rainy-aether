@@ -106,7 +106,8 @@ const subscribe = (listener: IDEStateListener) => {
   };
 };
 
-const useIDEState = () => useSyncExternalStore(subscribe, getState, getState);
+// Hook to subscribe to IDE state changes
+export const useIDEState = () => useSyncExternalStore(subscribe, getState, getState);
 
 const autoSaveTimers = new Map<string, TimeoutHandle>();
 
@@ -501,6 +502,8 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
   } catch (error) {
     console.error("Failed to open workspace:", error);
     await message(`Failed to open workspace: ${error}`, { title: "Workspace Error" });
+    // Ensure we stay on startup view if workspace fails to open
+    setState((prev) => ({ ...prev, currentView: "startup", workspace: null }));
   }
 };
 
@@ -740,11 +743,6 @@ const initializeFromStorage = async () => {
   const savedRecentWorkspaces = await loadFromStore<Workspace[]>("rainy-coder-recent-workspaces", []);
   const lastWorkspace = savedRecentWorkspaces[0] ?? null;
 
-  if (lastWorkspace) {
-    await openWorkspace(lastWorkspace, false);
-    void saveToStore("rainy-coder-current-view", "editor");
-  }
-
   const [sidebarVisible, autoSaveEnabled, zenModeEnabled, sidebarActive] = await Promise.all([
     loadFromStore<boolean>("rainy-coder-sidebar-visible", true),
     loadFromStore<boolean>("rainy-coder-auto-save", false),
@@ -754,13 +752,18 @@ const initializeFromStorage = async () => {
 
   setState((prev) => ({
     ...prev,
-    currentView: lastWorkspace ? "editor" : "startup",
     recentWorkspaces: savedRecentWorkspaces,
     isSidebarVisible: sidebarVisible,
     autoSave: autoSaveEnabled,
     isZenMode: zenModeEnabled,
     sidebarActive,
   }));
+
+  // Open last workspace after setting other preferences
+  // This ensures openWorkspace's state changes aren't overwritten
+  if (lastWorkspace) {
+    await openWorkspace(lastWorkspace, false);
+  }
 };
 
 const setupFileChangeListener = async (
@@ -799,8 +802,6 @@ const setupFileChangeListener = async (
 };
 
 export const IDEProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const stateSnapshot = useIDEState();
-
   useEffect(() => {
     let reloadTimeout: TimeoutHandle | null = null;
     let cancelled = false;
@@ -840,10 +841,10 @@ export const IDEProvider: React.FC<React.PropsWithChildren> = ({ children }) => 
 
   const contextValue = useMemo<IDEContextValue>(
     () => ({
-      state: () => stateSnapshot,
+      state: getState,
       actions: ideActions,
     }),
-    [stateSnapshot],
+    [],
   );
 
   return <IDEContext.Provider value={contextValue}>{children}</IDEContext.Provider>;

@@ -62,10 +62,7 @@ const subscribe = (listener: GitStateListener) => {
   };
 };
 
-const getSnapshot = () => ({
-  ...git,
-  unpushedHashes: new Set(git.unpushedHashes),
-});
+const getSnapshot = () => git;
 
 export const useGitState = () =>
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

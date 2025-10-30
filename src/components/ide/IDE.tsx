@@ -10,17 +10,17 @@ import QuickOpen from "./QuickOpen";
 import CommandPalette from "./CommandPalette";
 import StartupPage from "./StartupPage";
 import SettingsPage from "./SettingsPage";
-import { initializeTheme } from "../../stores/themeStore";
-import { useIDEStore } from "../../stores/ideStore";
+import { useIDEStore, useIDEState } from "../../stores/ideStore";
 import "../../css/IDE.css";
 import TabSwitcher from "./TabSwitcher";
 import TerminalPanel from "./TerminalPanel";
 import { editorActions, editorState } from "../../stores/editorStore";
-import GoToLineDialog from "../ui/go-to-line-dialog";
 import { terminalActions } from "../../stores/terminalStore";
+import GoToLineDialog from "../ui/go-to-line-dialog";
 
 const IDE: React.FC = () => {
   const { state, actions } = useIDEStore();
+  useIDEState(); // Subscribe to state changes to trigger re-renders
 
   const [isThemeSwitcherOpen, setIsThemeSwitcherOpen] = useState(false);
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
@@ -88,12 +88,10 @@ const IDE: React.FC = () => {
         }, 1200);
       }
     },
-    [actions, state],
+    [],
   );
 
   useEffect(() => {
-    initializeTheme();
-
     const handler = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
       const ctrl = event.ctrlKey || event.metaKey;
@@ -374,7 +372,7 @@ const IDE: React.FC = () => {
         });
       }
     };
-  }, [actions, cycleTab, state]);
+  }, [cycleTab]);
 
   const snapshot = state();
   const currentView = snapshot.currentView;

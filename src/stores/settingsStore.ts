@@ -56,10 +56,7 @@ const subscribe = (listener: SettingsListener) => {
   };
 };
 
-const getSnapshot = () => ({
-  ...settingsState,
-  customFileColors: { ...settingsState.customFileColors },
-});
+const getSnapshot = () => settingsState;
 
 export const useSettingsState = () =>
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
