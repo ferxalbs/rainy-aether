@@ -4,7 +4,7 @@
 
 **Based on latest market analysis (October 30, 2025) of Cursor 2.0, TRAE.AI, and Windsurf features**
 
-Rainy Aether 2 is positioned as the ultimate AI-native IDE that goes beyond VS Code forks. Built with React and Tauri 2.0, it integrates cutting-edge AI orchestration with Claude Agents SDK and multi-provider support to create a truly differentiated development experience.
+Rainy Aether is positioned as the ultimate AI-native IDE that goes beyond VS Code forks. Built with React and Tauri 2.0, it integrates cutting-edge AI orchestration with Claude Agents SDK and multi-provider support to create a truly differentiated development experience.
 
 ---
 
@@ -40,7 +40,7 @@ Rainy Aether 2 is positioned as the ultimate AI-native IDE that goes beyond VS C
 ### 1. Enhanced Code Editor Core
 **Priority: CRITICAL** | **Inspiration: Cursor 2.0, TRAE.AI**
 
-- [x] CodeMirror 6 with multi-language support
+- [x] CodeMirror 6 with multi-language support coming to migrate to Monaco Editor.
 - [ ] **Composer-Style Fast Model** (Sub-30 second responses)[^1]
     - Custom frontier model optimized for speed
     - 4x faster than similarly intelligent models

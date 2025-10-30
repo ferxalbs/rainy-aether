@@ -377,7 +377,6 @@ const IDE: React.FC = () => {
   const snapshot = state();
   const currentView = snapshot.currentView;
   const isZenMode = snapshot.isZenMode;
-  const isSidebarVisible = snapshot.isSidebarVisible;
   const view = editorState.view;
   const maxLine = view ? view.state.doc.lines : 1;
 
@@ -397,7 +396,7 @@ const IDE: React.FC = () => {
           />
           {!isZenMode && <TopToolbar onOpenThemeSwitcher={() => setIsThemeSwitcherOpen(true)} />}
           <div className="flex-1 flex overflow-hidden">
-            {!isZenMode && isSidebarVisible && <Sidebar />}
+            {!isZenMode && <Sidebar />}
             <div className="flex-1">
               <FileViewer />
             </div>

@@ -227,6 +227,17 @@ const applyTheme = (theme: Theme) => {
     root.style.setProperty('--border', hexToHslStr(borderColor));
     root.style.setProperty('--input', hexToHslStr(borderColor));
     root.style.setProperty('--ring', hexToHslStr(accentPrimary));
+
+    // Sidebar-specific variables (map to IDE theme colors)
+    const bgSidebar = theme.variables['--bg-sidebar'] || bgPrimary;
+    root.style.setProperty('--sidebar', hexToHslStr(bgSidebar));
+    root.style.setProperty('--sidebar-foreground', hexToHslStr(textPrimary));
+    root.style.setProperty('--sidebar-primary', hexToHslStr(accentPrimary));
+    root.style.setProperty('--sidebar-primary-foreground', hexToHslStr(bgPrimary));
+    root.style.setProperty('--sidebar-accent', hexToHslStr(bgTertiary));
+    root.style.setProperty('--sidebar-accent-foreground', hexToHslStr(textPrimary));
+    root.style.setProperty('--sidebar-border', hexToHslStr(borderColor));
+    root.style.setProperty('--sidebar-ring', hexToHslStr(accentPrimary));
   }
 
   // Remove data-theme attribute to avoid conflicts

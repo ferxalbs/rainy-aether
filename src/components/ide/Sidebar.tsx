@@ -16,13 +16,13 @@ interface ActivityButtonProps {
 const ActivityButton: React.FC<ActivityButtonProps> = ({ active, onClick, label, icon: Icon }) => (
   <button
     className={cn(
-      "w-10 h-10 flex items-center justify-center",
-      active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50",
+      "w-12 h-12 flex items-center justify-center transition-colors",
+      active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"
     )}
     title={label}
     onClick={onClick}
   >
-    <Icon size={18} />
+    <Icon size={20} />
   </button>
 );
 
@@ -30,10 +30,12 @@ const Sidebar: React.FC = () => {
   const { state, actions } = useIDEStore();
   const snapshot = state();
   const activeTab = snapshot.sidebarActive;
+  const isOpen = snapshot.isSidebarOpen;
 
   return (
-    <div className="flex border-r">
-      <div className="flex flex-col items-center py-1 sidebar-activity-bar">
+    <div className="flex h-full border-r ">
+      {/* Activity Bar - Always visible */}
+      <div className="flex flex-col items-center py-2 bg-sidebar border-r border-sidebar-border">
         <ActivityButton
           icon={Folder}
           label="Explorer"
@@ -47,10 +49,14 @@ const Sidebar: React.FC = () => {
           onClick={() => actions.setSidebarActive("git")}
         />
       </div>
-      <div className="w-64 sidebar-content">
-        {activeTab === "explorer" && <ProjectExplorer />}
-        {activeTab === "git" && <GitHistoryPanel />}
-      </div>
+
+      {/* Content Panel - Conditionally visible */}
+      {isOpen && (
+        <div className="w-64 bg-sidebar flex flex-col">
+          {activeTab === "explorer" && <ProjectExplorer />}
+          {activeTab === "git" && <GitHistoryPanel />}
+        </div>
+      )}
     </div>
   );
 };

@@ -56,7 +56,7 @@ export interface IDEState {
   workspace: Workspace | null;
   recentWorkspaces: Workspace[];
   projectTree: FileNode | null;
-  isSidebarVisible: boolean;
+  isSidebarOpen: boolean;
   autoSave: boolean;
   isZenMode: boolean;
   sidebarActive: SidebarTab;
@@ -69,7 +69,7 @@ const initialState: IDEState = {
   workspace: null,
   recentWorkspaces: [],
   projectTree: null,
-  isSidebarVisible: true,
+  isSidebarOpen: true,
   autoSave: false,
   isZenMode: false,
   sidebarActive: "explorer",
@@ -342,15 +342,31 @@ const setProjectTree = (tree: FileNode | null) => {
 
 const toggleSidebar = () => {
   setState((prev) => {
-    const next = !prev.isSidebarVisible;
-    void saveToStore("rainy-coder-sidebar-visible", next);
-    return { ...prev, isSidebarVisible: next };
+    const next = !prev.isSidebarOpen;
+    void saveToStore("rainy-coder-sidebar-open", next);
+    return { ...prev, isSidebarOpen: next };
+  });
+};
+
+const setSidebarOpen = (open: boolean) => {
+  setState((prev) => {
+    void saveToStore("rainy-coder-sidebar-open", open);
+    return { ...prev, isSidebarOpen: open };
   });
 };
 
 const setSidebarActive = (tab: SidebarTab) => {
-  setState((prev) => ({ ...prev, sidebarActive: tab }));
-  void saveToStore("rainy-coder-sidebar-active", tab);
+  setState((prev) => {
+    // If clicking the same tab and sidebar is open, collapse it
+    if (prev.sidebarActive === tab && prev.isSidebarOpen) {
+      void saveToStore("rainy-coder-sidebar-open", false);
+      return { ...prev, isSidebarOpen: false };
+    }
+    // If clicking a different tab or sidebar is collapsed, expand and switch
+    void saveToStore("rainy-coder-sidebar-active", tab);
+    void saveToStore("rainy-coder-sidebar-open", true);
+    return { ...prev, sidebarActive: tab, isSidebarOpen: true };
+  });
 };
 
 const setAutoSave = (enabled: boolean) => {
@@ -736,6 +752,7 @@ const ideActions = {
   deleteNode,
   setProjectTree,
   toggleSidebar,
+  setSidebarOpen,
   setSidebarActive,
   setAutoSave,
   toggleZenMode,
@@ -774,8 +791,8 @@ const initializeFromStorage = async () => {
   const savedRecentWorkspaces = await loadFromStore<Workspace[]>("rainy-coder-recent-workspaces", []);
   const lastWorkspace = savedRecentWorkspaces[0] ?? null;
 
-  const [sidebarVisible, autoSaveEnabled, zenModeEnabled, sidebarActive] = await Promise.all([
-    loadFromStore<boolean>("rainy-coder-sidebar-visible", true),
+  const [sidebarOpen, autoSaveEnabled, zenModeEnabled, sidebarActive] = await Promise.all([
+    loadFromStore<boolean>("rainy-coder-sidebar-open", true),
     loadFromStore<boolean>("rainy-coder-auto-save", false),
     loadFromStore<boolean>("rainy-coder-zen-mode", false),
     loadFromStore<SidebarTab>("rainy-coder-sidebar-active", "explorer"),
@@ -784,7 +801,7 @@ const initializeFromStorage = async () => {
   setState((prev) => ({
     ...prev,
     recentWorkspaces: savedRecentWorkspaces,
-    isSidebarVisible: sidebarVisible,
+    isSidebarOpen: sidebarOpen,
     autoSave: autoSaveEnabled,
     isZenMode: zenModeEnabled,
     sidebarActive,
