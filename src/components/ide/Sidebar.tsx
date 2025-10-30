@@ -1,9 +1,16 @@
 import React from "react";
+import { Folder, GitCommit } from "lucide-react";
+
 import { useIDEStore } from "../../stores/ideStore";
 import ProjectExplorer from "./ProjectExplorer";
 import GitHistoryPanel from "./GitHistoryPanel";
-import { Folder, GitCommit } from "lucide-react";
 import { cn } from "@/lib/cn";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import "../../css/Sidebar.css";
 
 interface ActivityButtonProps {
@@ -14,16 +21,27 @@ interface ActivityButtonProps {
 }
 
 const ActivityButton: React.FC<ActivityButtonProps> = ({ active, onClick, label, icon: Icon }) => (
-  <button
-    className={cn(
-      "w-12 h-12 flex items-center justify-center transition-colors rounded-lg",
-      active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"
-    )}
-    title={label}
-    onClick={onClick}
-  >
-    <Icon size={20} />
-  </button>
+  <TooltipProvider delayDuration={200}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          className={cn(
+            "group relative flex h-12 w-12 items-center justify-center rounded-lg transition-colors hover:bg-muted/50",
+            active
+              ? "bg-muted text-foreground"
+              : "text-muted-foreground hover:bg-muted/50"
+          )}
+          onClick={onClick}
+          aria-label={label}
+        >
+          <Icon size={20} />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" align="center" className="px-2 py-1 text-xs">
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
 );
 
 const Sidebar: React.FC = () => {
