@@ -1,16 +1,19 @@
 # AGENTS.md
 
-Agent-focused guide for Rainy Coder — a modern desktop code editor built with Tauri (Rust) and SolidJS. This document follows the AGENTS.md standard to give coding agents a predictable, comprehensive context for working on this project.
+Agent-focused guide for Rainy Coder — a modern desktop code editor built with Tauri (Rust) and React. This document follows the AGENTS.md standard to give coding agents a predictable, comprehensive context for working on this project.
 
 ## Project Overview
 
 - Frontend: React + TypeScript, Tailwind CSS v4
 - Desktop wrapper: Tauri 2 (Rust)
 - Editor: CodeMirror 6 (languages: JS/TS, HTML, CSS, Markdown, Rust)
-- State: SolidJS stores under `src/stores/`
+- State: React stores built on `useSyncExternalStore` under `src/stores/`
 - Theming: CSS variables mapped to Tailwind v4 tokens; unified Day/Night modes with optional System sync
 - Files/FS: Tauri plugins for dialog, fs, store, opener
 - NOTE: No LSP proxy is currently implemented. See “Removed Features” for context.
+- Git integration: native history, status, and commit workflows via Tauri commands and React store consumers
+- Terminal integration: PTY-backed terminal sessions with Windows-specific shell fallbacks and directory sync
+- Global shortcuts: desktop-only accelerator mapping for quick open, command palette, saving, navigation, and layout toggles
 
 ## Setup Commands
 
@@ -138,7 +141,7 @@ src/
 ├─ components/
 │  ├─ ide/            # Core IDE UI (Explorer, Editor, StatusBar, etc.)
 │  └─ ui/             # Reusable UI primitives (button, card, dialog, etc.)
-├─ stores/            # SolidJS stores (theme, settings, IDE state)
+├─ stores/            # React stores (theme, settings, IDE state)
 ├─ themes/            # Theme definitions and validators
 ├─ utils/             # Utilities (system theme detection, version)
 └─ index.tsx          # App bootstrap
@@ -278,6 +281,8 @@ There is no formal frontend test suite yet; prioritize local type checks and man
 - When editing multiple files, keep diffs focused; do not refactor unrelated areas.
 - If you add a new component, place it under `src/components/ui/` or `src/components/ide/` appropriately.
 - For file operations, route through existing Tauri commands; do not bypass them.
+- Leverage Git store helpers (`refreshHistory`, `refreshStatus`, `commit`) when extending VCS features and respect unpushed set handling.
+- Reuse terminal actions for session lifecycle (`terminal_create`, `terminal_write`, `terminal_change_directory`) and preserve environment-specific behavior.
 
 ## Common Tasks
 
