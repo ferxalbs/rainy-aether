@@ -10,7 +10,7 @@ import {
   Sun,
   FilePlus,
 } from "lucide-react";
-import { cn } from "../../libs/cn";
+import { cn } from "@/lib/cn";
 import { toggleDayNight, useThemeState } from "../../stores/themeStore";
 
 interface CommandPaletteProps {

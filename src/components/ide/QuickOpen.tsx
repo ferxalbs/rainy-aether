@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIDEStore, type FileNode } from "../../stores/ideStore";
 import { Search, File as FileIcon } from "lucide-react";
-import { cn } from "../../libs/cn";
+import { cn } from "@/lib/utils";
 
 interface QuickOpenProps {
   isOpen: boolean;

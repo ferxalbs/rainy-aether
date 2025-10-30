@@ -3,7 +3,7 @@ import { useIDEStore } from "../../stores/ideStore";
 import ProjectExplorer from "./ProjectExplorer";
 import GitHistoryPanel from "./GitHistoryPanel";
 import { Folder, GitCommit } from "lucide-react";
-import { cn } from "../../libs/cn";
+import { cn } from "@/lib/cn";
 import "../../css/Sidebar.css";
 
 interface ActivityButtonProps {

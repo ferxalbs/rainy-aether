@@ -12,9 +12,17 @@
   "app": {
     "windows": [
       {
-        "title": "rainy-aether",
-        "width": 800,
-        "height": 600
+        "title": "Rainy Code",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "decorations": true,
+        "visible": true,
+        "center": true,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true
       }
     ],
     "security": {

@@ -3,7 +3,7 @@ import { useIDEStore, OpenFile } from "../../stores/ideStore";
 import CodeMirrorEditor from "./CodeMirrorEditor";
 import { X } from "lucide-react";
 import { Button } from "../ui/button";
-import { cn } from "../../libs/cn";
+import { cn } from "@/lib/cn";
 import "../../css/FileViewer.css";
 
 type SupportedLanguage = "javascript" | "html" | "css" | "markdown" | "rust" | undefined;

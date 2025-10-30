@@ -4,12 +4,12 @@ import {
   MenubarContent,
   MenubarItem,
   MenubarMenu,
-  MenubarSeparator,
-  MenubarShortcut,
   MenubarSub,
   MenubarSubContent,
   MenubarSubTrigger,
   MenubarTrigger,
+  MenubarSeparator,
+  MenubarShortcut,
 } from "../ui/menubar";
 import { useIDEStore } from "../../stores/ideStore";
 import { editorActions } from "../../stores/editorStore";

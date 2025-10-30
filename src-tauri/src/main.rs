@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    rainy_aether_lib::run()
+    rainy_coder_lib::run()
 }

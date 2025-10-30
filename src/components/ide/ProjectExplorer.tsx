@@ -2,12 +2,12 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useIDEStore, FileNode } from "../../stores/ideStore";
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, FilePlus, FolderPlus } from "lucide-react";
 import { Button } from "../ui/button";
-import { cn } from "../../libs/cn";
+import { cn } from "@/lib/utils";
 import "../../css/ProjectExplorer.css";
 import { fileIconColorForExt } from "../../stores/settingsStore";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
-import FileDialog from "../ui/file-dialog";
+import FileDialog from "./file-dialog";
 
 interface FileNodeProps {
   node: FileNode;
