@@ -15,12 +15,18 @@ import "../../css/IDE.css";
 import TabSwitcher from "./TabSwitcher";
 import TerminalPanel from "./TerminalPanel";
 import { editorActions, editorState } from "../../stores/editorStore";
-import { terminalActions } from "../../stores/terminalStore";
+import { terminalActions, useTerminalState } from "../../stores/terminalStore";
 import GoToLineDialog from "../ui/go-to-line-dialog";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "../ui/resizable";
 
 const IDE: React.FC = () => {
   const { state, actions } = useIDEStore();
   useIDEState(); // Subscribe to state changes to trigger re-renders
+  const terminalSnapshot = useTerminalState();
 
   const [isThemeSwitcherOpen, setIsThemeSwitcherOpen] = useState(false);
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
@@ -379,6 +385,7 @@ const IDE: React.FC = () => {
   const isZenMode = snapshot.isZenMode;
   const view = editorState.view;
   const maxLine = view ? view.state.doc.lines : 1;
+  const terminalVisible = !isZenMode && terminalSnapshot.visible;
 
   return (
     <div className="h-screen flex flex-col ide-container">
@@ -395,13 +402,36 @@ const IDE: React.FC = () => {
             onOpenGoToLine={() => setIsGoToLineOpen(true)}
           />
           {!isZenMode && <TopToolbar onOpenThemeSwitcher={() => setIsThemeSwitcherOpen(true)} />}
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex flex-1 overflow-hidden">
             {!isZenMode && <Sidebar />}
-            <div className="flex-1">
-              <FileViewer />
+            <div className="flex-1 overflow-hidden">
+              <ResizablePanelGroup direction="vertical" className="h-full">
+                <ResizablePanel
+                  defaultSize={terminalVisible ? 70 : 100}
+                  minSize={30}
+                  className="min-h-[200px]"
+                >
+                  <div className="flex h-full flex-col overflow-hidden">
+                    <FileViewer />
+                  </div>
+                </ResizablePanel>
+                {terminalVisible && (
+                  <>
+                    <ResizableHandle withHandle />
+                    <ResizablePanel
+                      defaultSize={30}
+                      minSize={20}
+                      collapsedSize={0}
+                      collapsible
+                      className="min-h-[160px]"
+                    >
+                      <TerminalPanel />
+                    </ResizablePanel>
+                  </>
+                )}
+              </ResizablePanelGroup>
             </div>
           </div>
-          {!isZenMode && <TerminalPanel />}
           {!isZenMode && <StatusBar />}
         </>
       )}

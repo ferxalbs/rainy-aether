@@ -7,6 +7,7 @@ import { Button } from "../ui/button";
 import "@xterm/xterm/css/xterm.css";
 import { useIDEStore } from "../../stores/ideStore";
 import { terminalActions, terminalState, useTerminalState } from "../../stores/terminalStore";
+import { cn } from "@/lib/utils";
 
 const isTauriEnv = () => {
   try {
@@ -213,34 +214,52 @@ const TerminalPanel: React.FC = () => {
   }
 
   return (
-    <div className="terminal-panel border-t bg-background" style={{ height: "220px" }}>
-      <div className="flex items-center justify-between px-2 py-1 text-xs">
-        <div className="flex items-center gap-2">
+    <div className="terminal-panel flex h-full flex-col overflow-hidden rounded-t-lg border border-border bg-card/95 shadow-lg">
+      <div className="flex items-center justify-between border-b border-border px-3 py-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-1">
           {sessions.map((session) => {
             const isActive = activeSessionId === session.id;
             return (
-              <button
+              <Button
                 key={session.id}
-                className={`px-2 py-1 rounded ${isActive ? "bg-muted" : ""}`}
+                variant={isActive ? "secondary" : "ghost"}
+                size="sm"
+                className={cn(
+                  "rounded-md px-2 text-xs",
+                  isActive
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
                 onClick={() => terminalActions.setActive(session.id)}
               >
                 {session.title}
-              </button>
+              </Button>
             );
           })}
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => terminalActions.toggle()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => terminalActions.toggle()}
+          >
             Hide
           </Button>
           {activeSessionId && (
-            <Button variant="ghost" size="sm" onClick={() => terminalActions.kill(activeSessionId)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => terminalActions.kill(activeSessionId)}
+            >
               Kill
             </Button>
           )}
           <Button
             variant="ghost"
             size="sm"
+            className="text-muted-foreground hover:text-foreground"
             onClick={() => terminalActions.open(undefined, currentWorkspacePath)}
           >
             New
@@ -249,24 +268,29 @@ const TerminalPanel: React.FC = () => {
       </div>
       <div
         ref={containerRef}
-        className="h-[180px] px-2"
+        className="relative flex-1 overflow-hidden px-3 pb-3"
         onKeyDown={handleInput}
         onClick={handleContainerClick}
         tabIndex={0}
       >
-        {sessions.map((session) => (
-          <div
-            key={session.id}
-            data-session={session.id}
-            style={{ display: activeSessionId === session.id ? "block" : "none" }}
-            className="w-full h-full"
-          >
-            <div className="xterm-host w-full h-full" />
-          </div>
-        ))}
+        <div className="relative h-full w-full overflow-hidden rounded-lg border border-border/70 bg-black/90">
+          {sessions.map((session) => (
+            <div
+              key={session.id}
+              data-session={session.id}
+              className={cn(
+                "absolute inset-0",
+                activeSessionId === session.id ? "opacity-100" : "opacity-0"
+              )}
+              style={{ pointerEvents: activeSessionId === session.id ? "auto" : "none" }}
+            >
+              <div className="xterm-host h-full w-full" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
-};
+}
 
 export default TerminalPanel;
