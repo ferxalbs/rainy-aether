@@ -1,86 +1,397 @@
-import React, { useMemo } from "react";
-import { Zap, GitBranch, AlertCircle, CheckCircle } from "lucide-react";
-import { useThemeState } from "../../stores/themeStore";
-import { useIDEStore } from "../../stores/ideStore";
+import React, { useEffect, useState } from 'react';
+import * as monaco from 'monaco-editor';
+import { 
+  CheckCircle, 
+  AlertCircle, 
+  XCircle, 
+  GitBranch, 
+  GitCommit,
+  Zap
+} from 'lucide-react';
+import { editorState } from '../../stores/editorStore';
+import { useIDEStore } from '../../stores/ideStore';
+import { getCurrentTheme } from '../../stores/themeStore';
+import { getGitService, GitStatus } from '../../services/gitService';
+import { cn } from '@/lib/cn';
 
-const getLanguageFromFile = (fileName?: string) => {
-  if (!fileName) return "Plain Text";
-  const ext = fileName.split(".").pop()?.toLowerCase();
-  switch (ext) {
-    case "ts":
-    case "tsx":
-      return "TypeScript";
-    case "js":
-    case "jsx":
-      return "JavaScript";
-    case "rs":
-      return "Rust";
-    case "json":
-      return "JSON";
-    case "md":
-      return "Markdown";
-    case "css":
-      return "CSS";
-    case "html":
-      return "HTML";
-    default:
-      return "Plain Text";
-  }
-};
+// Status bar item interface
+interface StatusBarItem {
+  id: string;
+  content: React.ReactNode;
+  tooltip?: string;
+  onClick?: () => void;
+  order: number;
+  position: 'left' | 'right';
+}
 
-const statusBarStyle: React.CSSProperties = {
-  backgroundColor: "var(--bg-status)",
-  borderColor: "var(--border-color)",
-};
+// Problems interface
+interface Problems {
+  errors: number;
+  warnings: number;
+}
 
-const mutedStyle: React.CSSProperties = {
-  color: "var(--text-secondary)",
-};
-
-const accentStyle: React.CSSProperties = {
-  color: "var(--accent-primary)",
-};
+// Editor info interface
+interface EditorInfo {
+  language: string;
+  encoding: string;
+  line: number;
+  column: number;
+  selection: string;
+  spaces: number;
+  tabSize: number;
+}
 
 const StatusBar: React.FC = () => {
   const { state } = useIDEStore();
-  const theme = useThemeState();
-  const snapshot = state();
+  const [gitStatus, setGitStatus] = useState<GitStatus>({
+    staged: 0,
+    modified: 0,
+    untracked: 0,
+    conflicts: 0,
+    clean: true
+  });
+  const [problems, setProblems] = useState<Problems>({ errors: 0, warnings: 0 });
+  const [editorInfo, setEditorInfo] = useState<EditorInfo>({
+    language: 'Plain Text',
+    encoding: 'UTF-8',
+    line: 1,
+    column: 1,
+    selection: '',
+    spaces: 2,
+    tabSize: 2
+  });
 
-  const activeFile = useMemo(
-    () => snapshot.openFiles.find((file) => file.id === snapshot.activeFileId),
-    [snapshot.activeFileId, snapshot.openFiles],
-  );
+  // Get language display name
+  const getLanguageDisplayName = (languageId: string): string => {
+    const languageMap: Record<string, string> = {
+      'typescript': 'TypeScript',
+      'javascript': 'JavaScript',
+      'html': 'HTML',
+      'css': 'CSS',
+      'markdown': 'Markdown',
+      'rust': 'Rust',
+      'json': 'JSON',
+      'xml': 'XML',
+      'yaml': 'YAML',
+      'sql': 'SQL',
+      'python': 'Python',
+      'java': 'Java',
+      'csharp': 'C#',
+      'cpp': 'C++',
+      'php': 'PHP',
+      'go': 'Go'
+    };
+    return languageMap[languageId] || languageId.charAt(0).toUpperCase() + languageId.slice(1);
+  };
 
-  const language = useMemo(() => getLanguageFromFile(activeFile?.name), [activeFile?.name]);
+  // Get selection info
+  const getSelectionInfo = (editor: monaco.editor.IStandaloneCodeEditor): string => {
+    const selection = editor.getSelection();
+    if (!selection || selection.isEmpty()) {
+      return '';
+    }
+    
+    const lineCount = selection.endLineNumber - selection.startLineNumber + 1;
+    const charCount = Math.abs(selection.startColumn - selection.endColumn) + 
+                     (lineCount - 1) * 100; // Approximate
+    
+    if (lineCount === 1) {
+      return `${charCount} selected`;
+    } else {
+      return `${lineCount} lines, ${charCount} selected`;
+    }
+  };
 
-  return (
-    <div className="flex items-center justify-between h-6 px-3 text-xs border-t" style={statusBarStyle}>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1" style={mutedStyle}>
+  // Update editor info
+  const updateEditorInfo = () => {
+    const editor = editorState.view;
+    if (!editor) return;
+
+    const model = editor.getModel();
+    if (!model) return;
+
+    const position = editor.getPosition();
+    if (!position) return;
+
+    setEditorInfo({
+      language: getLanguageDisplayName(model.getLanguageId()),
+      encoding: 'UTF-8', // Could be enhanced to detect actual encoding
+      line: position.lineNumber,
+      column: position.column,
+      selection: getSelectionInfo(editor),
+      spaces: model.getOptions().insertSpaces ? model.getOptions().tabSize as number : 0,
+      tabSize: model.getOptions().tabSize as number
+    });
+  };
+
+  // Get git status using real service
+  const updateGitStatus = async () => {
+    const snapshot = state();
+    if (!snapshot.workspace || !snapshot.workspace.path) {
+      setGitStatus({
+        staged: 0,
+        modified: 0,
+        untracked: 0,
+        conflicts: 0,
+        clean: true
+      });
+      return;
+    }
+
+    try {
+      const gitService = getGitService(snapshot.workspace.path);
+      const status = await gitService.getGitStatus();
+      setGitStatus(status);
+    } catch (error) {
+      console.error('Failed to get git status:', error);
+      setGitStatus({
+        staged: 0,
+        modified: 0,
+        untracked: 0,
+        conflicts: 0,
+        clean: true
+      });
+    }
+  };
+
+  // Update problems (would be replaced with actual linting integration)
+  const updateProblems = () => {
+    const editor = editorState.view;
+    if (!editor) {
+      setProblems({ errors: 0, warnings: 0 });
+      return;
+    }
+
+    const model = editor.getModel();
+    if (!model) return;
+
+    // This would be replaced with actual linting/diagnostics
+    // For now, simulating problems
+    const content = model.getValue();
+    const errorCount = (content.match(/error/gi) || []).length;
+    const warningCount = (content.match(/warning/gi) || []).length;
+    
+    setProblems({ errors: errorCount, warnings: warningCount });
+  };
+
+  // Update editor info when editor changes
+  useEffect(() => {
+    const editor = editorState.view;
+    if (!editor) return;
+
+    const updateHandler = () => {
+      updateEditorInfo();
+      updateProblems();
+    };
+
+    const cursorDisposable = editor.onDidChangeCursorPosition(updateHandler);
+    const selectionDisposable = editor.onDidChangeCursorSelection(updateHandler);
+    const contentDisposable = editor.onDidChangeModelContent(updateHandler);
+
+    updateHandler();
+
+    return () => {
+      cursorDisposable.dispose();
+      selectionDisposable.dispose();
+      contentDisposable.dispose();
+    };
+  }, []);
+
+  // Update git status periodically
+  useEffect(() => {
+    const updateStatus = async () => {
+      await updateGitStatus();
+    };
+    
+    updateStatus();
+    const timer = setInterval(updateStatus, 5000); // Update every 5 seconds
+
+    return () => clearInterval(timer);
+  }, [state().workspace]);
+
+  // Define status bar items
+  const statusItems: StatusBarItem[] = [
+    // Left side items
+    {
+      id: 'problems',
+      content: (
+        <div className={cn(
+          "flex items-center gap-1",
+          problems.errors > 0 ? "text-red-500" : 
+          problems.warnings > 0 ? "text-yellow-500" : 
+          "text-green-500"
+        )}>
+          {problems.errors > 0 ? (
+            <XCircle size={12} />
+          ) : problems.warnings > 0 ? (
+            <AlertCircle size={12} />
+          ) : (
+            <CheckCircle size={12} />
+          )}
+          <span>
+            {problems.errors > 0 ? `${problems.errors} error${problems.errors > 1 ? 's' : ''}` : 
+             problems.warnings > 0 ? `${problems.warnings} warning${problems.warnings > 1 ? 's' : ''}` : 
+             'No problems'}
+          </span>
+        </div>
+      ),
+      tooltip: problems.errors > 0 ? `${problems.errors} error${problems.errors > 1 ? 's' : ''}` :
+               problems.warnings > 0 ? `${problems.warnings} warning${problems.warnings > 1 ? 's' : ''}` :
+               'No problems detected',
+      order: 1,
+      position: 'left'
+    },
+    {
+      id: 'git',
+      content: (
+        <div className="flex items-center gap-1">
           <GitBranch size={12} />
-          <span>main</span>
+          <span>{gitStatus.branch || 'No Git'}</span>
+          {!gitStatus.clean && (
+            <span className="text-yellow-500">
+              {gitStatus.staged > 0 && `●${gitStatus.staged}`}
+              {gitStatus.modified > 0 && ` +${gitStatus.modified}`}
+              {gitStatus.untracked > 0 && ` ?${gitStatus.untracked}`}
+            </span>
+          )}
         </div>
-
-        <div className="flex items-center gap-1" style={accentStyle}>
-          <CheckCircle size={12} />
-          <span>No problems</span>
+      ),
+      tooltip: gitStatus.branch ? `Branch: ${gitStatus.branch}` : 'Not a git repository',
+      order: 2,
+      position: 'left'
+    },
+    {
+      id: 'sync',
+      content: (
+        <div className="flex items-center gap-1">
+          <GitCommit size={12} />
+          <span>Sync</span>
         </div>
+      ),
+      tooltip: 'Sync changes',
+      onClick: () => console.log('Sync clicked'),
+      order: 3,
+      position: 'left'
+    },
 
-        <div className="flex items-center gap-1" style={mutedStyle}>
-          <AlertCircle size={12} />
-          <span>0 errors, 0 warnings</span>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4" style={mutedStyle}>
-        <span>UTF-8</span>
-        <span>{language}</span>
-        <span>Ln 1, Col 1</span>
-        <span>{theme.currentTheme.displayName}</span>
+    // Right side items
+    {
+      id: 'encoding',
+      content: <span>{editorInfo.encoding}</span>,
+      tooltip: 'File encoding',
+      order: 1,
+      position: 'right'
+    },
+    {
+      id: 'language',
+      content: <span>{editorInfo.language}</span>,
+      tooltip: `Language: ${editorInfo.language}`,
+      order: 2,
+      position: 'right'
+    },
+    {
+      id: 'position',
+      content: (
+        <span>
+          Ln {editorInfo.line}, Col {editorInfo.column}
+          {editorInfo.selection && ` • ${editorInfo.selection}`}
+        </span>
+      ),
+      tooltip: 'Cursor position',
+      order: 3,
+      position: 'right'
+    },
+    {
+      id: 'indentation',
+      content: (
+        <span>
+          {editorInfo.spaces > 0 ? `Spaces: ${editorInfo.spaces}` : `Tab Size: ${editorInfo.tabSize}`}
+        </span>
+      ),
+      tooltip: 'Indentation settings',
+      order: 4,
+      position: 'right'
+    },
+    {
+      id: 'selection',
+      content: (
+        <span>
+          {editorInfo.selection || 'Ln 1, Col 1'}
+        </span>
+      ),
+      tooltip: 'Current selection',
+      order: 5,
+      position: 'right'
+    },
+    {
+      id: 'theme',
+      content: <span>{getCurrentTheme().displayName}</span>,
+      tooltip: 'Current theme',
+      onClick: () => console.log('Theme clicked'),
+      order: 6,
+      position: 'right'
+    },
+    {
+      id: 'brand',
+      content: (
         <div className="flex items-center gap-1">
           <Zap size={12} />
           <span>Rainy Coder</span>
         </div>
+      ),
+      tooltip: 'Rainy Coder IDE',
+      order: 7,
+      position: 'right'
+    }
+  ];
+
+  // Sort items by order and position
+  const leftItems = statusItems
+    .filter(item => item.position === 'left')
+    .sort((a, b) => a.order - b.order);
+
+  const rightItems = statusItems
+    .filter(item => item.position === 'right')
+    .sort((a, b) => a.order - b.order);
+
+  return (
+    <div className={cn(
+      "flex items-center justify-between px-2 py-1 text-xs border-t",
+      "bg-background text-foreground border-border",
+      "h-6 select-none"
+    )}>
+      {/* Left side items */}
+      <div className="flex items-center gap-4">
+        {leftItems.map(item => (
+          <div
+            key={item.id}
+            className={cn(
+              "flex items-center gap-1",
+              item.onClick && "cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded transition-colors"
+            )}
+            onClick={item.onClick}
+            title={item.tooltip}
+          >
+            {item.content}
+          </div>
+        ))}
+      </div>
+
+      {/* Right side items */}
+      <div className="flex items-center gap-4">
+        {rightItems.map(item => (
+          <div
+            key={item.id}
+            className={cn(
+              "flex items-center gap-1",
+              item.onClick && "cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded transition-colors"
+            )}
+            onClick={item.onClick}
+            title={item.tooltip}
+          >
+            {item.content}
+          </div>
+        ))}
       </div>
     </div>
   );

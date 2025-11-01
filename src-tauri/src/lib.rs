@@ -213,6 +213,14 @@ pub fn run() {
         git_manager::git_stash_list,
         git_manager::git_stash_push,
         git_manager::git_stash_pop,
+        // New commands for status bar integration
+        git_manager::git_get_status,
+        git_manager::git_get_current_branch,
+        git_manager::git_get_commit_info,
+        git_manager::git_stage_all,
+        git_manager::git_unstage_all,
+        git_manager::git_switch_branch,
+        git_manager::git_get_branches,
     ]);
 
     builder

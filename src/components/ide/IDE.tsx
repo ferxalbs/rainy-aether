@@ -5,6 +5,7 @@ import MenuBar from "./MenuBar";
 import Sidebar from "./Sidebar";
 import FileViewer from "./FileViewer";
 import StatusBar from "./StatusBar";
+import Breadcrumbs from "./Breadcrumbs";
 import ThemeSwitcher from "./ThemeSwitcher";
 import QuickOpen from "./QuickOpen";
 import CommandPalette from "./CommandPalette";
@@ -412,6 +413,7 @@ const IDE: React.FC = () => {
                   className="min-h-[200px]"
                 >
                   <div className="flex h-full flex-col overflow-hidden">
+                    <Breadcrumbs editor={editorState.view} />
                     <FileViewer />
                   </div>
                 </ResizablePanel>

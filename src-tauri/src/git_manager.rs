@@ -2,12 +2,34 @@ use serde::Serialize;
 use std::process::Command;
 
 #[derive(Serialize, Debug, Clone)]
+pub struct GitStatus {
+    pub branch: Option<String>,
+    pub ahead: Option<u32>,
+    pub behind: Option<u32>,
+    pub staged: u32,
+    pub modified: u32,
+    pub untracked: u32,
+    pub conflicts: u32,
+    pub clean: bool,
+    pub commit: Option<String>,
+    pub remote: Option<String>,
+}
+
+#[derive(Serialize, Debug, Clone)]
 pub struct Commit {
     pub hash: String,
     pub author: String,
     pub email: String,
     pub date: String,
     pub message: String,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct CommitInfo {
+    pub hash: String,
+    pub message: String,
+    pub author: String,
+    pub date: String,
 }
 
 fn run_git(args: &[&str], cwd: &str) -> Result<String, String> {
@@ -274,4 +296,132 @@ pub fn git_stash_pop(path: String, stash: Option<String>) -> Result<String, Stri
         vec!["stash", "pop"]
     };
     run_git(&args, &path)
+}
+
+// Additional commands for status bar integration
+#[tauri::command]
+pub fn git_get_status(path: String) -> Result<GitStatus, String> {
+    // Get current branch
+    let branch = match run_git(&["rev-parse", "--abbrev-ref", "HEAD"], &path) {
+        Ok(b) => Some(b.trim().to_string()),
+        Err(_) => None,
+    };
+
+    // Get status
+    let status_entries = match git_status(path.clone()) {
+        Ok(entries) => entries,
+        Err(_) => vec![],
+    };
+
+    // Count different types of changes
+    let mut staged = 0;
+    let mut modified = 0;
+    let mut untracked = 0;
+    let mut conflicts = 0;
+
+    for entry in &status_entries {
+        let code = &entry.code;
+        if code.len() >= 2 {
+            match code.chars().next().unwrap() {
+                'A' | 'M' | 'D' | 'R' | 'C' => staged += 1,
+                'U' => conflicts += 1,
+                _ => {}
+            }
+            match code.chars().nth(1).unwrap() {
+                'M' | 'D' => modified += 1,
+                'U' => conflicts += 1,
+                '?' => untracked += 1,
+                _ => {}
+            }
+        }
+    }
+
+    // Get ahead/behind info
+    let (ahead, behind) = match run_git(&["rev-list", "--count", "--left-right", "@{upstream}...HEAD"], &path) {
+        Ok(output) => {
+            let parts: Vec<&str> = output.trim().split('\t').collect();
+            let behind_count = parts.get(0).and_then(|s| s.parse().ok()).unwrap_or(0);
+            let ahead_count = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+            (Some(ahead_count), Some(behind_count))
+        }
+        Err(_) => (None, None),
+    };
+
+    // Get current commit
+    let commit = match run_git(&["rev-parse", "HEAD"], &path) {
+        Ok(c) => Some(c.trim().to_string()),
+        Err(_) => None,
+    };
+
+    // Get remote
+    let remote = match run_git(&["config", "--get", "branch.main.remote"], &path) {
+        Ok(r) => Some(r.trim().to_string()),
+        Err(_) => match run_git(&["config", "--get", "branch.master.remote"], &path) {
+            Ok(r) => Some(r.trim().to_string()),
+            Err(_) => None,
+        },
+    };
+
+    let clean = staged == 0 && modified == 0 && untracked == 0 && conflicts == 0;
+
+    Ok(GitStatus {
+        branch,
+        ahead,
+        behind,
+        staged,
+        modified,
+        untracked,
+        conflicts,
+        clean,
+        commit,
+        remote,
+    })
+}
+
+#[tauri::command]
+pub fn git_get_current_branch(path: String) -> Result<String, String> {
+    run_git(&["rev-parse", "--abbrev-ref", "HEAD"], &path)
+}
+
+#[tauri::command]
+pub fn git_get_commit_info(path: String) -> Result<CommitInfo, String> {
+    let output = run_git(&["log", "-1", "--pretty=format:%H%x00%s%x00%an%x00%ad"], &path)?;
+    let parts: Vec<&str> = output.split('\u{00}').collect();
+    
+    if parts.len() >= 4 {
+        Ok(CommitInfo {
+            hash: parts[0].trim().to_string(),
+            message: parts[1].trim().to_string(),
+            author: parts[2].trim().to_string(),
+            date: parts[3].trim().to_string(),
+        })
+    } else {
+        Err("Failed to parse commit info".to_string())
+    }
+}
+
+#[tauri::command]
+pub fn git_stage_all(path: String) -> Result<String, String> {
+    run_git(&["add", "-A"], &path)
+}
+
+#[tauri::command]
+pub fn git_unstage_all(path: String) -> Result<String, String> {
+    run_git(&["reset", "HEAD"], &path)
+}
+
+#[tauri::command]
+pub fn git_switch_branch(path: String, branch_name: String) -> Result<String, String> {
+    run_git(&["checkout", &branch_name], &path)
+}
+
+#[tauri::command]
+pub fn git_get_branches(path: String) -> Result<Vec<String>, String> {
+    let output = run_git(&["branch", "--format=%(refname:short)"], &path)?;
+    let branches: Vec<String> = output
+        .lines()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    Ok(branches)
 }
