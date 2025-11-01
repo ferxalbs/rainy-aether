@@ -538,11 +538,15 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
     void saveToStore("rainy-coder-current-view", "editor");
 
     try {
-      const { setWorkspacePath, refreshHistory, refreshStatus, refreshRepoDetection } = await import("./gitStore");
+      const { setWorkspacePath, refreshHistory, refreshStatus, refreshRepoDetection, refreshBranches, refreshStashes } = await import("./gitStore");
       setWorkspacePath(workspace.path);
       refreshRepoDetection();
-      await refreshHistory(100);
-      await refreshStatus();
+      await Promise.all([
+        refreshHistory(100),
+        refreshStatus(),
+        refreshBranches(),
+        refreshStashes()
+      ]);
     } catch (error) {
       console.warn("Failed to initialize git state", error);
     }

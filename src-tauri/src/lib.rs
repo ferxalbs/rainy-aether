@@ -201,6 +201,18 @@ pub fn run() {
         git_manager::git_status,
         git_manager::git_commit,
         git_manager::git_unpushed,
+        git_manager::git_branches,
+        git_manager::git_checkout_branch,
+        git_manager::git_create_branch,
+        git_manager::git_stage_file,
+        git_manager::git_unstage_file,
+        git_manager::git_discard_changes,
+        git_manager::git_diff_file,
+        git_manager::git_push,
+        git_manager::git_pull,
+        git_manager::git_stash_list,
+        git_manager::git_stash_push,
+        git_manager::git_stash_pop,
     ]);
 
     builder

@@ -12,6 +12,18 @@ export type Commit = {
 export type StatusEntry = {
   path: string;
   code: string; // two-letter porcelain code (XY)
+  staged?: boolean;
+};
+
+export type Branch = {
+  name: string;
+  current: boolean;
+  remote?: string;
+};
+
+export type StashEntry = {
+  stash: string;
+  message: string;
 };
 
 export type GitState = {
@@ -19,10 +31,15 @@ export type GitState = {
   isRepo: boolean;
   commits: Commit[];
   status: StatusEntry[];
+  branches: Branch[];
+  stashes: StashEntry[];
   selectedCommit?: string;
   loadingHistory: boolean;
   loadingDiff: boolean;
+  loadingBranches: boolean;
+  loadingStashes: boolean;
   unpushedHashes: Set<string>;
+  currentBranch?: string;
 };
 
 const git: GitState = {
@@ -30,10 +47,15 @@ const git: GitState = {
   isRepo: false,
   commits: [],
   status: [],
+  branches: [],
+  stashes: [],
   selectedCommit: undefined,
   loadingHistory: false,
   loadingDiff: false,
+  loadingBranches: false,
+  loadingStashes: false,
   unpushedHashes: new Set<string>(),
+  currentBranch: undefined,
 };
 
 type GitStateListener = () => void;
@@ -106,6 +128,31 @@ export async function refreshStatus() {
   updateGitState({ status: entries });
 }
 
+export async function refreshBranches() {
+  const wsPath = git.workspacePath;
+  if (!wsPath) return;
+  updateGitState({ loadingBranches: true });
+  try {
+    const branches = await invoke<Branch[]>("git_branches", { path: wsPath });
+    const currentBranch = branches.find(b => b.current)?.name;
+    updateGitState({ branches, currentBranch });
+  } finally {
+    updateGitState({ loadingBranches: false });
+  }
+}
+
+export async function refreshStashes() {
+  const wsPath = git.workspacePath;
+  if (!wsPath) return;
+  updateGitState({ loadingStashes: true });
+  try {
+    const stashes = await invoke<StashEntry[]>("git_stash_list", { path: wsPath });
+    updateGitState({ stashes });
+  } finally {
+    updateGitState({ loadingStashes: false });
+  }
+}
+
 export function selectCommit(hash?: string) {
   updateGitState({ selectedCommit: hash });
 }
@@ -115,7 +162,86 @@ export async function commit(message: string, stageAll = true) {
   if (!wsPath) throw new Error("No workspace open");
 
   await invoke<string>("git_commit", { path: wsPath, message, stage_all: stageAll });
+  await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
+}
+
+export async function stageFile(filePath: string) {
+  const wsPath = git.workspacePath;
+  if (!wsPath) throw new Error("No workspace open");
+  
+  await invoke<string>("git_stage_file", { path: wsPath, file_path: filePath });
+  await refreshStatus();
+}
+
+export async function unstageFile(filePath: string) {
+  const wsPath = git.workspacePath;
+  if (!wsPath) throw new Error("No workspace open");
+  
+  await invoke<string>("git_unstage_file", { path: wsPath, file_path: filePath });
+  await refreshStatus();
+}
+
+export async function discardChanges(filePath: string) {
+  const wsPath = git.workspacePath;
+  if (!wsPath) throw new Error("No workspace open");
+  
+  await invoke<string>("git_discard_changes", { path: wsPath, file_path: filePath });
   await Promise.all([refreshStatus(), refreshHistory()]);
+}
+
+export async function checkoutBranch(branchName: string) {
+  const wsPath = git.workspacePath;
+  if (!wsPath) throw new Error("No workspace open");
+  
+  await invoke<string>("git_checkout_branch", { path: wsPath, branch_name: branchName });
+  await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
+}
+
+export async function createBranch(branchName: string) {
+  const wsPath = git.workspacePath;
+  if (!wsPath) throw new Error("No workspace open");
+  
+  await invoke<string>("git_create_branch", { path: wsPath, branch_name: branchName });
+  await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
+}
+
+export async function push(remote?: string, branch?: string) {
+  const wsPath = git.workspacePath;
+  if (!wsPath) throw new Error("No workspace open");
+  
+  await invoke<string>("git_push", { path: wsPath, remote, branch });
+  await Promise.all([refreshHistory(), refreshBranches()]);
+}
+
+export async function pull(remote?: string, branch?: string) {
+  const wsPath = git.workspacePath;
+  if (!wsPath) throw new Error("No workspace open");
+  
+  await invoke<string>("git_pull", { path: wsPath, remote, branch });
+  await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
+}
+
+export async function stashPush(message?: string) {
+  const wsPath = git.workspacePath;
+  if (!wsPath) throw new Error("No workspace open");
+  
+  await invoke<string>("git_stash_push", { path: wsPath, message });
+  await Promise.all([refreshStatus(), refreshStashes()]);
+}
+
+export async function stashPop(stash?: string) {
+  const wsPath = git.workspacePath;
+  if (!wsPath) throw new Error("No workspace open");
+  
+  await invoke<string>("git_stash_pop", { path: wsPath, stash });
+  await Promise.all([refreshStatus(), refreshStashes()]);
+}
+
+export async function getFileDiff(filePath: string, staged = false) {
+  const wsPath = git.workspacePath;
+  if (!wsPath) throw new Error("No workspace open");
+  
+  return await invoke<string>("git_diff_file", { path: wsPath, file_path: filePath, staged });
 }
 
 export function isRepo() {
@@ -130,6 +256,14 @@ export function status() {
   return git.status;
 }
 
+export function branches() {
+  return git.branches;
+}
+
+export function stashes() {
+  return git.stashes;
+}
+
 export function selectedCommit() {
   return git.selectedCommit;
 }
@@ -142,8 +276,20 @@ export function loadingDiff() {
   return git.loadingDiff;
 }
 
+export function loadingBranches() {
+  return git.loadingBranches;
+}
+
+export function loadingStashes() {
+  return git.loadingStashes;
+}
+
 export function unpushedSet() {
   return git.unpushedHashes;
+}
+
+export function getCurrentBranch() {
+  return git.currentBranch;
 }
 
 export { git as gitState };

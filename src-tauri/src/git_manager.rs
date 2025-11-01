@@ -142,3 +142,136 @@ pub fn git_unpushed(path: String) -> Result<Vec<String>, String> {
         Err(_) => Ok(vec![]),
     }
 }
+
+#[derive(Serialize, Debug, Clone)]
+pub struct Branch {
+    pub name: String,
+    pub current: bool,
+    pub remote: Option<String>,
+}
+
+#[tauri::command]
+pub fn git_branches(path: String) -> Result<Vec<Branch>, String> {
+    let output = run_git(&["branch", "-a", "--format=%(refname:short)%00%(HEAD)%00%(upstream:track)"], &path)?;
+    let mut branches = Vec::new();
+    
+    for line in output.lines() {
+        let parts: Vec<&str> = line.split('\u{00}').collect();
+        if parts.len() >= 2 {
+            let name = parts[0].trim().to_string();
+            let is_current = parts[1].trim() == "*";
+            let remote = if parts.len() > 2 && !parts[2].trim().is_empty() {
+                Some(parts[2].trim().to_string())
+            } else {
+                None
+            };
+            
+            // Filter out remote branches for now (they start with "remotes/")
+            if !name.starts_with("remotes/") && !name.is_empty() {
+                branches.push(Branch {
+                    name,
+                    current: is_current,
+                    remote,
+                });
+            }
+        }
+    }
+    Ok(branches)
+}
+
+#[tauri::command]
+pub fn git_checkout_branch(path: String, branch_name: String) -> Result<String, String> {
+    run_git(&["checkout", &branch_name], &path)
+}
+
+#[tauri::command]
+pub fn git_create_branch(path: String, branch_name: String) -> Result<String, String> {
+    run_git(&["checkout", "-b", &branch_name], &path)
+}
+
+#[tauri::command]
+pub fn git_stage_file(path: String, file_path: String) -> Result<String, String> {
+    run_git(&["add", &file_path], &path)
+}
+
+#[tauri::command]
+pub fn git_unstage_file(path: String, file_path: String) -> Result<String, String> {
+    run_git(&["reset", "HEAD", &file_path], &path)
+}
+
+#[tauri::command]
+pub fn git_discard_changes(path: String, file_path: String) -> Result<String, String> {
+    run_git(&["checkout", "--", &file_path], &path)
+}
+
+#[tauri::command]
+pub fn git_diff_file(path: String, file_path: String, staged: Option<bool>) -> Result<String, String> {
+    let args = if staged.unwrap_or(false) {
+        vec!["diff", "--staged", "--", &file_path]
+    } else {
+        vec!["diff", "--", &file_path]
+    };
+    run_git(&args, &path)
+}
+
+#[tauri::command]
+pub fn git_push(path: String, remote: Option<String>, branch: Option<String>) -> Result<String, String> {
+    let remote_name = remote.as_deref().unwrap_or("origin");
+    let branch_name = branch.as_deref().unwrap_or("HEAD");
+    run_git(&["push", remote_name, branch_name], &path)
+}
+
+#[tauri::command]
+pub fn git_pull(path: String, remote: Option<String>, branch: Option<String>) -> Result<String, String> {
+    let remote_name = remote.as_deref().unwrap_or("origin");
+    let branch_name = branch.as_deref().unwrap_or("");
+    let args = if branch_name.is_empty() {
+        vec!["pull", remote_name]
+    } else {
+        vec!["pull", remote_name, branch_name]
+    };
+    run_git(&args, &path)
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct StashEntry {
+    pub stash: String,
+    pub message: String,
+}
+
+#[tauri::command]
+pub fn git_stash_list(path: String) -> Result<Vec<StashEntry>, String> {
+    let output = run_git(&["stash", "list", "--format=%gd%x00%gs"], &path)?;
+    let mut stashes = Vec::new();
+    
+    for line in output.lines() {
+        let parts: Vec<&str> = line.split('\u{00}').collect();
+        if parts.len() >= 2 {
+            stashes.push(StashEntry {
+                stash: parts[0].trim().to_string(),
+                message: parts[1].trim().to_string(),
+            });
+        }
+    }
+    Ok(stashes)
+}
+
+#[tauri::command]
+pub fn git_stash_push(path: String, message: Option<String>) -> Result<String, String> {
+    let args = if let Some(msg) = &message {
+        vec!["stash", "push", "-m", msg.as_str()]
+    } else {
+        vec!["stash", "push"]
+    };
+    run_git(&args, &path)
+}
+
+#[tauri::command]
+pub fn git_stash_pop(path: String, stash: Option<String>) -> Result<String, String> {
+    let args = if let Some(stash_ref) = &stash {
+        vec!["stash", "pop", stash_ref.as_str()]
+    } else {
+        vec!["stash", "pop"]
+    };
+    run_git(&args, &path)
+}

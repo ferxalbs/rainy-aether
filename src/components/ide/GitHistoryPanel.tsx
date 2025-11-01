@@ -4,13 +4,28 @@ import {
   RefreshCcw,
   GitCommitVertical,
   Loader2,
+  Plus,
+  ArrowDown,
+  ArrowUp,
+  Eye,
+  EyeOff,
+  RotateCcw,
+  Check,
 } from "lucide-react";
 
 import {
   commit as doCommit,
   refreshHistory,
   refreshStatus,
+  refreshBranches,
+  refreshStashes,
   selectCommit,
+  stageFile,
+  unstageFile,
+  discardChanges,
+  getFileDiff,
+  push,
+  pull,
   useGitState,
 } from "@/stores/gitStore";
 import { cn } from "@/lib/utils";
@@ -35,11 +50,15 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import DiffViewer from "./DiffViewer";
+import BranchManager from "./BranchManager";
+import StashManager from "./StashManager";
 
 const GitHistoryPanel: React.FC = () => {
   const [message, setMessage] = useState("");
   const [stageAll, setStageAll] = useState(true);
   const [openSections, setOpenSections] = useState<string[]>(["changes", "graph"]);
+  const [diffViewer, setDiffViewer] = useState<{ filePath: string; diff: string; staged: boolean } | null>(null);
 
   const {
     commits: history,
@@ -53,6 +72,8 @@ const GitHistoryPanel: React.FC = () => {
   useEffect(() => {
     refreshHistory(100);
     refreshStatus();
+    refreshBranches();
+    refreshStashes();
   }, []);
 
   const handleCommitConfirm = useCallback(async () => {
@@ -67,7 +88,62 @@ const GitHistoryPanel: React.FC = () => {
   const handleRefresh = useCallback(() => {
     refreshHistory(100);
     refreshStatus();
+    refreshBranches();
+    refreshStashes();
   }, []);
+
+  const handleStageFile = useCallback(async (filePath: string) => {
+    await stageFile(filePath);
+  }, []);
+
+  const handleUnstageFile = useCallback(async (filePath: string) => {
+    await unstageFile(filePath);
+  }, []);
+
+  const handleDiscardChanges = useCallback(async (filePath: string) => {
+    if (confirm(`Are you sure you want to discard all changes to ${filePath}?`)) {
+      await discardChanges(filePath);
+    }
+  }, []);
+
+  const handleViewDiff = useCallback(async (filePath: string, staged: boolean) => {
+    try {
+      const diff = await getFileDiff(filePath, staged);
+      setDiffViewer({ filePath, diff, staged });
+    } catch (error) {
+      console.error('Failed to get diff:', error);
+    }
+  }, []);
+
+  const handlePush = useCallback(async () => {
+    try {
+      await push();
+    } catch (error) {
+      console.error('Failed to push:', error);
+    }
+  }, []);
+
+  const handlePull = useCallback(async () => {
+    try {
+      await pull();
+    } catch (error) {
+      console.error('Failed to pull:', error);
+    }
+  }, []);
+
+  const isStaged = (code: string) => {
+    return code[0] !== ' ' && code[0] !== '?';
+  };
+
+  const isUntracked = (code: string) => {
+    return code[0] === '?' && code[1] === '?';
+  };
+
+  const getStatusIcon = (code: string) => {
+    if (isStaged(code)) return <Check className="size-3 text-green-600" />;
+    if (isUntracked(code)) return <Plus className="size-3 text-blue-600" />;
+    return <Eye className="size-3 text-muted-foreground" />;
+  };
 
   const setSectionOpen = useCallback((section: string, isOpen: boolean) => {
     setOpenSections((prev) => {
@@ -87,16 +163,38 @@ const GitHistoryPanel: React.FC = () => {
         <div className="flex items-center gap-2">
           <GitCommitVertical className="size-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold">Source Control</h2>
+          <BranchManager />
+          <StashManager />
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1 text-muted-foreground"
-          onClick={handleRefresh}
-        >
-          <RefreshCcw className="size-4" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 text-muted-foreground"
+            onClick={handlePull}
+            title="Pull"
+          >
+            <ArrowDown className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 text-muted-foreground"
+            onClick={handlePush}
+            title="Push"
+          >
+            <ArrowUp className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 text-muted-foreground"
+            onClick={handleRefresh}
+          >
+            <RefreshCcw className="size-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {repoDetected ? (
@@ -206,19 +304,75 @@ const GitHistoryPanel: React.FC = () => {
                       {changes.length > 0 ? (
                         <div className="custom-scrollbar -mx-1 max-h-[320px] overflow-auto pr-1">
                           <ul className="flex flex-col gap-2 text-sm">
-                            {changes.map((entry) => (
-                              <li
-                                key={`${entry.code}-${entry.path}`}
-                                className="flex items-center gap-3 rounded-md border border-border/60 bg-background/90 px-3 py-2 text-sm shadow-xs transition-colors hover:bg-accent/30"
-                              >
-                                <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
-                                  {entry.code}
-                                </span>
-                                <span className="truncate text-sm text-foreground">
-                                  {entry.path}
-                                </span>
-                              </li>
-                            ))}
+                            {changes.map((entry) => {
+                              const staged = isStaged(entry.code);
+                              const untracked = isUntracked(entry.code);
+                              
+                              return (
+                                <li
+                                  key={`${entry.code}-${entry.path}`}
+                                  className="group rounded-md border border-border/60 bg-background/90 shadow-xs transition-colors hover:bg-accent/30"
+                                >
+                                  <div className="flex items-center gap-3 px-3 py-2">
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      {getStatusIcon(entry.code)}
+                                      <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground min-w-fit">
+                                        {entry.code}
+                                      </span>
+                                      <span className="truncate text-sm text-foreground">
+                                        {entry.path}
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-xs"
+                                        onClick={() => handleViewDiff(entry.path, staged)}
+                                        title="View diff"
+                                      >
+                                        <Eye className="size-3" />
+                                      </Button>
+                                      
+                                      {!untracked && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 px-2 text-xs"
+                                          onClick={() => handleDiscardChanges(entry.path)}
+                                          title="Discard changes"
+                                        >
+                                          <RotateCcw className="size-3" />
+                                        </Button>
+                                      )}
+                                      
+                                      {staged ? (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 px-2 text-xs text-green-600"
+                                          onClick={() => handleUnstageFile(entry.path)}
+                                          title="Unstage"
+                                        >
+                                          <EyeOff className="size-3" />
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 px-2 text-xs text-blue-600"
+                                          onClick={() => handleStageFile(entry.path)}
+                                          title="Stage"
+                                        >
+                                          <Check className="size-3" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                       ) : (
@@ -330,6 +484,17 @@ const GitHistoryPanel: React.FC = () => {
         <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
           This project is not a Git repository.
         </div>
+      )}
+
+      {/* Diff Viewer Modal */}
+      {diffViewer && (
+        <DiffViewer
+          filePath={diffViewer.filePath}
+          diff={diffViewer.diff}
+          staged={diffViewer.staged}
+          isModal={true}
+          onClose={() => setDiffViewer(null)}
+        />
       )}
     </div>
   );
