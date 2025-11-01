@@ -10,11 +10,18 @@ import {
 } from '../utils/systemTheme';
 import { getThemeStatistics } from './themeManager';
 
+const THEME_STORAGE_KEY = 'rainy-coder-theme';
+const THEME_PREF_STORAGE_KEY = 'rainy-coder-theme-preference';
+const THEME_BASE_STORAGE_KEY = 'rainy-coder-theme-base';
+
+const defaultBaseThemeName = defaultTheme.name.split('-')[0];
+
 // Unified theme mode: system (follow OS), day, night
 export type ThemeMode = 'system' | 'day' | 'night';
 
 interface ThemeState {
   currentTheme: Theme;
+  baseTheme: string;
   systemTheme: 'day' | 'night';
   userPreference: ThemeMode;
   isInitialized: boolean;
@@ -22,6 +29,7 @@ interface ThemeState {
 
 const initialState: ThemeState = {
   currentTheme: defaultTheme,
+  baseTheme: defaultBaseThemeName,
   systemTheme: 'day',
   userPreference: 'system',
   isInitialized: false,
@@ -55,6 +63,16 @@ const notifyThemeListeners = (theme: Theme) => {
   });
 };
 
+const getBaseThemeName = (theme: Theme | undefined) =>
+  theme ? theme.name.split('-')[0] : defaultBaseThemeName;
+
+const persistThemeSelection = (baseName: string, themeName: string, persistVariant: boolean) => {
+  void saveToStore(THEME_BASE_STORAGE_KEY, baseName);
+  if (persistVariant) {
+    void saveToStore(THEME_STORAGE_KEY, themeName);
+  }
+};
+
 const updateThemeState = (partial: Partial<ThemeState>) => {
   Object.assign(themeState, partial);
   notifyStateListeners();
@@ -83,22 +101,29 @@ export const useThemeState = () =>
 export { themeState };
 
 // Actions
-export const setCurrentTheme = (theme: Theme) => {
+interface SetCurrentThemeOptions {
+  persistVariant?: boolean;
+}
+
+export const setCurrentTheme = (theme: Theme, options: SetCurrentThemeOptions = {}) => {
   // Validate theme accessibility before applying
   const validation = validateThemeAccessibility(theme.variables);
   if (!validation.isWCAGAACompliant) {
     console.warn(`Theme "${theme.displayName}" fails WCAG AA accessibility standards:`, validation.issues);
   }
 
-  updateThemeState({ currentTheme: theme });
+  const baseName = getBaseThemeName(theme);
+  const persistVariant = options.persistVariant ?? themeState.userPreference !== 'system';
+
+  updateThemeState({ currentTheme: theme, baseTheme: baseName });
   applyTheme(theme);
-  saveToStore('rainy-coder-theme', theme.name);
+  persistThemeSelection(baseName, theme.name, persistVariant);
   notifyThemeListeners(theme);
 };
 
 export const setUserPreference = async (preference: ThemeMode) => {
   updateThemeState({ userPreference: preference });
-  await saveToStore('rainy-coder-theme-preference', preference);
+  await saveToStore(THEME_PREF_STORAGE_KEY, preference);
 
   // Apply the preference immediately
   if (preference === 'system') {
@@ -112,23 +137,47 @@ export const setUserPreference = async (preference: ThemeMode) => {
       applySystemTheme();
     }
   } else {
-    const baseName = themeState.currentTheme.name.split('-')[0];
-    const newThemeName = `${baseName}-${preference}`;
-    const newTheme = allThemes.find(t => t.name === newThemeName);
+    const activeBase = themeState.baseTheme || getBaseThemeName(themeState.currentTheme);
+    const candidateNames = [
+      `${activeBase}-${preference}`,
+      `${defaultBaseThemeName}-${preference}`
+    ];
+
+    let newTheme = candidateNames
+      .map(name => allThemes.find(t => t.name === name))
+      .find((themeCandidate): themeCandidate is Theme => Boolean(themeCandidate));
+
+    if (!newTheme) {
+      newTheme = allThemes.find(t => t.mode === preference);
+    }
+
     if (newTheme) {
-      setCurrentTheme(newTheme);
+      setCurrentTheme(newTheme, { persistVariant: true });
     }
   }
 };
 
 const applySystemTheme = () => {
-  if (themeState.userPreference === 'system') {
-    const baseName = themeState.currentTheme.name.split('-')[0];
-    const newThemeName = `${baseName}-${themeState.systemTheme}`;
-    const newTheme = allThemes.find(t => t.name === newThemeName);
-    if (newTheme) {
-      setCurrentTheme(newTheme);
-    }
+  if (themeState.userPreference !== 'system') {
+    return;
+  }
+
+  const activeBase = themeState.baseTheme || getBaseThemeName(themeState.currentTheme);
+  const candidateNames = [
+    `${activeBase}-${themeState.systemTheme}`,
+    `${defaultBaseThemeName}-${themeState.systemTheme}`
+  ];
+
+  let newTheme = candidateNames
+    .map(name => allThemes.find(t => t.name === name))
+    .find((themeCandidate): themeCandidate is Theme => Boolean(themeCandidate));
+
+  if (!newTheme) {
+    newTheme = allThemes.find(t => t.mode === themeState.systemTheme);
+  }
+
+  if (newTheme) {
+    setCurrentTheme(newTheme, { persistVariant: false });
   }
 };
 
@@ -139,9 +188,11 @@ export const toggleDayNight = async () => {
 };
 
 export const switchBaseTheme = (baseName: string, mode: 'day' | 'night' = 'day') => {
-  const newTheme = allThemes.find(t => t.name === `${baseName}-${mode}`);
+  const targetMode = themeState.userPreference === 'system' ? themeState.systemTheme : mode;
+  const newTheme = allThemes.find(t => t.name === `${baseName}-${targetMode}`);
   if (newTheme) {
-    setCurrentTheme(newTheme);
+    const persistVariant = themeState.userPreference !== 'system';
+    setCurrentTheme(newTheme, { persistVariant });
   }
 };
 
@@ -252,7 +303,7 @@ export const initializeTheme = async () => {
     console.log('Theme system initialized:', stats);
 
     // Load saved user preference
-    const rawPreference = await loadFromStore<string>('rainy-coder-theme-preference', 'system');
+    const rawPreference = await loadFromStore<string>(THEME_PREF_STORAGE_KEY, 'system');
     // Map legacy values ('auto'|'light'|'dark') to unified ('system'|'day'|'night')
     const savedPreference: ThemeMode =
       rawPreference === 'auto' ? 'system' :
@@ -264,41 +315,53 @@ export const initializeTheme = async () => {
     const systemTheme = await detectSystemTheme();
     const systemMode = systemThemeToAppTheme(systemTheme);
 
+    const savedBaseTheme = await loadFromStore<string>(THEME_BASE_STORAGE_KEY, defaultBaseThemeName);
+
     updateThemeState({
+      baseTheme: savedBaseTheme,
       systemTheme: systemMode,
       userPreference: savedPreference
     });
 
-    let themeToApply: Theme | undefined;
-
     if (savedPreference === 'system') {
-      // Use system theme
-      const baseName = defaultTheme.name.split('-')[0];
-      const systemMatchingThemeName = `${baseName}-${systemMode}`;
-      themeToApply = allThemes.find(t => t.name === systemMatchingThemeName);
-    } else {
-      // Use user preference
-      const mode = savedPreference; // 'day' | 'night'
-      const savedThemeName = await loadFromStore<string | null>('rainy-coder-theme', null);
+      const candidateNames = [
+        `${savedBaseTheme}-${systemMode}`,
+        `${defaultBaseThemeName}-${systemMode}`
+      ];
 
-      if (savedThemeName) {
-        themeToApply = allThemes.find(t => t.name === savedThemeName);
-        // Ensure the theme matches the user preference mode
-        if (themeToApply && themeToApply.mode !== mode) {
-          const baseName = themeToApply.name.split('-')[0];
-          const correctThemeName = `${baseName}-${mode}`;
-          themeToApply = allThemes.find(t => t.name === correctThemeName);
-        }
-      }
+      let themeToApply = candidateNames
+        .map(name => allThemes.find(t => t.name === name))
+        .find((themeCandidate): themeCandidate is Theme => Boolean(themeCandidate));
 
       if (!themeToApply) {
-        const baseName = defaultTheme.name.split('-')[0];
-        const preferenceThemeName = `${baseName}-${mode}`;
-        themeToApply = allThemes.find(t => t.name === preferenceThemeName);
+        themeToApply = allThemes.find(t => t.mode === systemMode) || defaultTheme;
       }
+
+      setCurrentTheme(themeToApply, { persistVariant: false });
+    } else {
+      const savedThemeName = await loadFromStore<string | null>(THEME_STORAGE_KEY, null);
+      const candidateNames: string[] = [];
+
+      if (savedThemeName) {
+        candidateNames.push(savedThemeName);
+      }
+
+      candidateNames.push(
+        `${savedBaseTheme}-${savedPreference}`,
+        `${defaultBaseThemeName}-${savedPreference}`
+      );
+
+      let themeToApply = candidateNames
+        .map(name => allThemes.find(t => t && t.name === name))
+        .find((themeCandidate): themeCandidate is Theme => Boolean(themeCandidate));
+
+      if (!themeToApply) {
+        themeToApply = allThemes.find(t => t.mode === savedPreference) || defaultTheme;
+      }
+
+      setCurrentTheme(themeToApply, { persistVariant: true });
     }
 
-    setCurrentTheme(themeToApply || defaultTheme);
     updateThemeState({ isInitialized: true });
 
     // Listen for system theme changes using our utility
@@ -318,7 +381,7 @@ export const initializeTheme = async () => {
   } catch (error) {
     console.error('Failed to initialize theme:', error);
     // Fallback to default theme
-    setCurrentTheme(defaultTheme);
+    setCurrentTheme(defaultTheme, { persistVariant: false });
     updateThemeState({ isInitialized: true });
   }
 };

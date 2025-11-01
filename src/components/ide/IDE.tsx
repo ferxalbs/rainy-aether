@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import MenuBar from "./MenuBar";
-import TopToolbar from "./TopToolbar";
+
 import Sidebar from "./Sidebar";
 import FileViewer from "./FileViewer";
 import StatusBar from "./StatusBar";
@@ -401,7 +401,7 @@ const IDE: React.FC = () => {
             onOpenThemeSwitcher={() => setIsThemeSwitcherOpen(true)}
             onOpenGoToLine={() => setIsGoToLineOpen(true)}
           />
-          {!isZenMode && <TopToolbar onOpenThemeSwitcher={() => setIsThemeSwitcherOpen(true)} />}
+
           <div className="flex flex-1 overflow-hidden">
             {!isZenMode && <Sidebar />}
             <div className="flex-1 overflow-hidden">

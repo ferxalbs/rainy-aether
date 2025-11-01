@@ -38,7 +38,7 @@ const App: React.FC = () => {
         fontFamily: 'system-ui, -apple-system, sans-serif'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '24px', marginBottom: '16px' }}>Rainy Code</div>
+          <div style={{ fontSize: '24px', marginBottom: '16px' }}>Rainy Aether</div>
           <div style={{ fontSize: '14px', opacity: 0.7 }}>Loading...</div>
         </div>
       </div>
