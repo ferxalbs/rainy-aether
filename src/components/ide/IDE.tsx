@@ -384,7 +384,7 @@ const IDE: React.FC = () => {
   const currentView = snapshot.currentView;
   const isZenMode = snapshot.isZenMode;
   const view = editorState.view;
-  const maxLine = view ? view.state.doc.lines : 1;
+  const maxLine = view ? view.getModel()?.getLineCount() ?? 1 : 1;
   const terminalVisible = !isZenMode && terminalSnapshot.visible;
 
   return (

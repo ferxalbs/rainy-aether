@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { useIDEStore, OpenFile } from "../../stores/ideStore";
-import CodeMirrorEditor from "./CodeMirrorEditor";
+import MonacoEditor from "./MonacoEditor";
 import { X } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/cn";
@@ -77,7 +77,7 @@ const FileViewer: React.FC = () => {
 
       <div className="flex-1 overflow-hidden">
         {activeFile ? (
-          <CodeMirrorEditor
+          <MonacoEditor
             value={activeFile.content}
             language={getLanguageFromFile(activeFile.name)}
             onChange={(value: string) => actions.updateFileContent(activeFile.id, value)}

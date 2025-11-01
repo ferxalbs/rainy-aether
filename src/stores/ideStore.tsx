@@ -344,6 +344,17 @@ const toggleSidebar = () => {
   setState((prev) => {
     const next = !prev.isSidebarOpen;
     void saveToStore("rainy-coder-sidebar-open", next);
+    
+    // Trigger Monaco editor layout after sidebar toggle
+    setTimeout(() => {
+      try {
+        const { editorActions } = require("./editorStore");
+        editorActions.layout();
+      } catch (error) {
+        // Ignore if editor store is not available
+      }
+    }, 100);
+    
     return { ...prev, isSidebarOpen: next };
   });
 };
@@ -378,6 +389,17 @@ const toggleZenMode = () => {
   setState((prev) => {
     const next = !prev.isZenMode;
     void saveToStore("rainy-coder-zen-mode", next);
+    
+    // Trigger Monaco editor layout after zen mode toggle
+    setTimeout(() => {
+      try {
+        const { editorActions } = require("./editorStore");
+        editorActions.layout();
+      } catch (error) {
+        // Ignore if editor store is not available
+      }
+    }, 100);
+    
     return { ...prev, isZenMode: next };
   });
 };
@@ -610,6 +632,16 @@ const closeFile = (fileId: string) => {
 
 const setActiveFile = (fileId: string) => {
   setState((prev) => ({ ...prev, activeFileId: fileId }));
+  
+  // Trigger Monaco editor layout and focus when switching tabs
+  setTimeout(() => {
+    try {
+      const { editorActions } = require("./editorStore");
+      editorActions.layout();
+    } catch (error) {
+      // Ignore if editor store is not available
+    }
+  }, 50);
 };
 
 const activateNextTab = () => {
