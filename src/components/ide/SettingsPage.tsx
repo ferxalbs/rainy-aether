@@ -21,6 +21,10 @@ const SettingsPage: React.FC = () => {
   const settingsState = useSettingsState();
   const theme = useThemeState();
   const themeOptions = useMemo(() => getThemeBaseOptions(), []);
+  const activeThemeOption = useMemo(
+    () => themeOptions.find((option) => option.id === theme.currentTheme.name.split("-")[0]),
+    [themeOptions, theme.currentTheme.name]
+  );
 
   const setMode = useCallback(async (mode: ThemeMode) => {
     await setUserPreference(mode);
@@ -121,23 +125,23 @@ const SettingsPage: React.FC = () => {
                   Pick a theme family tailored for developers. Variants adjust automatically per mode.
                 </div>
                 <Select value={currentBase} onValueChange={handleBaseThemeChange}>
-                  <SelectTrigger className="h-auto min-h-[44px] text-left">
+                  <SelectTrigger className="h-11 w-full text-left">
                     <SelectValue placeholder="Select theme" />
                   </SelectTrigger>
-                  <SelectContent className="max-h-80 w-[320px]">
+                  <SelectContent className="max-h-80">
                     <SelectGroup>
                       <SelectLabel>Available themes</SelectLabel>
                       {themeOptions.map((option) => (
                         <SelectItem key={option.id} value={option.id} className="py-2">
-                          <div className="flex flex-col gap-0.5 text-left">
-                            <span className="text-sm font-medium text-foreground">{option.label}</span>
-                            <span className="text-xs text-muted-foreground">{option.description}</span>
-                          </div>
+                          <span className="text-sm font-medium text-foreground">{option.label}</span>
                         </SelectItem>
                       ))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {activeThemeOption?.description ?? "Select a theme family to view its details."}
+                </p>
               </div>
             </div>
 
