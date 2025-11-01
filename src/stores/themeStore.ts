@@ -16,8 +16,42 @@ const THEME_BASE_STORAGE_KEY = 'rainy-coder-theme-base';
 
 const defaultBaseThemeName = defaultTheme.name.split('-')[0];
 
+const themeBaseMetadata: Record<string, { label: string; description: string }> = {
+  navy: {
+    label: 'Navy Blue',
+    description: 'Balanced blues for long coding sessions with crisp contrast.'
+  },
+  dark: {
+    label: 'Dark',
+    description: 'Low-glare interface with bold accent colors in purple hues.'
+  },
+  light: {
+    label: 'Light',
+    description: 'Bright, neutral surfaces ideal for daylight environments.'
+  },
+  monokai: {
+    label: 'Monokai',
+    description: 'Classic high-contrast palette inspired by iconic editors.'
+  },
+  aurora: {
+    label: 'Aurora',
+    description: 'Cool glacier tones designed to reduce eye strain during focus work.'
+  },
+  ember: {
+    label: 'Ember',
+    description: 'Warm ambience with vivid highlights to keep energy during late-night builds.'
+  }
+};
+
 // Unified theme mode: system (follow OS), day, night
 export type ThemeMode = 'system' | 'day' | 'night';
+
+export interface ThemeBaseOption {
+  id: string;
+  label: string;
+  description: string;
+  modesAvailable: Array<'day' | 'night'>;
+}
 
 interface ThemeState {
   currentTheme: Theme;
@@ -194,6 +228,36 @@ export const switchBaseTheme = (baseName: string, mode: 'day' | 'night' = 'day')
     const persistVariant = themeState.userPreference !== 'system';
     setCurrentTheme(newTheme, { persistVariant });
   }
+};
+
+const toTitleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
+export const getThemeBaseOptions = (): ThemeBaseOption[] => {
+  const baseMap = new Map<string, ThemeBaseOption>();
+
+  for (const theme of allThemes) {
+    const baseName = getBaseThemeName(theme);
+    const meta = themeBaseMetadata[baseName] ?? {
+      label: toTitleCase(baseName),
+      description: 'Custom theme variant.'
+    };
+
+    if (!baseMap.has(baseName)) {
+      baseMap.set(baseName, {
+        id: baseName,
+        label: meta.label,
+        description: meta.description,
+        modesAvailable: []
+      });
+    }
+
+    const entry = baseMap.get(baseName)!;
+    if (!entry.modesAvailable.includes(theme.mode)) {
+      entry.modesAvailable.push(theme.mode);
+    }
+  }
+
+  return Array.from(baseMap.values()).sort((a, b) => a.label.localeCompare(b.label));
 };
 
 const applyTheme = (theme: Theme) => {

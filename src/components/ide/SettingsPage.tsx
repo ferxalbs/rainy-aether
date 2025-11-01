@@ -1,9 +1,18 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
+import { Brush, Laptop2, MoonStar, SunMedium } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
+import { Separator } from "../ui/separator";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "../ui/select";
 import { useIDEStore } from "../../stores/ideStore";
 import { useSettingsState, setFileIconColorMode, setCustomFileColor } from "../../stores/settingsStore";
-import { useThemeState, setUserPreference, ThemeMode } from "../../stores/themeStore";
+import {
+  useThemeState,
+  setUserPreference,
+  ThemeMode,
+  getThemeBaseOptions,
+  switchBaseTheme
+} from "../../stores/themeStore";
 
 const extOrder = ["ts", "tsx", "js", "jsx", "rs", "json", "md", "css", "scss", "html", "svg"];
 
@@ -11,10 +20,21 @@ const SettingsPage: React.FC = () => {
   const { actions } = useIDEStore();
   const settingsState = useSettingsState();
   const theme = useThemeState();
+  const themeOptions = useMemo(() => getThemeBaseOptions(), []);
 
   const setMode = useCallback(async (mode: ThemeMode) => {
     await setUserPreference(mode);
   }, []);
+
+  const handleBaseThemeChange = useCallback(
+    (baseId: string) => {
+      const activeMode = theme.userPreference === "system" ? theme.systemTheme : theme.userPreference;
+      switchBaseTheme(baseId, activeMode);
+    },
+    [theme.userPreference, theme.systemTheme]
+  );
+
+  const currentBase = useMemo(() => theme.currentTheme.name.split("-")[0], [theme.currentTheme.name]);
 
   return (
     <div className="h-screen flex bg-background text-foreground">
@@ -51,29 +71,96 @@ const SettingsPage: React.FC = () => {
         {/* Theme Mode */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Theme Mode</CardTitle>
-            <CardDescription>Follow system or set Day/Night for UI and editor.</CardDescription>
+            <CardTitle>Theme Preferences</CardTitle>
+            <CardDescription>Choose how the editor adapts to your environment and style.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <Button
-                variant={theme.userPreference === "system" ? "default" : "outline"}
-                onClick={() => setMode("system")}
-              >
-                System
-              </Button>
-              <Button
-                variant={theme.userPreference === "day" ? "default" : "outline"}
-                onClick={() => setMode("day")}
-              >
-                Day
-              </Button>
-              <Button
-                variant={theme.userPreference === "night" ? "default" : "outline"}
-                onClick={() => setMode("night")}
-              >
-                Night
-              </Button>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-3 rounded-lg border border-border bg-card/30 p-4">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Laptop2 className="h-4 w-4" />
+                  Theme Mode
+                </div>
+                <div className="text-xs text-muted-foreground leading-relaxed">
+                  Follow system default or lock the interface to a specific mode.
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={theme.userPreference === "system" ? "default" : "outline"}
+                    onClick={() => setMode("system")}
+                  >
+                    System
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={theme.userPreference === "day" ? "default" : "outline"}
+                    onClick={() => setMode("day")}
+                  >
+                    <SunMedium className="mr-1 h-3.5 w-3.5" /> Day
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={theme.userPreference === "night" ? "default" : "outline"}
+                    onClick={() => setMode("night")}
+                  >
+                    <MoonStar className="mr-1 h-3.5 w-3.5" /> Night
+                  </Button>
+                </div>
+                <div className="text-xs text-muted-foreground leading-relaxed">
+                  Currently following: {theme.userPreference === "system" ? `System (${theme.systemTheme})` : theme.userPreference}
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border border-border bg-card/30 p-4">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Brush className="h-4 w-4" />
+                  Theme Catalog
+                </div>
+                <div className="text-xs text-muted-foreground leading-relaxed">
+                  Pick a theme family tailored for developers. Variants adjust automatically per mode.
+                </div>
+                <Select value={currentBase} onValueChange={handleBaseThemeChange}>
+                  <SelectTrigger className="h-auto min-h-[44px] text-left">
+                    <SelectValue placeholder="Select theme" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-80 w-[320px]">
+                    <SelectGroup>
+                      <SelectLabel>Available themes</SelectLabel>
+                      {themeOptions.map((option) => (
+                        <SelectItem key={option.id} value={option.id} className="py-2">
+                          <div className="flex flex-col gap-0.5 text-left">
+                            <span className="text-sm font-medium text-foreground">{option.label}</span>
+                            <span className="text-xs text-muted-foreground">{option.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid gap-3 md:grid-cols-3 text-xs text-muted-foreground">
+              <div>
+                <div className="text-sm font-medium text-foreground">Active Theme</div>
+                <p>{theme.currentTheme.displayName}</p>
+              </div>
+              <div>
+                <div className="text-sm font-medium text-foreground">Mode</div>
+                <p>{theme.userPreference === "system" ? `System (${theme.systemTheme})` : theme.userPreference}</p>
+              </div>
+              <div>
+                <div className="text-sm font-medium text-foreground">Variants</div>
+                <p>
+                  {themeOptions
+                    .find((option) => option.id === currentBase)?.modesAvailable
+                    .map((mode) => (mode === "day" ? "Day" : "Night"))
+                    .join(" · ") || "Unavailable"}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

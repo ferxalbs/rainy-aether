@@ -203,6 +203,100 @@ export const monokaiNightTheme: Theme = {
   }
 };
 
+// Aurora Theme (Cool, focus-friendly palette)
+export const auroraDayTheme: Theme = {
+  name: 'aurora-day',
+  mode: 'day',
+  displayName: 'Aurora (Day)',
+  variables: {
+    '--bg-primary': '#f0f9ff',
+    '--bg-secondary': '#e0f2fe',
+    '--bg-tertiary': '#bae6fd',
+    '--bg-sidebar': '#f8fafc',
+    '--bg-editor': '#e0f2fe',
+    '--bg-status': '#dbeafe',
+    '--text-primary': '#0f172a',
+    '--text-secondary': '#1e293b',
+    '--text-editor': '#0f172a',
+    '--accent-primary': '#0284c7',
+    '--accent-secondary': '#0ea5e9',
+    '--border-color': '#bfdbfe',
+    '--diff-added': '#15803d',
+    '--diff-removed': '#dc2626',
+    '--diff-hunk': '#0ea5e9'
+  }
+};
+
+export const auroraNightTheme: Theme = {
+  name: 'aurora-night',
+  mode: 'night',
+  displayName: 'Aurora (Night)',
+  variables: {
+    '--bg-primary': '#0f172a',
+    '--bg-secondary': '#1e293b',
+    '--bg-tertiary': '#334155',
+    '--bg-sidebar': '#0f172a',
+    '--bg-editor': '#1e293b',
+    '--bg-status': '#1e293b',
+    '--text-primary': '#e2e8f0',
+    '--text-secondary': '#cbd5f5',
+    '--text-editor': '#e0f2fe',
+    '--accent-primary': '#38bdf8',
+    '--accent-secondary': '#22d3ee',
+    '--border-color': '#334155',
+    '--diff-added': '#22c55e',
+    '--diff-removed': '#f87171',
+    '--diff-hunk': '#38bdf8'
+  }
+};
+
+// Ember Theme (Warm, high-focus palette)
+export const emberDayTheme: Theme = {
+  name: 'ember-day',
+  mode: 'day',
+  displayName: 'Ember (Day)',
+  variables: {
+    '--bg-primary': '#fff7ed',
+    '--bg-secondary': '#ffedd5',
+    '--bg-tertiary': '#fed7aa',
+    '--bg-sidebar': '#fff7ed',
+    '--bg-editor': '#fffbeb',
+    '--bg-status': '#fde68a',
+    '--text-primary': '#431407',
+    '--text-secondary': '#9a3412',
+    '--text-editor': '#431407',
+    '--accent-primary': '#f97316',
+    '--accent-secondary': '#fbbf24',
+    '--border-color': '#fcd34d',
+    '--diff-added': '#16a34a',
+    '--diff-removed': '#dc2626',
+    '--diff-hunk': '#f97316'
+  }
+};
+
+export const emberNightTheme: Theme = {
+  name: 'ember-night',
+  mode: 'night',
+  displayName: 'Ember (Night)',
+  variables: {
+    '--bg-primary': '#1c1917',
+    '--bg-secondary': '#292524',
+    '--bg-tertiary': '#3f3f46',
+    '--bg-sidebar': '#1c1917',
+    '--bg-editor': '#292524',
+    '--bg-status': '#292524',
+    '--text-primary': '#fef3c7',
+    '--text-secondary': '#fde68a',
+    '--text-editor': '#fef3c7',
+    '--accent-primary': '#fb923c',
+    '--accent-secondary': '#facc15',
+    '--border-color': '#4a3526',
+    '--diff-added': '#22c55e',
+    '--diff-removed': '#f87171',
+    '--diff-hunk': '#fb923c'
+  }
+};
+
 // Validate and enhance themes with contrast ratios
 function enhanceThemeWithValidation(theme: Theme): Theme {
   const validation = validateThemeAccessibility(theme.variables);
@@ -221,17 +315,28 @@ export const allThemes: Theme[] = [
   enhanceThemeWithValidation(lightDayTheme),
   enhanceThemeWithValidation(lightNightTheme),
   enhanceThemeWithValidation(monokaiDayTheme),
-  enhanceThemeWithValidation(monokaiNightTheme)
+  enhanceThemeWithValidation(monokaiNightTheme),
+  enhanceThemeWithValidation(auroraDayTheme),
+  enhanceThemeWithValidation(auroraNightTheme),
+  enhanceThemeWithValidation(emberDayTheme),
+  enhanceThemeWithValidation(emberNightTheme)
 ];
 
-// Validate theme consistency
-const consistencyValidation = validateThemeConsistency(
-  navyDayTheme.variables,
-  navyNightTheme.variables
-);
+// Validate theme consistency across pairs
+const themePairs: Array<[Theme, Theme]> = [
+  [navyDayTheme, navyNightTheme],
+  [darkDayTheme, darkNightTheme],
+  [lightDayTheme, lightNightTheme],
+  [monokaiDayTheme, monokaiNightTheme],
+  [auroraDayTheme, auroraNightTheme],
+  [emberDayTheme, emberNightTheme]
+];
 
-if (!consistencyValidation.isConsistent) {
-  console.warn('Theme consistency issues detected:', consistencyValidation.issues);
+for (const [dayTheme, nightTheme] of themePairs) {
+  const consistency = validateThemeConsistency(dayTheme.variables, nightTheme.variables);
+  if (!consistency.isConsistent) {
+    console.warn(`Theme consistency issues detected for ${dayTheme.name}/${nightTheme.name}:`, consistency.issues);
+  }
 }
 
 // Default theme
