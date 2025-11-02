@@ -80,6 +80,7 @@ const FileViewer: React.FC = () => {
           <MonacoEditor
             value={activeFile.content}
             language={getLanguageFromFile(activeFile.name)}
+            filename={activeFile.path || activeFile.name}
             onChange={(value: string) => actions.updateFileContent(activeFile.id, value)}
           />
         ) : (

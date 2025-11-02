@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as monaco from 'monaco-editor';
 import { editorActions } from '../../stores/editorStore';
 import { getCurrentTheme, subscribeToThemeChanges } from '../../stores/themeStore';
+import { configureMonaco, getLanguageFromFilename } from '../../services/monacoConfig';
 
 interface MonacoEditorProps {
   value: string;
   language?: 'javascript' | 'html' | 'css' | 'markdown' | 'rust';
   onChange?: (value: string) => void;
   readOnly?: boolean;
+  filename?: string; // Optional filename for better language detection
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({
@@ -15,6 +17,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   language = 'javascript',
   onChange,
   readOnly = false,
+  filename,
 }) => {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -165,12 +168,32 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       return;
     }
 
+    // Configure Monaco language services (only runs once)
+    configureMonaco();
+
     const themeName = createMonacoTheme();
     monaco.editor.setTheme(themeName);
 
+    // Create a proper URI for the model (helps Monaco language services)
+    const modelUri = monaco.Uri.parse(
+      filename
+        ? `file:///${filename}`
+        : `file:///untitled-${Date.now()}.${language === 'javascript' ? 'ts' : language}`
+    );
+
+    // Determine the language from filename if available
+    const detectedLanguage = filename
+      ? getLanguageFromFilename(filename)
+      : getMonacoLanguage();
+
+    // Create or get existing model
+    let model = monaco.editor.getModel(modelUri);
+    if (!model) {
+      model = monaco.editor.createModel(value, detectedLanguage, modelUri);
+    }
+
     const editor = monaco.editor.create(container, {
-      value,
-      language: getMonacoLanguage(),
+      model,
       theme: themeName,
       readOnly,
       automaticLayout: false, // Disable automatic layout, we'll handle it manually
@@ -253,13 +276,16 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       disposable.dispose();
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleWindowResize);
+
+      // Dispose editor but keep the model alive for reuse
       editor.dispose();
+
       if (editorRef.current === editor) {
         editorRef.current = null;
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [container]);
+  }, [container, filename]);
 
   // Expose focus method
   useEffect(() => {

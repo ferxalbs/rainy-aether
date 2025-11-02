@@ -1,16 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import * as monaco from 'monaco-editor';
-import { ChevronRight, File, Package, Code, Variable, Braces, Layers } from 'lucide-react';
+import { ChevronRight, File, Package, Code, Variable, Braces, Layers, Box, Zap, Key, Hash } from 'lucide-react';
 import { cn } from '@/lib/cn';
-
-interface DocumentSymbol {
-  name: string;
-  detail?: string;
-  kind: monaco.languages.SymbolKind;
-  range: monaco.Range;
-  selectionRange: monaco.Range;
-  children?: DocumentSymbol[];
-}
+import { getDocumentSymbols, findSymbolPathAtPosition, type SymbolNode } from '@/services/symbolService';
 
 interface BreadcrumbsProps {
   editor: monaco.editor.IStandaloneCodeEditor | null;
@@ -18,28 +10,43 @@ interface BreadcrumbsProps {
 }
 
 const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
-  const [currentPath, setCurrentPath] = useState<DocumentSymbol[]>([]);
+  const [currentPath, setCurrentPath] = useState<SymbolNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [fileName, setFileName] = useState<string>('Untitled');
 
   // Get icon for symbol kind
   const getSymbolIcon = (kind: monaco.languages.SymbolKind) => {
     const iconProps = { size: 14, className: "text-muted-foreground" };
-    
+
     switch (kind) {
       case monaco.languages.SymbolKind.File:
         return <File {...iconProps} />;
       case monaco.languages.SymbolKind.Module:
+      case monaco.languages.SymbolKind.Namespace:
+        return <Box {...iconProps} />;
       case monaco.languages.SymbolKind.Package:
         return <Package {...iconProps} />;
       case monaco.languages.SymbolKind.Function:
       case monaco.languages.SymbolKind.Method:
+      case monaco.languages.SymbolKind.Constructor:
         return <Code {...iconProps} />;
       case monaco.languages.SymbolKind.Variable:
+      case monaco.languages.SymbolKind.Field:
+      case monaco.languages.SymbolKind.Property:
         return <Variable {...iconProps} />;
       case monaco.languages.SymbolKind.Class:
+      case monaco.languages.SymbolKind.Struct:
         return <Braces {...iconProps} />;
       case monaco.languages.SymbolKind.Interface:
+      case monaco.languages.SymbolKind.Enum:
         return <Layers {...iconProps} />;
+      case monaco.languages.SymbolKind.Constant:
+        return <Key {...iconProps} />;
+      case monaco.languages.SymbolKind.Number:
+      case monaco.languages.SymbolKind.String:
+        return <Hash {...iconProps} />;
+      case monaco.languages.SymbolKind.Event:
+        return <Zap {...iconProps} />;
       default:
         return <File {...iconProps} />;
     }
@@ -50,224 +57,146 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
     switch (kind) {
       case monaco.languages.SymbolKind.Function:
       case monaco.languages.SymbolKind.Method:
-        return 'text-blue-500';
+      case monaco.languages.SymbolKind.Constructor:
+        return 'text-blue-500 dark:text-blue-400';
       case monaco.languages.SymbolKind.Class:
+      case monaco.languages.SymbolKind.Struct:
+        return 'text-purple-500 dark:text-purple-400';
       case monaco.languages.SymbolKind.Interface:
-        return 'text-purple-500';
+      case monaco.languages.SymbolKind.Enum:
+        return 'text-cyan-500 dark:text-cyan-400';
       case monaco.languages.SymbolKind.Variable:
-        return 'text-green-500';
+      case monaco.languages.SymbolKind.Property:
+      case monaco.languages.SymbolKind.Field:
+        return 'text-green-500 dark:text-green-400';
       case monaco.languages.SymbolKind.Module:
-      case monaco.languages.SymbolKind.Package:
-        return 'text-orange-500';
+      case monaco.languages.SymbolKind.Namespace:
+        return 'text-orange-500 dark:text-orange-400';
+      case monaco.languages.SymbolKind.Constant:
+        return 'text-red-500 dark:text-red-400';
       default:
         return 'text-muted-foreground';
     }
   };
 
-  // Find symbol at current cursor position
-  const findCurrentSymbol = (symbols: DocumentSymbol[], position: monaco.Position): DocumentSymbol[] => {
-    for (const symbol of symbols) {
-      if (symbol.range.containsPosition(position)) {
-        const path = [symbol];
-        
-        // Check children
-        if (symbol.children) {
-          const childPath = findCurrentSymbol(symbol.children, position);
-          if (childPath.length > 0) {
-            return path.concat(childPath);
-          }
-        }
-        
-        return path;
-      }
-    }
-    return [];
-  };
-
-  // Extract symbols using pattern matching (works reliably across languages)
-  const extractSymbols = (model: monaco.editor.ITextModel): DocumentSymbol[] => {
-    const symbols: DocumentSymbol[] = [];
-    const lines = model.getValue().split('\n');
-    const languageId = model.getLanguageId();
-
-    lines.forEach((line, index) => {
-      const lineNumber = index + 1;
-
-      // TypeScript/JavaScript patterns
-      if (languageId === 'typescript' || languageId === 'javascript') {
-        // Functions: function name() or const name = () =>
-        const funcMatch = line.match(/(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>|(\w+)\s*:\s*\([^)]*\)\s*=>)/);
-        if (funcMatch) {
-          const name = funcMatch[1] || funcMatch[2] || funcMatch[3];
-          if (name) {
-            symbols.push({
-              name,
-              kind: monaco.languages.SymbolKind.Function,
-              range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-              selectionRange: new monaco.Range(lineNumber, line.indexOf(name) + 1, lineNumber, line.indexOf(name) + name.length + 1)
-            });
-          }
-        }
-
-        // Classes
-        const classMatch = line.match(/class\s+(\w+)/);
-        if (classMatch) {
-          symbols.push({
-            name: classMatch[1],
-            kind: monaco.languages.SymbolKind.Class,
-            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-            selectionRange: new monaco.Range(lineNumber, line.indexOf(classMatch[1]) + 1, lineNumber, line.indexOf(classMatch[1]) + classMatch[1].length + 1)
-          });
-        }
-
-        // Interfaces
-        const interfaceMatch = line.match(/interface\s+(\w+)/);
-        if (interfaceMatch) {
-          symbols.push({
-            name: interfaceMatch[1],
-            kind: monaco.languages.SymbolKind.Interface,
-            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-            selectionRange: new monaco.Range(lineNumber, line.indexOf(interfaceMatch[1]) + 1, lineNumber, line.indexOf(interfaceMatch[1]) + interfaceMatch[1].length + 1)
-          });
-        }
-      }
-
-      // HTML patterns
-      if (languageId === 'html') {
-        const idMatch = line.match(/id=["']([^"']+)["']/);
-        if (idMatch) {
-          symbols.push({
-            name: `#${idMatch[1]}`,
-            kind: monaco.languages.SymbolKind.Variable,
-            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-            selectionRange: new monaco.Range(lineNumber, line.indexOf(idMatch[1]) + 1, lineNumber, line.indexOf(idMatch[1]) + idMatch[1].length + 1)
-          });
-        }
-      }
-
-      // CSS patterns
-      if (languageId === 'css') {
-        const selectorMatch = line.match(/^([.#]?[\w-]+)\s*\{/);
-        if (selectorMatch) {
-          symbols.push({
-            name: selectorMatch[1],
-            kind: monaco.languages.SymbolKind.Class,
-            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-            selectionRange: new monaco.Range(lineNumber, 1, lineNumber, selectorMatch[1].length + 1)
-          });
-        }
-      }
-
-      // Rust patterns
-      if (languageId === 'rust') {
-        const fnMatch = line.match(/fn\s+(\w+)/);
-        if (fnMatch) {
-          symbols.push({
-            name: fnMatch[1],
-            kind: monaco.languages.SymbolKind.Function,
-            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-            selectionRange: new monaco.Range(lineNumber, line.indexOf(fnMatch[1]) + 1, lineNumber, line.indexOf(fnMatch[1]) + fnMatch[1].length + 1)
-          });
-        }
-
-        const structMatch = line.match(/struct\s+(\w+)/);
-        if (structMatch) {
-          symbols.push({
-            name: structMatch[1],
-            kind: monaco.languages.SymbolKind.Struct,
-            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-            selectionRange: new monaco.Range(lineNumber, line.indexOf(structMatch[1]) + 1, lineNumber, line.indexOf(structMatch[1]) + structMatch[1].length + 1)
-          });
-        }
-      }
-    });
-
-    return symbols;
-  };
-
-  // Update symbols and current path
-  const updateSymbols = async () => {
+  // Update symbols and current path using Monaco's API
+  const updateSymbols = useCallback(async () => {
     if (!editor) return;
+
+    const model = editor.getModel();
+    if (!model) return;
 
     setIsLoading(true);
     try {
-      const model = editor.getModel();
-      if (!model) return;
+      // Update filename
+      const path = model.uri.path;
+      const name = path.split('/').pop() || 'Untitled';
+      setFileName(name);
 
-      const symbols = extractSymbols(model);
+      // Get symbols from Monaco's DocumentSymbolProvider
+      const symbols = await getDocumentSymbols(model);
 
-      // Update current path based on cursor position
+      // Get current cursor position
       const position = editor.getPosition();
-      if (position) {
-        const path = findCurrentSymbol(symbols, position);
+      if (position && symbols.length > 0) {
+        // Find the symbol path at the cursor position
+        const path = findSymbolPathAtPosition(symbols, position);
         setCurrentPath(path);
+      } else {
+        setCurrentPath([]);
       }
     } catch (error) {
-      console.error('Failed to get document symbols:', error);
+      console.error('[Breadcrumbs] Failed to update symbols:', error);
       setCurrentPath([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [editor]);
 
   // Navigate to symbol
-  const navigateToSymbol = (symbol: DocumentSymbol) => {
+  const navigateToSymbol = useCallback((symbol: SymbolNode) => {
     if (!editor) return;
-    
-    editor.setPosition(symbol.selectionRange.getStartPosition());
-    editor.revealRangeInCenter(symbol.selectionRange);
+
+    const position = symbol.selectionRange.getStartPosition();
+    editor.setPosition(position);
+    editor.revealPositionInCenter(position);
     editor.focus();
-  };
+  }, [editor]);
 
   // Update symbols on content change and cursor position change
   useEffect(() => {
     if (!editor) return;
 
-    const updateHandler = () => {
-      updateSymbols();
-    };
-
-    // Update on content change
-    const contentDisposable = editor.onDidChangeModelContent(updateHandler);
-    
-    // Update on cursor position change
-    const cursorDisposable = editor.onDidChangeCursorPosition(updateHandler);
-
     // Initial update
-    updateHandler();
+    updateSymbols();
+
+    // Update on content change (debounced to avoid excessive calls)
+    let contentTimeout: number | null = null;
+    const contentDisposable = editor.onDidChangeModelContent(() => {
+      if (contentTimeout !== null) {
+        clearTimeout(contentTimeout);
+      }
+      contentTimeout = window.setTimeout(() => {
+        updateSymbols();
+      }, 500); // Debounce 500ms
+    });
+
+    // Update on cursor position change (debounced)
+    let cursorTimeout: number | null = null;
+    const cursorDisposable = editor.onDidChangeCursorPosition(() => {
+      if (cursorTimeout !== null) {
+        clearTimeout(cursorTimeout);
+      }
+      cursorTimeout = window.setTimeout(() => {
+        updateSymbols();
+      }, 150); // Debounce 150ms
+    });
+
+    // Update when model changes (file switch)
+    const modelDisposable = editor.onDidChangeModel(() => {
+      updateSymbols();
+    });
 
     return () => {
+      if (contentTimeout !== null) clearTimeout(contentTimeout);
+      if (cursorTimeout !== null) clearTimeout(cursorTimeout);
       contentDisposable.dispose();
       cursorDisposable.dispose();
+      modelDisposable.dispose();
     };
-  }, [editor]);
+  }, [editor, updateSymbols]);
 
-  if (!editor || currentPath.length === 0) {
+  // Don't show breadcrumbs if no editor
+  if (!editor) {
     return null;
   }
+
+  // Show file name even if no symbols
+  const hasSymbols = currentPath.length > 0;
 
   return (
     <div className={cn("flex items-center gap-1 px-3 py-1 text-sm border-b border-border bg-muted/30", className)}>
       {/* File name as root */}
       <div className="flex items-center gap-1 text-muted-foreground">
         <File size={14} />
-        <span>{editor.getModel()?.uri.path.split('/').pop() || 'Untitled'}</span>
+        <span className="font-medium">{fileName}</span>
       </div>
 
       {/* Breadcrumb path */}
-      {currentPath.map((symbol, index) => (
-        <React.Fragment key={index}>
+      {hasSymbols && currentPath.map((symbol, index) => (
+        <React.Fragment key={`${symbol.name}-${index}`}>
           <ChevronRight size={14} className="text-muted-foreground" />
           <button
             onClick={() => navigateToSymbol(symbol)}
             className={cn(
-              "flex items-center gap-1 px-1 py-0.5 rounded hover:bg-muted transition-colors",
+              "flex items-center gap-1 px-2 py-0.5 rounded hover:bg-accent/50 transition-colors",
               getSymbolColor(symbol.kind)
             )}
             title={symbol.detail || symbol.name}
+            type="button"
           >
             {getSymbolIcon(symbol.kind)}
-            <span className="truncate max-w-24">{symbol.name}</span>
+            <span className="truncate max-w-32">{symbol.name}</span>
           </button>
         </React.Fragment>
       ))}
@@ -275,7 +204,14 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
       {/* Loading indicator */}
       {isLoading && (
         <div className="ml-2 text-xs text-muted-foreground animate-pulse">
-          Scanning...
+          •••
+        </div>
+      )}
+
+      {/* No symbols hint (only show briefly) */}
+      {!isLoading && !hasSymbols && (
+        <div className="ml-2 text-xs text-muted-foreground/70">
+          No symbols
         </div>
       )}
     </div>
