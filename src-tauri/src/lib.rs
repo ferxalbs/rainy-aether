@@ -224,6 +224,56 @@ pub fn run() {
         git_manager::git_unstage_all,
         git_manager::git_switch_branch,
         git_manager::git_get_branches,
+        // Clone & Remote operations
+        git_manager::git_clone,
+        git_manager::git_list_remotes,
+        git_manager::git_add_remote,
+        git_manager::git_remove_remote,
+        git_manager::git_rename_remote,
+        git_manager::git_set_remote_url,
+        git_manager::git_fetch,
+        git_manager::git_fetch_all,
+        // Merge & Rebase operations
+        git_manager::git_merge,
+        git_manager::git_merge_abort,
+        git_manager::git_rebase,
+        git_manager::git_rebase_abort,
+        git_manager::git_rebase_continue,
+        git_manager::git_rebase_skip,
+        // Conflict resolution
+        git_manager::git_list_conflicts,
+        git_manager::git_get_conflict_content,
+        git_manager::git_resolve_conflict,
+        git_manager::git_accept_ours,
+        git_manager::git_accept_theirs,
+        // Tag operations
+        git_manager::git_list_tags,
+        git_manager::git_create_tag,
+        git_manager::git_delete_tag,
+        git_manager::git_push_tag,
+        git_manager::git_push_all_tags,
+        // Enhanced diff operations
+        git_manager::git_diff_files,
+        git_manager::git_diff_commit,
+        git_manager::git_diff_between_commits,
+        // Enhanced branch operations
+        git_manager::git_delete_branch,
+        git_manager::git_rename_branch,
+        git_manager::git_set_upstream,
+        // Enhanced commit operations
+        git_manager::git_amend_commit,
+        git_manager::git_reset,
+        git_manager::git_revert,
+        git_manager::git_cherry_pick,
+        // Enhanced file operations
+        git_manager::git_stage_files,
+        git_manager::git_unstage_files,
+        git_manager::git_discard_files,
+        git_manager::git_show_file,
+        // Repository info
+        git_manager::git_get_config,
+        git_manager::git_set_config,
+        git_manager::git_get_repo_info,
         // Extension management
         extension_manager::load_installed_extensions,
         extension_manager::save_installed_extensions,

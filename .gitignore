@@ -32,3 +32,5 @@ target
 
 # Docs for codes completetions, and other AI features.
 MDs
+
+*.md
