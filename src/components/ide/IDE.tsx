@@ -10,6 +10,7 @@ import QuickOpen from "./QuickOpen";
 import CommandPalette from "./CommandPalette";
 import StartupPage from "./StartupPage";
 import SettingsPage from "./SettingsPage";
+import AgentsView from "./AgentsView";
 import { useIDEStore, useIDEState } from "../../stores/ideStore";
 import "../../css/IDE.css";
 import TabSwitcher from "./TabSwitcher";
@@ -390,11 +391,12 @@ const IDE: React.FC = () => {
 
   const snapshot = state();
   const currentView = snapshot.currentView;
+  const viewMode = snapshot.viewMode;
   const isZenMode = snapshot.isZenMode;
   const view = editorState.view;
   const maxLine = view ? view.getModel()?.getLineCount() ?? 1 : 1;
   const terminalVisible = !isZenMode && terminalSnapshot.visible;
-  
+
   // Show workspace loading overlay when loading workspace
   const isWorkspaceLoading = loadingState.isLoading && loadingState.loadingContext === 'workspace';
 
@@ -421,35 +423,42 @@ const IDE: React.FC = () => {
             onOpenExtensionManager={() => setIsExtensionManagerOpen(true)}
           />
 
-          <div className="flex flex-1 overflow-hidden">
-            {!isZenMode && <Sidebar />}
-            <div className="flex-1 overflow-hidden">
-              <ResizablePanelGroup direction="vertical" className="h-full">
-                <ResizablePanel
-                  defaultSize={terminalVisible ? 70 : 100}
-                  minSize={30}
-                  className="min-h-[200px]"
-                >
-                  <FileViewer />
-                </ResizablePanel>
-                {terminalVisible && (
-                  <>
-                    <ResizableHandle withHandle />
+          {/* Conditionally render based on view mode */}
+          {viewMode === "agents" ? (
+            <AgentsView />
+          ) : (
+            <>
+              <div className="flex flex-1 overflow-hidden">
+                {!isZenMode && <Sidebar />}
+                <div className="flex-1 overflow-hidden">
+                  <ResizablePanelGroup direction="vertical" className="h-full">
                     <ResizablePanel
-                      defaultSize={30}
-                      minSize={20}
-                      collapsedSize={0}
-                      collapsible
-                      className="min-h-[160px]"
+                      defaultSize={terminalVisible ? 70 : 100}
+                      minSize={30}
+                      className="min-h-[200px]"
                     >
-                      <TerminalPanel />
+                      <FileViewer />
                     </ResizablePanel>
-                  </>
-                )}
-              </ResizablePanelGroup>
-            </div>
-          </div>
-          {!isZenMode && <StatusBar />}
+                    {terminalVisible && (
+                      <>
+                        <ResizableHandle withHandle />
+                        <ResizablePanel
+                          defaultSize={30}
+                          minSize={20}
+                          collapsedSize={0}
+                          collapsible
+                          className="min-h-[160px]"
+                        >
+                          <TerminalPanel />
+                        </ResizablePanel>
+                      </>
+                    )}
+                  </ResizablePanelGroup>
+                </div>
+              </div>
+              {!isZenMode && <StatusBar />}
+            </>
+          )}
         </>
       )}
 

@@ -14,6 +14,7 @@ import {
 import { useIDEStore } from "../../stores/ideStore";
 import { editorActions } from "../../stores/editorStore";
 import { terminalActions, terminalState } from "../../stores/terminalStore";
+import ModeSwitcher from "./ModeSwitcher";
 
 interface MenuBarProps {
   onOpenQuickOpen?: () => void;
@@ -49,6 +50,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   return (
     <Menubar className="h-8 border-b border-border border-x-0 border-t-0 rounded-none px-1 py-0 gap-1 shadow-none bg-background">
+      {/* Mode Switcher */}
+      <div className="flex items-center px-2">
+        <ModeSwitcher />
+      </div>
+
       <MenubarMenu>
         <MenubarTrigger className="h-6 px-2 text-xs font-normal">File</MenubarTrigger>
         <MenubarContent align="start" className="min-w-56 py-1 text-sm">

@@ -49,9 +49,11 @@ export interface Workspace {
 }
 
 export type SidebarTab = "explorer" | "git";
+export type ViewMode = "ide" | "agents";
 
 export interface IDEState {
   currentView: IDEView;
+  viewMode: ViewMode;
   openFiles: OpenFile[];
   activeFileId: string | null;
   workspace: Workspace | null;
@@ -65,6 +67,7 @@ export interface IDEState {
 
 const initialState: IDEState = {
   currentView: "startup",
+  viewMode: "ide",
   openFiles: [],
   activeFileId: null,
   workspace: null,
@@ -153,6 +156,11 @@ const refreshWorkspaceContents = async (workspace: Workspace) => {
 const setCurrentView = (view: IDEView) => {
   setState((prev) => ({ ...prev, currentView: view }));
   void saveToStore("rainy-coder-current-view", view);
+};
+
+const setViewMode = (mode: ViewMode) => {
+  setState((prev) => ({ ...prev, viewMode: mode }));
+  void saveToStore("rainy-coder-view-mode", mode);
 };
 
 const createFileAt = async (dirPath: string, name: string) => {
@@ -880,6 +888,7 @@ const loadDirectoryChildren = async (dirPath: string) => {
 
 const ideActions = {
   setCurrentView,
+  setViewMode,
   createFileAt,
   createFolderAt,
   renameNode,
@@ -926,11 +935,12 @@ const initializeFromStorage = async () => {
   const savedRecentWorkspaces = await loadFromStore<Workspace[]>("rainy-coder-recent-workspaces", []);
   const lastWorkspace = savedRecentWorkspaces[0] ?? null;
 
-  const [sidebarOpen, autoSaveEnabled, zenModeEnabled, sidebarActive] = await Promise.all([
+  const [sidebarOpen, autoSaveEnabled, zenModeEnabled, sidebarActive, viewMode] = await Promise.all([
     loadFromStore<boolean>("rainy-coder-sidebar-open", true),
     loadFromStore<boolean>("rainy-coder-auto-save", false),
     loadFromStore<boolean>("rainy-coder-zen-mode", false),
     loadFromStore<SidebarTab>("rainy-coder-sidebar-active", "explorer"),
+    loadFromStore<ViewMode>("rainy-coder-view-mode", "ide"),
   ]);
 
   setState((prev) => ({
@@ -940,6 +950,7 @@ const initializeFromStorage = async () => {
     autoSave: autoSaveEnabled,
     isZenMode: zenModeEnabled,
     sidebarActive,
+    viewMode,
   }));
 
   // Open last workspace after setting other preferences
