@@ -49,14 +49,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const hasWorkspace = Boolean(snapshot.workspace);
 
   return (
-    <Menubar className="h-8 border-b border-border border-x-0 border-t-0 rounded-none px-1 py-0 gap-1 shadow-none bg-background">
+    <Menubar className="h-10 border-b border-border border-x-0 border-t-0 rounded-none px-1 py-0 gap-1 shadow-none bg-background">
       {/* Mode Switcher */}
       <div className="flex items-center px-2">
         <ModeSwitcher />
       </div>
 
       <MenubarMenu>
-        <MenubarTrigger className="h-6 px-2 text-xs font-normal">File</MenubarTrigger>
+        <MenubarTrigger className="h-7 px-3 text-sm font-normal">File</MenubarTrigger>
         <MenubarContent align="start" className="min-w-56 py-1 text-sm">
           <MenubarItem onSelect={() => actions.openFolderDialog()}>
             Open Project…
@@ -187,7 +187,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       </MenubarMenu>
 
       <MenubarMenu>
-        <MenubarTrigger className="h-6 px-2 text-xs font-normal">Edit</MenubarTrigger>
+        <MenubarTrigger className="h-7 px-3 text-xs font-normal">Edit</MenubarTrigger>
         <MenubarContent align="start" className="min-w-48 py-1 text-sm">
           <MenubarItem onSelect={() => editorActions.undo()}>
             Undo
@@ -241,7 +241,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       </MenubarMenu>
 
       <MenubarMenu>
-        <MenubarTrigger className="h-6 px-2 text-xs font-normal">View</MenubarTrigger>
+        <MenubarTrigger className="h-7 px-3 text-xs font-normal">View</MenubarTrigger>
         <MenubarContent align="start" className="min-w-56 py-1 text-sm">
           <MenubarItem onSelect={() => actions.toggleSidebar()}>
             Toggle Sidebar
@@ -284,7 +284,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       </MenubarMenu>
 
       <MenubarMenu>
-        <MenubarTrigger className="h-6 px-2 text-xs font-normal">Go</MenubarTrigger>
+        <MenubarTrigger className="h-7 px-3 text-xs font-normal">Go</MenubarTrigger>
         <MenubarContent align="start" className="min-w-48 py-1 text-sm">
           <MenubarItem onSelect={handleQuickOpen}>
             Quick Open…
@@ -306,7 +306,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       </MenubarMenu>
 
       <MenubarMenu>
-        <MenubarTrigger className="h-6 px-2 text-xs font-normal">Extensions</MenubarTrigger>
+        <MenubarTrigger className="h-7 px-3 text-xs font-normal">Extensions</MenubarTrigger>
         <MenubarContent align="start" className="min-w-48 py-1 text-sm">
           <MenubarItem onSelect={handleExtensionMarketplace}>
             Open Extension Marketplace…
