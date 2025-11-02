@@ -262,23 +262,26 @@ pub async fn watch_project_changes(
         notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
             match res {
                 Ok(event) => {
-                    // Filter out temporary files and non-relevant events
+                    // Filter out temporary files, git internals, and non-relevant events
                     let relevant_paths: Vec<_> = event
                         .paths
                         .iter()
                         .filter(|path| {
                             let path_str = path.to_string_lossy();
-                            // Skip temporary files, backup files, and common editor artifacts
+                            // Skip temporary files, backup files, git internals, and common editor artifacts
                             !path_str.contains(".tmp")
                                 && !path_str.contains(".bak")
                                 && !path_str.contains("~")
                                 && !path_str.contains(".swp")
                                 && !path_str.contains(".lock")
+                                && !path_str.contains("\\.git\\")  // Windows path
+                                && !path_str.contains("/.git/")    // Unix path
+                                && !path_str.ends_with("\\.git")   // Windows path
+                                && !path_str.ends_with("/.git")    // Unix path
                         })
                         .collect();
 
                     if !relevant_paths.is_empty() {
-                        println!("File change detected: {:?}", event);
                         window.emit("file-change", &relevant_paths).unwrap();
                     }
                 }

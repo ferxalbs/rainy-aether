@@ -33,7 +33,6 @@ pub struct CommitInfo {
 }
 
 fn run_git(args: &[&str], cwd: &str) -> Result<String, String> {
-    println!("Running git command with cwd: {}", cwd);
     let output = Command::new("git")
         .args(["-C", cwd])
         .args(args)

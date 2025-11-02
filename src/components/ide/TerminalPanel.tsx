@@ -190,8 +190,22 @@ const TerminalPanel: React.FC = () => {
       createTerminalForSession(activeSessionId);
     }
     attachTerminalToDom(activeSessionId);
-    handleResize();
+    // Delay resize to ensure DOM is ready
+    const resizeTimer = window.setTimeout(() => {
+      handleResize();
+    }, 50);
+    return () => window.clearTimeout(resizeTimer);
   }, [activeSessionId, attachTerminalToDom, createTerminalForSession, handleResize, sessions.length]);
+
+  // Trigger resize when panel becomes visible
+  useEffect(() => {
+    if (visible && activeSessionId) {
+      const resizeTimer = window.setTimeout(() => {
+        handleResize();
+      }, 100);
+      return () => window.clearTimeout(resizeTimer);
+    }
+  }, [visible, activeSessionId, handleResize]);
 
   // Update theme for all terminals when theme changes
   useEffect(() => {

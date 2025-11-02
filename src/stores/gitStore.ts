@@ -1,6 +1,11 @@
 import { useSyncExternalStore } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
+// Debounce timers for git operations
+let refreshStatusTimer: ReturnType<typeof setTimeout> | null = null;
+let refreshHistoryTimer: ReturnType<typeof setTimeout> | null = null;
+let refreshBranchesTimer: ReturnType<typeof setTimeout> | null = null;
+
 export type Commit = {
   hash: string;
   author: string;
@@ -104,9 +109,17 @@ export function refreshRepoDetection() {
     .catch(() => updateGitState({ isRepo: false }));
 }
 
-export async function refreshHistory(maxCount = 100) {
+export async function refreshHistory(maxCount = 100, debounce = true) {
   const wsPath = git.workspacePath;
   if (!wsPath) return;
+
+  // Debounce to prevent excessive calls
+  if (debounce) {
+    if (refreshHistoryTimer) clearTimeout(refreshHistoryTimer);
+    refreshHistoryTimer = setTimeout(() => refreshHistory(maxCount, false), 300);
+    return;
+  }
+
   updateGitState({ loadingHistory: true });
   try {
     const [commits, unpushed]: [Commit[], string[]] = await Promise.all([
@@ -119,26 +132,50 @@ export async function refreshHistory(maxCount = 100) {
         unpushed.map((h) => h.trim()).filter((h) => h.length > 0)
       ),
     });
+  } catch (error) {
+    console.error('Failed to refresh git history:', error);
   } finally {
     updateGitState({ loadingHistory: false });
   }
 }
 
-export async function refreshStatus() {
+export async function refreshStatus(debounce = true) {
   const wsPath = git.workspacePath;
   if (!wsPath) return;
-  const entries = await invoke<StatusEntry[]>("git_status", { path: wsPath });
-  updateGitState({ status: entries });
+
+  // Debounce to prevent excessive calls
+  if (debounce) {
+    if (refreshStatusTimer) clearTimeout(refreshStatusTimer);
+    refreshStatusTimer = setTimeout(() => refreshStatus(false), 300);
+    return;
+  }
+
+  try {
+    const entries = await invoke<StatusEntry[]>("git_status", { path: wsPath });
+    updateGitState({ status: entries });
+  } catch (error) {
+    console.error('Failed to refresh git status:', error);
+  }
 }
 
-export async function refreshBranches() {
+export async function refreshBranches(debounce = true) {
   const wsPath = git.workspacePath;
   if (!wsPath) return;
+
+  // Debounce to prevent excessive calls
+  if (debounce) {
+    if (refreshBranchesTimer) clearTimeout(refreshBranchesTimer);
+    refreshBranchesTimer = setTimeout(() => refreshBranches(false), 300);
+    return;
+  }
+
   updateGitState({ loadingBranches: true });
   try {
     const branches = await invoke<Branch[]>("git_branches", { path: wsPath });
     const currentBranch = branches.find(b => b.current)?.name;
     updateGitState({ branches, currentBranch });
+  } catch (error) {
+    console.error('Failed to refresh git branches:', error);
   } finally {
     updateGitState({ loadingBranches: false });
   }
@@ -147,6 +184,7 @@ export async function refreshBranches() {
 export async function refreshStashes() {
   const wsPath = git.workspacePath;
   if (!wsPath) return;
+
   updateGitState({ loadingStashes: true });
   try {
     const stashes = await invoke<StashEntry[]>("git_stash_list", { path: wsPath });
