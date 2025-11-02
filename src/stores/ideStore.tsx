@@ -521,8 +521,9 @@ const openFolderDialog = async () => {
 
 const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true) => {
   try {
-    // Import loading actions
+    // Import loading actions and start workspace loading context
     const { loadingActions } = await import("./loadingStore");
+    loadingActions.startWorkspaceLoading();
 
     // Stage 1: Workspace provisioning
     loadingActions.startStage('workspace');
@@ -585,7 +586,7 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
     await new Promise(resolve => setTimeout(resolve, 200));
     loadingActions.completeStage('monaco');
 
-    // Mark loading as finished
+    // Mark workspace loading as finished
     loadingActions.finishLoading();
   } catch (error) {
     console.error("Failed to open workspace:", error);

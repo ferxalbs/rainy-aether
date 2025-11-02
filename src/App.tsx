@@ -15,7 +15,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const initialize = async () => {
       const startTime = Date.now();
-      const minLoadingTime = 1000; // Minimum 1 second to prevent flashing
+      const minLoadingTime = 800; // Minimum loading time to prevent flashing
 
       try {
         // Stage 1: Theme
@@ -52,7 +52,7 @@ const App: React.FC = () => {
         // Stage 4: Resources
         loadingActions.startStage('resources');
         // Add a small delay for resource provisioning
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 200));
         loadingActions.completeStage('resources');
 
         // Ensure minimum loading time to prevent flashing
@@ -61,10 +61,14 @@ const App: React.FC = () => {
           await new Promise(resolve => setTimeout(resolve, minLoadingTime - elapsedTime));
         }
 
+        // Finish global loading - this will hide the loading screen
+        loadingActions.finishLoading();
+
         // Mark initialization as complete
         setIsInitialized(true);
       } catch (error) {
         console.error("Failed to initialize app:", error);
+        loadingActions.finishLoading();
         setIsInitialized(true); // Still show the app even if initialization fails
       }
     };
@@ -74,7 +78,7 @@ const App: React.FC = () => {
 
   // Show loading screen while initializing or while loading state is active
   if (!isInitialized || loadingState.isLoading) {
-    return <LoadingScreen stages={loadingState.stages} />;
+    return <LoadingScreen stages={loadingState.stages} context={loadingState.loadingContext} />;
   }
 
   return (

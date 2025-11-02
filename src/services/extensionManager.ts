@@ -12,16 +12,18 @@ import {
 export class ExtensionManager extends EventEmitter {
   private extensions: Map<string, InstalledExtension> = new Map();
   private readonly extensionsDir = 'extensions'; // Relative to app data directory
+  private isInitialized = false;
 
   constructor() {
     super();
-    this.loadInstalledExtensions();
+    // Don't load extensions in constructor - do it lazily
   }
 
   /**
    * Get all installed extensions
    */
-  getInstalledExtensions(): InstalledExtension[] {
+  async getInstalledExtensions(): Promise<InstalledExtension[]> {
+    await this.ensureInitialized();
     return Array.from(this.extensions.values());
   }
 

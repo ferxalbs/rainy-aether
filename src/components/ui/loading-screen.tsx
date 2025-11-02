@@ -14,14 +14,21 @@ interface LoadingScreenProps {
   title?: string;
   subtitle?: string;
   className?: string;
+  context?: 'global' | 'workspace' | null;
 }
 
 const LoadingScreen: React.FC<LoadingScreenProps> = ({
   stages,
   title = 'Rainy Aether',
-  subtitle = 'Initializing your workspace',
-  className
+  subtitle,
+  className,
+  context
 }) => {
+  // Auto-generate subtitle based on context if not provided
+  const defaultSubtitle = context === 'workspace'
+    ? 'Opening your workspace'
+    : 'Initializing IDE';
+  const displaySubtitle = subtitle || defaultSubtitle;
   const getStageIcon = (stage: LoadingStage) => {
     switch (stage.status) {
       case 'loading':
@@ -49,7 +56,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-3 text-primary">{title}</h1>
-          <p className="text-lg text-muted-foreground">{subtitle}</p>
+          <p className="text-lg text-muted-foreground">{displaySubtitle}</p>
         </div>
 
         {/* Progress Bar */}

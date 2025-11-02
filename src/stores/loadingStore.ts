@@ -13,22 +13,28 @@ interface LoadingState {
   isLoading: boolean;
   stages: LoadingStage[];
   currentStageId: string | null;
+  loadingContext: 'global' | 'workspace' | null;
 }
 
-// Initial loading stages
-const initialStages: LoadingStage[] = [
+// Global app initialization stages (runs at startup)
+const globalStages: LoadingStage[] = [
   { id: 'theme', label: 'Loading theme', status: 'pending' },
   { id: 'settings', label: 'Loading settings', status: 'pending' },
   { id: 'extensions', label: 'Loading extensions', status: 'pending' },
+  { id: 'resources', label: 'Provisioning resources', status: 'pending' },
+];
+
+// Workspace initialization stages (runs when opening a project)
+const workspaceStages: LoadingStage[] = [
   { id: 'workspace', label: 'Provisioning workspace', status: 'pending' },
   { id: 'monaco', label: 'Initializing editor', status: 'pending' },
-  { id: 'resources', label: 'Provisioning resources', status: 'pending' },
 ];
 
 let state: LoadingState = {
   isLoading: true,
-  stages: [...initialStages],
+  stages: [...globalStages],
   currentStageId: null,
+  loadingContext: 'global',
 };
 
 const listeners = new Set<() => void>();
@@ -38,7 +44,11 @@ function notifyListeners() {
 }
 
 function updateState(updates: Partial<LoadingState>) {
-  state = { ...state, ...updates };
+  state = { 
+    ...state, 
+    ...updates,
+    stages: updates.stages || state.stages
+  };
   notifyListeners();
 }
 
@@ -50,7 +60,7 @@ function subscribe(listener: () => void): () => void {
 }
 
 function getSnapshot(): LoadingState {
-  return state;
+  return { ...state };
 }
 
 // Actions
@@ -90,16 +100,28 @@ export const loadingActions = {
     updateState({ stages, currentStageId: null });
   },
 
-  reset() {
+  // Switch to workspace loading context
+  startWorkspaceLoading() {
     updateState({
       isLoading: true,
-      stages: initialStages.map(s => ({ ...s, status: 'pending' as const })),
+      stages: workspaceStages.map(s => ({ ...s, status: 'pending' as const })),
       currentStageId: null,
+      loadingContext: 'workspace'
+    });
+  },
+
+  // Reset to global loading context
+  resetToGlobal() {
+    updateState({
+      isLoading: true,
+      stages: globalStages.map(s => ({ ...s, status: 'pending' as const })),
+      currentStageId: null,
+      loadingContext: 'global'
     });
   },
 
   finishLoading() {
-    updateState({ isLoading: false });
+    updateState({ isLoading: false, loadingContext: null });
   },
 
   addStage(stage: LoadingStage) {
