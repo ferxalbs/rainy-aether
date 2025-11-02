@@ -35,7 +35,8 @@ const FileNodeComponent: React.FC<FileNodeProps> = ({
       setIsOpen(willOpen);
       
       // Lazy load children if opening and not loaded yet
-      if (willOpen && !node.children_loaded && node.children === undefined) {
+      // Check both children_loaded flag AND if children array is empty/undefined
+      if (willOpen && !node.children_loaded && (!node.children || node.children.length === 0)) {
         try {
           await actions.loadDirectoryChildren(node.path);
         } catch (error) {

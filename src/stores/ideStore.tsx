@@ -813,7 +813,8 @@ const loadDirectoryChildren = async (dirPath: string) => {
     setState((prev) => {
       if (!prev.projectTree) return prev;
       
-      const updateNodeChildren = (node: FileNode): FileNode => {
+      const updateNodeChildren = (node: FileNode): FileNode | null => {
+        // Found the target node - update it
         if (node.path === dirPath) {
           return {
             ...node,
@@ -822,19 +823,41 @@ const loadDirectoryChildren = async (dirPath: string) => {
           };
         }
         
+        // If this node has children, search them
         if (node.children) {
-          return {
-            ...node,
-            children: node.children.map(updateNodeChildren),
-          };
+          let updated = false;
+          const newChildren = node.children.map(child => {
+            const result = updateNodeChildren(child);
+            if (result !== null) {
+              updated = true;
+              return result;
+            }
+            return child;
+          });
+          
+          // Only create new object if a child was actually updated
+          if (updated) {
+            return {
+              ...node,
+              children: newChildren,
+            };
+          }
         }
         
-        return node;
+        // No changes needed for this node
+        return null;
       };
+      
+      const updatedTree = updateNodeChildren(prev.projectTree);
+      
+      // Only update state if something actually changed
+      if (updatedTree === null) {
+        return prev;
+      }
       
       return {
         ...prev,
-        projectTree: updateNodeChildren(prev.projectTree),
+        projectTree: updatedTree,
       };
     });
   } catch (error) {
