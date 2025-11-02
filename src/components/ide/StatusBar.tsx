@@ -12,6 +12,7 @@ import { editorState } from '../../stores/editorStore';
 import { useIDEStore } from '../../stores/ideStore';
 import { getCurrentTheme } from '../../stores/themeStore';
 import { getGitService, GitStatus } from '../../services/gitService';
+import { getDiagnosticService, DiagnosticStats } from '../../services/diagnosticService';
 import { cn } from '@/lib/cn';
 
 // Status bar item interface
@@ -24,11 +25,8 @@ interface StatusBarItem {
   position: 'left' | 'right';
 }
 
-// Problems interface
-interface Problems {
-  errors: number;
-  warnings: number;
-}
+// Problems interface (now using DiagnosticStats)
+type Problems = DiagnosticStats;
 
 // Editor info interface
 interface EditorInfo {
@@ -50,7 +48,7 @@ const StatusBar: React.FC = () => {
     conflicts: 0,
     clean: true
   });
-  const [problems, setProblems] = useState<Problems>({ errors: 0, warnings: 0 });
+  const [problems, setProblems] = useState<Problems>({ errors: 0, warnings: 0, info: 0, hints: 0, total: 0 });
   const [editorInfo, setEditorInfo] = useState<EditorInfo>({
     language: 'Plain Text',
     encoding: 'UTF-8',
@@ -154,25 +152,16 @@ const StatusBar: React.FC = () => {
     }
   };
 
-  // Update problems (would be replaced with actual linting integration)
-  const updateProblems = () => {
-    const editor = editorState.view;
-    if (!editor) {
-      setProblems({ errors: 0, warnings: 0 });
-      return;
-    }
-
-    const model = editor.getModel();
-    if (!model) return;
-
-    // This would be replaced with actual linting/diagnostics
-    // For now, simulating problems
-    const content = model.getValue();
-    const errorCount = (content.match(/error/gi) || []).length;
-    const warningCount = (content.match(/warning/gi) || []).length;
+  // Subscribe to diagnostic service for real-time problem updates
+  useEffect(() => {
+    const diagnosticService = getDiagnosticService();
     
-    setProblems({ errors: errorCount, warnings: warningCount });
-  };
+    const unsubscribe = diagnosticService.subscribe((_diagnostics, stats) => {
+      setProblems(stats);
+    });
+
+    return unsubscribe;
+  }, []);
 
   // Update editor info when editor changes
   useEffect(() => {
@@ -181,7 +170,6 @@ const StatusBar: React.FC = () => {
 
     const updateHandler = () => {
       updateEditorInfo();
-      updateProblems();
     };
 
     const cursorDisposable = editor.onDidChangeCursorPosition(updateHandler);

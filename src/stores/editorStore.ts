@@ -192,6 +192,106 @@ export const editorActions = {
         console.error('Layout failed:', error);
       }
     }
+  },
+
+  // Code navigation actions
+  goToDefinition() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.revealDefinition')?.run();
+      } catch (error) {
+        console.error('Go to definition failed:', error);
+      }
+    }
+  },
+
+  peekDefinition() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.peekDefinition')?.run();
+      } catch (error) {
+        console.error('Peek definition failed:', error);
+      }
+    }
+  },
+
+  goToTypeDefinition() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.goToTypeDefinition')?.run();
+      } catch (error) {
+        console.error('Go to type definition failed:', error);
+      }
+    }
+  },
+
+  goToImplementation() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.goToImplementation')?.run();
+      } catch (error) {
+        console.error('Go to implementation failed:', error);
+      }
+    }
+  },
+
+  findAllReferences() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.goToReferences')?.run();
+      } catch (error) {
+        console.error('Find all references failed:', error);
+      }
+    }
+  },
+
+  renameSymbol() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.rename')?.run();
+      } catch (error) {
+        console.error('Rename symbol failed:', error);
+      }
+    }
+  },
+
+  showOutline() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.quickOutline')?.run();
+      } catch (error) {
+        console.error('Show outline failed:', error);
+      }
+    }
+  },
+
+  formatDocument() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.formatDocument')?.run();
+      } catch (error) {
+        console.error('Format document failed:', error);
+      }
+    }
+  },
+
+  toggleComment() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.commentLine')?.run();
+      } catch (error) {
+        console.error('Toggle comment failed:', error);
+      }
+    }
   }
 };
 

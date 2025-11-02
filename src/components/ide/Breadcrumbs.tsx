@@ -84,6 +84,107 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
     return [];
   };
 
+  // Extract symbols using pattern matching (works reliably across languages)
+  const extractSymbols = (model: monaco.editor.ITextModel): DocumentSymbol[] => {
+    const symbols: DocumentSymbol[] = [];
+    const lines = model.getValue().split('\n');
+    const languageId = model.getLanguageId();
+
+    lines.forEach((line, index) => {
+      const lineNumber = index + 1;
+
+      // TypeScript/JavaScript patterns
+      if (languageId === 'typescript' || languageId === 'javascript') {
+        // Functions: function name() or const name = () =>
+        const funcMatch = line.match(/(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>|(\w+)\s*:\s*\([^)]*\)\s*=>)/);
+        if (funcMatch) {
+          const name = funcMatch[1] || funcMatch[2] || funcMatch[3];
+          if (name) {
+            symbols.push({
+              name,
+              kind: monaco.languages.SymbolKind.Function,
+              range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
+              selectionRange: new monaco.Range(lineNumber, line.indexOf(name) + 1, lineNumber, line.indexOf(name) + name.length + 1)
+            });
+          }
+        }
+
+        // Classes
+        const classMatch = line.match(/class\s+(\w+)/);
+        if (classMatch) {
+          symbols.push({
+            name: classMatch[1],
+            kind: monaco.languages.SymbolKind.Class,
+            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
+            selectionRange: new monaco.Range(lineNumber, line.indexOf(classMatch[1]) + 1, lineNumber, line.indexOf(classMatch[1]) + classMatch[1].length + 1)
+          });
+        }
+
+        // Interfaces
+        const interfaceMatch = line.match(/interface\s+(\w+)/);
+        if (interfaceMatch) {
+          symbols.push({
+            name: interfaceMatch[1],
+            kind: monaco.languages.SymbolKind.Interface,
+            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
+            selectionRange: new monaco.Range(lineNumber, line.indexOf(interfaceMatch[1]) + 1, lineNumber, line.indexOf(interfaceMatch[1]) + interfaceMatch[1].length + 1)
+          });
+        }
+      }
+
+      // HTML patterns
+      if (languageId === 'html') {
+        const idMatch = line.match(/id=["']([^"']+)["']/);
+        if (idMatch) {
+          symbols.push({
+            name: `#${idMatch[1]}`,
+            kind: monaco.languages.SymbolKind.Variable,
+            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
+            selectionRange: new monaco.Range(lineNumber, line.indexOf(idMatch[1]) + 1, lineNumber, line.indexOf(idMatch[1]) + idMatch[1].length + 1)
+          });
+        }
+      }
+
+      // CSS patterns
+      if (languageId === 'css') {
+        const selectorMatch = line.match(/^([.#]?[\w-]+)\s*\{/);
+        if (selectorMatch) {
+          symbols.push({
+            name: selectorMatch[1],
+            kind: monaco.languages.SymbolKind.Class,
+            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
+            selectionRange: new monaco.Range(lineNumber, 1, lineNumber, selectorMatch[1].length + 1)
+          });
+        }
+      }
+
+      // Rust patterns
+      if (languageId === 'rust') {
+        const fnMatch = line.match(/fn\s+(\w+)/);
+        if (fnMatch) {
+          symbols.push({
+            name: fnMatch[1],
+            kind: monaco.languages.SymbolKind.Function,
+            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
+            selectionRange: new monaco.Range(lineNumber, line.indexOf(fnMatch[1]) + 1, lineNumber, line.indexOf(fnMatch[1]) + fnMatch[1].length + 1)
+          });
+        }
+
+        const structMatch = line.match(/struct\s+(\w+)/);
+        if (structMatch) {
+          symbols.push({
+            name: structMatch[1],
+            kind: monaco.languages.SymbolKind.Struct,
+            range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
+            selectionRange: new monaco.Range(lineNumber, line.indexOf(structMatch[1]) + 1, lineNumber, line.indexOf(structMatch[1]) + structMatch[1].length + 1)
+          });
+        }
+      }
+    });
+
+    return symbols;
+  };
+
   // Update symbols and current path
   const updateSymbols = async () => {
     if (!editor) return;
@@ -93,86 +194,7 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
       const model = editor.getModel();
       if (!model) return;
 
-      // Simple symbol extraction for JavaScript/TypeScript
-      const symbols: DocumentSymbol[] = [];
-
-      if (model.getLanguageId() === 'typescript' || model.getLanguageId() === 'javascript') {
-        const lines = model.getValue().split('\n');
-        
-        lines.forEach((line, index) => {
-          const lineNumber = index + 1;
-          
-          // Extract functions
-          const functionMatch = line.match(/(?:function\s+(\w+)|(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>))/);
-          if (functionMatch) {
-            const functionName = functionMatch[1] || functionMatch[2];
-            if (functionName) {
-              symbols.push({
-                name: functionName,
-                kind: monaco.languages.SymbolKind.Function,
-                range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-                selectionRange: new monaco.Range(lineNumber, line.indexOf(functionName) + 1, lineNumber, line.indexOf(functionName) + functionName.length + 1)
-              });
-            }
-          }
-
-          // Extract classes
-          const classMatch = line.match(/class\s+(\w+)/);
-          if (classMatch) {
-            const className = classMatch[1];
-            symbols.push({
-              name: className,
-              kind: monaco.languages.SymbolKind.Class,
-              range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-              selectionRange: new monaco.Range(lineNumber, line.indexOf(className) + 1, lineNumber, line.indexOf(className) + className.length + 1)
-            });
-          }
-
-          // Extract interfaces
-          const interfaceMatch = line.match(/interface\s+(\w+)/);
-          if (interfaceMatch) {
-            const interfaceName = interfaceMatch[1];
-            symbols.push({
-              name: interfaceName,
-              kind: monaco.languages.SymbolKind.Interface,
-              range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-              selectionRange: new monaco.Range(lineNumber, line.indexOf(interfaceName) + 1, lineNumber, line.indexOf(interfaceName) + interfaceName.length + 1)
-            });
-          }
-
-          // Extract variables (const, let, var)
-          const varMatch = line.match(/(?:const|let|var)\s+(\w+)/);
-          if (varMatch) {
-            const varName = varMatch[1];
-            symbols.push({
-              name: varName,
-              kind: monaco.languages.SymbolKind.Variable,
-              range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-              selectionRange: new monaco.Range(lineNumber, line.indexOf(varName) + 1, lineNumber, line.indexOf(varName) + varName.length + 1)
-            });
-          }
-        });
-      }
-
-      // For HTML, extract tags and ids
-      if (model.getLanguageId() === 'html') {
-        const lines = model.getValue().split('\n');
-        lines.forEach((line, index) => {
-          const lineNumber = index + 1;
-          
-          // Extract IDs
-          const idMatch = line.match(/id="([^"]+)"/);
-          if (idMatch) {
-            const id = idMatch[1];
-            symbols.push({
-              name: `#${id}`,
-              kind: monaco.languages.SymbolKind.Variable,
-              range: new monaco.Range(lineNumber, 1, lineNumber, line.length + 1),
-              selectionRange: new monaco.Range(lineNumber, line.indexOf(id) + 1, lineNumber, line.indexOf(id) + id.length + 1)
-            });
-          }
-        });
-      }
+      const symbols = extractSymbols(model);
 
       // Update current path based on cursor position
       const position = editor.getPosition();
@@ -182,6 +204,7 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
       }
     } catch (error) {
       console.error('Failed to get document symbols:', error);
+      setCurrentPath([]);
     } finally {
       setIsLoading(false);
     }
