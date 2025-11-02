@@ -71,7 +71,7 @@ export function configureMonaco() {
       contentUnformatted: 'pre,code,textarea',
       indentInnerHtml: false,
       preserveNewLines: true,
-      maxPreserveNewLines: null,
+      maxPreserveNewLines: undefined,
       indentHandlebars: false,
       endWithNewline: false,
       extraLiners: 'head, body, /html',

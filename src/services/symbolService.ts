@@ -1,7 +1,7 @@
 /**
  * Symbol Service
- * Extracts document symbols using Monaco's built-in DocumentSymbolProvider
- * This provides VS Code-like breadcrumb and outline functionality
+ * Extracts document symbols for breadcrumb and outline functionality
+ * Uses Monaco's TypeScript worker for TS/JS and pattern matching for other languages
  */
 
 import * as monaco from 'monaco-editor';
@@ -17,21 +17,20 @@ export interface SymbolNode {
 
 /**
  * Extract document symbols from Monaco editor model
- * Uses Monaco's built-in language services instead of regex patterns
  */
 export async function getDocumentSymbols(
   model: monaco.editor.ITextModel
 ): Promise<SymbolNode[]> {
-  try {
-    // Use Monaco's executeDocumentSymbolProvider to get symbols
-    const symbols = await monaco.languages.executeDocumentSymbolProvider(model.uri);
+  const languageId = model.getLanguageId();
 
-    if (!symbols || symbols.length === 0) {
-      return [];
+  try {
+    // Use TypeScript worker for TS/JS files
+    if (languageId === 'typescript' || languageId === 'javascript') {
+      return await getTypeScriptSymbols(model);
     }
 
-    // Convert Monaco symbols to our format
-    return convertSymbols(symbols);
+    // For other languages, use pattern matching
+    return getPatternBasedSymbols(model);
   } catch (error) {
     console.warn('[SymbolService] Failed to get document symbols:', error);
     return [];
@@ -39,19 +38,210 @@ export async function getDocumentSymbols(
 }
 
 /**
- * Convert Monaco's DocumentSymbol format to our SymbolNode format
+ * Get symbols from TypeScript/JavaScript using Monaco's TS worker
  */
-function convertSymbols(
-  symbols: monaco.languages.DocumentSymbol[]
+async function getTypeScriptSymbols(
+  model: monaco.editor.ITextModel
+): Promise<SymbolNode[]> {
+  try {
+    const worker = await monaco.languages.typescript.getTypeScriptWorker();
+    const client = await worker(model.uri);
+
+    // Get navigation tree (this is how VS Code gets symbols)
+    const navigationTree = await (client as any).getNavigationTree(model.uri.toString());
+
+    if (!navigationTree || !navigationTree.childItems) {
+      return [];
+    }
+
+    // Convert navigation tree to our symbol format
+    return convertNavigationTree(navigationTree.childItems, model);
+  } catch (error) {
+    console.warn('[SymbolService] TypeScript worker failed, falling back to patterns:', error);
+    return getPatternBasedSymbols(model);
+  }
+}
+
+/**
+ * Convert TypeScript navigation tree to SymbolNode format
+ */
+function convertNavigationTree(
+  items: any[],
+  model: monaco.editor.ITextModel
 ): SymbolNode[] {
-  return symbols.map((symbol) => ({
-    name: symbol.name,
-    detail: symbol.detail,
-    kind: symbol.kind,
-    range: symbol.range,
-    selectionRange: symbol.selectionRange,
-    children: symbol.children ? convertSymbols(symbol.children) : undefined,
-  }));
+  const symbols: SymbolNode[] = [];
+
+  for (const item of items) {
+    if (!item.spans || item.spans.length === 0) continue;
+
+    const span = item.spans[0];
+    const startPos = model.getPositionAt(span.start);
+    const endPos = model.getPositionAt(span.start + span.length);
+
+    const kind = convertNavigationKind(item.kind);
+
+    const symbol: SymbolNode = {
+      name: item.text,
+      kind,
+      range: new monaco.Range(
+        startPos.lineNumber,
+        startPos.column,
+        endPos.lineNumber,
+        endPos.column
+      ),
+      selectionRange: new monaco.Range(
+        startPos.lineNumber,
+        startPos.column,
+        startPos.lineNumber,
+        startPos.column + item.text.length
+      ),
+    };
+
+    // Recursively add children
+    if (item.childItems && item.childItems.length > 0) {
+      symbol.children = convertNavigationTree(item.childItems, model);
+    }
+
+    symbols.push(symbol);
+  }
+
+  return symbols;
+}
+
+/**
+ * Convert TypeScript navigation kind to Monaco SymbolKind
+ */
+function convertNavigationKind(kind: string): monaco.languages.SymbolKind {
+  const kindMap: Record<string, monaco.languages.SymbolKind> = {
+    'class': monaco.languages.SymbolKind.Class,
+    'interface': monaco.languages.SymbolKind.Interface,
+    'type': monaco.languages.SymbolKind.Interface,
+    'enum': monaco.languages.SymbolKind.Enum,
+    'function': monaco.languages.SymbolKind.Function,
+    'method': monaco.languages.SymbolKind.Method,
+    'property': monaco.languages.SymbolKind.Property,
+    'field': monaco.languages.SymbolKind.Field,
+    'variable': monaco.languages.SymbolKind.Variable,
+    'const': monaco.languages.SymbolKind.Constant,
+    'let': monaco.languages.SymbolKind.Variable,
+    'constructor': monaco.languages.SymbolKind.Constructor,
+    'module': monaco.languages.SymbolKind.Module,
+    'namespace': monaco.languages.SymbolKind.Namespace,
+  };
+
+  return kindMap[kind] || monaco.languages.SymbolKind.Variable;
+}
+
+/**
+ * Get symbols using pattern matching (fallback for non-TS languages)
+ */
+function getPatternBasedSymbols(
+  model: monaco.editor.ITextModel
+): SymbolNode[] {
+  const symbols: SymbolNode[] = [];
+  const content = model.getValue();
+  const lines = content.split('\n');
+  const languageId = model.getLanguageId();
+
+  lines.forEach((line, index) => {
+    const lineNumber = index + 1;
+
+    // TypeScript/JavaScript patterns (fallback)
+    if (languageId === 'typescript' || languageId === 'javascript') {
+      // Function declarations
+      const funcMatch = line.match(/(?:export\s+)?(?:async\s+)?function\s+(\w+)/);
+      if (funcMatch) {
+        symbols.push(createSymbol(funcMatch[1], monaco.languages.SymbolKind.Function, lineNumber, line));
+        return;
+      }
+
+      // Arrow functions
+      const arrowMatch = line.match(/(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*=>/);
+      if (arrowMatch) {
+        symbols.push(createSymbol(arrowMatch[1], monaco.languages.SymbolKind.Function, lineNumber, line));
+        return;
+      }
+
+      // Classes
+      const classMatch = line.match(/(?:export\s+)?(?:abstract\s+)?class\s+(\w+)/);
+      if (classMatch) {
+        symbols.push(createSymbol(classMatch[1], monaco.languages.SymbolKind.Class, lineNumber, line));
+        return;
+      }
+
+      // Interfaces
+      const interfaceMatch = line.match(/(?:export\s+)?interface\s+(\w+)/);
+      if (interfaceMatch) {
+        symbols.push(createSymbol(interfaceMatch[1], monaco.languages.SymbolKind.Interface, lineNumber, line));
+        return;
+      }
+
+      // Type aliases
+      const typeMatch = line.match(/(?:export\s+)?type\s+(\w+)/);
+      if (typeMatch) {
+        symbols.push(createSymbol(typeMatch[1], monaco.languages.SymbolKind.Interface, lineNumber, line));
+        return;
+      }
+    }
+
+    // Rust patterns
+    if (languageId === 'rust') {
+      const fnMatch = line.match(/(?:pub\s+)?fn\s+(\w+)/);
+      if (fnMatch) {
+        symbols.push(createSymbol(fnMatch[1], monaco.languages.SymbolKind.Function, lineNumber, line));
+        return;
+      }
+
+      const structMatch = line.match(/(?:pub\s+)?struct\s+(\w+)/);
+      if (structMatch) {
+        symbols.push(createSymbol(structMatch[1], monaco.languages.SymbolKind.Struct, lineNumber, line));
+        return;
+      }
+
+      const implMatch = line.match(/impl\s+(?:<[^>]+>\s+)?(\w+)/);
+      if (implMatch) {
+        symbols.push(createSymbol(implMatch[1], monaco.languages.SymbolKind.Class, lineNumber, line));
+        return;
+      }
+    }
+
+    // HTML patterns
+    if (languageId === 'html') {
+      const idMatch = line.match(/id=["']([^"']+)["']/);
+      if (idMatch) {
+        symbols.push(createSymbol(`#${idMatch[1]}`, monaco.languages.SymbolKind.Property, lineNumber, line));
+      }
+    }
+
+    // CSS patterns
+    if (languageId === 'css' || languageId === 'scss' || languageId === 'less') {
+      const selectorMatch = line.match(/^([.#]?[\w-]+)\s*\{/);
+      if (selectorMatch) {
+        symbols.push(createSymbol(selectorMatch[1], monaco.languages.SymbolKind.Class, lineNumber, line));
+      }
+    }
+  });
+
+  return symbols;
+}
+
+/**
+ * Helper to create a symbol node
+ */
+function createSymbol(
+  name: string,
+  kind: monaco.languages.SymbolKind,
+  lineNumber: number,
+  lineText: string
+): SymbolNode {
+  const column = lineText.indexOf(name) + 1;
+
+  return {
+    name,
+    kind,
+    range: new monaco.Range(lineNumber, 1, lineNumber, lineText.length + 1),
+    selectionRange: new monaco.Range(lineNumber, column, lineNumber, column + name.length),
+  };
 }
 
 /**

@@ -1,6 +1,8 @@
 import React, { useMemo } from "react";
 import { useIDEStore, OpenFile } from "../../stores/ideStore";
 import MonacoEditor from "./MonacoEditor";
+import Breadcrumbs from "./Breadcrumbs";
+import { editorState } from "../../stores/editorStore";
 import { X } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/cn";
@@ -74,6 +76,9 @@ const FileViewer: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Breadcrumbs - positioned between tabs and editor */}
+      {snapshot.openFiles.length > 0 && <Breadcrumbs editor={editorState.view} />}
 
       <div className="flex-1 overflow-hidden">
         {activeFile ? (
