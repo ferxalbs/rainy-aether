@@ -40,6 +40,10 @@ let state: LoadingState = {
 let cachedSnapshot: LoadingState = { ...state };
 
 const listeners = new Set<() => void>();
+let loadingTimeoutId: number | null = null;
+
+// Safety timeout to prevent infinite loading (30 seconds)
+const LOADING_TIMEOUT_MS = 30000;
 
 function notifyListeners() {
   listeners.forEach(listener => listener());
@@ -53,6 +57,20 @@ function updateState(updates: Partial<LoadingState>) {
   };
   cachedSnapshot = state;
   notifyListeners();
+  
+  // Clear existing timeout
+  if (loadingTimeoutId !== null) {
+    clearTimeout(loadingTimeoutId);
+    loadingTimeoutId = null;
+  }
+  
+  // Set timeout if loading is active
+  if (state.isLoading) {
+    loadingTimeoutId = window.setTimeout(() => {
+      console.warn('Loading timeout reached, forcing finish');
+      loadingActions.finishLoading();
+    }, LOADING_TIMEOUT_MS);
+  }
 }
 
 function subscribe(listener: () => void): () => void {
@@ -124,7 +142,23 @@ export const loadingActions = {
   },
 
   finishLoading() {
-    updateState({ isLoading: false, loadingContext: null });
+    // Clear timeout
+    if (loadingTimeoutId !== null) {
+      clearTimeout(loadingTimeoutId);
+      loadingTimeoutId = null;
+    }
+    
+    // Mark all stages as completed before finishing
+    const stages = state.stages.map(stage => ({
+      ...stage,
+      status: stage.status === 'error' ? 'error' as const : 'completed' as const
+    }));
+    updateState({ 
+      isLoading: false, 
+      loadingContext: null,
+      stages,
+      currentStageId: null
+    });
   },
 
   addStage(stage: LoadingStage) {

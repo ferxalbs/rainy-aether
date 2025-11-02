@@ -1,5 +1,5 @@
 import "./App.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import IDE from "./components/ide/IDE";
 import { IDEProvider } from "./stores/ideStore";
 import { initializeTheme } from "./stores/themeStore";
@@ -12,8 +12,14 @@ import { extensionManager } from "./services/extensionManager";
 const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const loadingState = useLoadingState();
+  const initializationStarted = useRef(false);
 
   useEffect(() => {
+    // Prevent multiple initialization attempts
+    if (initializationStarted.current) {
+      return;
+    }
+    initializationStarted.current = true;
     const initialize = async () => {
       const startTime = Date.now();
       const minLoadingTime = 800; // Minimum loading time to prevent flashing
@@ -75,10 +81,13 @@ const App: React.FC = () => {
     };
 
     initialize();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show loading screen while initializing or while loading state is active
-  if (!isInitialized || loadingState.isLoading) {
+  // Only show for global context, not workspace context after app is initialized
+  const shouldShowLoading = !isInitialized || (loadingState.isLoading && loadingState.loadingContext === 'global');
+  
+  if (shouldShowLoading) {
     return (
       <ErrorBoundary>
         <LoadingScreen stages={loadingState.stages} context={loadingState.loadingContext} />

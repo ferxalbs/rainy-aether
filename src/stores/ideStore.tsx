@@ -113,6 +113,7 @@ const subscribe = (listener: IDEStateListener) => {
 export const useIDEState = () => useSyncExternalStore(subscribe, getState, getState);
 
 const autoSaveTimers = new Map<string, TimeoutHandle>();
+let isLoadingWorkspace = false; // Prevent concurrent workspace loads
 
 const normalizePath = (path: string) => path.replace(/\\/g, "/");
 
@@ -523,6 +524,14 @@ const openFolderDialog = async () => {
 };
 
 const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true) => {
+  // Prevent concurrent workspace loads
+  if (isLoadingWorkspace) {
+    console.warn("Workspace load already in progress, ignoring duplicate request");
+    return;
+  }
+  
+  isLoadingWorkspace = true;
+  
   try {
     // Import loading actions and start workspace loading context
     const { loadingActions } = await import("./loadingStore");
@@ -601,6 +610,9 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
     const { loadingActions } = await import("./loadingStore");
     loadingActions.errorStage('workspace', 'Failed to open workspace');
     loadingActions.finishLoading();
+  } finally {
+    // Always reset the loading flag
+    isLoadingWorkspace = false;
   }
 };
 

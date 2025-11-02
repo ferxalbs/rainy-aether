@@ -16,6 +16,8 @@ import TabSwitcher from "./TabSwitcher";
 import TerminalPanel from "./TerminalPanel";
 import { editorActions, editorState } from "../../stores/editorStore";
 import { terminalActions, useTerminalState } from "../../stores/terminalStore";
+import { useLoadingState } from "../../stores/loadingStore";
+import LoadingScreen from "../ui/loading-screen";
 import GoToLineDialog from "../ui/go-to-line-dialog";
 import {
   ResizableHandle,
@@ -29,6 +31,7 @@ const IDE: React.FC = () => {
   const { state, actions } = useIDEStore();
   useIDEState(); // Subscribe to state changes to trigger re-renders
   const terminalSnapshot = useTerminalState();
+  const loadingState = useLoadingState();
 
   const [isThemeSwitcherOpen, setIsThemeSwitcherOpen] = useState(false);
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
@@ -391,9 +394,18 @@ const IDE: React.FC = () => {
   const view = editorState.view;
   const maxLine = view ? view.getModel()?.getLineCount() ?? 1 : 1;
   const terminalVisible = !isZenMode && terminalSnapshot.visible;
+  
+  // Show workspace loading overlay when loading workspace
+  const isWorkspaceLoading = loadingState.isLoading && loadingState.loadingContext === 'workspace';
 
   return (
     <div className="h-screen flex flex-col ide-container">
+      {/* Workspace loading overlay */}
+      {isWorkspaceLoading && (
+        <div className="absolute inset-0 z-50">
+          <LoadingScreen stages={loadingState.stages} context={loadingState.loadingContext} />
+        </div>
+      )}
       {currentView === "startup" && <StartupPage />}
 
       {currentView === "settings" && <SettingsPage />}
