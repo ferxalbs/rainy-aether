@@ -1,6 +1,7 @@
 mod project_manager;
 mod terminal_manager;
 mod git_manager;
+mod extension_manager;
 
 #[tauri::command]
 fn open_windows_terminal(app: tauri::AppHandle, cwd: Option<String>) -> Result<(), String> {
@@ -221,6 +222,14 @@ pub fn run() {
         git_manager::git_unstage_all,
         git_manager::git_switch_branch,
         git_manager::git_get_branches,
+        // Extension management
+        extension_manager::load_installed_extensions,
+        extension_manager::save_installed_extensions,
+        extension_manager::extract_extension,
+        extension_manager::remove_directory,
+        extension_manager::create_extension_directory,
+        extension_manager::list_extension_files,
+        extension_manager::read_extension_file,
     ]);
 
     builder

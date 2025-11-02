@@ -20,6 +20,8 @@ interface MenuBarProps {
   onOpenCommandPalette?: () => void;
   onOpenThemeSwitcher?: () => void;
   onOpenGoToLine?: () => void;
+  onOpenExtensionMarketplace?: () => void;
+  onOpenExtensionManager?: () => void;
 }
 
 const MenuBar: React.FC<MenuBarProps> = ({
@@ -27,6 +29,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
   onOpenCommandPalette,
   onOpenThemeSwitcher,
   onOpenGoToLine,
+  onOpenExtensionMarketplace,
+  onOpenExtensionManager,
 }) => {
   const { state, actions } = useIDEStore();
   const snapshot = state();
@@ -37,6 +41,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleCommandPalette = () => onOpenCommandPalette?.();
   const handleThemeSwitcher = () => onOpenThemeSwitcher?.();
   const handleGoToLine = () => onOpenGoToLine?.();
+  const handleExtensionMarketplace = () => onOpenExtensionMarketplace?.();
+  const handleExtensionManager = () => onOpenExtensionManager?.();
 
   const hasActiveFile = Boolean(snapshot.activeFileId);
   const hasWorkspace = Boolean(snapshot.workspace);
@@ -289,6 +295,19 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <MenubarItem onSelect={() => actions.activatePrevTab()}>
             Previous Tab
             <MenubarShortcut>Ctrl+Shift+Tab</MenubarShortcut>
+          </MenubarItem>
+        </MenubarContent>
+      </MenubarMenu>
+
+      <MenubarMenu>
+        <MenubarTrigger className="h-6 px-2 text-xs font-normal">Extensions</MenubarTrigger>
+        <MenubarContent align="start" className="min-w-48 py-1 text-sm">
+          <MenubarItem onSelect={handleExtensionMarketplace}>
+            Open Extension Marketplace…
+            <MenubarShortcut>Ctrl+Shift+X</MenubarShortcut>
+          </MenubarItem>
+          <MenubarItem onSelect={handleExtensionManager}>
+            Manage Extensions…
           </MenubarItem>
         </MenubarContent>
       </MenubarMenu>

@@ -521,11 +521,19 @@ const openFolderDialog = async () => {
 
 const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true) => {
   try {
+    // Import loading actions
+    const { loadingActions } = await import("./loadingStore");
+
+    // Stage 1: Workspace provisioning
+    loadingActions.startStage('workspace');
     const structure = await invoke<FileNode>("load_project_structure", { path: workspace.path });
     setProjectTree(structure);
 
     await invoke("watch_project_changes", { path: workspace.path });
+    loadingActions.completeStage('workspace');
 
+    // Stage 2: Monaco initialization
+    loadingActions.startStage('monaco');
     try {
       if (isTauriEnv()) {
         const { terminalActions, terminalState } = await import("./terminalStore");
@@ -572,11 +580,23 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
     } catch (error) {
       console.warn("Failed to initialize git state", error);
     }
+
+    // Small delay to ensure Monaco is ready
+    await new Promise(resolve => setTimeout(resolve, 200));
+    loadingActions.completeStage('monaco');
+
+    // Mark loading as finished
+    loadingActions.finishLoading();
   } catch (error) {
     console.error("Failed to open workspace:", error);
     await message(`Failed to open workspace: ${error}`, { title: "Workspace Error" });
     // Ensure we stay on startup view if workspace fails to open
     setState((prev) => ({ ...prev, currentView: "startup", workspace: null }));
+
+    // Mark loading as finished even on error
+    const { loadingActions } = await import("./loadingStore");
+    loadingActions.errorStage('workspace', 'Failed to open workspace');
+    loadingActions.finishLoading();
   }
 };
 

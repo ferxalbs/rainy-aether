@@ -22,6 +22,8 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "../ui/resizable";
+import ExtensionMarketplace from "./ExtensionMarketplace";
+import ExtensionManager from "./ExtensionManager";
 
 const IDE: React.FC = () => {
   const { state, actions } = useIDEStore();
@@ -34,6 +36,8 @@ const IDE: React.FC = () => {
   const [isTabSwitcherOpen, setIsTabSwitcherOpen] = useState(false);
   const [tabSwitchHighlight, setTabSwitchHighlight] = useState<string | null>(null);
   const [isGoToLineOpen, setIsGoToLineOpen] = useState(false);
+  const [isExtensionMarketplaceOpen, setIsExtensionMarketplaceOpen] = useState(false);
+  const [isExtensionManagerOpen, setIsExtensionManagerOpen] = useState(false);
 
   const tabSwitchHideTimerRef = useRef<number | null>(null);
   const quickOpenRef = useRef(isQuickOpenOpen);
@@ -361,6 +365,7 @@ const IDE: React.FC = () => {
           await registerShortcut("CommandOrControl+N", () => actionsRef.current.createNewFile());
           await registerShortcut("CommandOrControl+B", () => actionsRef.current.toggleSidebar());
           await registerShortcut("CommandOrControl+Shift+Z", () => editorActions.redo());
+          await registerShortcut("CommandOrControl+Shift+X", () => setIsExtensionMarketplaceOpen(true));
           console.info("Global shortcuts registered via JS plugin");
         } catch (error) {
           console.warn("Global shortcut plugin registration failed", error);
@@ -400,6 +405,8 @@ const IDE: React.FC = () => {
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
             onOpenThemeSwitcher={() => setIsThemeSwitcherOpen(true)}
             onOpenGoToLine={() => setIsGoToLineOpen(true)}
+            onOpenExtensionMarketplace={() => setIsExtensionMarketplaceOpen(true)}
+            onOpenExtensionManager={() => setIsExtensionManagerOpen(true)}
           />
 
           <div className="flex flex-1 overflow-hidden">
@@ -452,6 +459,16 @@ const IDE: React.FC = () => {
       />
 
       <TabSwitcher isOpen={isTabSwitcherOpen} files={snapshot.openFiles} highlightId={tabSwitchHighlight} />
+
+      <ExtensionMarketplace
+        isOpen={isExtensionMarketplaceOpen}
+        onClose={() => setIsExtensionMarketplaceOpen(false)}
+      />
+
+      <ExtensionManager
+        isOpen={isExtensionManagerOpen}
+        onClose={() => setIsExtensionManagerOpen(false)}
+      />
     </div>
   );
 };
