@@ -28,14 +28,24 @@ const FileNodeComponent: React.FC<FileNodeProps> = ({
   const { actions } = useIDEStore();
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleToggle = useCallback(() => {
+  const handleToggle = useCallback(async () => {
     setSelectedPath(node.path);
     if (node.is_directory) {
-      setIsOpen((prev) => !prev);
+      const willOpen = !isOpen;
+      setIsOpen(willOpen);
+      
+      // Lazy load children if opening and not loaded yet
+      if (willOpen && !node.children_loaded && node.children === undefined) {
+        try {
+          await actions.loadDirectoryChildren(node.path);
+        } catch (error) {
+          console.error('Failed to load directory children:', error);
+        }
+      }
     } else {
       actions.openFile(node);
     }
-  }, [actions, node, setSelectedPath]);
+  }, [actions, node, setSelectedPath, isOpen]);
 
   const fileIcon = useMemo(() => {
     if (node.is_directory) {

@@ -1,9 +1,10 @@
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::{Emitter};
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Mutex};
+use tauri::Emitter;
 use tauri::State;
 use tokio::fs as async_fs;
 
@@ -15,11 +16,55 @@ pub struct FileNode {
     children: Option<Vec<FileNode>>,
     size: Option<u64>,
     modified: Option<u64>,
+    // New field to indicate if children are loaded
+    children_loaded: bool,
 }
 
-fn read_directory_recursively(path: &Path) -> Result<FileNode, String> {
+// Directories and files to ignore during scanning
+fn should_ignore(name: &str) -> bool {
+    matches!(
+        name,
+        "node_modules"
+            | ".git"
+            | "target"
+            | "dist"
+            | "build"
+            | ".next"
+            | ".cache"
+            | "coverage"
+            | ".vscode"
+            | ".idea"
+            | "__pycache__"
+            | ".pytest_cache"
+            | ".mypy_cache"
+            | "vendor"
+            | "tmp"
+            | "temp"
+            | ".DS_Store"
+            | "Thumbs.db"
+            | ".turbo"
+            | ".vercel"
+            | ".nuxt"
+    )
+}
+
+// Read directory with depth limit and ignore patterns (NON-RECURSIVE for top level)
+fn read_directory_shallow(
+    path: &Path,
+    max_depth: usize,
+    current_depth: usize,
+) -> Result<FileNode, String> {
     let metadata = fs::metadata(path).map_err(|e| e.to_string())?;
-    let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+    let name = path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    // Check if this directory should be ignored
+    if should_ignore(&name) && current_depth > 0 {
+        return Err("Ignored directory".to_string());
+    }
 
     let modified_time = metadata
         .modified()
@@ -28,20 +73,41 @@ fn read_directory_recursively(path: &Path) -> Result<FileNode, String> {
         .map(|d| d.as_secs());
 
     if metadata.is_dir() {
-        let children: Vec<FileNode> = fs::read_dir(path)
-            .map_err(|e| e.to_string())?
-            .filter_map(|entry| entry.ok())
-            .map(|entry| read_directory_recursively(&entry.path()))
-            .filter_map(|result| result.ok()) // Ignore entries we can't read
-            .collect();
+        // For directories, only load immediate children if within depth limit
+        let children = if current_depth < max_depth {
+            let mut child_nodes: Vec<FileNode> = fs::read_dir(path)
+                .map_err(|e| e.to_string())?
+                .filter_map(|entry| entry.ok())
+                .filter_map(|entry| {
+                    let entry_name = entry.file_name().to_string_lossy().to_string();
+                    // Skip ignored directories at this level
+                    if should_ignore(&entry_name) {
+                        return None;
+                    }
+                    read_directory_shallow(&entry.path(), max_depth, current_depth + 1).ok()
+                })
+                .collect();
+
+            // Sort: directories first, then alphabetically
+            child_nodes.sort_by(|a, b| match (a.is_directory, b.is_directory) {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+            });
+
+            Some(child_nodes)
+        } else {
+            None
+        };
 
         Ok(FileNode {
             name,
             path: path.to_string_lossy().to_string(),
             is_directory: true,
-            children: Some(children),
+            children,
             size: Some(metadata.len()),
             modified: modified_time,
+            children_loaded: current_depth < max_depth,
         })
     } else {
         Ok(FileNode {
@@ -51,6 +117,7 @@ fn read_directory_recursively(path: &Path) -> Result<FileNode, String> {
             children: None,
             size: Some(metadata.len()),
             modified: modified_time,
+            children_loaded: false,
         })
     }
 }
@@ -75,7 +142,42 @@ pub fn open_project_dialog() {
 #[tauri::command]
 pub async fn load_project_structure(path: String) -> Result<FileNode, String> {
     let dir_path = PathBuf::from(&path);
-    read_directory_recursively(&dir_path)
+    // Load only 2 levels deep initially for performance
+    // Frontend can request more levels on-demand
+    read_directory_shallow(&dir_path, 2, 0)
+}
+
+// New command to load children of a specific directory on-demand
+#[tauri::command]
+pub async fn load_directory_children(path: String) -> Result<Vec<FileNode>, String> {
+    let dir_path = PathBuf::from(&path);
+    let metadata = fs::metadata(&dir_path).map_err(|e| e.to_string())?;
+
+    if !metadata.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+
+    let mut children: Vec<FileNode> = fs::read_dir(&dir_path)
+        .map_err(|e| e.to_string())?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let entry_name = entry.file_name().to_string_lossy().to_string();
+            if should_ignore(&entry_name) {
+                return None;
+            }
+            // Load only immediate children (depth 1)
+            read_directory_shallow(&entry.path(), 1, 0).ok()
+        })
+        .collect();
+
+    // Sort: directories first, then alphabetically
+    children.sort_by(|a, b| match (a.is_directory, b.is_directory) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+    });
+
+    Ok(children)
 }
 
 #[tauri::command]
@@ -83,7 +185,8 @@ pub async fn get_file_content(path: String) -> Result<String, String> {
     let file_path = PathBuf::from(&path);
 
     let metadata = fs::metadata(&file_path).map_err(|e| e.to_string())?;
-    if metadata.len() > 5 * 1024 * 1024 { // 5MB limit
+    if metadata.len() > 5 * 1024 * 1024 {
+        // 5MB limit
         return Err("File is larger than 5MB.".to_string());
     }
 
@@ -116,12 +219,16 @@ pub async fn create_file(path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn create_folder(path: String) -> Result<(), String> {
-    async_fs::create_dir_all(&path).await.map_err(|e| e.to_string())
+    async_fs::create_dir_all(&path)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn rename_path(old_path: String, new_path: String) -> Result<(), String> {
-    async_fs::rename(&old_path, &new_path).await.map_err(|e| e.to_string())
+    async_fs::rename(&old_path, &new_path)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -129,7 +236,9 @@ pub async fn delete_path(path: String) -> Result<(), String> {
     let p = PathBuf::from(&path);
     let md = async_fs::metadata(&p).await.map_err(|e| e.to_string())?;
     if md.is_dir() {
-        async_fs::remove_dir_all(&p).await.map_err(|e| e.to_string())
+        async_fs::remove_dir_all(&p)
+            .await
+            .map_err(|e| e.to_string())
     } else {
         async_fs::remove_file(&p).await.map_err(|e| e.to_string())
     }
@@ -149,31 +258,34 @@ pub async fn watch_project_changes(
     }
 
     let window = window.clone();
-    let mut watcher = notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
-        match res {
-            Ok(event) => {
-                // Filter out temporary files and non-relevant events
-                let relevant_paths: Vec<_> = event.paths.iter()
-                    .filter(|path| {
-                        let path_str = path.to_string_lossy();
-                        // Skip temporary files, backup files, and common editor artifacts
-                        !path_str.contains(".tmp") &&
-                        !path_str.contains(".bak") &&
-                        !path_str.contains("~") &&
-                        !path_str.contains(".swp") &&
-                        !path_str.contains(".lock")
-                    })
-                    .collect();
+    let mut watcher =
+        notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
+            match res {
+                Ok(event) => {
+                    // Filter out temporary files and non-relevant events
+                    let relevant_paths: Vec<_> = event
+                        .paths
+                        .iter()
+                        .filter(|path| {
+                            let path_str = path.to_string_lossy();
+                            // Skip temporary files, backup files, and common editor artifacts
+                            !path_str.contains(".tmp")
+                                && !path_str.contains(".bak")
+                                && !path_str.contains("~")
+                                && !path_str.contains(".swp")
+                                && !path_str.contains(".lock")
+                        })
+                        .collect();
 
-                if !relevant_paths.is_empty() {
-                    println!("File change detected: {:?}", event);
-                    window.emit("file-change", &relevant_paths).unwrap();
+                    if !relevant_paths.is_empty() {
+                        println!("File change detected: {:?}", event);
+                        window.emit("file-change", &relevant_paths).unwrap();
+                    }
                 }
+                Err(e) => println!("watch error: {:?}", e),
             }
-            Err(e) => println!("watch error: {:?}", e),
-        }
-    })
-    .map_err(|e| e.to_string())?;
+        })
+        .map_err(|e| e.to_string())?;
 
     watcher
         .watch(path.as_ref(), RecursiveMode::Recursive)

@@ -1,7 +1,7 @@
+mod extension_manager;
+mod git_manager;
 mod project_manager;
 mod terminal_manager;
-mod git_manager;
-mod extension_manager;
 
 #[tauri::command]
 fn open_windows_terminal(app: tauri::AppHandle, cwd: Option<String>) -> Result<(), String> {
@@ -41,7 +41,6 @@ fn open_in_directory(app: tauri::AppHandle, path: String) -> Result<(), String> 
         Err(e) => Err(format!("Failed to open in Explorer: {}", e)),
     }
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -92,16 +91,16 @@ pub fn run() {
                                 let _ = app.emit("shortcut/save-file", ());
                             }
                             if (shortcut.matches(Modifiers::CONTROL | Modifiers::ALT, Code::KeyS))
-                                || (shortcut
-                                    .matches(Modifiers::SUPER | Modifiers::ALT, Code::KeyS))
+                                || (shortcut.matches(Modifiers::SUPER | Modifiers::ALT, Code::KeyS))
                             {
                                 let _ = app.emit("shortcut/save-all", ());
                             }
-                           if (shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyS))
-                               || (shortcut.matches(Modifiers::SUPER | Modifiers::SHIFT, Code::KeyS))
-                           {
-                               let _ = app.emit("shortcut/save-as", ());
-                           }
+                            if (shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyS))
+                                || (shortcut
+                                    .matches(Modifiers::SUPER | Modifiers::SHIFT, Code::KeyS))
+                            {
+                                let _ = app.emit("shortcut/save-as", ());
+                            }
                             if shortcut.matches(Modifiers::CONTROL, Code::KeyW)
                                 || shortcut.matches(Modifiers::SUPER, Code::KeyW)
                             {
@@ -134,7 +133,8 @@ pub fn run() {
                                 let _ = app.emit("shortcut/find-next", ());
                             }
                             if (shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyH))
-                                || (shortcut.matches(Modifiers::SUPER | Modifiers::SHIFT, Code::KeyH))
+                                || (shortcut
+                                    .matches(Modifiers::SUPER | Modifiers::SHIFT, Code::KeyH))
                             {
                                 let _ = app.emit("shortcut/replace-all", ());
                             }
@@ -163,7 +163,8 @@ pub fn run() {
                                 let _ = app.emit("shortcut/toggle-terminal", ());
                             }
                             if (shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyZ))
-                                || (shortcut.matches(Modifiers::SUPER | Modifiers::SHIFT, Code::KeyZ))
+                                || (shortcut
+                                    .matches(Modifiers::SUPER | Modifiers::SHIFT, Code::KeyZ))
                             {
                                 let _ = app.emit("shortcut/redo", ());
                             }
@@ -182,6 +183,7 @@ pub fn run() {
         project_manager::get_cwd,
         project_manager::open_project_dialog,
         project_manager::load_project_structure,
+        project_manager::load_directory_children,
         project_manager::get_file_content,
         project_manager::save_file_content,
         project_manager::watch_project_changes,

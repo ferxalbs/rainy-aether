@@ -31,6 +31,7 @@ export interface FileNode {
   children?: FileNode[];
   size?: number;
   modified?: number;
+  children_loaded?: boolean; // Indicates if children have been loaded from backend
 }
 
 export interface OpenFile {
@@ -803,6 +804,45 @@ const closeProject = async () => {
   void saveToStore("rainy-coder-current-view", "startup");
 };
 
+// Lazy load children for a directory node
+const loadDirectoryChildren = async (dirPath: string) => {
+  try {
+    const children = await invoke<FileNode[]>("load_directory_children", { path: dirPath });
+    
+    // Update the project tree to include the loaded children
+    setState((prev) => {
+      if (!prev.projectTree) return prev;
+      
+      const updateNodeChildren = (node: FileNode): FileNode => {
+        if (node.path === dirPath) {
+          return {
+            ...node,
+            children,
+            children_loaded: true,
+          };
+        }
+        
+        if (node.children) {
+          return {
+            ...node,
+            children: node.children.map(updateNodeChildren),
+          };
+        }
+        
+        return node;
+      };
+      
+      return {
+        ...prev,
+        projectTree: updateNodeChildren(prev.projectTree),
+      };
+    });
+  } catch (error) {
+    console.error("Failed to load directory children:", error);
+    throw error;
+  }
+};
+
 const ideActions = {
   setCurrentView,
   createFileAt,
@@ -810,6 +850,7 @@ const ideActions = {
   renameNode,
   deleteNode,
   setProjectTree,
+  loadDirectoryChildren,
   toggleSidebar,
   setSidebarOpen,
   setSidebarActive,

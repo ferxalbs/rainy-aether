@@ -59,10 +59,16 @@ pub fn git_is_repo(path: String) -> Result<bool, String> {
 pub fn git_log(path: String, max_count: Option<u32>) -> Result<Vec<Commit>, String> {
     let count = max_count.unwrap_or(50).to_string();
     let fmt = "%H%x1f%an%x1f%ae%x1f%ad%x1f%s"; // unit separator \x1f
-    // FIX: '--pretty' must include the format in the same arg
+                                               // FIX: '--pretty' must include the format in the same arg
     let pretty_arg = format!("--pretty=format:{}", fmt);
     let count_arg = count;
-    let args_vec = vec!["log", "--date=iso-strict", pretty_arg.as_str(), "--max-count", count_arg.as_str()];
+    let args_vec = vec![
+        "log",
+        "--date=iso-strict",
+        pretty_arg.as_str(),
+        "--max-count",
+        count_arg.as_str(),
+    ];
 
     let output = run_git(&args_vec, &path)?;
     let mut commits = Vec::new();
@@ -95,7 +101,11 @@ pub fn git_show_files(path: String, commit_hash: String) -> Result<Vec<String>, 
 }
 
 #[tauri::command]
-pub fn git_diff(path: String, commit_hash: String, file_path: Option<String>) -> Result<String, String> {
+pub fn git_diff(
+    path: String,
+    commit_hash: String,
+    file_path: Option<String>,
+) -> Result<String, String> {
     // Show diff for a commit, optionally filtered by file
     let mut args = vec!["show", "--pretty=medium", "--patch", &commit_hash];
     if let Some(fp) = file_path.as_ref() {
@@ -118,22 +128,31 @@ pub fn git_status(path: String) -> Result<Vec<StatusEntry>, String> {
     let mut entries = Vec::new();
     for line in output.lines() {
         // Format: XY <path> [-> <path2>]
-        if line.len() < 3 { continue; }
+        if line.len() < 3 {
+            continue;
+        }
         let code = &line[0..2];
         let rest = line[3..].trim();
         // Handle renames: "R  a -> b"
         let path = if let Some(idx) = rest.find(" -> ") {
-            rest[idx+4..].to_string()
+            rest[idx + 4..].to_string()
         } else {
             rest.to_string()
         };
-        entries.push(StatusEntry { path, code: code.to_string() });
+        entries.push(StatusEntry {
+            path,
+            code: code.to_string(),
+        });
     }
     Ok(entries)
 }
 
 #[tauri::command]
-pub fn git_commit(path: String, message: String, stage_all: Option<bool>) -> Result<String, String> {
+pub fn git_commit(
+    path: String,
+    message: String,
+    stage_all: Option<bool>,
+) -> Result<String, String> {
     // Optionally stage all
     if stage_all.unwrap_or(false) {
         let _ = run_git(&["add", "-A"], &path)?;
@@ -151,7 +170,9 @@ pub fn git_unpushed(path: String) -> Result<Vec<String>, String> {
     match run_git(&["rev-parse", "--abbrev-ref", "@{u}"], &path) {
         Ok(upstream_ref) => {
             let up = upstream_ref.trim();
-            if up.is_empty() { return Ok(vec![]); }
+            if up.is_empty() {
+                return Ok(vec![]);
+            }
             let spec = format!("{}..HEAD", up);
             let output = run_git(&["rev-list", &spec], &path)?;
             let hashes: Vec<String> = output
@@ -160,7 +181,7 @@ pub fn git_unpushed(path: String) -> Result<Vec<String>, String> {
                 .filter(|s| !s.is_empty())
                 .collect();
             Ok(hashes)
-        },
+        }
         Err(_) => Ok(vec![]),
     }
 }
@@ -174,9 +195,16 @@ pub struct Branch {
 
 #[tauri::command]
 pub fn git_branches(path: String) -> Result<Vec<Branch>, String> {
-    let output = run_git(&["branch", "-a", "--format=%(refname:short)%00%(HEAD)%00%(upstream:track)"], &path)?;
+    let output = run_git(
+        &[
+            "branch",
+            "-a",
+            "--format=%(refname:short)%00%(HEAD)%00%(upstream:track)",
+        ],
+        &path,
+    )?;
     let mut branches = Vec::new();
-    
+
     for line in output.lines() {
         let parts: Vec<&str> = line.split('\u{00}').collect();
         if parts.len() >= 2 {
@@ -187,7 +215,7 @@ pub fn git_branches(path: String) -> Result<Vec<Branch>, String> {
             } else {
                 None
             };
-            
+
             // Filter out remote branches for now (they start with "remotes/")
             if !name.starts_with("remotes/") && !name.is_empty() {
                 branches.push(Branch {
@@ -227,7 +255,11 @@ pub fn git_discard_changes(path: String, file_path: String) -> Result<String, St
 }
 
 #[tauri::command]
-pub fn git_diff_file(path: String, file_path: String, staged: Option<bool>) -> Result<String, String> {
+pub fn git_diff_file(
+    path: String,
+    file_path: String,
+    staged: Option<bool>,
+) -> Result<String, String> {
     let args = if staged.unwrap_or(false) {
         vec!["diff", "--staged", "--", &file_path]
     } else {
@@ -237,14 +269,22 @@ pub fn git_diff_file(path: String, file_path: String, staged: Option<bool>) -> R
 }
 
 #[tauri::command]
-pub fn git_push(path: String, remote: Option<String>, branch: Option<String>) -> Result<String, String> {
+pub fn git_push(
+    path: String,
+    remote: Option<String>,
+    branch: Option<String>,
+) -> Result<String, String> {
     let remote_name = remote.as_deref().unwrap_or("origin");
     let branch_name = branch.as_deref().unwrap_or("HEAD");
     run_git(&["push", remote_name, branch_name], &path)
 }
 
 #[tauri::command]
-pub fn git_pull(path: String, remote: Option<String>, branch: Option<String>) -> Result<String, String> {
+pub fn git_pull(
+    path: String,
+    remote: Option<String>,
+    branch: Option<String>,
+) -> Result<String, String> {
     let remote_name = remote.as_deref().unwrap_or("origin");
     let branch_name = branch.as_deref().unwrap_or("");
     let args = if branch_name.is_empty() {
@@ -265,7 +305,7 @@ pub struct StashEntry {
 pub fn git_stash_list(path: String) -> Result<Vec<StashEntry>, String> {
     let output = run_git(&["stash", "list", "--format=%gd%x00%gs"], &path)?;
     let mut stashes = Vec::new();
-    
+
     for line in output.lines() {
         let parts: Vec<&str> = line.split('\u{00}').collect();
         if parts.len() >= 2 {
@@ -337,7 +377,10 @@ pub fn git_get_status(path: String) -> Result<GitStatus, String> {
     }
 
     // Get ahead/behind info
-    let (ahead, behind) = match run_git(&["rev-list", "--count", "--left-right", "@{upstream}...HEAD"], &path) {
+    let (ahead, behind) = match run_git(
+        &["rev-list", "--count", "--left-right", "@{upstream}...HEAD"],
+        &path,
+    ) {
         Ok(output) => {
             let parts: Vec<&str> = output.trim().split('\t').collect();
             let behind_count = parts.get(0).and_then(|s| s.parse().ok()).unwrap_or(0);
@@ -385,9 +428,12 @@ pub fn git_get_current_branch(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn git_get_commit_info(path: String) -> Result<CommitInfo, String> {
-    let output = run_git(&["log", "-1", "--pretty=format:%H%x00%s%x00%an%x00%ad"], &path)?;
+    let output = run_git(
+        &["log", "-1", "--pretty=format:%H%x00%s%x00%an%x00%ad"],
+        &path,
+    )?;
     let parts: Vec<&str> = output.split('\u{00}').collect();
-    
+
     if parts.len() >= 4 {
         Ok(CommitInfo {
             hash: parts[0].trim().to_string(),

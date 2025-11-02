@@ -1,7 +1,7 @@
 use std::fs;
+use std::io::Cursor;
 use tauri::{AppHandle, Manager};
 use zip::ZipArchive;
-use std::io::Cursor;
 
 // Extension management commands for Tauri
 
@@ -40,7 +40,11 @@ pub fn save_installed_extensions(app: AppHandle, extensions: String) -> Result<(
 }
 
 #[tauri::command]
-pub fn extract_extension(app: AppHandle, vsix_data: Vec<u8>, target_path: String) -> Result<(), String> {
+pub fn extract_extension(
+    app: AppHandle,
+    vsix_data: Vec<u8>,
+    target_path: String,
+) -> Result<(), String> {
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -54,11 +58,12 @@ pub fn extract_extension(app: AppHandle, vsix_data: Vec<u8>, target_path: String
 
     // Extract VSIX (which is a ZIP file)
     let cursor = Cursor::new(vsix_data);
-    let mut archive = ZipArchive::new(cursor)
-        .map_err(|e| format!("Failed to open VSIX archive: {}", e))?;
+    let mut archive =
+        ZipArchive::new(cursor).map_err(|e| format!("Failed to open VSIX archive: {}", e))?;
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
+        let mut file = archive
+            .by_index(i)
             .map_err(|e| format!("Failed to read file from archive: {}", e))?;
 
         let outpath = full_target_path.join(file.name());
@@ -75,8 +80,8 @@ pub fn extract_extension(app: AppHandle, vsix_data: Vec<u8>, target_path: String
             }
 
             // Extract file
-            let mut outfile = fs::File::create(&outpath)
-                .map_err(|e| format!("Failed to create file: {}", e))?;
+            let mut outfile =
+                fs::File::create(&outpath).map_err(|e| format!("Failed to create file: {}", e))?;
 
             std::io::copy(&mut file, &mut outfile)
                 .map_err(|e| format!("Failed to extract file: {}", e))?;
@@ -105,8 +110,7 @@ pub fn remove_directory(app: AppHandle, path: String) -> Result<(), String> {
         return Err("Cannot remove directory outside extensions folder".to_string());
     }
 
-    fs::remove_dir_all(&full_path)
-        .map_err(|e| format!("Failed to remove directory: {}", e))
+    fs::remove_dir_all(&full_path).map_err(|e| format!("Failed to remove directory: {}", e))
 }
 
 #[tauri::command]
@@ -147,8 +151,8 @@ pub fn list_extension_files(app: AppHandle, path: String) -> Result<Vec<String>,
         return Ok(vec![]);
     }
 
-    let entries = fs::read_dir(&full_path)
-        .map_err(|e| format!("Failed to read directory: {}", e))?;
+    let entries =
+        fs::read_dir(&full_path).map_err(|e| format!("Failed to read directory: {}", e))?;
 
     let mut files = Vec::new();
     for entry in entries {
@@ -179,6 +183,5 @@ pub fn read_extension_file(app: AppHandle, path: String) -> Result<String, Strin
         return Err(format!("File does not exist: {}", path));
     }
 
-    fs::read_to_string(&full_path)
-        .map_err(|e| format!("Failed to read file: {}", e))
+    fs::read_to_string(&full_path).map_err(|e| format!("Failed to read file: {}", e))
 }
