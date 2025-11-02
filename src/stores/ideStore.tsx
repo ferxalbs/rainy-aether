@@ -907,6 +907,7 @@ const ideActions = {
   openFile,
   openFolderDialog,
   openWorkspace,
+  loadWorkspace: openWorkspace, // Alias for openWorkspace
   openRecentWorkspace,
   clearRecentWorkspaces,
   cloneRepository,

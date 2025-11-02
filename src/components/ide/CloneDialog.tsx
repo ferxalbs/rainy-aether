@@ -16,11 +16,19 @@ import { open } from "@tauri-apps/plugin-dialog";
 
 interface CloneDialogProps {
   trigger?: React.ReactNode;
+  isOpen?: boolean;
+  onClose?: () => void;
   onSuccess?: (path: string) => void;
 }
 
-const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, onSuccess }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIsOpen, onClose, onSuccess }) => {
+  const [uncontrolledIsOpen, setUncontrolledIsOpen] = useState(false);
+
+  // Use controlled state if provided, otherwise use internal state
+  const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : uncontrolledIsOpen;
+  const setIsOpen = onClose !== undefined
+    ? (open: boolean) => { if (!open) onClose(); }
+    : setUncontrolledIsOpen;
   const [url, setUrl] = useState("");
   const [destination, setDestination] = useState("");
   const [branch, setBranch] = useState("");
@@ -82,11 +90,16 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, onSuccess }) => {
     </Button>
   );
 
+  // When controlled (isOpen provided), don't use trigger
+  const isControlled = controlledIsOpen !== undefined;
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || defaultTrigger}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger || defaultTrigger}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Clone Git Repository</DialogTitle>

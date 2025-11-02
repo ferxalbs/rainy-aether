@@ -16,12 +16,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { useIDEStore } from "../../stores/ideStore";
 import { getAppVersion } from "../../utils/version";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
+import CloneDialog from "./CloneDialog";
 
 const StartupPage: React.FC = () => {
   const { state, actions } = useIDEStore();
   const [appVersion, setAppVersion] = useState("0.x.0");
   const [recentOpen, setRecentOpen] = useState(false);
   const [recentQuery, setRecentQuery] = useState("");
+  const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
 
   const currentYear = useMemo(() => new Date().getFullYear(), []);
 
@@ -119,7 +121,7 @@ const StartupPage: React.FC = () => {
                 </div>
               </Button>
 
-              <Button variant="ghost" className="w-full justify-start h-12 text-left" onClick={actions.cloneRepository}>
+              <Button variant="ghost" className="w-full justify-start h-12 text-left" onClick={() => setIsCloneDialogOpen(true)}>
                 <GitBranch size={20} className="mr-3" />
                 <div>
                   <div className="font-medium">Clone Git Repository...</div>
@@ -296,6 +298,15 @@ const StartupPage: React.FC = () => {
           <div className="text-sm text-muted-foreground">Version {appVersion}</div>
         </div>
       </div>
+
+      <CloneDialog
+        isOpen={isCloneDialogOpen}
+        onClose={() => setIsCloneDialogOpen(false)}
+        onSuccess={(path) => {
+          setIsCloneDialogOpen(false);
+          actions.loadWorkspace({ name: path.split(/[/\\]/).pop() || path, path, type: "folder" });
+        }}
+      />
     </div>
   );
 };

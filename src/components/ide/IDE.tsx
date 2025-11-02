@@ -11,6 +11,7 @@ import CommandPalette from "./CommandPalette";
 import StartupPage from "./StartupPage";
 import SettingsPage from "./SettingsPage";
 import AgentsView from "./AgentsView";
+import CloneDialog from "./CloneDialog";
 import { useIDEStore, useIDEState } from "../../stores/ideStore";
 import "../../css/IDE.css";
 import TabSwitcher from "./TabSwitcher";
@@ -42,6 +43,7 @@ const IDE: React.FC = () => {
   const [isGoToLineOpen, setIsGoToLineOpen] = useState(false);
   const [isExtensionMarketplaceOpen, setIsExtensionMarketplaceOpen] = useState(false);
   const [isExtensionManagerOpen, setIsExtensionManagerOpen] = useState(false);
+  const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
 
   const tabSwitchHideTimerRef = useRef<number | null>(null);
   const quickOpenRef = useRef(isQuickOpenOpen);
@@ -421,6 +423,7 @@ const IDE: React.FC = () => {
             onOpenGoToLine={() => setIsGoToLineOpen(true)}
             onOpenExtensionMarketplace={() => setIsExtensionMarketplaceOpen(true)}
             onOpenExtensionManager={() => setIsExtensionManagerOpen(true)}
+            onOpenCloneDialog={() => setIsCloneDialogOpen(true)}
           />
 
           {/* Conditionally render based on view mode */}
@@ -489,6 +492,15 @@ const IDE: React.FC = () => {
       <ExtensionManager
         isOpen={isExtensionManagerOpen}
         onClose={() => setIsExtensionManagerOpen(false)}
+      />
+
+      <CloneDialog
+        isOpen={isCloneDialogOpen}
+        onClose={() => setIsCloneDialogOpen(false)}
+        onSuccess={(path) => {
+          setIsCloneDialogOpen(false);
+          actionsRef.current.loadWorkspace({ name: path.split(/[/\\]/).pop() || path, path, type: "folder" });
+        }}
       />
     </div>
   );

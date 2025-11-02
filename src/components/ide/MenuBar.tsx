@@ -23,6 +23,7 @@ interface MenuBarProps {
   onOpenGoToLine?: () => void;
   onOpenExtensionMarketplace?: () => void;
   onOpenExtensionManager?: () => void;
+  onOpenCloneDialog?: () => void;
 }
 
 const MenuBar: React.FC<MenuBarProps> = ({
@@ -32,6 +33,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   onOpenGoToLine,
   onOpenExtensionMarketplace,
   onOpenExtensionManager,
+  onOpenCloneDialog,
 }) => {
   const { state, actions } = useIDEStore();
   const snapshot = state();
@@ -44,6 +46,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const handleGoToLine = () => onOpenGoToLine?.();
   const handleExtensionMarketplace = () => onOpenExtensionMarketplace?.();
   const handleExtensionManager = () => onOpenExtensionManager?.();
+  const handleCloneDialog = () => onOpenCloneDialog?.();
 
   const hasActiveFile = Boolean(snapshot.activeFileId);
   const hasWorkspace = Boolean(snapshot.workspace);
@@ -301,6 +304,26 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <MenubarItem onSelect={() => actions.activatePrevTab()}>
             Previous Tab
             <MenubarShortcut>Ctrl+Shift+Tab</MenubarShortcut>
+          </MenubarItem>
+        </MenubarContent>
+      </MenubarMenu>
+
+      <MenubarMenu>
+        <MenubarTrigger className="h-7 px-3 text-xs font-normal">Git</MenubarTrigger>
+        <MenubarContent align="start" className="min-w-48 py-1 text-sm">
+          <MenubarItem onSelect={handleCloneDialog}>
+            Clone Repository…
+          </MenubarItem>
+          <MenubarSeparator />
+          <MenubarItem disabled={!hasWorkspace} onSelect={async () => {
+            const { refreshStatus } = await import("../../stores/gitStore");
+            await refreshStatus();
+          }}>
+            Refresh Status
+          </MenubarItem>
+          <MenubarSeparator />
+          <MenubarItem disabled={!hasWorkspace} onSelect={() => actions.setSidebarActive("git")}>
+            Open Source Control
           </MenubarItem>
         </MenubarContent>
       </MenubarMenu>
