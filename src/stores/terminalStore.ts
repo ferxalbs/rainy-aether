@@ -73,13 +73,19 @@ export const getTerminalState = () => terminalStateData;
 // Legacy Solid-style accessor to keep existing consumers functional during migration
 export const terminalState = () => terminalStateData;
 
+// Track if a terminal is being created to prevent duplicates
+let isCreatingTerminal = false;
+
 export const terminalActions = {
-  // Al mostrar el panel, si no hay sesiones, abrir una inmediatamente
+  // Toggle terminal panel visibility and create first session if needed
   async toggle() {
     const snapshot = getTerminalState();
-    const currentlyVisible = snapshot.visible;
-    setState((prev) => ({ ...prev, visible: !prev.visible }));
-    if (!currentlyVisible && snapshot.sessions.length === 0) {
+    const willBeVisible = !snapshot.visible;
+    
+    setState((prev) => ({ ...prev, visible: willBeVisible }));
+    
+    // Only create a terminal if becoming visible, no sessions exist, and not already creating
+    if (willBeVisible && snapshot.sessions.length === 0 && !isCreatingTerminal) {
       await terminalActions.open();
     }
   },
@@ -87,6 +93,13 @@ export const terminalActions = {
   hide: () => setState((prev) => ({ ...prev, visible: false })),
 
   async open(shell?: string, cwd?: string, cols?: number, rows?: number) {
+    // Prevent duplicate creation
+    if (isCreatingTerminal) {
+      console.warn('Terminal creation already in progress, skipping duplicate request');
+      return null;
+    }
+    
+    isCreatingTerminal = true;
     try {
       // Try real terminal first; fallback to preview on failure
       const params: any = { shell, cwd };
@@ -115,6 +128,8 @@ export const terminalActions = {
       }));
       console.warn('Terminal preview session created (invoke failed).', err);
       return id;
+    } finally {
+      isCreatingTerminal = false;
     }
   },
 

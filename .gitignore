@@ -30,4 +30,5 @@ target
 .claude
 .kilocode
 
-*.md
+# Docs for codes completetions, and other AI features.
+MDs
