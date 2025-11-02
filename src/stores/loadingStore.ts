@@ -60,7 +60,7 @@ function subscribe(listener: () => void): () => void {
 }
 
 function getSnapshot(): LoadingState {
-  return { ...state };
+  return state;
 }
 
 // Actions

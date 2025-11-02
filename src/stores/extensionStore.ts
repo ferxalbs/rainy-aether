@@ -70,74 +70,73 @@ function subscribe(callback: () => void): () => void {
 }
 
 // Initialize store with current extensions
-function initializeStore() {
-  const extensions = extensionManager.getInstalledExtensions();
+async function initializeStore() {
+  const extensions = await extensionManager.getInstalledExtensions();
   updateState({ installedExtensions: extensions });
 
+  // Helper to refresh extensions list
+  const refreshExtensions = async () => {
+    const extensions = await extensionManager.getInstalledExtensions();
+    updateState({ installedExtensions: extensions });
+  };
+
   // Listen to extension manager events
-  extensionManager.on('extension:installing', (_extension) => {
+  extensionManager.on('extension:installing', async (_extension) => {
+    const extensions = await extensionManager.getInstalledExtensions();
     updateState({
       isInstalling: true,
       installingExtension: _extension.id,
-      installedExtensions: extensionManager.getInstalledExtensions()
+      installedExtensions: extensions
     });
   });
 
-  extensionManager.on('extension:installed', (_extension) => {
+  extensionManager.on('extension:installed', async (_extension) => {
+    const extensions = await extensionManager.getInstalledExtensions();
     updateState({
       isInstalling: false,
       installingExtension: null,
-      installedExtensions: extensionManager.getInstalledExtensions()
+      installedExtensions: extensions
     });
   });
 
-  extensionManager.on('extension:enabling', (_extension) => {
-    updateState({
-      installedExtensions: extensionManager.getInstalledExtensions()
-    });
+  extensionManager.on('extension:enabling', async (_extension) => {
+    await refreshExtensions();
   });
 
-  extensionManager.on('extension:enabled', (_extension) => {
-    updateState({
-      installedExtensions: extensionManager.getInstalledExtensions()
-    });
+  extensionManager.on('extension:enabled', async (_extension) => {
+    await refreshExtensions();
   });
 
-  extensionManager.on('extension:disabling', (_extension) => {
-    updateState({
-      installedExtensions: extensionManager.getInstalledExtensions()
-    });
+  extensionManager.on('extension:disabling', async (_extension) => {
+    await refreshExtensions();
   });
 
-  extensionManager.on('extension:disabled', (_extension) => {
-    updateState({
-      installedExtensions: extensionManager.getInstalledExtensions()
-    });
+  extensionManager.on('extension:disabled', async (_extension) => {
+    await refreshExtensions();
   });
 
-  extensionManager.on('extension:uninstalling', (_extension) => {
-    updateState({
-      installedExtensions: extensionManager.getInstalledExtensions()
-    });
+  extensionManager.on('extension:uninstalling', async (_extension) => {
+    await refreshExtensions();
   });
 
-  extensionManager.on('extension:uninstalled', (_extension) => {
-    updateState({
-      installedExtensions: extensionManager.getInstalledExtensions()
-    });
+  extensionManager.on('extension:uninstalled', async (_extension) => {
+    await refreshExtensions();
   });
 
-  extensionManager.on('extension:error', (_extension, _error) => {
+  extensionManager.on('extension:error', async (_extension, _error) => {
+    const extensions = await extensionManager.getInstalledExtensions();
     updateState({
       isInstalling: false,
       installingExtension: null,
-      installedExtensions: extensionManager.getInstalledExtensions()
+      installedExtensions: extensions
     });
   });
 }
 
 // Initialize the store
-initializeStore();
+initializeStore().catch(error => {
+  console.error('Failed to initialize extension store:', error);
+});
 
 // Store actions implementation
 const storeActions: ExtensionStoreActions = {
@@ -211,9 +210,10 @@ const storeActions: ExtensionStoreActions = {
     return await extensionManager.canInstallExtension(publisher, name);
   },
 
-  refreshExtensions() {
+  async refreshExtensions() {
+    const extensions = await extensionManager.getInstalledExtensions();
     updateState({
-      installedExtensions: extensionManager.getInstalledExtensions()
+      installedExtensions: extensions
     });
   }
 };

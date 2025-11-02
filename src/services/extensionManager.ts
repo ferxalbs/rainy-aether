@@ -30,7 +30,8 @@ export class ExtensionManager extends EventEmitter {
   /**
    * Get a specific installed extension
    */
-  getInstalledExtension(id: string): InstalledExtension | undefined {
+  async getInstalledExtension(id: string): Promise<InstalledExtension | undefined> {
+    await this.ensureInitialized();
     return this.extensions.get(id);
   }
 
@@ -42,6 +43,7 @@ export class ExtensionManager extends EventEmitter {
     name: string,
     options: ExtensionInstallOptions = {}
   ): Promise<InstalledExtension> {
+    await this.ensureInitialized();
     const id = `${publisher}.${name}`;
 
     // Check if already installed
@@ -113,6 +115,7 @@ export class ExtensionManager extends EventEmitter {
    * Enable an installed extension
    */
   async enableExtension(id: string): Promise<void> {
+    await this.ensureInitialized();
     const extension = this.extensions.get(id);
     if (!extension) {
       throw new Error(`Extension ${id} not found`);
@@ -152,6 +155,7 @@ export class ExtensionManager extends EventEmitter {
    * Disable an enabled extension
    */
   async disableExtension(id: string): Promise<void> {
+    await this.ensureInitialized();
     const extension = this.extensions.get(id);
     if (!extension) {
       throw new Error(`Extension ${id} not found`);
@@ -187,6 +191,7 @@ export class ExtensionManager extends EventEmitter {
    * Uninstall an extension
    */
   async uninstallExtension(id: string): Promise<void> {
+    await this.ensureInitialized();
     const extension = this.extensions.get(id);
     if (!extension) {
       throw new Error(`Extension ${id} not found`);
@@ -337,6 +342,13 @@ export class ExtensionManager extends EventEmitter {
     } catch (error) {
       console.error('Failed to remove extension files:', error);
       // Don't throw here - the extension is still uninstalled from the manager
+    }
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (!this.isInitialized) {
+      await this.loadInstalledExtensions();
+      this.isInitialized = true;
     }
   }
 

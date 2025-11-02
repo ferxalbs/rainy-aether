@@ -5,6 +5,7 @@ import { IDEProvider } from "./stores/ideStore";
 import { initializeTheme } from "./stores/themeStore";
 import { initializeSettings } from "./stores/settingsStore";
 import LoadingScreen from "./components/ui/loading-screen";
+import ErrorBoundary from "./components/ui/error-boundary";
 import { useLoadingState, loadingActions } from "./stores/loadingStore";
 import { extensionManager } from "./services/extensionManager";
 
@@ -32,7 +33,7 @@ const App: React.FC = () => {
         loadingActions.startStage('extensions');
         try {
           // Auto-enable installed extensions
-          const installedExtensions = extensionManager.getInstalledExtensions();
+          const installedExtensions = await extensionManager.getInstalledExtensions();
           const enabledExtensions = installedExtensions.filter(ext => ext.enabled);
 
           // Load enabled extensions
@@ -78,13 +79,19 @@ const App: React.FC = () => {
 
   // Show loading screen while initializing or while loading state is active
   if (!isInitialized || loadingState.isLoading) {
-    return <LoadingScreen stages={loadingState.stages} context={loadingState.loadingContext} />;
+    return (
+      <ErrorBoundary>
+        <LoadingScreen stages={loadingState.stages} context={loadingState.loadingContext} />
+      </ErrorBoundary>
+    );
   }
 
   return (
-    <IDEProvider>
-      <IDE />
-    </IDEProvider>
+    <ErrorBoundary>
+      <IDEProvider>
+        <IDE />
+      </IDEProvider>
+    </ErrorBoundary>
   );
 };
 
