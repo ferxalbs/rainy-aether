@@ -29,3 +29,5 @@ target
 # CLI Agents
 .claude
 .kilocode
+
+*.md

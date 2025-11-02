@@ -42,6 +42,8 @@ let storeState: ExtensionStoreState = {
   installingExtension: null
 };
 
+let cachedSnapshot: ExtensionStoreState = { ...storeState };
+
 // Store subscribers
 const subscribers = new Set<() => void>();
 
@@ -50,15 +52,43 @@ function notifySubscribers() {
   subscribers.forEach(callback => callback());
 }
 
+// Cached snapshots for derived hooks (declared early)
+let cachedInstalledExtensions: InstalledExtension[] = [];
+let cachedMarketplaceSnapshot: { results: OpenVSXExtension[]; isSearching: boolean; error: string | null } = { 
+  results: [], 
+  isSearching: false, 
+  error: null 
+};
+let cachedInstallationSnapshot: { isInstalling: boolean; installingExtension: string | null } = { 
+  isInstalling: false, 
+  installingExtension: null 
+};
+
+// Update derived snapshots when main state changes
+function updateDerivedSnapshots() {
+  cachedInstalledExtensions = cachedSnapshot.installedExtensions;
+  cachedMarketplaceSnapshot = {
+    results: cachedSnapshot.marketplaceSearchResults,
+    isSearching: cachedSnapshot.isSearching,
+    error: cachedSnapshot.searchError
+  };
+  cachedInstallationSnapshot = {
+    isInstalling: cachedSnapshot.isInstalling,
+    installingExtension: cachedSnapshot.installingExtension
+  };
+}
+
 // Update state and notify
 function updateState(updates: Partial<ExtensionStoreState>) {
   storeState = { ...storeState, ...updates };
+  cachedSnapshot = storeState;
+  updateDerivedSnapshots();
   notifySubscribers();
 }
 
 // Get current state snapshot
 function getSnapshot(): ExtensionStoreState {
-  return { ...storeState };
+  return cachedSnapshot;
 }
 
 // Subscribe to state changes
@@ -218,6 +248,9 @@ const storeActions: ExtensionStoreActions = {
   }
 };
 
+// Initialize derived snapshots
+updateDerivedSnapshots();
+
 // Create the store hook
 export function useExtensionStore(): ExtensionStore {
   const state = useSyncExternalStore(subscribe, getSnapshot);
@@ -226,15 +259,11 @@ export function useExtensionStore(): ExtensionStore {
 
 // Export individual hooks for specific state
 export function useInstalledExtensions() {
-  return useSyncExternalStore(subscribe, () => getSnapshot().installedExtensions);
+  return useSyncExternalStore(subscribe, () => cachedInstalledExtensions);
 }
 
 export function useMarketplaceSearch() {
-  const state = useSyncExternalStore(subscribe, () => ({
-    results: getSnapshot().marketplaceSearchResults,
-    isSearching: getSnapshot().isSearching,
-    error: getSnapshot().searchError
-  }));
+  const state = useSyncExternalStore(subscribe, () => cachedMarketplaceSnapshot);
 
   return {
     ...state,
@@ -244,10 +273,7 @@ export function useMarketplaceSearch() {
 }
 
 export function useExtensionInstallation() {
-  const state = useSyncExternalStore(subscribe, () => ({
-    isInstalling: getSnapshot().isInstalling,
-    installingExtension: getSnapshot().installingExtension
-  }));
+  const state = useSyncExternalStore(subscribe, () => cachedInstallationSnapshot);
 
   return {
     ...state,

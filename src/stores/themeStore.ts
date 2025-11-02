@@ -69,7 +69,8 @@ const initialState: ThemeState = {
   isInitialized: false,
 };
 
-const themeState: ThemeState = { ...initialState };
+let themeState: ThemeState = { ...initialState };
+let cachedSnapshot: ThemeState = { ...initialState };
 
 type ThemeStateListener = () => void;
 
@@ -108,7 +109,8 @@ const persistThemeSelection = (baseName: string, themeName: string, persistVaria
 };
 
 const updateThemeState = (partial: Partial<ThemeState>) => {
-  Object.assign(themeState, partial);
+  themeState = { ...themeState, ...partial };
+  cachedSnapshot = themeState;
   notifyStateListeners();
 };
 
@@ -127,7 +129,7 @@ export const subscribeToThemeChanges = (listener: (theme: Theme) => void) => {
   };
 };
 
-const getThemeSnapshot = () => ({ ...themeState });
+const getThemeSnapshot = () => cachedSnapshot;
 
 export const useThemeState = () =>
   useSyncExternalStore(subscribeToThemeState, getThemeSnapshot, getThemeSnapshot);

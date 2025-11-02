@@ -42,7 +42,7 @@ export type GitState = {
   currentBranch?: string;
 };
 
-const git: GitState = {
+let git: GitState = {
   workspacePath: undefined,
   isRepo: false,
   commits: [],
@@ -57,6 +57,8 @@ const git: GitState = {
   unpushedHashes: new Set<string>(),
   currentBranch: undefined,
 };
+
+let cachedSnapshot: GitState = { ...git };
 
 type GitStateListener = () => void;
 
@@ -73,7 +75,8 @@ const notify = () => {
 };
 
 const updateGitState = (partial: Partial<GitState>) => {
-  Object.assign(git, partial);
+  git = { ...git, ...partial };
+  cachedSnapshot = git;
   notify();
 };
 
@@ -84,7 +87,7 @@ const subscribe = (listener: GitStateListener) => {
   };
 };
 
-const getSnapshot = () => git;
+const getSnapshot = () => cachedSnapshot;
 
 export const useGitState = () =>
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

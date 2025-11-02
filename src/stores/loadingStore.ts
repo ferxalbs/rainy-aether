@@ -37,6 +37,8 @@ let state: LoadingState = {
   loadingContext: 'global',
 };
 
+let cachedSnapshot: LoadingState = { ...state };
+
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
@@ -49,6 +51,7 @@ function updateState(updates: Partial<LoadingState>) {
     ...updates,
     stages: updates.stages || state.stages
   };
+  cachedSnapshot = state;
   notifyListeners();
 }
 
@@ -60,7 +63,7 @@ function subscribe(listener: () => void): () => void {
 }
 
 function getSnapshot(): LoadingState {
-  return state;
+  return cachedSnapshot;
 }
 
 // Actions

@@ -28,6 +28,7 @@ const initialState: SettingsState = {
 };
 
 let settingsState: SettingsState = initialState;
+let cachedSnapshot: SettingsState = { ...initialState };
 
 type SettingsListener = () => void;
 
@@ -45,6 +46,7 @@ const notify = () => {
 
 const setState = (updater: (prev: SettingsState) => SettingsState) => {
   settingsState = updater(settingsState);
+  cachedSnapshot = settingsState;
   notify();
   return settingsState;
 };
@@ -56,7 +58,7 @@ const subscribe = (listener: SettingsListener) => {
   };
 };
 
-const getSnapshot = () => settingsState;
+const getSnapshot = () => cachedSnapshot;
 
 export const useSettingsState = () =>
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

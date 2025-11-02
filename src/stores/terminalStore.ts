@@ -33,6 +33,7 @@ const initialTerminalState: TerminalState = {
 };
 
 let terminalStateData: TerminalState = initialTerminalState;
+let cachedSnapshot: TerminalState = { ...initialTerminalState };
 
 type TerminalListener = () => void;
 
@@ -50,6 +51,7 @@ const notify = () => {
 
 const setState = (updater: (prev: TerminalState) => TerminalState) => {
   terminalStateData = updater(terminalStateData);
+  cachedSnapshot = terminalStateData;
   notify();
   return terminalStateData;
 };
@@ -61,7 +63,7 @@ const subscribe = (listener: TerminalListener) => {
   };
 };
 
-const getSnapshot = () => terminalStateData;
+const getSnapshot = () => cachedSnapshot;
 
 export const useTerminalState = () =>
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);

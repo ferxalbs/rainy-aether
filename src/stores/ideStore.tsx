@@ -76,6 +76,7 @@ const initialState: IDEState = {
 };
 
 let currentState: IDEState = initialState;
+let cachedSnapshot: IDEState = { ...initialState };
 
 type IDEStateListener = () => void;
 const listeners = new Set<IDEStateListener>();
@@ -93,11 +94,12 @@ const notifyListeners = () => {
 const setState = (updater: (prev: IDEState) => IDEState) => {
   const next = updater(currentState);
   currentState = next;
+  cachedSnapshot = next;
   notifyListeners();
   return next;
 };
 
-const getState = () => currentState;
+const getState = () => cachedSnapshot;
 
 const subscribe = (listener: IDEStateListener) => {
   listeners.add(listener);

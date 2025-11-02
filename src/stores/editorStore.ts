@@ -11,11 +11,13 @@ interface EditorState {
   capabilities: EditorCapabilities | null;
 }
 
-const editorState: EditorState = {
+let editorState: EditorState = {
   view: null,
   wrapEnabled: true,
   capabilities: null,
 };
+
+let cachedSnapshot: EditorState = { ...editorState };
 
 type EditorStateListener = () => void;
 
@@ -32,7 +34,8 @@ const notify = () => {
 };
 
 const updateEditorState = (partial: Partial<EditorState>) => {
-  Object.assign(editorState, partial);
+  editorState = { ...editorState, ...partial };
+  cachedSnapshot = editorState;
   notify();
 };
 
@@ -43,7 +46,7 @@ const subscribe = (listener: EditorStateListener) => {
   };
 };
 
-const getSnapshot = () => editorState;
+const getSnapshot = () => cachedSnapshot;
 
 export const useEditorState = () =>
   useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
