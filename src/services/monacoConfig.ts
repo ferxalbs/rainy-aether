@@ -6,6 +6,7 @@
 import * as monaco from 'monaco-editor';
 import { initializeLSP } from './lsp';
 import { registerLSPWithMonaco, registerCustomLSPProviders } from './lsp/monacoAdapter';
+import { addMonacoExtraLibs } from './monacoLibs';
 
 let isConfigured = false;
 
@@ -23,45 +24,73 @@ export function configureMonaco() {
     target: monaco.languages.typescript.ScriptTarget.ES2020,
     allowNonTsExtensions: true,
     moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    module: monaco.languages.typescript.ModuleKind.CommonJS,
+    module: monaco.languages.typescript.ModuleKind.ESNext,
     noEmit: true,
     esModuleInterop: true,
     jsx: monaco.languages.typescript.JsxEmit.React,
     reactNamespace: 'React',
     allowJs: true,
+    skipLibCheck: true,
+    resolveJsonModule: true,
+    isolatedModules: true,
+    allowSyntheticDefaultImports: true,
+    strict: false, // Reduce false positives in editor
+    noUnusedLocals: false,
+    noUnusedParameters: false,
     typeRoots: ['node_modules/@types'],
-    lib: ['es2020', 'dom', 'dom.iterable'],
+    lib: ['es2020', 'dom', 'dom.iterable', 'esnext'],
   });
 
   monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
     target: monaco.languages.typescript.ScriptTarget.ES2020,
     allowNonTsExtensions: true,
     moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    module: monaco.languages.typescript.ModuleKind.CommonJS,
+    module: monaco.languages.typescript.ModuleKind.ESNext,
     noEmit: true,
     esModuleInterop: true,
     jsx: monaco.languages.typescript.JsxEmit.React,
     reactNamespace: 'React',
     allowJs: true,
-    lib: ['es2020', 'dom', 'dom.iterable'],
+    skipLibCheck: true,
+    resolveJsonModule: true,
+    isolatedModules: true,
+    allowSyntheticDefaultImports: true,
+    checkJs: false, // Don't type-check JS files aggressively
+    lib: ['es2020', 'dom', 'dom.iterable', 'esnext'],
   });
 
-  // Set diagnostic options
+  // Set diagnostic options - reduce false positives
   monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false,
-    diagnosticCodesToIgnore: [1108], // Ignore "return statement only in functions"
+    diagnosticCodesToIgnore: [
+      1108, // Return statement only in functions
+      2307, // Cannot find module (common in editors without full project context)
+      2304, // Cannot find name (reduces noise for globals)
+      6133, // Declared but never used
+      7016, // Could not find declaration file for module
+      2345, // Argument type mismatch (can be noisy)
+    ],
   });
 
   monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false,
-    diagnosticCodesToIgnore: [1108],
+    diagnosticCodesToIgnore: [
+      1108, // Return statement only in functions
+      2307, // Cannot find module
+      2304, // Cannot find name
+      6133, // Declared but never used
+      7016, // Could not find declaration file for module
+    ],
   });
 
   // Enable eager model sync for better IntelliSense
   monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
   monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+
+  // Add extra library definitions for common modules
+  addMonacoExtraLibs();
 
   // Configure HTML language
   monaco.languages.html.htmlDefaults.setOptions({
@@ -115,14 +144,18 @@ export function configureMonaco() {
     enableSchemaRequest: true,
   });
 
-  // Initialize LSP service
-  initializeLSP().catch(error => {
-    console.error('[Monaco] Failed to initialize LSP:', error);
-  });
-
-  // Register LSP with Monaco
-  registerLSPWithMonaco();
-  registerCustomLSPProviders();
+  // Note: LSP service is currently a stub implementation
+  // Monaco's built-in TypeScript language service provides excellent IntelliSense
+  // Future: Implement full LSP via Tauri for additional language servers
+  try {
+    initializeLSP().catch(error => {
+      console.warn('[Monaco] LSP initialization skipped (stub implementation):', error);
+    });
+    registerLSPWithMonaco();
+    registerCustomLSPProviders();
+  } catch (error) {
+    console.warn('[Monaco] LSP registration skipped:', error);
+  }
 
   isConfigured = true;
   console.info('[Monaco] Language services configured with LSP support');

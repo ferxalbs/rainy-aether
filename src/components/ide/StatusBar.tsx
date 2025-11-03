@@ -100,48 +100,53 @@ const StatusBar: React.FC = () => {
     }
   };
 
-  // Update editor info
+  // Update editor info with error handling
   const updateEditorInfo = () => {
-    const editor = editorState.view;
-    if (!editor) return;
+    try {
+      const editor = editorState.view;
+      if (!editor) return;
 
-    const model = editor.getModel();
-    if (!model) return;
+      const model = editor.getModel();
+      if (!model) return;
 
-    const position = editor.getPosition();
-    if (!position) return;
+      const position = editor.getPosition();
+      if (!position) return;
 
-    setEditorInfo({
-      language: getLanguageDisplayName(model.getLanguageId()),
-      encoding: 'UTF-8', // Could be enhanced to detect actual encoding
-      line: position.lineNumber,
-      column: position.column,
-      selection: getSelectionInfo(editor),
-      spaces: model.getOptions().insertSpaces ? model.getOptions().tabSize as number : 0,
-      tabSize: model.getOptions().tabSize as number
-    });
+      const options = model.getOptions();
+      setEditorInfo({
+        language: getLanguageDisplayName(model.getLanguageId()),
+        encoding: 'UTF-8', // Could be enhanced to detect actual encoding
+        line: position.lineNumber,
+        column: position.column,
+        selection: getSelectionInfo(editor),
+        spaces: options.insertSpaces ? (options.tabSize as number) : 0,
+        tabSize: options.tabSize as number
+      });
+    } catch (error) {
+      console.debug('[StatusBar] Failed to update editor info:', error);
+    }
   };
 
-  // Get git status using real service
+  // Get git status using real service with better error handling
   const updateGitStatus = async () => {
-    const snapshot = state();
-    if (!snapshot.workspace || !snapshot.workspace.path) {
-      setGitStatus({
-        staged: 0,
-        modified: 0,
-        untracked: 0,
-        conflicts: 0,
-        clean: true
-      });
-      return;
-    }
-
     try {
+      const snapshot = state();
+      if (!snapshot.workspace || !snapshot.workspace.path) {
+        setGitStatus({
+          staged: 0,
+          modified: 0,
+          untracked: 0,
+          conflicts: 0,
+          clean: true
+        });
+        return;
+      }
+
       const gitService = getGitService(snapshot.workspace.path);
       const status = await gitService.getGitStatus();
       setGitStatus(status);
     } catch (error) {
-      console.error('Failed to get git status:', error);
+      console.debug('[StatusBar] Git status unavailable:', error);
       setGitStatus({
         staged: 0,
         modified: 0,
@@ -163,22 +168,25 @@ const StatusBar: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  // Update editor info when editor changes
+  // Update editor info when editor changes with debouncing
   useEffect(() => {
     const editor = editorState.view;
     if (!editor) return;
 
-    const updateHandler = () => {
-      updateEditorInfo();
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const debouncedUpdate = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(updateEditorInfo, 50);
     };
 
-    const cursorDisposable = editor.onDidChangeCursorPosition(updateHandler);
-    const selectionDisposable = editor.onDidChangeCursorSelection(updateHandler);
-    const contentDisposable = editor.onDidChangeModelContent(updateHandler);
+    const cursorDisposable = editor.onDidChangeCursorPosition(debouncedUpdate);
+    const selectionDisposable = editor.onDidChangeCursorSelection(debouncedUpdate);
+    const contentDisposable = editor.onDidChangeModelContent(debouncedUpdate);
 
-    updateHandler();
+    updateEditorInfo();
 
     return () => {
+      if (timeoutId) clearTimeout(timeoutId);
       cursorDisposable.dispose();
       selectionDisposable.dispose();
       contentDisposable.dispose();
@@ -298,17 +306,6 @@ const StatusBar: React.FC = () => {
       ),
       tooltip: 'Indentation settings',
       order: 4,
-      position: 'right'
-    },
-    {
-      id: 'selection',
-      content: (
-        <span>
-          {editorInfo.selection || 'Ln 1, Col 1'}
-        </span>
-      ),
-      tooltip: 'Current selection',
-      order: 5,
       position: 'right'
     },
     {

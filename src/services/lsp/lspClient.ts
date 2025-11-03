@@ -55,26 +55,27 @@ export class LSPClient {
    */
   async start(): Promise<void> {
     if (this.state !== LSPClientState.Stopped) {
-      console.warn(`[LSP] Client ${this.config.id} already started`);
+      console.debug(`[LSP] Client ${this.config.id} already started`);
       return;
     }
 
     this.setState(LSPClientState.Starting);
 
     try {
-      // TODO: Implement actual server start via Tauri command
-      // For now, we'll use Monaco's built-in language services
-      console.info(`[LSP] Starting language server: ${this.config.name}`);
+      // NOTE: This is a stub implementation
+      // Monaco's built-in TypeScript language service provides IntelliSense
+      // Full LSP implementation via Tauri is planned for future releases
+      console.debug(`[LSP Stub] Simulating start for: ${this.config.name}`);
 
       // Simulate initialization
       await this.initialize();
 
       this.setState(LSPClientState.Running);
-      console.info(`[LSP] Language server started: ${this.config.name}`);
+      console.debug(`[LSP Stub] Simulated start complete: ${this.config.name}`);
     } catch (error) {
-      console.error(`[LSP] Failed to start language server: ${this.config.name}`, error);
+      console.debug(`[LSP Stub] Simulated start failed: ${this.config.name}`, error);
       this.setState(LSPClientState.Error);
-      throw error;
+      // Don't throw - this is expected for stub implementation
     }
   }
 
