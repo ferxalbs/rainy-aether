@@ -13,7 +13,7 @@ import {
 } from "../ui/menubar";
 import { useIDEStore } from "../../stores/ideStore";
 import { editorActions } from "../../stores/editorStore";
-import { terminalActions, terminalState } from "../../stores/terminalStore";
+import { terminalActions, getTerminalState } from "../../stores/terminalStore";
 import ModeSwitcher from "./ModeSwitcher";
 
 interface MenuBarProps {
@@ -38,7 +38,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const { state, actions } = useIDEStore();
   const snapshot = state();
   const recentWorkspaces = snapshot.recentWorkspaces.slice(0, 5);
-  const activeTerminalId = terminalState().activeSessionId;
+  const terminalState = getTerminalState();
+  const activeSplit = terminalState.layout.splits.find(s => s.id === terminalState.layout.activeSplitId);
+  const activeTerminalId = activeSplit?.activeSessionId;
 
   const handleQuickOpen = () => onOpenQuickOpen?.();
   const handleCommandPalette = () => onOpenCommandPalette?.();
@@ -268,19 +270,22 @@ const MenuBar: React.FC<MenuBarProps> = ({
             Theme: Toggle Day/Night
           </MenubarItem>
           <MenubarSeparator />
-          <MenubarItem onSelect={() => terminalActions.open(undefined, state().workspace?.path)}>
+          <MenubarItem onSelect={() => terminalActions.createSession({ cwd: state().workspace?.path })}>
             New Terminal
           </MenubarItem>
           <MenubarItem
             disabled={!activeTerminalId}
             onSelect={() => {
-              const id = terminalState().activeSessionId;
-              if (id) terminalActions.kill(id);
+              if (activeTerminalId) terminalActions.removeSession(activeTerminalId);
             }}
           >
             Kill Active Terminal
           </MenubarItem>
-          <MenubarItem onSelect={() => terminalActions.openWindowsTerminal(state().workspace?.path)}>
+          <MenubarItem onSelect={() => {
+            // Open in external Windows Terminal - using direct invoke
+            const { invoke } = require('@tauri-apps/api/core');
+            invoke('open_windows_terminal', { cwd: state().workspace?.path }).catch(console.error);
+          }}>
             Open Windows Terminal
           </MenubarItem>
         </MenubarContent>

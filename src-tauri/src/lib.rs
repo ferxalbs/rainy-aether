@@ -196,6 +196,10 @@ pub fn run() {
         terminal_manager::terminal_resize,
         terminal_manager::terminal_kill,
         terminal_manager::terminal_change_directory,
+        terminal_manager::terminal_get_session,
+        terminal_manager::terminal_list_sessions,
+        terminal_manager::terminal_get_profiles,
+        terminal_manager::terminal_init_profiles,
         // Git integration
         git_manager::git_is_repo,
         git_manager::git_log,

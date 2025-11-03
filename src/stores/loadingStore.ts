@@ -21,6 +21,7 @@ const globalStages: LoadingStage[] = [
   { id: 'theme', label: 'Loading theme', status: 'pending' },
   { id: 'settings', label: 'Loading settings', status: 'pending' },
   { id: 'extensions', label: 'Loading extensions', status: 'pending' },
+  { id: 'terminal', label: 'Initializing terminal system', status: 'pending' },
   { id: 'resources', label: 'Provisioning resources', status: 'pending' },
 ];
 

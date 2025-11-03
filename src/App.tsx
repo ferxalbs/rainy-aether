@@ -8,6 +8,8 @@ import LoadingScreen from "./components/ui/loading-screen";
 import ErrorBoundary from "./components/ui/error-boundary";
 import { useLoadingState, loadingActions } from "./stores/loadingStore";
 import { extensionManager } from "./services/extensionManager";
+import { initTerminalService } from "./services/terminalService";
+import { terminalActions } from "./stores/terminalStore";
 
 const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -56,7 +58,18 @@ const App: React.FC = () => {
           loadingActions.errorStage('extensions', 'Some extensions failed to load');
         }
 
-        // Stage 4: Resources
+        // Stage 4: Terminal System
+        loadingActions.startStage('terminal');
+        try {
+          await initTerminalService();
+          await terminalActions.initialize();
+          loadingActions.completeStage('terminal');
+        } catch (error) {
+          console.error("Failed to initialize terminal system:", error);
+          loadingActions.errorStage('terminal', 'Terminal system initialization failed');
+        }
+
+        // Stage 5: Resources
         loadingActions.startStage('resources');
         // Add a small delay for resource provisioning
         await new Promise(resolve => setTimeout(resolve, 200));

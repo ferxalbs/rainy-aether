@@ -186,21 +186,48 @@ See `LSP.md` for comprehensive documentation. Key points:
 
 ## Terminal System
 
-**Important:** The terminal requires PTY support and only works in `pnpm tauri dev` mode.
+**⚡ Completely Rebuilt** - Professional-grade terminal with VS Code-level features.
 
-**Architecture:**
-- Frontend: `TerminalPanel.tsx` with xterm.js (`@xterm/xterm`)
-- Store: `terminalStore.ts` manages sessions
-- Backend: `terminal_manager.rs` uses `portable-pty`
+See **`TERMINAL_SYSTEM.md`** for comprehensive documentation.
 
-**Windows-Specific Considerations:**
-- Must use `pair.slave.spawn_command(cmd)` to spawn shell
-- Writer obtained via `pair.master.take_writer()` and persisted
-- Reader cloned via `try_clone_reader()` and consumed on background thread
+**Architecture (4 Layers):**
+1. **UI Layer**: `TerminalPanel.tsx`, `TerminalSplitView.tsx`, `TerminalInstance.tsx`
+2. **State Management**: `terminalStore.ts` (sessions, splits, config, persistence)
+3. **Service Layer**: `terminalService.ts` (event coordination, debouncing, lifecycle)
+4. **Rust Backend**: `terminal_manager.rs` (PTY management, shell detection, process tracking)
 
-**Browser Dev Behavior:**
-- Shows hint: "Desktop mode required for interactive terminal"
-- Mock session created, writes logged to console
+**Key Features:**
+- ✅ **Proper Lifecycle**: No double initialization, clean cleanup, state tracking
+- ✅ **Split View**: Horizontal/vertical splits with tab management
+- ✅ **Search**: Full-text search with `Ctrl+Shift+F`
+- ✅ **Shell Profiles**: Auto-detection of PowerShell, CMD, Bash, etc.
+- ✅ **Session Persistence**: Restore terminals on app restart
+- ✅ **Performance**: Write buffering (60fps), resize debouncing (150ms)
+- ✅ **Theme Integration**: Automatic adaptation to editor theme
+
+**Quick Start:**
+```typescript
+import { terminalActions, useTerminalState } from '@/stores/terminalStore';
+
+// Initialize (called once in App.tsx)
+await terminalActions.initialize();
+
+// Create terminal
+const id = await terminalActions.createSession({
+  cwd: '/path/to/directory',
+  profile: 'PowerShell'
+});
+
+// React hook
+const terminalState = useTerminalState();
+console.log(terminalState.sessions); // Map of sessions
+```
+
+**Keyboard Shortcuts:**
+- `Ctrl+Shift+T`: New Terminal
+- `Ctrl+Shift+W`: Close Active Terminal
+- `Ctrl+Shift+F`: Toggle Search
+- ``Ctrl+` ``: Toggle Terminal Panel
 
 ## Git Integration
 

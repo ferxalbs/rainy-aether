@@ -557,12 +557,20 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
     loadingActions.startStage('monaco');
     try {
       if (isTauriEnv()) {
-        const { terminalActions, terminalState } = await import("./terminalStore");
-        const activeSessionId = terminalState().activeSessionId;
+        const { terminalActions, getTerminalState } = await import("./terminalStore");
+        const { getTerminalService } = await import("@/services/terminalService");
+
+        const terminalState = getTerminalState();
+        const activeSplit = terminalState.layout.splits.find(s => s.id === terminalState.layout.activeSplitId);
+        const activeSessionId = activeSplit?.activeSessionId;
+
         if (activeSessionId) {
-          await terminalActions.changeDirectory(activeSessionId, workspace.path);
+          // Change directory in existing terminal
+          const service = getTerminalService();
+          await service.changeDirectory(activeSessionId, workspace.path);
         } else {
-          await terminalActions.open(undefined, workspace.path);
+          // Create new terminal in workspace directory
+          await terminalActions.createSession({ cwd: workspace.path });
         }
       }
     } catch (error) {
@@ -645,7 +653,7 @@ const openTerminal = async () => {
   setState((prev) => ({ ...prev, currentView: "editor" }));
   void saveToStore("rainy-coder-current-view", "editor");
   const { terminalActions } = await import("./terminalStore");
-  await terminalActions.open(undefined, getState().workspace?.path);
+  await terminalActions.createSession({ cwd: getState().workspace?.path });
 };
 
 const openSettings = () => {
