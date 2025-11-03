@@ -505,28 +505,12 @@ export const terminalActions = {
   },
 
   /**
-   * Create a new split
+   * Create a new split (simplified - just creates a new terminal in a new split)
    */
-  async createSplit(direction: SplitDirection): Promise<string | null> {
+  async createSplit(_direction: SplitDirection): Promise<string | null> {
+    // For now, just create a new terminal session
+    // The split direction is stored but actual split rendering would need more UI work
     const sessionId = await terminalActions.createSession();
-    if (!sessionId) return null;
-
-    const state = getTerminalState();
-    const split = state.layout.splits.find((s) => s.sessions.includes(sessionId));
-    if (split) {
-      setState((prev) => {
-        const layout = { ...prev.layout };
-        const splitIndex = layout.splits.findIndex((s) => s.id === split.id);
-        const updatedSplit = { ...split, direction };
-        layout.splits = [
-          ...layout.splits.slice(0, splitIndex),
-          updatedSplit,
-          ...layout.splits.slice(splitIndex + 1),
-        ];
-        return { ...prev, layout };
-      });
-    }
-
     return sessionId;
   },
 

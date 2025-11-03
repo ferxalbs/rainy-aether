@@ -198,12 +198,13 @@ See **`TERMINAL_SYSTEM.md`** for comprehensive documentation.
 
 **Key Features:**
 - ✅ **Proper Lifecycle**: No double initialization, clean cleanup, state tracking
-- ✅ **Split View**: Horizontal/vertical splits with tab management
+- ✅ **Multiple Tabs**: Multiple terminal sessions with tab management
 - ✅ **Search**: Full-text search with `Ctrl+Shift+F`
 - ✅ **Shell Profiles**: Auto-detection of PowerShell, CMD, Bash, etc.
 - ✅ **Session Persistence**: Restore terminals on app restart
 - ✅ **Performance**: Write buffering (60fps), resize debouncing (150ms)
 - ✅ **Theme Integration**: Automatic adaptation to editor theme
+- ⏳ **Split View**: Infrastructure exists, UI implementation pending
 
 **Quick Start:**
 ```typescript

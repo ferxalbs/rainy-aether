@@ -2,12 +2,13 @@
  * Enhanced TerminalPanel Component
  *
  * Features:
- * - Split view support (horizontal/vertical)
  * - Multiple terminal sessions with tabs
- * - Shell profile selection
  * - Search functionality
  * - Keyboard shortcuts
  * - Session management
+ * - Shell profile selection
+ *
+ * Note: Split view UI is not yet implemented (infrastructure exists in store)
  */
 
 import React, { useCallback, useEffect } from "react";
@@ -77,14 +78,6 @@ const TerminalPanel: React.FC = () => {
     terminalActions.setSearchQuery(query);
   }, []);
 
-  const handleSplitHorizontal = useCallback(() => {
-    terminalActions.createSplit('horizontal');
-  }, []);
-
-  const handleSplitVertical = useCallback(() => {
-    terminalActions.createSplit('vertical');
-  }, []);
-
   const handleClearAll = useCallback(() => {
     if (confirm('Close all terminal sessions?')) {
       terminalActions.clearAll();
@@ -119,34 +112,6 @@ const TerminalPanel: React.FC = () => {
           >
             <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </Button>
-
-          {/* Split Horizontal */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={handleSplitHorizontal}
-            title="Split Terminal Horizontally"
-            disabled={sessions.size === 0}
-          >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </Button>
-
-          {/* Split Vertical */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={handleSplitVertical}
-            title="Split Terminal Vertically"
-            disabled={sessions.size === 0}
-          >
-            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 4v16M15 4v16" />
             </svg>
           </Button>
 
