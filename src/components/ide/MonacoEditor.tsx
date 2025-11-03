@@ -4,6 +4,11 @@ import { editorActions } from '../../stores/editorStore';
 import { getCurrentTheme, subscribeToThemeChanges } from '../../stores/themeStore';
 import { configureMonaco, getLanguageFromFilename } from '../../services/monacoConfig';
 
+// Helper: Monaco expects hex colors WITHOUT the '#' prefix
+const toMonacoColor = (color: string): string => {
+  return color.startsWith('#') ? color.substring(1) : color;
+};
+
 interface MonacoEditorProps {
   value: string;
   language?: 'javascript' | 'html' | 'css' | 'markdown' | 'rust';
@@ -62,10 +67,10 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         // Comments
         { token: 'comment', foreground: isDark ? '6A9955' : '008000', fontStyle: 'italic' },
         { token: 'comment.doc', foreground: isDark ? '6A9955' : '008000', fontStyle: 'italic' },
-        
+
         // Keywords
-        { token: 'keyword', foreground: theme.variables['--accent-primary'], fontStyle: 'bold' },
-        { token: 'control.keyword', foreground: theme.variables['--accent-primary'], fontStyle: 'bold' },
+        { token: 'keyword', foreground: toMonacoColor(theme.variables['--accent-primary']), fontStyle: 'bold' },
+        { token: 'control.keyword', foreground: toMonacoColor(theme.variables['--accent-primary']), fontStyle: 'bold' },
         
         // Strings
         { token: 'string', foreground: isDark ? 'CE9178' : 'A31515' },
@@ -78,19 +83,19 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         { token: 'identifier.function', foreground: isDark ? 'DCDCAA' : '795E26' },
         
         // Variables and properties
-        { token: 'variable', foreground: theme.variables['--text-editor'] },
+        { token: 'variable', foreground: toMonacoColor(theme.variables['--text-editor']) },
         { token: 'property', foreground: isDark ? '9CDCFE' : '0451A5' },
         { token: 'attribute.name', foreground: isDark ? '92C5F8' : '0451A5' },
-        
+
         // Types and classes
         { token: 'type', foreground: isDark ? '4EC9B0' : '267F99' },
         { token: 'class.name', foreground: isDark ? '4EC9B0' : '267F99' },
-        
+
         // Operators and punctuation
-        { token: 'operator', foreground: theme.variables['--text-editor'] },
-        { token: 'delimiter', foreground: theme.variables['--text-editor'] },
+        { token: 'operator', foreground: toMonacoColor(theme.variables['--text-editor']) },
+        { token: 'delimiter', foreground: toMonacoColor(theme.variables['--text-editor']) },
         { token: 'delimiter.bracket', foreground: isDark ? 'FFD700' : '0431FA' },
-        { token: 'delimiter.parenthesis', foreground: theme.variables['--text-editor'] },
+        { token: 'delimiter.parenthesis', foreground: toMonacoColor(theme.variables['--text-editor']) },
         
         // HTML tags
         { token: 'tag', foreground: isDark ? '569CD6' : '800000' },
@@ -101,25 +106,26 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         { token: 'unit', foreground: isDark ? 'B5CEA8' : '098658' },
         
         // Markdown
-        { token: 'heading', foreground: theme.variables['--accent-primary'], fontStyle: 'bold' },
+        { token: 'heading', foreground: toMonacoColor(theme.variables['--accent-primary']), fontStyle: 'bold' },
         { token: 'emphasis', fontStyle: 'italic' },
         { token: 'strong', fontStyle: 'bold' },
-        { token: 'link', foreground: theme.variables['--accent-secondary'] },
+        { token: 'link', foreground: toMonacoColor(theme.variables['--accent-secondary']) },
         
         // Invalid
         { token: 'invalid', foreground: isDark ? 'F44747' : 'CD3131', fontStyle: 'underline' },
       ],
       colors: {
+        // Colors object KEEPS the # prefix (different from rules array!)
         'editor.background': theme.variables['--bg-editor'],
         'editor.foreground': theme.variables['--text-editor'],
-        'editor.lineHighlightBackground': isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+        'editor.lineHighlightBackground': isDark ? '#ffffff0d' : '#0000000d',
         'editor.selectionBackground': theme.variables['--accent-primary'] + '40',
         'editor.inactiveSelectionBackground': theme.variables['--accent-primary'] + '30',
         'editorCursor.foreground': theme.variables['--accent-primary'],
-        'editorWhitespace.foreground': isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
-        'editorIndentGuide.background': isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-        'editorIndentGuide.activeBackground': isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
-        'editorLineNumber.foreground': isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)',
+        'editorWhitespace.foreground': isDark ? '#ffffff33' : '#00000033',
+        'editorIndentGuide.background': isDark ? '#ffffff1a' : '#0000001a',
+        'editorIndentGuide.activeBackground': isDark ? '#ffffff33' : '#00000033',
+        'editorLineNumber.foreground': isDark ? '#ffffff66' : '#00000066',
         'editorLineNumber.activeForeground': theme.variables['--text-editor'],
         'editorGutter.background': theme.variables['--bg-editor'],
         'editorWidget.background': theme.variables['--bg-secondary'],
@@ -130,12 +136,12 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         'input.background': theme.variables['--bg-editor'],
         'input.border': theme.variables['--border-color'],
         'input.foreground': theme.variables['--text-editor'],
-        'inputValidation.errorBackground': isDark ? 'rgba(244, 71, 71, 0.1)' : 'rgba(205, 49, 49, 0.1)',
-        'inputValidation.errorBorder': isDark ? 'F44747' : 'CD3131',
+        'inputValidation.errorBackground': isDark ? '#F447471a' : '#CD31311a',
+        'inputValidation.errorBorder': isDark ? '#F48771' : '#E51400',
         'dropdown.background': theme.variables['--bg-secondary'],
         'dropdown.border': theme.variables['--border-color'],
         'button.background': theme.variables['--accent-primary'],
-        'button.foreground': isDark ? 'ffffff' : '000000',
+        'button.foreground': isDark ? '#ffffff' : '#000000',
         'button.hoverBackground': theme.variables['--accent-secondary'],
         'searchEditor.findMatchBackground': theme.variables['--accent-secondary'] + '60',
         'searchEditor.findMatchBorder': theme.variables['--accent-secondary'],
