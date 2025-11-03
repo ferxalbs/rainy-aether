@@ -76,7 +76,7 @@ const StartupPage: React.FC = () => {
       <div className="max-w-6xl mx-auto p-8 pt-12">
         {/* Header */}
         <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold mb-2 text-primary">Rainy Coder</h1>
+          <h1 className="text-4xl font-bold mb-2 text-primary">Rainy Aether</h1>
           <p className="text-xl text-muted-foreground">Editing evolved</p>
         </div>
 

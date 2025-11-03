@@ -324,10 +324,10 @@ const StatusBar: React.FC = () => {
       content: (
         <div className="flex items-center gap-1">
           <Zap size={12} />
-          <span>Rainy Coder</span>
+          <span>Rainy Aether</span>
         </div>
       ),
-      tooltip: 'Rainy Coder IDE',
+      tooltip: 'Rainy Aether IDE',
       order: 7,
       position: 'right'
     }

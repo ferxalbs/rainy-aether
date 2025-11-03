@@ -22,7 +22,9 @@
         "center": true,
         "resizable": true,
         "maximizable": true,
-        "minimizable": true
+        "minimizable": true,
+        "closable": true,
+        "backgroundColor": "#ffffff"
       }
     ],
     "security": {

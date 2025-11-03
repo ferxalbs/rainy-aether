@@ -254,47 +254,53 @@ export async function commit(message: string, stageAll = true) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
 
-  await invoke<string>("git_commit", { path: wsPath, message, stage_all: stageAll });
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_commit", { path: wsPath, message, stageAll });
   await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
 }
 
 export async function stageFile(filePath: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  await invoke<string>("git_stage_file", { path: wsPath, file_path: filePath });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_stage_file", { path: wsPath, filePath });
   await refreshStatus();
 }
 
 export async function unstageFile(filePath: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  await invoke<string>("git_unstage_file", { path: wsPath, file_path: filePath });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_unstage_file", { path: wsPath, filePath });
   await refreshStatus();
 }
 
 export async function discardChanges(filePath: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  await invoke<string>("git_discard_changes", { path: wsPath, file_path: filePath });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_discard_changes", { path: wsPath, filePath });
   await Promise.all([refreshStatus(), refreshHistory()]);
 }
 
 export async function checkoutBranch(branchName: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  await invoke<string>("git_checkout_branch", { path: wsPath, branch_name: branchName });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_checkout_branch", { path: wsPath, branchName });
   await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
 }
 
 export async function createBranch(branchName: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  await invoke<string>("git_create_branch", { path: wsPath, branch_name: branchName });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_create_branch", { path: wsPath, branchName });
   await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
 }
 
@@ -333,8 +339,9 @@ export async function stashPop(stash?: string) {
 export async function getFileDiff(filePath: string, staged = false) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  return await invoke<string>("git_diff_file", { path: wsPath, file_path: filePath, staged });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  return await invoke<string>("git_diff_file", { path: wsPath, filePath, staged });
 }
 
 export function isRepo() {
@@ -442,7 +449,8 @@ export async function renameRemote(oldName: string, newName: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
   
-  await invoke<string>("git_rename_remote", { path: wsPath, old_name: oldName, new_name: newName });
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_rename_remote", { path: wsPath, oldName, newName });
   await refreshRemotes();
 }
 
@@ -563,31 +571,35 @@ export async function refreshConflicts() {
 export async function getConflictContent(filePath: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  return await invoke<ConflictFile>("git_get_conflict_content", { path: wsPath, file_path: filePath });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  return await invoke<ConflictFile>("git_get_conflict_content", { path: wsPath, filePath });
 }
 
 export async function resolveConflict(filePath: string, resolution: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  await invoke<string>("git_resolve_conflict", { path: wsPath, file_path: filePath, resolution });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_resolve_conflict", { path: wsPath, filePath, resolution });
   await Promise.all([refreshStatus(), refreshConflicts()]);
 }
 
 export async function acceptOurs(filePath: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  await invoke<string>("git_accept_ours", { path: wsPath, file_path: filePath });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_accept_ours", { path: wsPath, filePath });
   await Promise.all([refreshStatus(), refreshConflicts()]);
 }
 
 export async function acceptTheirs(filePath: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  await invoke<string>("git_accept_theirs", { path: wsPath, file_path: filePath });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_accept_theirs", { path: wsPath, filePath });
   await Promise.all([refreshStatus(), refreshConflicts()]);
 }
 
@@ -661,8 +673,9 @@ export async function getCommitDiff(commit: string) {
 export async function getDiffBetweenCommits(fromCommit: string, toCommit: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  return await invoke<string>("git_diff_between_commits", { path: wsPath, from_commit: fromCommit, to_commit: toCommit });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  return await invoke<string>("git_diff_between_commits", { path: wsPath, fromCommit, toCommit });
 }
 
 // ============================================================================
@@ -672,16 +685,18 @@ export async function getDiffBetweenCommits(fromCommit: string, toCommit: string
 export async function deleteBranch(branchName: string, force = false) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  await invoke<string>("git_delete_branch", { path: wsPath, branch_name: branchName, force });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_delete_branch", { path: wsPath, branchName, force });
   await refreshBranches();
 }
 
 export async function renameBranch(oldName: string, newName: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  await invoke<string>("git_rename_branch", { path: wsPath, old_name: oldName, new_name: newName });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_rename_branch", { path: wsPath, oldName, newName });
   await refreshBranches();
 }
 
@@ -737,7 +752,8 @@ export async function stageFiles(filePaths: string[]) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
   
-  await invoke<string>("git_stage_files", { path: wsPath, file_paths: filePaths });
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_stage_files", { path: wsPath, filePaths });
   await refreshStatus();
 }
 
@@ -745,7 +761,8 @@ export async function unstageFiles(filePaths: string[]) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
   
-  await invoke<string>("git_unstage_files", { path: wsPath, file_paths: filePaths });
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_unstage_files", { path: wsPath, filePaths });
   await refreshStatus();
 }
 
@@ -753,15 +770,17 @@ export async function discardFiles(filePaths: string[]) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
   
-  await invoke<string>("git_discard_files", { path: wsPath, file_paths: filePaths });
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  await invoke<string>("git_discard_files", { path: wsPath, filePaths });
   await refreshStatus();
 }
 
 export async function showFile(commit: string, filePath: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
-  return await invoke<string>("git_show_file", { path: wsPath, commit, file_path: filePath });
+
+  // Note: Tauri converts Rust snake_case params to camelCase in JS
+  return await invoke<string>("git_show_file", { path: wsPath, commit, filePath });
 }
 
 // ============================================================================
