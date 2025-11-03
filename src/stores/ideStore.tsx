@@ -815,7 +815,8 @@ const closeProject = async () => {
   const workspace = getState().workspace;
   let recentWorkspaces = getState().recentWorkspaces;
   if (workspace) {
-    recentWorkspaces = recentWorkspaces.filter((item) => item.path !== workspace.path);
+    // Ensure workspace is in recent workspaces when closing
+    recentWorkspaces = ensureWorkspaceInRecents(workspace, recentWorkspaces);
     void saveToStore("rainy-coder-recent-workspaces", recentWorkspaces);
   }
 
