@@ -16,6 +16,7 @@ export enum DiagnosticSeverity {
 export enum DiagnosticSource {
   Monaco = 'monaco',
   TypeScript = 'typescript',
+  LSP = 'lsp',
   Git = 'git',
   Linter = 'linter',
   Custom = 'custom',

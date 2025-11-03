@@ -4,6 +4,8 @@
  */
 
 import * as monaco from 'monaco-editor';
+import { initializeLSP } from './lsp';
+import { registerLSPWithMonaco, registerCustomLSPProviders } from './lsp/monacoAdapter';
 
 let isConfigured = false;
 
@@ -113,8 +115,17 @@ export function configureMonaco() {
     enableSchemaRequest: true,
   });
 
+  // Initialize LSP service
+  initializeLSP().catch(error => {
+    console.error('[Monaco] Failed to initialize LSP:', error);
+  });
+
+  // Register LSP with Monaco
+  registerLSPWithMonaco();
+  registerCustomLSPProviders();
+
   isConfigured = true;
-  console.info('[Monaco] Language services configured');
+  console.info('[Monaco] Language services configured with LSP support');
 }
 
 /**

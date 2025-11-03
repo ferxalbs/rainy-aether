@@ -134,6 +134,14 @@ Migrated from CodeMirror 6 to Monaco Editor. See `MONACO_NAVIGATION_FEATURES.md`
 - **Navigation**: Go to Definition (F12), Peek Definition (Alt+F12), Find References (Shift+F12), etc.
 - **Diagnostics**: Unified system via `diagnosticService.ts` feeding `StatusBar.tsx` and `ProblemsPanel.tsx`
 - **Editor Actions**: Exposed via `editorStore.ts` (`editorActions`)
+- **LSP Integration**: Language Server Protocol support for advanced IntelliSense (see `LSP.md`)
+
+### Web Workers
+Monaco uses web workers for language services, configured using Vite's native `?worker` import syntax:
+- Workers are bundled using Vite's native worker support (no plugin needed)
+- Supports TypeScript, JavaScript, JSON, CSS, HTML
+- Runs language processing off the main thread for better performance
+- See `src/services/monacoWorkers.ts` for configuration
 
 ### Working with Monaco
 ```typescript
@@ -150,6 +158,13 @@ editorActions.formatDocument();
 // Trigger layout recalculation (after resize)
 editorActions.layout();
 ```
+
+### Language Server Protocol (LSP)
+See `LSP.md` for comprehensive documentation. Key points:
+- Infrastructure in place for external language servers
+- Currently uses Monaco's built-in TypeScript/JavaScript support
+- Ready for rust-analyzer, Python LSP, and other language servers
+- Diagnostics integrated with unified diagnostic service
 
 ## Theme System
 
@@ -263,9 +278,14 @@ service.addDiagnostic({
 });
 ```
 
-## Removed Features
+## LSP Implementation Status
 
-**LSP proxy and LSIF support** were removed from the codebase. Do not reintroduce LSP-related code unless explicitly requested.
+**LSP infrastructure has been implemented** as of 2025-11-02:
+- LSP service layer in `src/services/lsp/`
+- Monaco adapter for LSP integration
+- Currently using Monaco's built-in TypeScript/JavaScript support
+- Ready for external language servers via Tauri backend (future implementation)
+- See `LSP.md` for comprehensive documentation
 
 ## Testing & Validation
 

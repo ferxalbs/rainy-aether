@@ -2,8 +2,6 @@
 
 ## Next-Generation AI-First Development Environment
 
-**Based on latest market analysis (October 30, 2025) of Cursor 2.0, TRAE.AI, and Windsurf features**
-
 Rainy Aether is positioned as the ultimate AI-native IDE that goes beyond VS Code forks. Built with React and Tauri 2.0, it integrates cutting-edge AI orchestration with Claude Agents SDK and multi-provider support to create a truly differentiated development experience.
 
 ---
@@ -331,7 +329,7 @@ Rainy Aether is positioned as the ultimate AI-native IDE that goes beyond VS Cod
 
 **Rainy Aether 2 vs Competitors:**
 
-| Feature | Rainy Aether 2 | Cursor 2.0 | TRAE.AI | Windsurf |
+| Feature | Rainy Aether | Cursor 2.0 | TRAE.AI | Windsurf |
 |---------|---------------|------------|---------|----------|
 | **Multi-Provider AI** | ✅ 8+ providers | ❌ Proprietary | ✅ Multiple | ✅ Multiple |
 | **Parallel Agents** | ✅ 8 agents | ✅ 8 agents | ❌ Sequential | ❌ Single |
@@ -346,70 +344,22 @@ Rainy Aether is positioned as the ultimate AI-native IDE that goes beyond VS Cod
 
 ## ROADMAP TIMELINE
 
-### Q1 2025: MVP Launch
+### Q3 2025: MVP Launch
 - Phase 1 complete: Core editor, basic Rainy Mode, multi-provider integration
 - Beta release to select users
 - Performance optimization and bug fixes
 
-### Q2 2025: Advanced Features
+### October 2025: Advanced Features
 - Phase 2 complete: Advanced context management, MCP integration
 - Public launch with marketing campaign
 - Community feedback integration
 
-### Q3 2025: Productivity Focus
+### November 2025: Productivity Focus
 - Phase 3 complete: SOLO mode, collaboration features
 - Enterprise features development
 - Marketplace and ecosystem building
 
-### Q4 2025: Polish & Scale
+### December 2025: Polish & Scale
 - Phase 4 complete: Advanced orchestration, enterprise features
 - Performance optimization and scaling
 - International expansion and localization
-
----
-
-## SUCCESS METRICS
-
-### User Adoption Targets
-- **Month 1**: 1,000 beta users
-- **Month 6**: 10,000 active users
-- **Year 1**: 100,000 registered users
-- **Year 2**: 500,000 active developers
-
-### Performance Benchmarks
-- **Response Time**: Consistently under 700ms
-- **User Satisfaction**: >4.5/5 rating
-- **Task Completion**: >80% successful autonomous completions
-- **Market Position**: Top 3 AI-native IDE by usage
-
----
-
-**This roadmap positions Rainy Aether 2 as the definitive next-generation AI development environment, combining the best innovations from current market leaders while establishing unique capabilities that set a new standard for AI-assisted development.**
-
----
-
-## REFERENCES
-
-[^1]: Cursor 2.0 Composer model - 4x faster frontier model with <30s response times
-[^2]: Cursor 2.0 Voice Mode - Speech-to-text with custom trigger words
-[^3]: Cursor 2.0 Smart Context - Automatic context gathering without manual @mentions
-[^4]: TRAE.AI Cue System - Multi-line predictions with tab-to-jump navigation
-[^5]: Cursor 2.0 Multi-Agent - Up to 8 parallel agents using git worktrees
-[^6]: Windsurf Turbo Mode - Autonomous task execution with safety controls
-[^7]: Cursor 2.0 Native Browser - Embedded browser with DOM tools
-[^8]: TRAE.AI Preview System - Element selection and console integration
-[^9]: Cursor 2.0 Improved Review - Multi-file diff aggregation
-[^10]: TRAE.AI Max Mode - 200k context window with 200 tool calls
-[^11]: TRAE.AI Project Intelligence - Real-time symbol tracking
-[^12]: Windsurf Memory System - Auto-generated searchable memories
-[^13]: Windsurf MCP Support - Native Model Context Protocol integration
-[^14]: TRAE.AI MCP Agents - MCP servers attached to specific agents
-[^15]: Windsurf Tap to Jump - Predictive cursor positioning
-[^16]: Windsurf Fast Context - SWE-grep powered context retrieval
-[^17]: Windsurf Codemaps - Visual codebase understanding
-[^18]: Cursor 2.0 Team Commands - Centralized team configuration
-[^19]: Windsurf Conversation Sharing - Team collaboration features
-[^20]: TRAE.AI SOLO Mode - Full autonomous development workflow
-[^21]: Multi-platform Drag & Drop - Image and file integration
-[^22]: TRAE.AI One-Click Deploy - Automated deployment system
-[^23]: Cursor 2.0 Sandboxed Terminals - Secure execution environment
