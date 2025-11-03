@@ -27,6 +27,7 @@ import {
   push,
   pull,
   useGitState,
+  Commit,
 } from "@/stores/gitStore";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Accordion,
   AccordionContent,
@@ -51,6 +58,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import DiffViewer from "./DiffViewer";
+import CommitDiffViewer from "./CommitDiffViewer";
 import BranchManager from "./BranchManager";
 import StashManager from "./StashManager";
 
@@ -59,6 +67,7 @@ const GitHistoryPanel: React.FC = () => {
   const [stageAll, setStageAll] = useState(true);
   const [openSections, setOpenSections] = useState<string[]>(["changes", "graph"]);
   const [diffViewer, setDiffViewer] = useState<{ filePath: string; diff: string; staged: boolean } | null>(null);
+  const [commitDiffViewer, setCommitDiffViewer] = useState<Commit | null>(null);
 
   const {
     commits: history,
@@ -115,6 +124,10 @@ const GitHistoryPanel: React.FC = () => {
     }
   }, []);
 
+  const handleViewCommitDiff = useCallback((commit: Commit) => {
+    setCommitDiffViewer(commit);
+  }, []);
+
   const handlePush = useCallback(async () => {
     try {
       await push();
@@ -158,7 +171,8 @@ const GitHistoryPanel: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <TooltipProvider>
+      <div className="flex h-full flex-col bg-background">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <div className="flex items-center gap-2">
           <GitCommitVertical className="size-4 text-muted-foreground" />
@@ -435,7 +449,10 @@ const GitHistoryPanel: React.FC = () => {
                                     "group relative cursor-pointer rounded-lg border border-transparent bg-muted/20 px-4 py-3 transition-all hover:bg-muted/40",
                                     isSelected && "border-ring bg-accent/50 shadow-sm"
                                   )}
-                                  onClick={() => selectCommit(commit.hash)}
+                                  onClick={() => {
+                                    selectCommit(commit.hash);
+                                    handleViewCommitDiff(commit);
+                                  }}
                                 >
                                   <span
                                     className={cn(
@@ -455,6 +472,14 @@ const GitHistoryPanel: React.FC = () => {
                                     <span className="flex-1 truncate text-left text-foreground">
                                       {commit.message}
                                     </span>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Eye className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Click to view commit changes</p>
+                                      </TooltipContent>
+                                    </Tooltip>
                                     {isUnpushed && (
                                       <Badge variant="secondary" className="bg-amber-500/15 text-amber-700 dark:text-amber-300">
                                         Unpushed
@@ -496,7 +521,17 @@ const GitHistoryPanel: React.FC = () => {
           onClose={() => setDiffViewer(null)}
         />
       )}
+
+      {/* Commit Diff Viewer Modal */}
+      {commitDiffViewer && (
+        <CommitDiffViewer
+          commit={commitDiffViewer}
+          isModal={true}
+          onClose={() => setCommitDiffViewer(null)}
+        />
+      )}
     </div>
+    </TooltipProvider>
   );
 };
 

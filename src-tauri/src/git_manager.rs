@@ -880,38 +880,56 @@ pub fn git_diff_files(
 
 #[tauri::command]
 pub fn git_diff_commit(path: String, commit: String) -> Result<Vec<FileDiff>, String> {
-    let output = run_git(&["show", "--numstat", &commit], &path)?;
-    
+    // Get the list of files changed in the commit
+    let files_output = run_git(&["show", "--pretty=", "--name-only", &commit], &path)?;
+    let files: Vec<String> = files_output
+        .lines()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
     let mut diffs = Vec::new();
-    let mut in_diff = false;
-    
-    for line in output.lines() {
-        if line.starts_with("diff --git") {
-            in_diff = true;
-        }
-        
-        if in_diff {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 3 && parts[0].chars().all(char::is_numeric) {
-                let additions: u32 = parts[0].parse().unwrap_or(0);
-                let deletions: u32 = parts[1].parse().unwrap_or(0);
-                let file_path = parts[2].to_string();
-                
-                let diff_output = run_git(&["show", &format!("{}:{}", commit, file_path)], &path)
-                    .unwrap_or_default();
-                
-                diffs.push(FileDiff {
-                    path: file_path,
-                    old_path: None,
-                    status: "M".to_string(),
-                    additions,
-                    deletions,
-                    diff: diff_output,
-                });
+
+    for file_path in files {
+        // Get the diff for this specific file
+        let diff_output = run_git(&["show", "--pretty=", "--patch", &commit, "--", &file_path], &path)
+            .unwrap_or_default();
+
+        // Parse the diff to count additions and deletions
+        let mut additions = 0;
+        let mut deletions = 0;
+        let mut status = "M".to_string(); // Default to modified
+
+        for line in diff_output.lines() {
+            if line.starts_with("@@") {
+                // Parse hunk header to determine status if possible
+                // This is a simplified approach
+            } else if line.starts_with("+") && !line.starts_with("+++") {
+                additions += 1;
+            } else if line.starts_with("-") && !line.starts_with("---") {
+                deletions += 1;
             }
         }
+
+        // Determine status based on additions/deletions
+        if additions > 0 && deletions == 0 {
+            status = "A".to_string(); // Added
+        } else if additions == 0 && deletions > 0 {
+            status = "D".to_string(); // Deleted
+        } else if additions > 0 && deletions > 0 {
+            status = "M".to_string(); // Modified
+        }
+
+        diffs.push(FileDiff {
+            path: file_path,
+            old_path: None,
+            status,
+            additions,
+            deletions,
+            diff: diff_output,
+        });
     }
-    
+
     Ok(diffs)
 }
 
