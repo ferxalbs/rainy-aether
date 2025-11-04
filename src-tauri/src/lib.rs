@@ -1,3 +1,4 @@
+mod credential_manager;
 mod extension_manager;
 mod git_manager;
 mod project_manager;
@@ -245,6 +246,13 @@ pub fn run() {
         git_manager::git_rebase_continue,
         git_manager::git_rebase_skip,
         // Conflict resolution
+        // git_manager::git_get_conflicts,
+        git_manager::git_resolve_conflict,
+        // Agent credential management
+        credential_manager::agent_store_credential,
+        credential_manager::agent_get_credential,
+        credential_manager::agent_delete_credential,
+        credential_manager::agent_has_credential,
         git_manager::git_list_conflicts,
         git_manager::git_get_conflict_content,
         git_manager::git_resolve_conflict,
