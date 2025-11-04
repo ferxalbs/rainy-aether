@@ -1,0 +1,522 @@
+# Rainy Aether Sustainable Sovereign License
+
+**Version 1.0** | **Effective November 3, 2025**
+
+---
+
+## Copyright Notice
+
+**Copyright © 2025 Enosis Labs Inc. All rights reserved.**
+
+This license governs the use, modification, and distribution of Rainy Aether software and associated materials.
+
+---
+
+## Table of Contents
+
+1. [Overview & Philosophy](#1-overview--philosophy)
+2. [Definitions](#2-definitions)
+3. [Grant of Rights](#3-grant-of-rights)
+4. [Restrictions & Limitations](#4-restrictions--limitations)
+5. [Network Copyleft (AGPL v3)](#5-network-copyleft-agpl-v3)
+6. [Contributor License Agreement](#6-contributor-license-agreement)
+7. [Commercial Licensing](#7-commercial-licensing)
+8. [Governance & Compliance](#8-governance--compliance)
+9. [Termination](#9-termination)
+10. [Disclaimers & Liability](#10-disclaimers--liability)
+11. [General Provisions](#11-general-provisions)
+12. [Contact Information](#12-contact-information)
+
+---
+
+## 1. Overview & Philosophy
+
+### 1.1 Purpose
+
+The Rainy Aether Sustainable Sovereign License (RSSL) is designed to:
+
+- **Enable Innovation**: Permit free use, modification, and distribution for most purposes
+- **Ensure Accountability**: Maintain governance and safety mechanisms in all deployments
+- **Balance Openness**: Combine open-source principles with sustainable business models
+- **Support Development**: Require fair compensation for commercial service provision
+
+### 1.2 License Model
+
+This is a **dual-path license**:
+
+- **Path A**: Free use with restrictions (this license)
+- **Path B**: Commercial license for service providers and custom deployments
+
+### 1.3 Core Principles
+
+1. **Transparency First**: Users must understand when AI agents are making decisions
+2. **Safety by Design**: Core governance components cannot be removed
+3. **Accountability Always**: Complete audit trails are required
+4. **Sustainable Development**: Commercial use requires fair compensation
+
+---
+
+## 2. Definitions
+
+**Software**
+Rainy Aether, including all source code, object code, binaries, documentation, configuration files, and associated materials.
+
+**Services**
+Providing the Software, or its functionality, to third parties through hosting, managed services, SaaS, cloud platforms, or similar delivery models.
+
+**Licensee**
+Any individual, organization, or entity exercising rights under this license.
+
+**Licensor**
+Enosis Labs Inc., the copyright holder and license steward.
+
+**Derivative Work**
+Any modification, extension, fork, or adapted version of the Software.
+
+**Commercial License**
+A separate, paid agreement granting additional rights beyond this license.
+
+**Enosis Safety**
+The policy engine, validation systems, and safety frameworks integrated into Rainy Aether.
+
+**Rainy Core**
+The audit trail, attestation, and governance infrastructure of Rainy Aether.
+
+**Internal Use**
+Use within a single organization with fewer than 25 end users in any 30-day period.
+
+---
+
+## 3. Grant of Rights
+
+### 3.1 Permitted Uses
+
+Subject to compliance with all terms, Licensee may:
+
+✅ **Use** the Software for any lawful purpose.
+✅ **Modify** the Software and create derivative works.
+✅ **Reproduce** the Software in source and binary forms.
+✅ **Distribute** the Software under the conditions specified in Section 4.
+✅ **Study** the Software's source code and functionality.
+✅ **Experiment** with the Software for research and development.
+
+### 3.2 No Royalties
+
+This license is **royalty-free** for permitted uses. No payment is required unless:
+
+- Licensee provides Services (see Section 4.1)
+- Licensee requires a Commercial License (see Section 7)
+
+### 3.3 Worldwide License
+
+Rights granted are **worldwide**, **non-exclusive**, and **perpetual** (subject to termination conditions).
+
+---
+
+## 4. Restrictions & Limitations
+
+### 4.1 Prohibited Service Provision ⚠️
+
+**You MAY NOT provide the Software as a Service** without either:
+
+**Option A**: Obtaining a Commercial License from Enosis Labs
+**Option B**: Releasing all modifications under AGPL v3 terms (see Section 5)
+
+This restriction applies to:
+- Software-as-a-Service (SaaS) platforms
+- Managed hosting services
+- Cloud-based delivery to third parties
+- API services exposing Software functionality
+- Multi-tenant deployments
+
+**Exception**: Internal organizational use (< 25 users per 30 days) is permitted.
+
+### 4.2 Mandatory Components 🔒
+
+**You MAY NOT remove, disable, or circumvent:**
+
+| Component | Purpose | Requirement |
+|-----------|---------|-------------|
+| Enosis Safety | Policy enforcement and validation | Must remain active and unmodified |
+| Rainy Core | Audit trails and attestation | Must log all agent decisions |
+| Telemetry Fabric | Usage reporting to Rainy Maker | May be disabled only with Commercial License |
+| Policy Membranes | Governance enforcement | Must remain operational |
+
+**Violation of this requirement results in immediate license termination.**
+
+### 4.3 Attribution & Branding 📛
+
+**Required Attributions:**
+
+- Copyright notices must remain in all source files
+- "Rainy Aether" and "Enosis Labs" trademarks must not be removed from:
+  - User interface elements
+  - Documentation
+  - Marketing materials
+  - About dialogs and splash screens
+
+**Permitted Customization:**
+
+- Internal use (< 25 users) may customize UI branding with prior written notice to Licensor
+- Derivative works may use distinct names if clearly identified as unofficial forks
+
+### 4.4 Compliance Misrepresentation 🚫
+
+**You MAY NOT:**
+
+- Claim compliance with Enosis Labs policies without maintaining full audit trails
+- Market the Software as "safety-verified" without active Enosis Safety policies
+- Use Enosis Labs branding to imply endorsement of derivative works
+
+---
+
+## 5. Network Copyleft (AGPL v3)
+
+### 5.1 Trigger Conditions
+
+If you **modify** the Software and **deploy it over a network** (including SaaS), you must:
+
+1. **Provide complete source code** to all users of your service
+2. **Include all modifications**, orchestration logic, and integration layers
+3. **License under AGPL v3** or compatible terms
+4. **Document changes** in a CHANGES.md file
+
+### 5.2 Source Code Requirements
+
+The provided source code must include:
+
+- All modifications to Rainy Aether code
+- Integration scripts and orchestration logic
+- Configuration files and environment setup
+- Build scripts and deployment tools
+- API definitions and client libraries
+
+### 5.3 Download Mechanism
+
+Users must have a **clear, accessible mechanism** to obtain source code, such as:
+
+- Download link in the user interface
+- API endpoint returning source archives
+- Public repository with version tags
+- Documentation explaining access method
+
+### 5.4 Upstream Contributions
+
+Modified versions should consider contributing improvements back to the official repository, though this is encouraged but not required.
+
+---
+
+## 6. Contributor License Agreement
+
+### 6.1 Contribution Scope
+
+A **Contribution** includes:
+
+- Source code and patches
+- Documentation and tutorials
+- Policy templates and configurations
+- Bug reports with code fixes
+- Feature implementations
+
+### 6.2 Rights Grant
+
+By submitting a Contribution, you grant Enosis Labs:
+
+✅ **Perpetual, worldwide license** to use, modify, and distribute your Contribution
+✅ **Sublicensing rights** under any license (including Commercial Licenses)
+✅ **Patent rights** necessary to use and distribute your Contribution
+✅ **Right to include** in commercial products and derivative works
+
+### 6.3 Contributor Warranties
+
+You represent that:
+
+- You have legal authority to grant these rights
+- Your Contribution is original or properly licensed
+- Your Contribution does not violate third-party rights
+- You will not revoke these rights
+
+### 6.4 CLA Execution
+
+**Individual Contributors**: Must sign the CLA form in the repository
+**Corporate Contributors**: Must execute Corporate CLA with organization whitelist
+
+**No contributions will be merged without executed CLA.**
+
+### 6.5 Contributor Conduct
+
+Contributors must:
+
+- Respect license restrictions and requirements
+- Not introduce code circumventing Enosis Safety
+- Engage constructively with maintainers
+- Disclose conflicts of interest with competing products
+
+---
+
+## 7. Commercial Licensing
+
+### 7.1 When Commercial License is Required
+
+You need a Commercial License if you want to:
+
+- 🌐 Provide Rainy Aether as a managed service or SaaS
+- 🔧 Remove or customize Enosis Safety or Rainy Core
+- 📊 Disable telemetry fabric or policy enforcement
+- 💰 Monetize extensions, integrations, or derivative works
+- 🏢 Resell or embed Rainy Aether in commercial products
+- 🎨 Rebrand for white-label distribution
+
+### 7.2 Commercial License Benefits
+
+Typical Commercial License includes:
+
+- ✅ Service provision rights (SaaS, hosting, managed services)
+- ✅ Custom policy engine integration
+- ✅ Source code privacy (no AGPL disclosure requirement)
+- ✅ Premium support and security patching
+- ✅ Resale and embedding rights
+- ✅ Trademark licensing for co-branding
+- ✅ Custom deployment configurations
+
+### 7.3 Contact for Licensing
+
+**Email**: licensing@enosislabs.com
+**Website**: https://enosislabs.com/licensing
+
+---
+
+## 8. Governance & Compliance
+
+### 8.1 License Evolution
+
+Enosis Labs reserves the right to:
+
+- **Update** this license with 90 days' notice for material changes
+- **Issue** security patches with immediate effect
+- **Clarify** ambiguities through official guidance documents
+- **Publish** updated policy frameworks and requirements
+
+Existing deployments may continue under prior version terms for 180 days after updates.
+
+### 8.2 Breach & Remediation Process
+
+**Step 1**: Licensor notifies Licensee of specific violations
+**Step 2**: Licensee has 30 days to cure or provide remediation plan
+**Step 3**: Persistent non-compliance results in license revocation
+**Step 4**: Public correction may be required for misrepresentations
+
+### 8.3 Compliance Audits
+
+Enosis Labs may request:
+
+- Evidence of active Enosis Safety deployment
+- Audit trail samples (anonymized data acceptable)
+- Public disclosure compliance verification
+- Telemetry fabric connection status
+
+**Frequency**: No more than once per 12-month period for general audits.
+
+### 8.4 Dispute Resolution
+
+**Process:**
+
+1. **Negotiation**: Good-faith attempt to resolve through discussion (30 days)
+2. **Mediation**: Non-binding mediation with neutral third party (60 days)
+3. **Arbitration**: Binding arbitration under Delaware law (if unresolved)
+
+**Governing Law**: State of Delaware, United States
+
+---
+
+## 9. Termination
+
+### 9.1 Automatic Termination
+
+This license **automatically terminates** if:
+
+- Material breach of license terms without cure within 30 days
+- Removal or obstruction of Enosis Safety or Rainy Core (immediate termination)
+- Legal challenge to this license's validity
+- Written notice of termination for cause from Licensor
+
+### 9.2 Post-Termination Effects
+
+**Immediately upon termination:**
+
+- All granted rights cease
+- Distribution and public deployment must stop within 30 days
+- Commercial use must cease immediately
+
+**Grace period:**
+
+- Internal use of existing compiled binaries may continue for 90 days (business continuity only)
+- No new deployments or distributions permitted
+
+**Ongoing obligations:**
+
+- Past breaches and damages remain enforceable
+- License compliance required during wind-down period
+
+### 9.3 Survival
+
+These sections survive termination:
+
+- Section 6.3: Contributor Warranties
+- Section 10: Disclaimers & Liability
+- Section 8.4: Dispute Resolution
+
+---
+
+## 10. Disclaimers & Liability
+
+### 10.1 No Warranty ⚠️
+
+```
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO:
+
+- MERCHANTABILITY
+- FITNESS FOR A PARTICULAR PURPOSE
+- NON-INFRINGEMENT
+- ACCURACY OR RELIABILITY
+- SECURITY OR SAFETY
+- COMPLIANCE WITH REGULATIONS
+```
+
+**You use this Software at your own risk.**
+
+### 10.2 Limitation of Liability 💼
+
+**Licensor is NOT liable for:**
+
+- Direct, indirect, incidental, special, or consequential damages
+- Loss of data, revenue, profits, or business opportunities
+- Business interruption or reputational harm
+- Security breaches or data loss
+- Third-party misuse or policy violations
+- Regulatory fines or compliance failures
+
+**Maximum liability**: $100 USD or amounts paid for Commercial License (if any), whichever is greater.
+
+### 10.3 Exceptions to Liability Limits
+
+Licensor **remains liable** for:
+
+- Death or personal injury from gross negligence or willful misconduct
+- Fraudulent misrepresentation
+- Violations not excludable under applicable law
+- Unauthorized access to Licensee systems by Licensor
+
+### 10.4 Responsibility Disclaimer ⚖️
+
+**Licensee is solely responsible for:**
+
+- Proper configuration of safety policies
+- Monitoring for misuse or violations
+- Human oversight and escalation procedures
+- Regulatory compliance in your jurisdiction
+- End-user protection and stakeholder rights
+
+**The Software provides tools but does not guarantee prevention of all misuse.**
+
+---
+
+## 11. General Provisions
+
+### 11.1 Severability
+
+If any provision is held invalid or unenforceable:
+
+- Other provisions remain in full effect
+- Invalid provision will be reformed to minimum extent necessary
+- License remains valid and enforceable
+
+### 11.2 Entire Agreement
+
+This license, together with:
+
+- Contributor License Agreement (Section 6)
+- Any executed Commercial License addendum
+- Official Enosis Labs policy documents
+
+Constitutes the **entire agreement** regarding the Software.
+
+### 11.3 No Waiver
+
+Failure to enforce any provision does not constitute waiver of future enforcement rights.
+
+### 11.4 Assignment
+
+Licensee may not assign this license without prior written consent from Enosis Labs.
+
+Licensor may assign freely to affiliates, successors, or acquirers.
+
+### 11.5 Amendments
+
+Amendments require written consent from both parties, **except**:
+
+- License version updates (90-day notice, Section 8.1)
+- Security patches (immediate effect)
+- Clarifying guidance (non-material changes)
+
+### 11.6 Headings
+
+Section headings are for convenience only and do not affect interpretation.
+
+### 11.7 Language
+
+The English version of this license is authoritative. Translations are for convenience only.
+
+---
+
+## 12. Contact Information
+
+### Support & Inquiries
+
+| Topic | Email | Purpose |
+|-------|-------|---------|
+| **Licensing** | licensing@enosislabs.com | Commercial licenses, service provision rights |
+| **Security** | security@enosislabs.com | Vulnerability reports, security patches |
+| **Policy** | policy@enosislabs.com | Compliance questions, governance guidance |
+| **General** | hello@enosislabs.com | Other questions and feedback |
+
+### Resources
+
+**Official Repository**: https://github.com/enosislabs/rainy-aether
+**Documentation**: https://docs.rainy-aether.enosislabs.com
+**Community Forum**: https://community.enosislabs.com
+**Security Advisories**: https://enosislabs.com/security
+**Contributor Guidelines**: /CONTRIBUTING.md
+
+---
+
+## Attribution Example
+
+When distributing or modifying Rainy Aether, include this notice:
+
+```
+Rainy Aether
+Copyright © 2025 Enosis Labs Inc.
+
+Licensed under the Rainy Aether Sustainable Sovereign License (RSSL) v1.0
+Governed by Enosis Safety policy frameworks and Rainy Core compliance systems
+
+For more information: https://enosislabs.com/licensing
+```
+
+---
+
+## License Status
+
+**Version**: 1.0
+**Effective Date**: November 3, 2025
+**Last Updated**: November 2025
+**Status**: Active Production License
+**Applies To**: Rainy Aether v0.1.0 and later
+
+---
+
+**END OF LICENSE**
+
+*For the latest version of this license, visit: https://github.com/enosislabs/rainy-aether/blob/main/LICENCE.md*
