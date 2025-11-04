@@ -27,6 +27,7 @@ tauri-plugin-store = "2.4.0"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-shell = "2"
+tauri-plugin-updater = "2"
 notify = "8.2.0"
 portable-pty = "0.9.0"
 uuid = { version = "0.8.2", features = ["v4"] }

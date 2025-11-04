@@ -12,6 +12,7 @@ import StartupPage from "./StartupPage";
 import SettingsPage from "./SettingsPage";
 import AgentsView from "./AgentsView";
 import CloneDialog from "./CloneDialog";
+import UpdateNotification from "./UpdateNotification";
 import { useIDEStore, useIDEState } from "../../stores/ideStore";
 import "../../css/IDE.css";
 import TabSwitcher from "./TabSwitcher";
@@ -28,6 +29,7 @@ import {
 } from "../ui/resizable";
 import ExtensionMarketplace from "./ExtensionMarketplace";
 import ExtensionManager from "./ExtensionManager";
+import { initializeUpdateService, startAutoUpdateCheck } from "../../services/updateService";
 
 const IDE: React.FC = () => {
   const { state, actions } = useIDEStore();
@@ -74,6 +76,17 @@ const IDE: React.FC = () => {
         tabSwitchHideTimerRef.current = null;
       }
     };
+  }, []);
+
+  // Initialize update service
+  useEffect(() => {
+    const initUpdates = async () => {
+      await initializeUpdateService();
+      // Start auto-checking for updates every 24 hours
+      startAutoUpdateCheck(24);
+    };
+
+    initUpdates().catch(console.error);
   }, []);
 
   const cycleTab = useCallback(
@@ -502,6 +515,9 @@ const IDE: React.FC = () => {
           actionsRef.current.loadWorkspace({ name: path.split(/[/\\]/).pop() || path, path, type: "folder" });
         }}
       />
+
+      {/* Update notification */}
+      <UpdateNotification />
     </div>
   );
 };
