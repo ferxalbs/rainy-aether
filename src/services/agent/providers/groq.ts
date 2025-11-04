@@ -355,7 +355,7 @@ export class GroqProvider extends BaseProvider implements AIProvider {
       const result = await generateText({
         model: groq('llama-3.1-8b-instant'),
         messages: [{ role: 'user', content: 'Hi' }],
-        maxTokens: 5,
+        maxOutputTokens: 5,
       });
 
       return result.text.length > 0;
