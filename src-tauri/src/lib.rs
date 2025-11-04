@@ -3,6 +3,7 @@ mod extension_manager;
 mod git_manager;
 mod project_manager;
 mod terminal_manager;
+mod update_manager;
 
 #[tauri::command]
 fn open_windows_terminal(app: tauri::AppHandle, cwd: Option<String>) -> Result<(), String> {
@@ -55,7 +56,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_pty::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_store::Builder::default().build());
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build());
 
     // Desktop-only: register global shortcuts and emit events to frontend
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -294,6 +296,10 @@ pub fn run() {
         extension_manager::create_extension_directory,
         extension_manager::list_extension_files,
         extension_manager::read_extension_file,
+        // Update management
+        update_manager::check_for_updates,
+        update_manager::install_update,
+        update_manager::get_app_version,
     ]);
 
     builder

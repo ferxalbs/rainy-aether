@@ -243,6 +243,62 @@ console.log(terminalState.sessions); // Map of sessions
 - Branch switching updates workspace state
 - Stash operations integrated with UI
 
+## Update System
+
+**✨ Comprehensive automatic update system** powered by `tauri-plugin-updater`.
+
+See **`UPDATE_SYSTEM.md`** for complete documentation.
+
+**Architecture (4 Layers):**
+1. **Backend**: `update_manager.rs` (Rust commands for check/install)
+2. **Service**: `updateService.ts` (event coordination, auto-check intervals)
+3. **State**: `updateStore.ts` (update info, progress tracking)
+4. **UI**: `UpdateNotification.tsx` (non-intrusive notifications)
+
+**Key Features:**
+- ✅ **Automatic Checking**: Background checks every 24 hours (configurable)
+- ✅ **Progress Tracking**: Real-time download/install progress
+- ✅ **Release Notes**: Displays what's new in updates
+- ✅ **Non-Intrusive**: Top-right notification, user controls when to install
+- ✅ **Platform-Specific**: Handles Windows MSI, macOS DMG/PKG, Linux AppImage/DEB/RPM
+- ✅ **Signature Verification**: Cryptographic signature validation
+- ✅ **Error Handling**: Retry logic and clear error messages
+- ✅ **Dev Mode**: Disabled in development to prevent accidental updates
+
+**Quick Usage:**
+```typescript
+import { checkForUpdates, installUpdate } from '@/services/updateService';
+
+// Manual check
+const updateInfo = await checkForUpdates();
+
+// Install and restart
+if (updateInfo?.available) {
+  await installUpdate();
+}
+```
+
+**Configuration** (`tauri.conf.json`):
+```json
+{
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": ["https://releases.rainycode.com/{{target}}/{{arch}}/{{current_version}}"],
+      "pubkey": "YOUR_PUBLIC_KEY_HERE"
+    }
+  }
+}
+```
+
+**Tauri Commands:**
+- `check_for_updates()` - Check for available updates
+- `install_update()` - Download and install update
+- `get_app_version()` - Get current version
+
+**Events:**
+- `update-status` - Progress updates during check/download/install
+
 ## Code Style & Conventions
 
 ### TypeScript
