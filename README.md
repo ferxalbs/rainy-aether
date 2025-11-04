@@ -4,15 +4,16 @@
 
 ![Rainy Aether Banner](https://img.shields.io/badge/Rainy-Aether-5B9BD5?style=for-the-badge&logo=visual-studio-code)
 
-**A Modern AI-First IDE Built for the Future**
+**The Next-Generation AI-Native Code Editor**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/yourusername/rainy-aether)
-[![Tauri](https://img.shields.io/badge/Tauri-2.0-orange.svg)](https://tauri.app/)
-[![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://reactjs.org/)
-[![Rust](https://img.shields.io/badge/Rust-Stable-orange.svg)](https://www.rust-lang.org/)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/enosislabs/rainy-aether)
+[![License](https://img.shields.io/badge/license-TBD-orange.svg)](./LICENSE)
+[![Tauri](https://img.shields.io/badge/Tauri-2.0-FFC131.svg)](https://tauri.app/)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg)](https://reactjs.org/)
+[![Rust](https://img.shields.io/badge/Rust-Stable-CE422B.svg)](https://www.rust-lang.org/)
 [![Monaco](https://img.shields.io/badge/Monaco-Editor-007ACC.svg)](https://microsoft.github.io/monaco-editor/)
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](#-contributing) • [Roadmap](#-roadmap)
+[Features](#-features) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Contributing](./CONTRIBUTING.md) • [Roadmap](./ROADMAP.md)
 
 </div>
 
@@ -20,63 +21,59 @@
 
 ## 🎯 What is Rainy Aether?
 
-Rainy Aether (branded as **Rainy Code**) is a next-generation desktop code editor that combines the power of VS Code's Monaco editor with a modern, lightweight Rust backend. Built with **Tauri 2.0**, it delivers native performance with a fraction of the resource footprint of Electron-based IDEs.
+Rainy Aether is an **open-source, AI-first code editor** built from the ground up for the modern developer. Combining the power of VS Code's Monaco editor with a blazing-fast Rust backend powered by Tauri 2.0, it delivers exceptional performance while using a fraction of the resources of traditional IDEs.
 
-### Why Rainy Aether?
+**Built by [Enosis Labs, Inc.](https://enosislabs.com)** 🏢
 
-- 🚀 **Blazing Fast**: Rust backend + optimized React frontend
-- 🎨 **Beautiful**: Modern UI with Day/Night themes and Tailwind CSS v4
-- 🧠 **AI-First**: Designed for multi-agent workflows and autonomous development
-- 🔧 **Extensible**: Plugin architecture ready for your custom tools
-- 💾 **Lightweight**: ~100MB vs 500MB+ for traditional IDEs
-- 🌐 **Cross-Platform**: Native Windows, macOS, and Linux support
+### Why Choose Rainy Aether?
+
+- 🚀 **Lightning Fast** — Rust backend + optimized React, < 2s startup time
+- 🪶 **Incredibly Lightweight** — ~100MB footprint vs 500MB+ for Electron IDEs
+- 🧠 **AI-Native** — Multi-provider support, bring your own API keys
+- 🔒 **Privacy First** — Local-first architecture, no telemetry without consent
+- 🎨 **Beautiful** — Modern UI with Day/Night themes and full customization
+- 🌐 **Cross-Platform** — Native Windows, macOS, and Linux support
+- 🔓 **Open Source** — Transparent, community-driven development
 
 ---
 
 ## ✨ Features
 
-### 🎨 **Modern Editor Experience**
-- **Monaco Editor**: Full VS Code editing experience with IntelliSense
-- **LSP Integration**: Language Server Protocol for advanced code intelligence
-- **Multi-Language**: TypeScript, JavaScript, HTML, CSS, JSON, Rust, Python, Go, and more
-- **Breadcrumbs**: Smart navigation with pattern-based symbol detection
-- **Go to Definition**: F12 navigation, Peek Definition (Alt+F12), Find References
-- **Diagnostics**: Unified error/warning system across all languages
+### 🎨 Modern Editor
+- **Monaco Editor** — Full VS Code editing experience with IntelliSense
+- **Multi-Language Support** — TypeScript, JavaScript, Python, Rust, Go, and 40+ more
+- **Smart Navigation** — Go to Definition (F12), Find References, Peek Definition
+- **Breadcrumbs** — Pattern-based symbol detection and navigation
+- **Diagnostics** — Unified error/warning system with Problems panel
 
-### 🖥️ **Professional Terminal**
-- **Robust PTY Backend**: Completely rebuilt terminal system with proper lifecycle management
-- **Multiple Sessions**: Tab-based terminal management
-- **Shell Profiles**: Auto-detection of PowerShell, CMD, Bash, Git Bash, Zsh, Fish
-- **Search**: Full-text search with `Ctrl+Shift+F`
-- **Performance**: Write buffering (60fps) and resize debouncing (150ms)
-- **Persistence**: Restore terminal sessions on app restart
-- **Theme Integration**: Automatic adaptation to editor theme
+### 🖥️ Professional Terminal
+- **Native PTY Backend** — True terminal experience with proper shell integration
+- **Multiple Sessions** — Tab-based management, shell profile detection
+- **Full-Text Search** — Find anything in your terminal output (Ctrl+Shift+F)
+- **Session Persistence** — Restore terminals on restart
+- **Theme Integration** — Matches your editor theme automatically
 
-### 📁 **File Management**
-- **Project Explorer**: Fast tree navigation with lazy loading
-- **File Watchers**: Real-time updates on file system changes
-- **Quick Open**: `Ctrl+P` to quickly navigate to any file
-- **Recent Projects**: Jump back to your recent workspaces
+### 🔄 Git Integration
+- **Native Performance** — Built on Rust's `git2` crate
+- **Visual Diff Viewer** — Side-by-side comparison with syntax highlighting
+- **Branch Management** — Create, switch, and manage branches with ease
+- **Commit Workflows** — Stage, unstage, commit, push, pull
+- **Stash Support** — Save and restore work-in-progress changes
+- **History Browser** — Explore commit history with detailed information
 
-### 🔄 **Git Integration**
-- **Native Git**: Powered by the `git2` Rust crate
-- **Commit Workflows**: Stage, unstage, commit, push, pull
-- **Branch Management**: Create, switch, and manage branches
-- **Diff Viewer**: Visual file comparison with commit diffs
-- **Stash Support**: Save and restore work-in-progress changes
-- **History**: Browse commit history with detailed information
+### 🎨 Theming & Customization
+- **Day/Night Modes** — Beautiful light and dark themes
+- **System Sync** — Automatically follows OS theme preference
+- **CSS Variables** — Full theme customization
+- **Accessibility** — WCAG-compliant color contrast
 
-### 🎨 **Theming**
-- **Day/Night Modes**: Beautiful light and dark themes
-- **System Sync**: Automatically follows OS theme preference
-- **CSS Variables**: Full theme customization via CSS tokens
-- **Tailwind v4**: Modern styling with design tokens
-- **Accessibility**: WCAG-compliant color contrast
-
-### 🔌 **Extensibility**
-- **Extension System**: Install and manage extensions
-- **Plugin Architecture**: Ready for custom tools and integrations
-- **MCP Ready**: Model Context Protocol integration (planned)
+### 🤖 AI Features *(Coming Soon)*
+- **Multi-Provider Support** — OpenAI, Anthropic, Google, Groq, Cerebras, and more
+- **AI Chat** — Context-aware assistance with @-mentions
+- **Inline Completions** — Smart code suggestions as you type
+- **Agent Mode** — Autonomous development with up to 8 parallel agents
+- **Voice Interface** — Natural language programming
+- **MCP Support** — Model Context Protocol integration
 
 ---
 
@@ -84,21 +81,19 @@ Rainy Aether (branded as **Rainy Code**) is a next-generation desktop code edito
 
 ### Prerequisites
 
-Before you begin, ensure you have:
-
-- **Node.js** v18 or higher ([Download](https://nodejs.org/))
-- **pnpm** package manager (`npm install -g pnpm`)
+- **Node.js** v18+ ([Download](https://nodejs.org/))
+- **pnpm** (`npm install -g pnpm`)
 - **Rust** stable toolchain ([Install](https://rustup.rs/))
-- **Platform-specific dependencies**:
-  - **Windows**: [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/)
-  - **macOS**: Xcode Command Line Tools (`xcode-select --install`)
-  - **Linux**: See [Tauri Prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites)
+- **Platform Dependencies**:
+  - Windows: [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/)
+  - macOS: Xcode Command Line Tools (`xcode-select --install`)
+  - Linux: [Tauri Prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/rainy-aether.git
+git clone https://github.com/enosislabs/rainy-aether.git
 cd rainy-aether
 
 # Install dependencies
@@ -106,18 +101,15 @@ pnpm install
 
 # Run in development mode (full desktop experience)
 pnpm tauri dev
-
-# Or run frontend-only (fast iteration, limited features)
-pnpm dev
 ```
 
-### Building for Production
+### Build for Production
 
 ```bash
 # Create production build
 pnpm tauri build
 
-# Output will be in src-tauri/target/release/bundle/
+# Output: src-tauri/target/release/bundle/
 ```
 
 ---
@@ -126,215 +118,165 @@ pnpm tauri build
 
 ### Essential Guides
 
-- **[CLAUDE.md](CLAUDE.md)** - Complete developer reference for working with the codebase
-- **[TERMINAL_SYSTEM.md](TERMINAL_SYSTEM.md)** - Comprehensive terminal system documentation
-- **[LSP.md](LSP.md)** - Language Server Protocol integration guide
-- **[MONACO_NAVIGATION_FEATURES.md](MONACO_NAVIGATION_FEATURES.md)** - Monaco editor features
-- **[ROADMAP.md](ROADMAP.md)** - Feature roadmap and future plans
-- **[AGENTS.md](AGENTS.md)** - AI agent setup and configuration
+| Document | Description |
+|----------|-------------|
+| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | System architecture and technical design |
+| **[DEVELOPMENT.md](./DEVELOPMENT.md)** | Development guide and best practices |
+| **[CONTRIBUTING.md](./CONTRIBUTING.md)** | How to contribute to the project |
+| **[CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)** | Community guidelines |
+| **[SECURITY.md](./SECURITY.md)** | Security policy and vulnerability reporting |
+| **[ROADMAP.md](./ROADMAP.md)** | Feature roadmap and future plans |
+| **[CLAUDE.md](./CLAUDE.md)** | AI assistant reference (for Claude Code) |
 
-### Architecture Overview
+### Specialized Documentation
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                  React 19 Frontend                       │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │ Monaco Editor│  │  Terminal    │  │ File Explorer│  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  │
-│           │                 │                 │          │
-│  ┌────────▼─────────────────▼─────────────────▼──────┐  │
-│  │         State Management (Stores)                  │  │
-│  └────────┬─────────────────┬─────────────────┬──────┘  │
-└───────────┼─────────────────┼─────────────────┼─────────┘
-            │                 │                 │
-┌───────────▼─────────────────▼─────────────────▼─────────┐
-│                  Tauri IPC Bridge                        │
-└───────────┬─────────────────┬─────────────────┬─────────┘
-            │                 │                 │
-┌───────────▼─────────────────▼─────────────────▼─────────┐
-│                   Rust Backend (Tauri 2.0)               │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │ File Manager │  │ PTY Manager  │  │ Git Manager  │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Development Commands
-
-```bash
-# Frontend development
-pnpm dev                  # Vite dev server (fast iteration)
-pnpm build                # Build frontend for production
-pnpm tsc --noEmit         # Type check TypeScript
-
-# Desktop development
-pnpm tauri dev            # Full desktop app with hot reload
-pnpm tauri build          # Production desktop bundles
-
-# Rust development
-cd src-tauri
-cargo test                # Run Rust tests
-cargo fmt                 # Format Rust code
-cargo clippy              # Lint Rust code
-cargo check               # Fast compile check
-```
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+P` | Quick Open (files) |
-| `Ctrl+Shift+P` | Command Palette |
-| `Ctrl+O` | Open Project |
-| `Ctrl+S` | Save File |
-| `Ctrl+W` | Close File |
-| `Ctrl+B` | Toggle Sidebar |
-| ``Ctrl+` `` | Toggle Terminal |
-| `Ctrl+Shift+T` | New Terminal |
-| `Ctrl+Shift+F` | Search in Terminal |
-| `F12` | Go to Definition |
-| `Alt+F12` | Peek Definition |
-| `Shift+F12` | Find References |
+- **[TERMINAL_SYSTEM.md](./TERMINAL_SYSTEM.md)** — Comprehensive terminal documentation
+- **[LSP.md](./LSP.md)** — Language Server Protocol integration
+- **[MONACO_NAVIGATION_FEATURES.md](./MONACO_NAVIGATION_FEATURES.md)** — Monaco editor features
+- **[AGENTS.md](./AGENTS.md)** — AI agent setup and configuration
 
 ---
 
 ## 🛠️ Technology Stack
 
+<table>
+<tr>
+<td valign="top" width="50%">
+
 ### Frontend
-- **React 19** - UI framework with concurrent features
-- **TypeScript** - Type-safe JavaScript
-- **Monaco Editor** - VS Code's editor component
-- **Tailwind CSS v4** - Utility-first CSS framework
-- **Vite** - Lightning-fast build tool
+- **React 19** — Modern UI framework
+- **TypeScript** — Type-safe development
+- **Monaco Editor** — VS Code's editor
+- **Tailwind CSS v4** — Utility-first styling
+- **Vite** — Lightning-fast build tool
+
+</td>
+<td valign="top" width="50%">
 
 ### Backend
-- **Rust** - Systems programming language
-- **Tauri 2.0** - Desktop framework (Electron alternative)
-- **portable-pty** - Cross-platform PTY for terminals
-- **git2** - Native Git integration
-- **tokio** - Async runtime
+- **Rust** — Systems programming
+- **Tauri 2.0** — Desktop framework
+- **portable-pty** — Terminal sessions
+- **git2** — Native Git operations
+- **tokio** — Async runtime
 
-### Tools & Services
-- **Language Server Protocol** - Code intelligence
-- **xterm.js** - Terminal emulator
-- **notify** - File system watcher
+</td>
+</tr>
+</table>
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions from the community! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
+We welcome contributions from developers of all skill levels! Whether you're fixing typos, adding features, or improving documentation, your help makes Rainy Aether better for everyone.
 
 ### How to Contribute
 
-1. **Fork** the repository
-2. **Clone** your fork: `git clone https://github.com/enosislabs/rainy-aether.git`
-3. **Create a branch**: `git checkout -b feature/amazing-feature`
-4. **Make your changes** and commit: `git commit -m 'Add amazing feature'`
-5. **Push** to your fork: `git push origin feature/amazing-feature`
-6. **Open a Pull Request** with a clear description
+1. Read our **[Contributing Guide](./CONTRIBUTING.md)**
+2. Check out **[Good First Issues](https://github.com/enosislabs/rainy-aether/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)**
+3. Fork the repository and create a feature branch
+4. Make your changes and submit a pull request
 
-### Development Guidelines
+### Areas We Need Help
 
-- 📝 **Code Style**: Follow existing patterns, use TypeScript strictly
-- ✅ **Testing**: Ensure `pnpm tsc --noEmit` and `cargo test` pass
-- 📖 **Documentation**: Update docs for new features
-- 🌐 **Cross-Platform**: Test on Windows, macOS, and Linux when possible
-- 🎨 **UI/UX**: Use Tailwind tokens, no hard-coded colors
+- 🔌 Language Server integrations (rust-analyzer, Python LSP, Go LSP)
+- 🌍 Internationalization and localization
+- 🎨 Custom themes and icon packs
+- 📦 Extension development
+- 📝 Documentation and tutorials
+- 🐛 Bug reports and testing
 
-### Areas Looking for Contributions
-
-- 🔌 **Language Server Integration**: rust-analyzer, Python LSP, Go LSP
-- 🌍 **Internationalization**: Multi-language support
-- 🎨 **Themes**: Custom theme packs
-- 📦 **Extensions**: Plugin development
-- 🐛 **Bug Fixes**: Check [Issues](https://github.com/yourusername/rainy-aether/issues)
-- 📝 **Documentation**: Tutorials, guides, examples
+See **[CONTRIBUTING.md](./CONTRIBUTING.md)** for detailed guidelines.
 
 ---
 
 ## 🗺️ Roadmap
 
-### Current Status (v0.1.0)
-- ✅ Monaco Editor integration
-- ✅ Terminal system with PTY backend
+### Current Status (v0.1.0 — November 2025)
+
+- ✅ Monaco Editor with TypeScript/JavaScript support
+- ✅ Professional terminal with PTY backend
 - ✅ Native Git integration
 - ✅ File explorer and management
-- ✅ Day/Night themes
-- ✅ LSP infrastructure
+- ✅ Day/Night themes with full customization
+- ✅ Diagnostics and Problems panel
 
-### Coming Soon (v0.2.0)
-- 🔄 Multi-agent orchestration
-- 🎤 Voice mode integration
-- 🌐 Native browser tool with DevTools
-- 📦 Extension marketplace
-- 🔍 Global search and replace
-- 📊 Performance profiling
+### Next Milestones
 
-### Future Vision
-- 🤖 **SOLO Mode**: Autonomous development workflows
-- 🧠 **AI Pair Programming**: Context-aware code suggestions
-- 📱 **Mobile Companion**: Remote development from mobile devices
-- 🌍 **Collaborative Editing**: Real-time team collaboration
-- 🔐 **Enterprise Features**: SSO, audit logs, compliance
+| Version | Target | Features |
+|---------|--------|----------|
+| **v0.2.0** | Q4 2025 | Command palette, split views, workspace search |
+| **v0.3.0** | Q4 2025 | Extension system, LSP integration |
+| **v0.4.0** | Q4 2025 | AI chat, inline completions, multi-provider support |
+| **v1.0.0** | Q2 2026 | Production-ready with full AI features |
 
-See [ROADMAP.md](ROADMAP.md) for detailed feature plans.
+See **[ROADMAP.md](./ROADMAP.md)** for the complete feature roadmap.
 
 ---
 
 ## 📄 License
 
-**License is pending definition.** This project is currently under development and the license terms are being determined. It will **NOT** be MIT or Apache 2.0.
+**License terms are currently being finalized.** This project will **NOT** use MIT or Apache 2.0 licensing. Please check back for updates.
 
-Please check back for updates on licensing. For commercial use or custom licensing inquiries, please contact the maintainers.
+For commercial use or custom licensing inquiries, contact [Enosis Labs, Inc.](mailto:contact@enosislabs.com)
 
 ---
 
 ## 🙏 Acknowledgments
 
-Rainy Aether is built on the shoulders of giants:
+Rainy Aether is built on incredible open-source projects:
 
-- 🦀 **[Tauri](https://tauri.app/)** - For creating the best desktop framework
-- ⚛️ **[React](https://reactjs.org/)** - For the powerful UI framework
-- 📝 **[Monaco Editor](https://microsoft.github.io/monaco-editor/)** - For VS Code's editor
-- 🌐 **[Language Server Protocol](https://microsoft.github.io/language-server-protocol/)** - For language intelligence
-- 🎨 **[Tailwind CSS](https://tailwindcss.com/)** - For beautiful styling
-- 🦀 **[Rust](https://www.rust-lang.org/)** - For systems-level performance
-- 💻 **[xterm.js](https://xtermjs.org/)** - For terminal emulation
+- 🦀 [Tauri](https://tauri.app/) — Desktop framework
+- ⚛️ [React](https://reactjs.org/) — UI framework
+- 📝 [Monaco Editor](https://microsoft.github.io/monaco-editor/) — Code editor
+- 🎨 [Tailwind CSS](https://tailwindcss.com/) — Styling
+- 🦀 [Rust](https://www.rust-lang.org/) — Systems language
+- 💻 [xterm.js](https://xtermjs.org/) — Terminal emulator
+
+Special thanks to the teams behind VS Code, Cursor, and Windsurf for inspiring modern AI-first development.
 
 ---
 
-## 📞 Support & Community
+## 📞 Community & Support
 
 ### Get Help
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/yourusername/rainy-aether/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/rainy-aether/discussions)
-- 📖 **Documentation**: See [CLAUDE.md](CLAUDE.md) and other guides
 
-### Stay Updated
-- ⭐ **Star** the repository to show support
-- 👀 **Watch** for updates and new releases
-- 🔔 **Follow** for announcements
+- 🐛 [Report Bugs](https://github.com/enosislabs/rainy-aether/issues)
+- 💬 [Discussions](https://github.com/enosislabs/rainy-aether/discussions)
+- 📖 [Documentation](./ARCHITECTURE.md)
+- 🔐 [Security Issues](./SECURITY.md)
+
+### Stay Connected
+
+- ⭐ Star the repository to show support
+- 👀 Watch for updates and releases
+- 🐦 Follow [@EnosisLabs](https://twitter.com/enosislabsoff) on X (formerly Twitter)
+- 💬 Join our Discord community *(coming soon)*
 
 ---
 
-## 🌟 Show Your Support
+## 🌟 Support the Project
 
-If you find Rainy Aether useful, please consider:
+If Rainy Aether helps you code better, consider:
 
-- ⭐ Starring the repository
-- 🐛 Reporting bugs and suggesting features
-- 📝 Contributing code or documentation
-- 📢 Sharing with other developers
+- ⭐ **Starring** the repository
+- 🐛 **Reporting** bugs and suggesting features
+- 📝 **Contributing** code or documentation
+- 📢 **Sharing** with fellow developers
+- 💰 **Sponsoring** development *(GitHub Sponsors coming soon)*
 
 ---
 
 <div align="center">
 
-**Rainy Aether** - Bringing clarity to your coding experience, one drop at a time. 🌧️✨
+**Rainy Aether** — Bringing clarity to your development workflow, one drop at a time. 🌧️✨
 
-Built with ❤️ by developers, for developers.
+**Built with ❤️ by [Enosis Labs, Inc.](https://enosislabs.com)**
 
-[Get Started](#-quick-start) • [Documentation](#-documentation) • [Contribute](#-contributing)
+[Get Started](#-quick-start) • [Documentation](#-documentation) • [Contribute](./CONTRIBUTING.md) • [Roadmap](./ROADMAP.md)
+
+---
+
+**Copyright © 2025 Enosis Labs, Inc. All rights reserved.**
 
 </div>
