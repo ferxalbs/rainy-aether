@@ -49,7 +49,7 @@
         "https://releases.rainycode.com/{{target}}/{{arch}}/{{current_version}}"
       ],
       "dialog": true,
-      "pubkey": "YOUR_PUBLIC_KEY_HERE",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI5QjBCOEQ1RDFEOERGQjEKUldTeDM5alIxYml3S2E4TkZLODk4Wi9oeHF0YTR0WVRnbXl1eDl1cHBZODh0OWMvdDU2QXoxQ1oK",
       "windows": {
         "installMode": "passive"
       }

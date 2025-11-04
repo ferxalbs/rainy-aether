@@ -25,6 +25,7 @@ dist-ssr
 
 # Tauri
 target
+~/.tauri
 
 # CLI Agents
 .claude

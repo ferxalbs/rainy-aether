@@ -1,0 +1,98 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+            target: 'darwin'
+            arch: 'aarch64'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+            target: 'darwin'
+            arch: 'x86_64'
+          - platform: 'ubuntu-22.04'
+            args: ''
+            target: 'linux'
+            arch: 'x86_64'
+          - platform: 'windows-latest'
+            args: ''
+            target: 'windows'
+            arch: 'x86_64'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Build application
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Tauri signing environment variables - lint warnings are false positives for valid GitHub Actions syntax
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }} # lint:ignore context-access
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }} # lint:ignore context-access
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Rainy Code ${{ github.ref_name }}'
+          releaseBody: 'See CHANGELOG.md for details'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      - name: Generate signature file (for update server)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          # Generate signature for the Windows installer
+          # This creates a .sig file that can be used by the update server
+          cargo tauri signer sign "${TAURI_PRIVATE_KEY}" "src-tauri/target/release/bundle/msi/rainy-aether_${{ github.ref_name }}_x64-setup.exe"
+        env:
+          # Tauri signing environment variables
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }} # lint:ignore context-access
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }} # lint:ignore context-access
+
+      - name: Upload signature file
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-signature
+          path: src-tauri/target/release/bundle/msi/rainy-aether_${{ github.ref_name }}_x64-setup.exe.sig

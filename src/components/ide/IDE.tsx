@@ -12,7 +12,7 @@ import StartupPage from "./StartupPage";
 import SettingsPage from "./SettingsPage";
 import AgentsView from "./AgentsView";
 import CloneDialog from "./CloneDialog";
-import UpdateNotification from "./UpdateNotification";
+import { UpdateNotification } from "./UpdateNotification";
 import { useIDEStore, useIDEState } from "../../stores/ideStore";
 import "../../css/IDE.css";
 import TabSwitcher from "./TabSwitcher";
