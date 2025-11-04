@@ -40,6 +40,7 @@ Rainy Aether is an **open-source, AI-first code editor** built from the ground u
 ## ✨ Features
 
 ### 🎨 Modern Editor
+
 - **Monaco Editor** — Full VS Code editing experience with IntelliSense
 - **Multi-Language Support** — TypeScript, JavaScript, Python, Rust, Go, and 40+ more
 - **Smart Navigation** — Go to Definition (F12), Find References, Peek Definition
@@ -47,6 +48,7 @@ Rainy Aether is an **open-source, AI-first code editor** built from the ground u
 - **Diagnostics** — Unified error/warning system with Problems panel
 
 ### 🖥️ Professional Terminal
+
 - **Native PTY Backend** — True terminal experience with proper shell integration
 - **Multiple Sessions** — Tab-based management, shell profile detection
 - **Full-Text Search** — Find anything in your terminal output (Ctrl+Shift+F)
@@ -54,6 +56,7 @@ Rainy Aether is an **open-source, AI-first code editor** built from the ground u
 - **Theme Integration** — Matches your editor theme automatically
 
 ### 🔄 Git Integration
+
 - **Native Performance** — Built on Rust's `git2` crate
 - **Visual Diff Viewer** — Side-by-side comparison with syntax highlighting
 - **Branch Management** — Create, switch, and manage branches with ease
@@ -62,12 +65,14 @@ Rainy Aether is an **open-source, AI-first code editor** built from the ground u
 - **History Browser** — Explore commit history with detailed information
 
 ### 🎨 Theming & Customization
+
 - **Day/Night Modes** — Beautiful light and dark themes
 - **System Sync** — Automatically follows OS theme preference
 - **CSS Variables** — Full theme customization
 - **Accessibility** — WCAG-compliant color contrast
 
 ### 🤖 AI Features *(Coming Soon)*
+
 - **Multi-Provider Support** — OpenAI, Anthropic, Google, Groq, Cerebras, and more
 - **AI Chat** — Context-aware assistance with @-mentions
 - **Inline Completions** — Smart code suggestions as you type
@@ -144,6 +149,7 @@ pnpm tauri build
 <td valign="top" width="50%">
 
 ### Frontend
+
 - **React 19** — Modern UI framework
 - **TypeScript** — Type-safe development
 - **Monaco Editor** — VS Code's editor
@@ -154,6 +160,7 @@ pnpm tauri build
 <td valign="top" width="50%">
 
 ### Backend
+
 - **Rust** — Systems programming
 - **Tauri 2.0** — Desktop framework
 - **portable-pty** — Terminal sessions

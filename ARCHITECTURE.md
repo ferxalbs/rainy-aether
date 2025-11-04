@@ -553,12 +553,14 @@ class DiagnosticService {
 ### Threat Model
 
 **Assets to Protect**:
+
 - User's source code and files
 - API keys and secrets
 - Git credentials
 - Terminal command execution
 
 **Threats**:
+
 - Malicious extensions (future)
 - File system access abuse
 - Command injection

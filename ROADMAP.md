@@ -3,7 +3,7 @@
 > **Vision**: Build the world's most powerful AI-native code editor that combines the best of VS Code's extensibility, Cursor's AI integration, and Windsurf's autonomous capabilities—while remaining completely open source.
 
 **Current Version**: 0.1.0 (Early Alpha)
-**Target Launch**: Q2 2025
+**Target Launch**: Q4 2025
 **Last Updated**: November 2025
 
 ---
@@ -13,10 +13,10 @@
 - [Project Mission](#project-mission)
 - [Competitive Positioning](#competitive-positioning)
 - [Development Phases](#development-phases)
-  - [Phase 1: Foundation](#phase-1-foundation-q1-2025)
-  - [Phase 2: Intelligence](#phase-2-intelligence-q2-2025)
-  - [Phase 3: Collaboration](#phase-3-collaboration-q3-2025)
-  - [Phase 4: Ecosystem](#phase-4-ecosystem-q4-2025)
+  - [Phase 1: Foundation](#phase-1-foundation-q2-2025)
+  - [Phase 2: Intelligence](#phase-2-intelligence-q4-2025)
+  - [Phase 3: Collaboration](#phase-3-collaboration-q1-2026)
+  - [Phase 4: Ecosystem](#phase-4-ecosystem-q1-2026)
 - [Feature Comparison Matrix](#feature-comparison-matrix)
 - [Technical Architecture](#technical-architecture)
 - [Community & Contribution](#community--contribution)
@@ -69,7 +69,7 @@ Rainy Aether is an **AI-first code editor** built from the ground up to enable n
 
 ## Development Phases
 
-### Phase 1: Foundation (Q1 2025)
+### Phase 1: Foundation (Q2 2025)
 
 **Goal**: Establish core IDE functionality competitive with VS Code, with basic AI integration.
 
@@ -137,11 +137,11 @@ Rainy Aether is an **AI-first code editor** built from the ground up to enable n
 - [ ] **Command contributions from extensions**
 - [ ] **Basic extension examples** (linters, formatters)
 
-**Target Completion**: October 2025
+**Target Completion**: Q1 2026
 
 ---
 
-### Phase 2: Intelligence (Q2 2025)
+### Phase 2: Intelligence (Q4 2025)
 
 **Goal**: Integrate AI capabilities that rival Cursor and Windsurf, with multi-provider support.
 
@@ -239,7 +239,7 @@ Rainy Aether is an **AI-first code editor** built from the ground up to enable n
 
 ---
 
-### Phase 3: Collaboration (Q3 2025)
+### Phase 3: Collaboration (Q1 2026)
 
 **Goal**: Enable autonomous development and team workflows.
 
@@ -355,7 +355,7 @@ Rainy Aether is an **AI-first code editor** built from the ground up to enable n
 
 ---
 
-### Phase 4: Ecosystem (Q4 2025)
+### Phase 4: Ecosystem (Q1 2026)
 
 **Goal**: Build a thriving open-source ecosystem and prepare for v1.0.
 
@@ -520,7 +520,7 @@ Rainy Aether is an **AI-first code editor** built from the ground up to enable n
 
 ### Tech Stack
 
-```
+```text
 Frontend:
   ├─ React 19 (UI framework)
   ├─ TypeScript (type safety)
@@ -551,7 +551,7 @@ Build & Dev:
 
 ### Architecture Diagram
 
-```
+```diagram
 ┌─────────────────────────────────────────────────────────┐
 │                     UI Layer (React)                    │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │

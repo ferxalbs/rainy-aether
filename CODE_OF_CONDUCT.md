@@ -8,7 +8,7 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 
 ## Our Standards
 
-### Examples of behavior that contributes to a positive environment:
+### Examples of behavior that contributes to a positive environment
 
 - ✅ Demonstrating empathy and kindness toward other people
 - ✅ Being respectful of differing opinions, viewpoints, and experiences
@@ -18,7 +18,7 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 - ✅ Using welcoming and inclusive language
 - ✅ Being supportive of other community members
 
-### Examples of unacceptable behavior:
+### Examples of unacceptable behavior
 
 - ❌ The use of sexualized language or imagery, and sexual attention or advances of any kind
 - ❌ Trolling, insulting or derogatory comments, and personal or political attacks
