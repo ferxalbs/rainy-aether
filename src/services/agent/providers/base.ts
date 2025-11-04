@@ -10,6 +10,11 @@
 // ============================================================================
 
 /**
+ * Model tier classification
+ */
+export type ModelTier = 'free' | 'cost' | 'speed' | 'balanced' | 'quality' | 'premium' | 'max';
+
+/**
  * Represents an AI model available from a provider
  */
 export interface AIModel {
@@ -31,6 +36,18 @@ export interface AIModel {
   /** Whether the model supports tool/function calling */
   supportsTools: boolean;
 
+  /** Whether the model supports parallel tool calls */
+  supportsParallelTools?: boolean;
+
+  /** Whether the model supports structured output */
+  supportsStructuredOutput?: boolean;
+
+  /** Whether the model supports JSON mode */
+  supportsJsonMode?: boolean;
+
+  /** Model tier classification */
+  tier?: ModelTier;
+
   /** Optional cost information per 1000 tokens */
   costPer1kTokens?: {
     input: number;
@@ -42,6 +59,16 @@ export interface AIModel {
 
   /** Model capabilities (chat, completion, embedding, etc.) */
   capabilities?: string[];
+
+  /** Recommended use cases */
+  useCases?: string[];
+
+  /** Performance characteristics */
+  performance?: {
+    averageLatency?: number; // ms
+    tokensPerSecond?: number;
+    reliability?: number; // 0-100
+  };
 }
 
 /**
@@ -152,6 +179,24 @@ export interface GenerationConfig {
 
   /** Random seed for reproducibility */
   seed?: number;
+
+  /** Enable parallel tool calls (if model supports it) */
+  parallelToolCalls?: boolean;
+
+  /** Maximum number of tool calls per request */
+  maxToolCalls?: number;
+
+  /** Timeout for tool execution (ms) */
+  toolTimeout?: number;
+
+  /** User identifier for tracking */
+  user?: string;
+
+  /** Response format (text, json_object) */
+  responseFormat?: 'text' | 'json_object' | 'json_schema';
+
+  /** JSON schema for structured output */
+  responseSchema?: Record<string, unknown>;
 }
 
 /**

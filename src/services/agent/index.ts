@@ -4,6 +4,8 @@
  * Provides a unified interface to the entire agent system.
  */
 
+import { getAgentService } from './agentService';
+
 // Services
 export { CredentialService, getCredentialService } from './credentialService';
 export { ProviderManager, getProviderManager } from './providerManager';
@@ -35,6 +37,6 @@ export {
  * Call this once during app initialization
  */
 export async function initializeAgentSystem(): Promise<void> {
-  const agentService = getAgentService();
-  await agentService.initialize();
+  const service = getAgentService();
+  await service.initialize();
 }

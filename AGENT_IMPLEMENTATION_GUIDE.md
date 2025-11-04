@@ -1,4 +1,4 @@
-## Agent System Implementation Guide
+# Agent System Implementation Guide
 
 **Status**: ✅ Core Infrastructure Complete
 **Last Updated**: November 2025
@@ -39,7 +39,7 @@ The Agent System infrastructure is now **fully implemented** and ready for UI in
 
 ## Architecture Summary
 
-```
+```table
 ┌─────────────────────────────────────────────────────────────┐
 │                    UI Layer (React)                         │
 │                   [TO BE IMPLEMENTED]                       │
@@ -580,7 +580,7 @@ cargo test credential_manager
 
 ### Frontend (TypeScript)
 
-```
+```table
 src/services/agent/
 ├── providers/
 │   ├── base.ts          - Provider interface & types

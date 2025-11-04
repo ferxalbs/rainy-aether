@@ -36,6 +36,14 @@ export interface AgentConfig {
   presencePenalty?: number;
   systemPrompt?: string;
   seed?: number;
+
+  // Advanced features
+  parallelToolCalls?: boolean;
+  maxToolCalls?: number;
+  toolTimeout?: number;
+  user?: string;
+  responseFormat?: 'text' | 'json_object' | 'json_schema';
+  responseSchema?: Record<string, unknown>;
 }
 
 /**
@@ -74,6 +82,9 @@ const defaultConfig: AgentConfig = {
   temperature: 0.7,
   maxTokens: 4096,
   topP: 1.0,
+  parallelToolCalls: true, // Enable by default for models that support it
+  maxToolCalls: 10, // Reasonable limit
+  toolTimeout: 30000, // 30 seconds
 };
 
 const initialState: AgentState = {

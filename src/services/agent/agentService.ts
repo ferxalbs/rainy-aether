@@ -9,7 +9,7 @@ import { agentActions, getAgentState } from '@/stores/agentStore';
 import type { Message } from '@/stores/agentStore';
 import { ProviderManager } from './providerManager';
 import { CredentialService } from './credentialService';
-import type { ChatMessage, TextStreamEvent } from './providers/base';
+import type { ChatMessage } from './providers/base';
 import { calculateCost } from './providers/base';
 
 // ============================================================================
