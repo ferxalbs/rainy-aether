@@ -19,6 +19,7 @@ export * from './executor';
 export * from './filesystem';
 export * from './git';
 export * from './workspace';
+export * from './terminal';
 
 // Convenience imports
 import { getToolRegistry } from './registry';
@@ -30,6 +31,7 @@ import { executeTool, executeToolBatch, getExecutionStats } from './executor';
 import { registerFilesystemTools } from './filesystem';
 import { registerGitTools } from './git';
 import { registerWorkspaceTools } from './workspace';
+import { registerTerminalTools } from './terminal';
 
 /**
  * Initialize the tool system
@@ -45,6 +47,7 @@ export async function initializeToolSystem(options?: {
   registerFilesystemTools(registry);
   registerGitTools(registry);
   registerWorkspaceTools(registry);
+  registerTerminalTools(registry);
 
   // Set global permission level (default: user)
   // Users can elevate to admin level in UI for write operations

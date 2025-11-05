@@ -1,5 +1,5 @@
 /**
- * Interactive theme preview component for Rainy Coder
+ * Interactive theme preview component for Rainy Aether IDE
  * Provides real-time theme visualization and testing
  */
 

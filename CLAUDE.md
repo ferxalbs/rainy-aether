@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Rainy Aether (branded as "Rainy Code") is a modern desktop code editor built with **Tauri 2.0** (Rust) and **React** (TypeScript). Recently migrated from CodeMirror 6 to **Monaco Editor** for enhanced editing capabilities. This is an AI-first IDE with ambitious plans for multi-agent orchestration, voice mode, and autonomous development workflows.
 
 **Key Technologies:**
+
 - Frontend: React 19 + TypeScript, Tailwind CSS v4, Monaco Editor
 - Desktop: Tauri 2.0 with Rust backend
 - Terminal: PTY-backed sessions via `portable-pty`
@@ -17,6 +18,7 @@ Rainy Aether (branded as "Rainy Code") is a modern desktop code editor built wit
 ## Development Commands
 
 ### Prerequisites
+
 - Node.js v18+ with `pnpm`
 - Rust stable toolchain
 - Platform-specific Tauri 2.0 dependencies
@@ -53,6 +55,7 @@ cd src-tauri && cargo test
 ## Architecture Overview
 
 ### State Management
+
 - **Stores**: All located in `src/stores/`, using `useSyncExternalStore` pattern
 - **Key Stores**:
   - `ideStore.tsx`: Workspace, open files, sidebar state, file operations
@@ -63,6 +66,7 @@ cd src-tauri && cargo test
   - `settingsStore.ts`: User preferences persistence
 
 ### Frontend Structure
+
 ```
 src/
 ├── components/
@@ -85,6 +89,7 @@ src/
 ```
 
 ### Backend Structure (Rust)
+
 ```
 src-tauri/src/
 ├── lib.rs                # Tauri builder, command registration
@@ -97,6 +102,7 @@ src-tauri/src/
 ### Key Tauri Commands
 
 **File Operations:**
+
 - `load_project_structure(path)` - Build project tree
 - `get_file_content(path)` - Read file
 - `save_file_content(path, content)` - Write file
@@ -104,6 +110,7 @@ src-tauri/src/
 - `create_file(path)`, `create_folder(path)`, `rename_path(old, new)`, `delete_path(path)`
 
 **Terminal:**
+
 - `terminal_create(shell?, cwd?, cols?, rows?)` - Create PTY session
 - `terminal_write(id, data)` - Write to session
 - `terminal_resize(id, cols, rows)` - Resize PTY
@@ -111,6 +118,7 @@ src-tauri/src/
 - `terminal_change_directory(id, cwd)` - Change working directory
 
 **Git:**
+
 - `git_is_repo(path)` - Check if path is a Git repo
 - `git_log(path, max_commits)` - Get commit history
 - `git_status(path)` - Get working tree status
@@ -121,15 +129,18 @@ src-tauri/src/
 - `git_push(path)`, `git_pull(path)`
 
 **Global Shortcuts** (desktop only):
+
 - Emits `shortcut/*` events on keybindings (e.g., `shortcut/quick-open`, `shortcut/save-file`)
 - Handled in `lib.rs` with `tauri_plugin_global_shortcut`
 
 ## Monaco Editor Integration
 
 ### Recent Migration
+
 Migrated from CodeMirror 6 to Monaco Editor. See `MONACO_NAVIGATION_FEATURES.md` for detailed documentation.
 
 ### Key Features
+
 - **Breadcrumbs**: Pattern-based symbol detection (`Breadcrumbs.tsx`)
 - **Navigation**: Go to Definition (F12), Peek Definition (Alt+F12), Find References (Shift+F12), etc.
 - **Diagnostics**: Unified system via `diagnosticService.ts` feeding `StatusBar.tsx` and `ProblemsPanel.tsx`
@@ -137,13 +148,16 @@ Migrated from CodeMirror 6 to Monaco Editor. See `MONACO_NAVIGATION_FEATURES.md`
 - **LSP Integration**: Language Server Protocol support for advanced IntelliSense (see `LSP.md`)
 
 ### Web Workers
+
 Monaco uses web workers for language services, configured using Vite's native `?worker` import syntax:
+
 - Workers are bundled using Vite's native worker support (no plugin needed)
 - Supports TypeScript, JavaScript, JSON, CSS, HTML
 - Runs language processing off the main thread for better performance
 - See `src/services/monacoWorkers.ts` for configuration
 
 ### Working with Monaco
+
 ```typescript
 import { editorActions } from '@/stores/editorStore';
 
@@ -160,7 +174,9 @@ editorActions.layout();
 ```
 
 ### Language Server Protocol (LSP)
+
 See `LSP.md` for comprehensive documentation. Key points:
+
 - Infrastructure in place for external language servers
 - Currently uses Monaco's built-in TypeScript/JavaScript support
 - Ready for rust-analyzer, Python LSP, and other language servers
@@ -171,6 +187,7 @@ See `LSP.md` for comprehensive documentation. Key points:
 **Location:** `src/themes/index.ts`, applied by `themeStore.ts`
 
 **Key Principles:**
+
 - Define themes as objects with HSL color values
 - Use `hexToHslStr` for custom color conversion
 - Always use Tailwind v4 tokens: `bg-background`, `text-foreground`, `border`, etc.
@@ -179,6 +196,7 @@ See `LSP.md` for comprehensive documentation. Key points:
 - Persisted via Tauri store plugin
 
 **Adding a Theme:**
+
 1. Add theme object to `src/themes/index.ts`
 2. Ensure all required tokens are present (see existing themes)
 3. Test with `ThemePreview.tsx` component
@@ -191,12 +209,14 @@ See `LSP.md` for comprehensive documentation. Key points:
 See **`TERMINAL_SYSTEM.md`** for comprehensive documentation.
 
 **Architecture (4 Layers):**
+
 1. **UI Layer**: `TerminalPanel.tsx`, `TerminalSplitView.tsx`, `TerminalInstance.tsx`
 2. **State Management**: `terminalStore.ts` (sessions, splits, config, persistence)
 3. **Service Layer**: `terminalService.ts` (event coordination, debouncing, lifecycle)
 4. **Rust Backend**: `terminal_manager.rs` (PTY management, shell detection, process tracking)
 
 **Key Features:**
+
 - ✅ **Proper Lifecycle**: No double initialization, clean cleanup, state tracking
 - ✅ **Multiple Tabs**: Multiple terminal sessions with tab management
 - ✅ **Search**: Full-text search with `Ctrl+Shift+F`
@@ -207,6 +227,7 @@ See **`TERMINAL_SYSTEM.md`** for comprehensive documentation.
 - ⏳ **Split View**: Infrastructure exists, UI implementation pending
 
 **Quick Start:**
+
 ```typescript
 import { terminalActions, useTerminalState } from '@/stores/terminalStore';
 
@@ -225,6 +246,7 @@ console.log(terminalState.sessions); // Map of sessions
 ```
 
 **Keyboard Shortcuts:**
+
 - `Ctrl+Shift+T`: New Terminal
 - `Ctrl+Shift+W`: Close Active Terminal
 - `Ctrl+Shift+F`: Toggle Search
@@ -233,11 +255,13 @@ console.log(terminalState.sessions); // Map of sessions
 ## Git Integration
 
 **Architecture:**
+
 - Backend: `git_manager.rs` uses `git2` crate
 - Frontend: `gitStore.ts` for state, `gitService.ts` for command wrappers
 - UI: `GitHistoryPanel.tsx`, `DiffViewer.tsx`, `BranchManager.tsx`, `StashManager.tsx`
 
 **Key Workflows:**
+
 - Status updates refresh on file changes
 - Commit flow uses author info from settings
 - Branch switching updates workspace state
@@ -250,12 +274,14 @@ console.log(terminalState.sessions); // Map of sessions
 See **`UPDATE_SYSTEM.md`** for complete documentation.
 
 **Architecture (4 Layers):**
+
 1. **Backend**: `update_manager.rs` (Rust commands for check/install)
 2. **Service**: `updateService.ts` (event coordination, auto-check intervals)
 3. **State**: `updateStore.ts` (update info, progress tracking)
 4. **UI**: `UpdateNotification.tsx` (non-intrusive notifications)
 
 **Key Features:**
+
 - ✅ **Automatic Checking**: Background checks every 24 hours (configurable)
 - ✅ **Progress Tracking**: Real-time download/install progress
 - ✅ **Release Notes**: Displays what's new in updates
@@ -266,6 +292,7 @@ See **`UPDATE_SYSTEM.md`** for complete documentation.
 - ✅ **Dev Mode**: Disabled in development to prevent accidental updates
 
 **Quick Usage:**
+
 ```typescript
 import { checkForUpdates, installUpdate } from '@/services/updateService';
 
@@ -279,6 +306,7 @@ if (updateInfo?.available) {
 ```
 
 **Configuration** (`tauri.conf.json`):
+
 ```json
 {
   "plugins": {
@@ -292,32 +320,38 @@ if (updateInfo?.available) {
 ```
 
 **Tauri Commands:**
+
 - `check_for_updates()` - Check for available updates
 - `install_update()` - Download and install update
 - `get_app_version()` - Get current version
 
 **Events:**
+
 - `update-status` - Progress updates during check/download/install
 
 ## Code Style & Conventions
 
 ### TypeScript
+
 - Strict mode enabled, avoid `any`
 - Use `@/*` path alias for imports
 - Components: PascalCase (`IDE.tsx`, `MonacoEditor.tsx`)
 - Utilities/stores: camelCase (`ideStore.tsx`, `systemTheme.ts`)
 
 ### React
+
 - Functional components with hooks
 - Use `useSyncExternalStore` for store subscriptions
 - Keep state local when possible, lift only when necessary
 
 ### Styling
+
 - Tailwind CSS v4 classes only
 - Use `cn()` utility from `src/lib/cn.ts` for conditional classes
 - Reference theme tokens, not raw colors
 
 ### Rust
+
 - Follow standard Rust conventions (`cargo fmt`, `cargo clippy`)
 - Use `serde` for serialization
 - Validate inputs in commands before file operations
@@ -326,27 +360,32 @@ if (updateInfo?.available) {
 ## Common Development Tasks
 
 ### Add a Tauri Command
+
 1. Define command in appropriate module (`src-tauri/src/*.rs`)
 2. Register in `lib.rs` `invoke_handler![]`
 3. Call from frontend via `invoke("command_name", { args })`
 
 ### Add a UI Component
+
 1. Create in `src/components/ui/` (primitives) or `src/components/ide/` (IDE-specific)
 2. Use Tailwind tokens and `cn()` for styling
 3. Import and use in parent component
 
 ### Add a Store Property
+
 1. Update interface in store file (e.g., `IDEState` in `ideStore.tsx`)
 2. Update initial state
 3. Create action to modify property
 4. Optionally persist with `saveToStore(key, value)`
 
 ### Extend Monaco Features
+
 1. Use Monaco APIs in `MonacoEditor.tsx` or `editorStore.ts`
 2. Register editor instance via `editorActions.registerView()`
 3. Add action to `editorActions` if needed
 
 ### Add Diagnostic Source
+
 ```typescript
 import { getDiagnosticService, DiagnosticSource, DiagnosticSeverity } from '@/services/diagnosticService';
 
@@ -365,6 +404,7 @@ service.addDiagnostic({
 ## LSP Implementation Status
 
 **LSP infrastructure has been implemented** as of 2025-11-02:
+
 - LSP service layer in `src/services/lsp/`
 - Monaco adapter for LSP integration
 - Currently using Monaco's built-in TypeScript/JavaScript support
@@ -392,31 +432,38 @@ No formal frontend test suite exists yet. Prioritize type safety and manual veri
 ## Troubleshooting
 
 ### Tauri APIs not working
+
 - Ensure running `pnpm tauri dev`, not `pnpm dev`
 - Guard Tauri calls with environment check:
+
 ```typescript
 const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
 if (isTauri) { /* safe to use Tauri APIs */ }
 ```
 
 ### Port conflicts
+
 - Change Vite port: `pnpm dev -- --port 1421`
 - Update `tauri.conf.json` `devUrl` to match
 
 ### Monaco editor not responding
+
 - Verify editor registered: `editorActions.registerView(editorInstance)`
 - Trigger layout after resize: `editorActions.layout()`
 
 ### Breadcrumbs not updating
+
 - Check file language is supported (TypeScript, JavaScript, HTML, CSS, Rust)
 - Verify cursor position tracking is active
 
 ### Diagnostics not showing
+
 - Ensure `getDiagnosticService()` is initialized
 - Check Monaco markers are emitted
 - Verify components subscribe to service
 
 ### Terminal not working
+
 - Terminal requires `pnpm tauri dev` mode
 - On Windows, ensure Visual Studio Build Tools installed
 - Check PTY permissions and shell availability
@@ -424,6 +471,7 @@ if (isTauri) { /* safe to use Tauri APIs */ }
 ## Future Roadmap
 
 See `ROADMAP.md` for comprehensive feature plans, including:
+
 - Multi-agent orchestration (up to 8 parallel agents)
 - Voice mode integration
 - Native browser tool with DevTools
