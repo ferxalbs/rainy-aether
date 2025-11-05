@@ -46,11 +46,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ### File System Tools (7 tools)
 
 #### `file_read`
+
 **Permission:** User
 **Description:** Read file contents with optional line range
 **Example Prompt:** "Read the src/main.ts file"
 
 **Input:**
+
 ```typescript
 {
   path: string;          // File path
@@ -60,11 +62,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `file_write`
+
 **Permission:** Admin
 **Description:** Write content to a file (creates if doesn't exist)
 **Example Prompt:** "Create a new file called README.md with basic project info"
 
 **Input:**
+
 ```typescript
 {
   path: string;     // File path
@@ -73,11 +77,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `file_edit`
+
 **Permission:** Admin
 **Description:** Edit file with replace, insert, or delete operations
 **Example Prompt:** "Replace 'Hello' with 'Hi' in greeting.ts"
 
 **Input:**
+
 ```typescript
 {
   path: string;
@@ -93,11 +99,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `file_delete`
+
 **Permission:** Admin
 **Description:** Delete files or directories
 **Example Prompt:** "Delete the old-component.tsx file"
 
 **Input:**
+
 ```typescript
 {
   path: string;      // File or directory path
@@ -106,11 +114,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `file_rename`
+
 **Permission:** Admin
 **Description:** Rename or move files/directories
 **Example Prompt:** "Rename old-name.ts to new-name.ts"
 
 **Input:**
+
 ```typescript
 {
   oldPath: string;
@@ -119,11 +129,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `file_copy`
+
 **Permission:** Admin
 **Description:** Copy files or directories
 **Example Prompt:** "Copy config.json to config.backup.json"
 
 **Input:**
+
 ```typescript
 {
   source: string;
@@ -133,11 +145,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `file_search`
+
 **Permission:** User
 **Description:** Search files by glob pattern and/or content
 **Example Prompt:** "Find all TypeScript files containing 'useState'"
 
 **Input:**
+
 ```typescript
 {
   pattern?: string;      // Glob pattern (e.g., "**/*.ts")
@@ -150,11 +164,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ### Git Tools (5 tools)
 
 #### `git_status`
+
 **Permission:** User
 **Description:** Get current Git status
 **Example Prompt:** "What's the Git status?"
 
 **Input:**
+
 ```typescript
 {
   path: string; // Repository path (usually workspace root)
@@ -162,11 +178,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `git_diff`
+
 **Permission:** User
 **Description:** Get diff for files
 **Example Prompt:** "Show me the diff for src/main.ts"
 
 **Input:**
+
 ```typescript
 {
   path: string;    // Repository path
@@ -176,11 +194,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `git_commit`
+
 **Permission:** Admin
 **Description:** Create a Git commit
 **Example Prompt:** "Commit all staged files with message 'Add new feature'"
 
 **Input:**
+
 ```typescript
 {
   path: string;         // Repository path
@@ -192,11 +212,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `git_branch`
+
 **Permission:** Admin
 **Description:** List, create, or delete branches
 **Example Prompt:** "Create a new branch called feature/user-auth"
 
 **Input:**
+
 ```typescript
 {
   path: string;
@@ -207,11 +229,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `git_checkout`
+
 **Permission:** Admin
 **Description:** Switch branches or restore files
 **Example Prompt:** "Switch to the develop branch"
 
 **Input:**
+
 ```typescript
 {
   path: string;
@@ -223,11 +247,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ### Workspace Tools (3 tools)
 
 #### `workspace_structure`
+
 **Permission:** User
 **Description:** Get ASCII tree of directory structure
 **Example Prompt:** "Show me the src directory structure"
 
 **Input:**
+
 ```typescript
 {
   path?: string;        // Directory path (default: workspace root)
@@ -237,11 +263,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `workspace_search_symbol`
+
 **Permission:** User
 **Description:** Search for symbols (functions, classes, etc.)
 **Example Prompt:** "Find all functions named handleClick"
 
 **Input:**
+
 ```typescript
 {
   query: string;        // Symbol name
@@ -251,11 +279,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `workspace_find_references`
+
 **Permission:** User
 **Description:** Find all references to a symbol
 **Example Prompt:** "Find all places where UserService is used"
 
 **Input:**
+
 ```typescript
 {
   symbol: string;       // Symbol name
@@ -267,11 +297,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ### Terminal Tools (3 tools)
 
 #### `terminal_execute`
+
 **Permission:** Restricted
 **Description:** Execute terminal commands (with security controls)
 **Example Prompt:** "Run npm test"
 
 **Input:**
+
 ```typescript
 {
   command: string;      // Command to execute
@@ -282,6 +314,7 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 **Security Controls:**
+
 - Command blocklist (rm -rf /, format, shutdown, etc.)
 - Dangerous pattern detection
 - Output size limits (1MB)
@@ -289,11 +322,13 @@ The agent will automatically use the appropriate tools and show you the results 
 - Requires explicit user approval
 
 #### `terminal_list_sessions`
+
 **Permission:** User
 **Description:** List all terminal sessions
 **Example Prompt:** "Show me active terminal sessions"
 
 **Input:**
+
 ```typescript
 {
   includeExited?: boolean; // Include terminated sessions
@@ -301,11 +336,13 @@ The agent will automatically use the appropriate tools and show you the results 
 ```
 
 #### `terminal_kill`
+
 **Permission:** Restricted
 **Description:** Terminate a terminal session
 **Example Prompt:** "Kill terminal session abc-123"
 
 **Input:**
+
 ```typescript
 {
   sessionId: string;   // Session ID to terminate
@@ -352,17 +389,20 @@ Access the Tools Panel by clicking the **"Tools"** button in the Agent Workspace
 ### Tabs
 
 #### 1. Executions
+
 - Real-time view of tool executions
 - Shows tool name, status, duration, and results
 - Expandable cards for detailed input/output
 - Auto-updates every second
 
 #### 2. Permissions
+
 - Set global permission level (User/Admin/Restricted)
 - View permission system explanation
 - Control tool access
 
 #### 3. Audit Log
+
 - Comprehensive log of all tool executions
 - Filter by success/failure
 - Search by tool name, user, or content
@@ -370,6 +410,7 @@ Access the Tools Panel by clicking the **"Tools"** button in the Agent Workspace
 - Export as JSON or CSV
 
 #### 4. Statistics
+
 - Total executions
 - Success/failure counts
 - Tools by category
@@ -484,6 +525,7 @@ The system automatically provides these instructions to agents:
 
 **Problem**: Agent responds without using tools
 **Solution**:
+
 - Ensure model supports tool calling (check model capabilities)
 - Be more specific in your request: "Use the file_read tool to read src/main.ts"
 - Check if provider is configured correctly
@@ -492,6 +534,7 @@ The system automatically provides these instructions to agents:
 
 **Problem**: "Permission denied" error
 **Solution**:
+
 - Check global permission level in Tools Panel → Permissions
 - Grant temporary elevation when prompted
 - Verify you have file system permissions
@@ -500,6 +543,7 @@ The system automatically provides these instructions to agents:
 
 **Problem**: Tool execution shows error in Audit Log
 **Solution**:
+
 - Check error message in Executions or Audit Log tab
 - Verify file paths are correct (relative to workspace root)
 - Ensure files/directories exist before operations
@@ -509,6 +553,7 @@ The system automatically provides these instructions to agents:
 
 **Problem**: Tools taking a long time
 **Solution**:
+
 - Check file sizes (large file reads take longer)
 - Verify Git repository isn't too large
 - Check network for Git operations

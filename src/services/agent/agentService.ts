@@ -13,6 +13,7 @@ import type { ChatMessage, ToolCall } from './providers/base';
 import { calculateCost } from './providers/base';
 import { executeToolCalls, type ToolExecutionResult } from './toolExecutor';
 import { getToolRegistry } from './tools/registry';
+import { initializeToolSystem } from './tools';
 import type { ToolDefinition as AgentToolDefinition } from './providers/base';
 
 // ============================================================================
@@ -57,6 +58,7 @@ export class AgentService {
   private credentialService: CredentialService;
   private responseTimings: number[] = [];
   private readonly MAX_TIMINGS = 100;
+  private isToolSystemInitialized = false;
 
   private constructor() {
     this.providerManager = ProviderManager.getInstance();
@@ -74,10 +76,20 @@ export class AgentService {
   }
 
   /**
-   * Initialize the service
+   * Initialize the service and tool system
    */
-  async initialize(): Promise<void> {
+  async initialize(workspaceRoot?: string): Promise<void> {
     await agentActions.initialize();
+
+    // Initialize tool system if not already done
+    if (!this.isToolSystemInitialized) {
+      await initializeToolSystem({
+        workspaceRoot,
+        userId: 'default-user',
+      });
+      this.isToolSystemInitialized = true;
+      console.log('[AgentService] Tool system initialized with', getToolRegistry().size, 'tools');
+    }
   }
 
   /**
@@ -298,6 +310,7 @@ export class AgentService {
     providerId: string;
     modelId: string;
     systemPrompt?: string;
+    workspaceRoot?: string;
   }): Promise<string> {
     // Validate provider
     const provider = this.providerManager.getProvider(params.providerId);
@@ -317,7 +330,7 @@ export class AgentService {
       throw new Error(`Provider ${params.providerId} is not configured. Please add an API key.`);
     }
 
-    // Create session
+    // Create session with workspace context
     return await agentActions.createSession(params);
   }
 

@@ -41,10 +41,10 @@ const AgentsView: React.FC = () => {
     ? agentState.sessions.get(agentState.activeSessionId) || null
     : null;
 
-  // Initialize agent service
+  // Initialize agent service with workspace root
   useEffect(() => {
-    agentService.initialize();
-  }, []);
+    agentService.initialize(workspace?.path);
+  }, [workspace?.path]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -67,11 +67,74 @@ const AgentsView: React.FC = () => {
 
   const handleNewSession = async () => {
     try {
+      // Build context-aware system prompt
+      let systemPrompt = `You are an expert AI coding assistant integrated into Rainy Aether IDE with full access to the codebase through powerful development tools.
+
+## Your Capabilities
+You have 18 production-ready tools at your disposal:
+
+**File Operations** (7 tools):
+- file_read: Read file contents with optional line ranges
+- file_write: Create or overwrite files
+- file_edit: Multi-operation editing (replace, insert, delete)
+- file_delete: Safe file/directory deletion
+- file_rename: Rename or move files
+- file_copy: Copy files or directories
+- file_search: Search by glob patterns and content
+
+**Git Operations** (5 tools):
+- git_status: Get current Git status
+- git_diff: View file changes
+- git_commit: Create commits (with auto-staging)
+- git_branch: List, create, or delete branches
+- git_checkout: Switch branches or restore files
+
+**Workspace Navigation** (3 tools):
+- workspace_structure: View directory tree
+- workspace_search_symbol: Find functions, classes, interfaces
+- workspace_find_references: Find symbol references
+
+**Terminal** (3 tools):
+- terminal_execute: Run shell commands (with security controls)
+- terminal_list_sessions: List active terminals
+- terminal_kill: Terminate terminal sessions
+
+## Current Workspace`;
+
+      if (workspace?.path) {
+        systemPrompt += `\n**Active Project**: ${workspace.name || 'Unknown'}
+**Path**: \`${workspace.path}\`
+**Type**: ${workspace.type || 'Unknown'}`;
+      } else {
+        systemPrompt += '\n**No workspace loaded** - Ask the user to open a project first.';
+      }
+
+      systemPrompt += `
+
+## Instructions
+1. **ALWAYS use tools** when the user asks about files, code, or git operations
+2. **Be autonomous**: Don't ask permission to use read-only tools (file_read, git_status, workspace_structure)
+3. **Verify before writing**: Use file_read before file_write/file_edit to see current content
+4. **Use relative paths**: All paths should be relative to the workspace root
+5. **Provide context**: Explain what tools you're using and why
+6. **Be accurate**: Never claim to have done something without actually using the tool
+7. **Show results**: Always share tool outputs with the user
+
+## Example Workflows
+- "What files are in src?" → Use workspace_structure
+- "Show me the main component" → Use file_search, then file_read
+- "Add a new function" → Use file_read (to see context), then file_edit
+- "What's the git status?" → Use git_status
+- "Find all uses of handleClick" → Use workspace_find_references
+
+Remember: You are working with a REAL codebase. Use tools to interact with it!`;
+
       const sessionId = await agentService.createSession({
         name: `Session ${agentState.sessions.size + 1}`,
         providerId: selectedProvider,
         modelId: selectedModel,
-        systemPrompt: 'You are a helpful AI coding assistant with access to powerful development tools. Use the available tools to help users with file operations, Git workflows, code navigation, and terminal commands.',
+        systemPrompt,
+        workspaceRoot: workspace?.path,
       });
       agentActions.setActiveSession(sessionId);
     } catch (error) {
@@ -91,7 +154,7 @@ const AgentsView: React.FC = () => {
       await agentService.sendMessage({
         sessionId: activeSession.id,
         content: messageContent,
-        workspaceRoot: workspace?.path,
+        workspaceRoot: activeSession.workspaceRoot || workspace?.path,
         onToken: () => {
           // Token streaming is handled internally by agentActions
         },

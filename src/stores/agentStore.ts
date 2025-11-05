@@ -62,6 +62,7 @@ export interface AgentSession {
   config: AgentConfig;
   totalTokens: number;
   totalCost: number;
+  workspaceRoot?: string; // Path to the active workspace
 }
 
 /**
@@ -184,6 +185,7 @@ async function createSession(params: {
   modelId: string;
   config?: Partial<AgentConfig>;
   systemPrompt?: string;
+  workspaceRoot?: string;
 }): Promise<string> {
   const sessionId = crypto.randomUUID();
 
@@ -209,6 +211,7 @@ async function createSession(params: {
     config: { ...defaultConfig, ...params.config },
     totalTokens: 0,
     totalCost: 0,
+    workspaceRoot: params.workspaceRoot,
   };
 
   setState((prev) => ({

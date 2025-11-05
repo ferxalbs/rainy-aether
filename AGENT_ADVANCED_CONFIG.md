@@ -42,16 +42,19 @@ interface AgentConfig {
 ## Core Parameters
 
 ### Temperature
+
 **Range**: 0.0 - 2.0
 **Default**: 0.7
 
 Controls randomness in responses:
+
 - **0.0 - 0.3**: Deterministic, focused, factual
 - **0.4 - 0.7**: Balanced, natural conversation
 - **0.8 - 1.2**: Creative, varied responses
 - **1.3 - 2.0**: Very creative, experimental
 
 **Examples**:
+
 ```typescript
 // Code generation (precise)
 config: { temperature: 0.2 }
@@ -66,6 +69,7 @@ config: { temperature: 1.5 }
 ---
 
 ### maxTokens
+
 **Range**: 1 - model.maxOutputTokens
 **Default**: 4096
 
@@ -96,16 +100,19 @@ config: { maxTokens: 16384 }
 ---
 
 ### topP (Nucleus Sampling)
+
 **Range**: 0.0 - 1.0
 **Default**: 1.0
 
 Alternative to temperature for controlling randomness:
+
 - **0.1**: Very focused, top 10% probability tokens
 - **0.5**: Moderately focused
 - **0.9**: Diverse but coherent
 - **1.0**: Full distribution
 
 **Use with temperature**:
+
 ```typescript
 // Highly focused
 config: {
@@ -123,10 +130,12 @@ config: {
 ---
 
 ### Frequency Penalty
+
 **Range**: -2.0 to 2.0
 **Default**: 0.0
 
 Penalizes tokens based on frequency in output:
+
 - **Positive values**: Reduce repetition
 - **Negative values**: Allow more repetition
 - **0**: No penalty
@@ -142,10 +151,12 @@ config: { frequencyPenalty: 1.0 }
 ---
 
 ### Presence Penalty
+
 **Range**: -2.0 to 2.0
 **Default**: 0.0
 
 Penalizes tokens based on presence in output:
+
 - **Positive values**: Encourage topic diversity
 - **Negative values**: Allow focusing on topic
 - **0**: No penalty
@@ -163,6 +174,7 @@ config: { presencePenalty: -0.3 }
 ## Advanced Features
 
 ### Parallel Tool Calls
+
 **Type**: boolean
 **Default**: true (if model supports)
 **Models**: MAX tier only
@@ -193,11 +205,13 @@ await agentService.sendMessage({
 ```
 
 **Benefits**:
+
 - 5-10x faster for batch operations
 - Better for complex workflows
 - Reduces total API calls
 
 **Trade-offs**:
+
 - Higher cost per call
 - Only available on MAX tier
 - Adds complexity
@@ -205,6 +219,7 @@ await agentService.sendMessage({
 ---
 
 ### maxToolCalls
+
 **Type**: number
 **Default**: 10
 
@@ -222,6 +237,7 @@ config: { maxToolCalls: 5 }
 ```
 
 **Best Practices**:
+
 - Set based on expected complexity
 - Lower for cost optimization
 - Higher for autonomous agents
@@ -229,6 +245,7 @@ config: { maxToolCalls: 5 }
 ---
 
 ### toolTimeout
+
 **Type**: number (milliseconds)
 **Default**: 30000 (30s)
 
@@ -250,6 +267,7 @@ config: { toolTimeout: 120000 } // 2 minutes
 ### Structured Output
 
 #### JSON Object Mode
+
 **Models**: MAX tier only
 
 Forces response to be valid JSON:
@@ -268,6 +286,7 @@ config: {
 ```
 
 #### JSON Schema Mode
+
 **Models**: MAX tier only
 
 Guarantees response matches specific schema:
@@ -301,6 +320,7 @@ config: {
 ```
 
 **Use Cases**:
+
 - Extracting structured data
 - API response generation
 - Database record creation
@@ -311,6 +331,7 @@ config: {
 ## Configuration Presets
 
 ### Quick Query (Speed-Optimized)
+
 ```typescript
 const quickQueryConfig: AgentConfig = {
   temperature: 0.3,
@@ -329,6 +350,7 @@ await createSession({
 ---
 
 ### Code Generation (Balanced)
+
 ```typescript
 const codeGenConfig: AgentConfig = {
   temperature: 0.5,
@@ -348,6 +370,7 @@ await createSession({
 ---
 
 ### Creative Brainstorming
+
 ```typescript
 const creativConfig: AgentConfig = {
   temperature: 1.2,
@@ -367,6 +390,7 @@ await createSession({
 ---
 
 ### Autonomous Agent (MAX Tier)
+
 ```typescript
 const autonomousConfig: AgentConfig = {
   temperature: 0.7,
@@ -389,6 +413,7 @@ await createSession({
 ---
 
 ### Structured Data Extraction (MAX Tier)
+
 ```typescript
 const extractionConfig: AgentConfig = {
   temperature: 0.2, // Deterministic
@@ -600,21 +625,27 @@ function createSafeConfig(userConfig: Partial<AgentConfig>): AgentConfig {
 ## Best Practices
 
 ### 1. Start Conservative
+
 Begin with lower maxTokens and temperature, increase as needed
 
 ### 2. Use Structured Output for Extraction
+
 When parsing data, use json_schema mode for reliability
 
 ### 3. Enable Parallel Tools for Batch Operations
+
 Leverage MAX tier for simultaneous file operations
 
 ### 4. Set Appropriate Timeouts
+
 Balance between allowing time and preventing hangs
 
 ### 5. Track Usage
+
 Monitor token usage to optimize configuration
 
 ### 6. Profile Different Configs
+
 A/B test configurations to find optimal settings
 
 ---
@@ -683,5 +714,6 @@ config: {
 
 **Last Updated**: November 2025
 **See Also**:
+
 - [AGENT_MODEL_TIERS.md](AGENT_MODEL_TIERS.md) - Model tier guide
 - [AGENT_IMPLEMENTATION_GUIDE.md](AGENT_IMPLEMENTATION_GUIDE.md) - Implementation guide
