@@ -6,7 +6,18 @@
  */
 
 import type { CacheEntry } from './types';
-import { createHash } from 'crypto';
+
+/**
+ * Browser-compatible hash function (FNV-1a algorithm)
+ */
+function hashString(str: string): string {
+  let hash = 2166136261; // FNV offset basis
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
 
 /**
  * Tool cache manager
@@ -26,20 +37,8 @@ export class ToolCache {
    */
   generateKey(toolName: string, input: unknown): string {
     const inputStr = JSON.stringify(input, Object.keys(input as object).sort());
-    // Use crypto hash when available (desktop mode), fallback to simple hash for browser
-    try {
-      const hash = createHash('sha256').update(`${toolName}:${inputStr}`).digest('hex');
-      return `${toolName}:${hash.substring(0, 16)}`;
-    } catch {
-      // Fallback for browser environment
-      let hash = 0;
-      for (let i = 0; i < inputStr.length; i++) {
-        const char = inputStr.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-      }
-      return `${toolName}:${Math.abs(hash).toString(16).substring(0, 16)}`;
-    }
+    const hash = hashString(`${toolName}:${inputStr}`);
+    return `${toolName}:${hash}`;
   }
 
   /**

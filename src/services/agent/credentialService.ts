@@ -176,6 +176,52 @@ export class CredentialService {
     return `${start}...${end}`;
   }
 
+  // ============================================================================
+  // SYNCHRONOUS FALLBACK METHODS (for browser/localStorage)
+  // ============================================================================
+
+  /**
+   * Set API key (synchronous, uses localStorage)
+   * Use this for simple browser-based storage
+   */
+  setApiKey(providerId: string, apiKey: string): void {
+    if (!providerId || !apiKey) {
+      throw new Error('Provider ID and API key are required');
+    }
+    localStorage.setItem(`agent_apikey_${providerId}`, apiKey);
+  }
+
+  /**
+   * Get API key (synchronous, uses localStorage)
+   * Returns null if not found
+   */
+  getApiKey(providerId: string): string | null {
+    if (!providerId) {
+      return null;
+    }
+    return localStorage.getItem(`agent_apikey_${providerId}`);
+  }
+
+  /**
+   * Remove API key (synchronous, uses localStorage)
+   */
+  removeApiKey(providerId: string): void {
+    if (!providerId) {
+      return;
+    }
+    localStorage.removeItem(`agent_apikey_${providerId}`);
+  }
+
+  /**
+   * Check if API key exists (synchronous, uses localStorage)
+   */
+  hasApiKey(providerId: string): boolean {
+    if (!providerId) {
+      return false;
+    }
+    return localStorage.getItem(`agent_apikey_${providerId}`) !== null;
+  }
+
   /**
    * Validate API key format (basic checks)
    *
