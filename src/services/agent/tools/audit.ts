@@ -11,6 +11,9 @@ import type {
   PermissionLevel,
 } from './types';
 
+// Re-export AuditLogEntry type
+export type { AuditLogEntry } from './types';
+
 /**
  * Audit logger
  */

@@ -11,6 +11,9 @@ import type {
 } from './types';
 import { ToolPermissionError } from './types';
 
+// Re-export PermissionLevel type for external use
+export type { PermissionLevel } from './types';
+
 /**
  * User permission profile
  */
