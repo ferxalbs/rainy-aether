@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 
 /// File read result
 #[derive(Debug, Serialize, Deserialize)]
@@ -286,7 +286,7 @@ pub async fn tool_delete_file(
         return Err(format!("Path does not exist: {}", path));
     }
 
-    let mut deleted_items = 0;
+    let deleted_items: usize;
 
     if full_path.is_dir() {
         if recursive.unwrap_or(false) {
@@ -425,38 +425,43 @@ pub async fn tool_batch_read_files(
 }
 
 /// Helper: Copy directory recursively
-async fn copy_dir_recursive(src: &Path, dest: &Path) -> Result<(), String> {
-    fs::create_dir_all(dest)
-        .await
-        .map_err(|e| format!("Failed to create directory: {}", e))?;
-
-    let mut entries = fs::read_dir(src)
-        .await
-        .map_err(|e| format!("Failed to read directory: {}", e))?;
-
-    while let Some(entry) = entries
-        .next_entry()
-        .await
-        .map_err(|e| format!("Failed to read entry: {}", e))?
-    {
-        let file_type = entry
-            .file_type()
+fn copy_dir_recursive<'a>(
+    src: &'a Path,
+    dest: &'a Path,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send + 'a>> {
+    Box::pin(async move {
+        fs::create_dir_all(dest)
             .await
-            .map_err(|e| format!("Failed to get file type: {}", e))?;
+            .map_err(|e| format!("Failed to create directory: {}", e))?;
 
-        let src_path = entry.path();
-        let dest_path = dest.join(entry.file_name());
+        let mut entries = fs::read_dir(src)
+            .await
+            .map_err(|e| format!("Failed to read directory: {}", e))?;
 
-        if file_type.is_dir() {
-            copy_dir_recursive(&src_path, &dest_path).await?;
-        } else {
-            fs::copy(&src_path, &dest_path)
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| format!("Failed to read entry: {}", e))?
+        {
+            let file_type = entry
+                .file_type()
                 .await
-                .map_err(|e| format!("Failed to copy file: {}", e))?;
-        }
-    }
+                .map_err(|e| format!("Failed to get file type: {}", e))?;
 
-    Ok(())
+            let src_path = entry.path();
+            let dest_path = dest.join(entry.file_name());
+
+            if file_type.is_dir() {
+                copy_dir_recursive(&src_path, &dest_path).await?;
+            } else {
+                fs::copy(&src_path, &dest_path)
+                    .await
+                    .map_err(|e| format!("Failed to copy file: {}", e))?;
+            }
+        }
+
+        Ok(())
+    })
 }
 
 /// Helper: Generate simple diff
