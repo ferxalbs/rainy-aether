@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useUpdateState, updateActions } from '@/stores/updateStore';
 import { installUpdate, restartApp, checkForUpdates } from '@/services/updateService';
 import { cn } from '@/lib/cn';

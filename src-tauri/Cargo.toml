@@ -37,6 +37,9 @@ zip = "6.0.0"
 which = "8.0.0"
 reqwest = { version = "0.12.24", features = ["json", "stream"] }
 keyring = "3.6.3"
+git2 = "0.20.2"
+walkdir = "2.5.0"
+
 
 
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]

@@ -1,5 +1,6 @@
 mod credential_manager;
 mod extension_manager;
+mod file_operations;
 mod git_manager;
 mod project_manager;
 mod terminal_manager;
@@ -255,6 +256,14 @@ pub fn run() {
         credential_manager::agent_get_credential,
         credential_manager::agent_delete_credential,
         credential_manager::agent_has_credential,
+        // Agent tool file operations
+        file_operations::tool_read_file,
+        file_operations::tool_write_file,
+        file_operations::tool_edit_file,
+        file_operations::tool_delete_file,
+        file_operations::tool_rename_file,
+        file_operations::tool_copy_file,
+        file_operations::tool_batch_read_files,
         git_manager::git_list_conflicts,
         git_manager::git_get_conflict_content,
         git_manager::git_resolve_conflict,
