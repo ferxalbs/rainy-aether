@@ -26,8 +26,20 @@ export class ToolCache {
    */
   generateKey(toolName: string, input: unknown): string {
     const inputStr = JSON.stringify(input, Object.keys(input as object).sort());
-    const hash = createHash('sha256').update(`${toolName}:${inputStr}`).digest('hex');
-    return `${toolName}:${hash.substring(0, 16)}`;
+    // Use crypto hash when available (desktop mode), fallback to simple hash for browser
+    try {
+      const hash = createHash('sha256').update(`${toolName}:${inputStr}`).digest('hex');
+      return `${toolName}:${hash.substring(0, 16)}`;
+    } catch {
+      // Fallback for browser environment
+      let hash = 0;
+      for (let i = 0; i < inputStr.length; i++) {
+        const char = inputStr.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return `${toolName}:${Math.abs(hash).toString(16).substring(0, 16)}`;
+    }
   }
 
   /**
