@@ -22,6 +22,11 @@ import {
   ChatMessages,
   ChatInput,
 } from '../agent';
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from '@/components/ui/resizable';
 
 const AgentsView: React.FC = () => {
   const agentState = useAgentState();
@@ -32,6 +37,7 @@ const AgentsView: React.FC = () => {
   const [showToolsPanel, setShowToolsPanel] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState('groq');
   const [selectedModel, setSelectedModel] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const agentService = getAgentService();
@@ -212,8 +218,8 @@ Remember: You are working with a REAL codebase. Use tools to interact with it!`;
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-background">
-      {/* Responsive sidebar - hidden on small screens, fixed width on larger */}
-      <div className="hidden lg:flex">
+      {/* Fixed-width History Panel - Session Sidebar */}
+      <div className={`border-r border-border transition-all duration-200 ${sidebarCollapsed ? 'w-12' : 'w-64'}`}>
         <SessionSidebar
           sessions={agentState.sessions}
           activeSessionId={agentState.activeSessionId}
@@ -223,40 +229,51 @@ Remember: You are working with a REAL codebase. Use tools to interact with it!`;
           onModelChange={setSelectedModel}
           onNewSession={handleNewSession}
           onDeleteSession={handleDeleteSession}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <ChatHeader
-          activeSession={activeSession}
-          showToolsPanel={showToolsPanel}
-          onToggleToolsPanel={() => setShowToolsPanel(!showToolsPanel)}
-        />
+      <ResizablePanelGroup direction="horizontal" className="flex-1 h-full">
+        {/* Chat Panel - Main Chat Interface */}
+        <ResizablePanel defaultSize={65} minSize={40}>
+          <div className="flex flex-col h-full overflow-hidden">
+            <ChatHeader
+              activeSession={activeSession}
+              showToolsPanel={showToolsPanel}
+              onToggleToolsPanel={() => setShowToolsPanel(!showToolsPanel)}
+            />
 
-        <div className="flex-1 flex overflow-hidden">
-          <ChatMessages
-            activeSession={activeSession}
-            onNewSession={handleNewSession}
-            hasProvider={!!selectedModel}
-          />
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-hidden">
+                <ChatMessages
+                  activeSession={activeSession}
+                  onNewSession={handleNewSession}
+                  hasProvider={!!selectedModel}
+                />
+              </div>
 
-          {/* Responsive tools panel - collapsible on smaller screens */}
-          {showToolsPanel && (
-            <div className="w-80 xl:w-96 border-l border-border overflow-hidden">
-              <AgentToolsPanel defaultTab="executions" />
+              <ChatInput
+                input={input}
+                isSending={isSending}
+                activeSession={activeSession}
+                onInputChange={setInput}
+                onSendMessage={handleSendMessage}
+                onKeyDown={handleKeyDown}
+              />
             </div>
-          )}
-        </div>
+          </div>
+        </ResizablePanel>
 
-        <ChatInput
-          input={input}
-          isSending={isSending}
-          activeSession={activeSession}
-          onInputChange={setInput}
-          onSendMessage={handleSendMessage}
-          onKeyDown={handleKeyDown}
-        />
-      </div>
+        <ResizableHandle withHandle />
+
+        {/* Tools/Metrics Panel - Full Space Agent Tools */}
+        <ResizablePanel defaultSize={35} minSize={25}>
+          <div className="h-full border-l border-border overflow-hidden">
+            <AgentToolsPanel defaultTab="executions" />
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 };

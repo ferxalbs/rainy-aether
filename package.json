@@ -65,7 +65,8 @@
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver-protocol": "^3.17.5",
     "vscode-languageserver-types": "^3.17.5",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

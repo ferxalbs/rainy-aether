@@ -33,6 +33,7 @@ export const AgentToolsPanel: React.FC<AgentToolsPanelProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const permissionElevation = usePermissionElevation();
+  const registry = getToolRegistry();
 
   return (
     <div className={cn('flex flex-col h-full bg-background', className)}>
@@ -49,23 +50,33 @@ export const AgentToolsPanel: React.FC<AgentToolsPanelProps> = ({
         />
       )}
 
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+        <h2 className="text-lg font-semibold text-foreground">Agent Tools & Metrics</h2>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-xs">
+            {registry.getStats().totalExecutions} executions
+          </Badge>
+        </div>
+      </div>
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-        <TabsList className="grid w-full grid-cols-4 bg-muted/50 border-b border-border rounded-none h-12">
-          <TabsTrigger value="executions" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
+        <TabsList className="grid w-full grid-cols-4 bg-muted/50 border-b border-border rounded-none h-12 px-4">
+          <TabsTrigger value="executions" className="flex items-center gap-2 text-xs">
+            <Activity className="h-3 w-3" />
             <span>Executions</span>
           </TabsTrigger>
-          <TabsTrigger value="permissions" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
+          <TabsTrigger value="permissions" className="flex items-center gap-2 text-xs">
+            <Shield className="h-3 w-3" />
             <span>Permissions</span>
           </TabsTrigger>
-          <TabsTrigger value="audit" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
+          <TabsTrigger value="audit" className="flex items-center gap-2 text-xs">
+            <FileText className="h-3 w-3" />
             <span>Audit Log</span>
           </TabsTrigger>
-          <TabsTrigger value="stats" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
+          <TabsTrigger value="stats" className="flex items-center gap-2 text-xs">
+            <BarChart3 className="h-3 w-3" />
             <span>Statistics</span>
           </TabsTrigger>
         </TabsList>
@@ -76,7 +87,7 @@ export const AgentToolsPanel: React.FC<AgentToolsPanelProps> = ({
         </TabsContent>
 
         {/* Permissions Tab */}
-        <TabsContent value="permissions" className="flex-1 overflow-auto m-0 p-4">
+        <TabsContent value="permissions" className="flex-1 overflow-auto m-0 p-6">
           <PermissionsManager />
         </TabsContent>
 
@@ -86,7 +97,7 @@ export const AgentToolsPanel: React.FC<AgentToolsPanelProps> = ({
         </TabsContent>
 
         {/* Statistics Tab */}
-        <TabsContent value="stats" className="flex-1 overflow-auto m-0 p-4">
+        <TabsContent value="stats" className="flex-1 overflow-auto m-0 p-6">
           <StatisticsView />
         </TabsContent>
       </Tabs>
@@ -106,63 +117,63 @@ const PermissionsManager: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-2">Global Permission Level</h3>
-        <p className="text-sm text-muted-foreground mb-4">
+        <h3 className="text-lg font-semibold text-foreground mb-3">Global Permission Level</h3>
+        <p className="text-sm text-muted-foreground mb-6">
           Set the default permission level for all tool executions.
         </p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-4">
           <Card
             className={cn(
-              'p-4 cursor-pointer transition-all border-2',
+              'p-6 cursor-pointer transition-all border-2',
               currentLevel === 'user'
                 ? 'border-green-500 bg-green-500/10'
                 : 'hover:border-muted-foreground/50'
             )}
             onClick={() => handleSetGlobalLevel('user')}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <Shield className="h-5 w-5 text-green-500" />
-              <h4 className="font-semibold text-foreground">User</h4>
+            <div className="flex items-center gap-3 mb-3">
+              <Shield className="h-6 w-6 text-green-500" />
+              <h4 className="font-semibold text-foreground text-base">User</h4>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Read-only operations. Safe for autonomous agents.
             </p>
           </Card>
 
           <Card
             className={cn(
-              'p-4 cursor-pointer transition-all border-2',
+              'p-6 cursor-pointer transition-all border-2',
               currentLevel === 'admin'
                 ? 'border-yellow-500 bg-yellow-500/10'
                 : 'hover:border-muted-foreground/50'
             )}
             onClick={() => handleSetGlobalLevel('admin')}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <Shield className="h-5 w-5 text-yellow-500" />
-              <h4 className="font-semibold text-foreground">Admin</h4>
+            <div className="flex items-center gap-3 mb-3">
+              <Shield className="h-6 w-6 text-yellow-500" />
+              <h4 className="font-semibold text-foreground text-base">Admin</h4>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Write operations. Requires confirmation for destructive actions.
             </p>
           </Card>
 
           <Card
             className={cn(
-              'p-4 cursor-pointer transition-all border-2',
+              'p-6 cursor-pointer transition-all border-2',
               currentLevel === 'restricted'
                 ? 'border-red-500 bg-red-500/10'
                 : 'hover:border-muted-foreground/50'
             )}
             onClick={() => handleSetGlobalLevel('restricted')}
           >
-            <div className="flex items-center gap-2 mb-2">
-              <Shield className="h-5 w-5 text-red-500" />
-              <h4 className="font-semibold text-foreground">Restricted</h4>
+            <div className="flex items-center gap-3 mb-3">
+              <Shield className="h-6 w-6 text-red-500" />
+              <h4 className="font-semibold text-foreground text-base">Restricted</h4>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Terminal execution. Maximum trust required.
             </p>
           </Card>
@@ -170,24 +181,24 @@ const PermissionsManager: React.FC = () => {
       </div>
 
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-2">Permission System</h3>
-        <div className="space-y-2 text-sm text-muted-foreground">
-          <div className="flex items-start gap-2">
-            <Info className="h-4 w-4 shrink-0 mt-0.5" />
+        <h3 className="text-lg font-semibold text-foreground mb-4">Permission System</h3>
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <div className="flex items-start gap-3">
+            <Info className="h-5 w-5 shrink-0 mt-0.5 text-blue-500" />
             <p>
-              Permissions are hierarchical: <code className="text-xs bg-muted px-1 py-0.5 rounded">restricted</code> includes{' '}
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">admin</code> and{' '}
-              <code className="text-xs bg-muted px-1 py-0.5 rounded">user</code>.
+              Permissions are hierarchical: <code className="text-xs bg-muted px-2 py-1 rounded font-mono">restricted</code> includes{' '}
+              <code className="text-xs bg-muted px-2 py-1 rounded font-mono">admin</code> and{' '}
+              <code className="text-xs bg-muted px-2 py-1 rounded font-mono">user</code>.
             </p>
           </div>
-          <div className="flex items-start gap-2">
-            <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3">
+            <Info className="h-5 w-5 shrink-0 mt-0.5 text-blue-500" />
             <p>
               Tools requiring higher permissions will prompt for elevation when the global level is insufficient.
             </p>
           </div>
-          <div className="flex items-start gap-2">
-            <Info className="h-4 w-4 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3">
+            <Info className="h-5 w-5 shrink-0 mt-0.5 text-blue-500" />
             <p>
               Permission grants can be time-limited for enhanced security.
             </p>
@@ -214,87 +225,87 @@ const StatisticsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Overview */}
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Overview</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="p-4">
-            <div className="text-2xl font-bold text-foreground mb-1">
+        <h3 className="text-lg font-semibold text-foreground mb-6">Overview</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="p-6">
+            <div className="text-3xl font-bold text-foreground mb-2">
               {registryStats.totalExecutions}
             </div>
-            <div className="text-xs text-muted-foreground">Total Executions</div>
+            <div className="text-sm text-muted-foreground">Total Executions</div>
           </Card>
-          <Card className="p-4">
-            <div className="text-2xl font-bold text-green-500 mb-1">
+          <Card className="p-6">
+            <div className="text-3xl font-bold text-green-500 mb-2">
               {registryStats.totalExecutions}
             </div>
-            <div className="text-xs text-muted-foreground">Successful</div>
+            <div className="text-sm text-muted-foreground">Successful</div>
           </Card>
-          <Card className="p-4">
-            <div className="text-2xl font-bold text-red-500 mb-1">
+          <Card className="p-6">
+            <div className="text-3xl font-bold text-red-500 mb-2">
               0
             </div>
-            <div className="text-xs text-muted-foreground">Failed</div>
+            <div className="text-sm text-muted-foreground">Failed</div>
           </Card>
-          <Card className="p-4">
-            <div className="text-2xl font-bold text-foreground mb-1">
+          <Card className="p-6">
+            <div className="text-3xl font-bold text-foreground mb-2">
               {registry.size}
             </div>
-            <div className="text-xs text-muted-foreground">Registered Tools</div>
+            <div className="text-sm text-muted-foreground">Registered Tools</div>
           </Card>
         </div>
       </div>
 
       {/* Tools by Category */}
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Tools by Category</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-foreground">File System</span>
-              <Badge variant="secondary">{toolsByCategory.filesystem}</Badge>
+        <h3 className="text-lg font-semibold text-foreground mb-6">Tools by Category</h3>
+        <div className="grid grid-cols-1 gap-4">
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-base font-medium text-foreground">File System</span>
+              <Badge variant="secondary" className="text-sm">{toolsByCategory.filesystem}</Badge>
             </div>
-            <div className="text-xs text-muted-foreground">Read, write, edit files</div>
+            <div className="text-sm text-muted-foreground">Read, write, edit files</div>
           </Card>
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-foreground">Git</span>
-              <Badge variant="secondary">{toolsByCategory.git}</Badge>
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-base font-medium text-foreground">Git</span>
+              <Badge variant="secondary" className="text-sm">{toolsByCategory.git}</Badge>
             </div>
-            <div className="text-xs text-muted-foreground">Version control operations</div>
+            <div className="text-sm text-muted-foreground">Version control operations</div>
           </Card>
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-foreground">Workspace</span>
-              <Badge variant="secondary">{toolsByCategory.workspace}</Badge>
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-base font-medium text-foreground">Workspace</span>
+              <Badge variant="secondary" className="text-sm">{toolsByCategory.workspace}</Badge>
             </div>
-            <div className="text-xs text-muted-foreground">Code navigation, search</div>
+            <div className="text-sm text-muted-foreground">Code navigation, search</div>
           </Card>
-          <Card className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-foreground">Terminal</span>
-              <Badge variant="secondary">{toolsByCategory.terminal}</Badge>
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-base font-medium text-foreground">Terminal</span>
+              <Badge variant="secondary" className="text-sm">{toolsByCategory.terminal}</Badge>
             </div>
-            <div className="text-xs text-muted-foreground">Command execution</div>
+            <div className="text-sm text-muted-foreground">Command execution</div>
           </Card>
         </div>
       </div>
 
       {/* Registered Tools */}
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Registered Tools</h3>
-        <div className="space-y-2">
+        <h3 className="text-lg font-semibold text-foreground mb-6">Registered Tools</h3>
+        <div className="space-y-3">
           {allTools.slice(0, 10).map((tool, index) => (
-            <Card key={tool.name} className="p-3">
+            <Card key={tool.name} className="p-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-muted-foreground">
                     #{index + 1}
                   </span>
                   <span className="text-sm font-mono text-foreground">{tool.name}</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <Badge variant="secondary" className="text-xs">
                     {tool.category}
                   </Badge>

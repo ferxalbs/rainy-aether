@@ -279,16 +279,15 @@ export class GroqProvider extends BaseProvider implements AIProvider {
         requestOptions.user = params.config.user;
       }
 
-      // Add tools if provided
+      // Add tools if provided (AI SDK expects tools as an object, not array)
       if (params.tools && params.tools.length > 0) {
-        requestOptions.tools = params.tools.map((tool) => ({
-          type: 'function',
-          function: {
-            name: tool.name,
+        requestOptions.tools = params.tools.reduce((acc, tool) => {
+          acc[tool.name] = {
             description: tool.description,
             parameters: tool.parameters,
-          },
-        }));
+          };
+          return acc;
+        }, {} as Record<string, any>);
 
         // Limit max tool calls if specified
         if (params.config.maxToolCalls) {

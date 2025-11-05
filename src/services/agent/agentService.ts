@@ -15,6 +15,7 @@ import { executeToolCalls, type ToolExecutionResult } from './toolExecutor';
 import { getToolRegistry } from './tools/registry';
 import { initializeToolSystem } from './tools';
 import type { ToolDefinition as AgentToolDefinition } from './providers/base';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 
 // ============================================================================
 // TYPES
@@ -439,16 +440,33 @@ export class AgentService {
 
   /**
    * Get tool definitions for the AI provider
+   * Converts Zod schemas to JSON Schema format required by AI SDK
    */
   private getToolDefinitions(): AgentToolDefinition[] {
     const registry = getToolRegistry();
     const allTools = registry.listAll();
 
-    return allTools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.inputSchema as unknown as Record<string, unknown>,
-    }));
+    return allTools.map((tool) => {
+      // Convert Zod schema to JSON Schema
+      const jsonSchema = zodToJsonSchema(tool.inputSchema, {
+        name: tool.name,
+        $refStrategy: 'none', // Don't use $ref for inline schemas
+      });
+
+      // Extract the schema properties (remove top-level metadata)
+      const parameters = {
+        type: 'object',
+        properties: (jsonSchema as any).properties || {},
+        required: (jsonSchema as any).required || [],
+        additionalProperties: false,
+      };
+
+      return {
+        name: tool.name,
+        description: tool.description,
+        parameters,
+      };
+    });
   }
 
   /**
