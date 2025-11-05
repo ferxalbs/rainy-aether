@@ -109,8 +109,11 @@ export class AgentService {
         throw new Error(`Provider not found: ${session.providerId}`);
       }
 
-      // Get API key
-      const apiKey = await this.credentialService.getCredential(session.providerId);
+      // Get API key (using synchronous localStorage method)
+      const apiKey = this.credentialService.getApiKey(session.providerId);
+      if (!apiKey) {
+        throw new Error(`No API key found for provider: ${session.providerId}`);
+      }
 
       // Validate model
       const model = provider.getModel(session.modelId);
@@ -308,9 +311,9 @@ export class AgentService {
       throw new Error(`Model not found: ${params.modelId}`);
     }
 
-    // Check if provider is configured
-    const hasCredential = await this.credentialService.hasCredential(params.providerId);
-    if (!hasCredential) {
+    // Check if provider is configured (using synchronous localStorage method)
+    const hasApiKey = this.credentialService.hasApiKey(params.providerId);
+    if (!hasApiKey) {
       throw new Error(`Provider ${params.providerId} is not configured. Please add an API key.`);
     }
 

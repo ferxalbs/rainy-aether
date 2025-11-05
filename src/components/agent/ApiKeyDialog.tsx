@@ -115,12 +115,12 @@ export const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({
             <Key className="h-5 w-5" />
             Configure {providerName} API Key
           </DialogTitle>
-          <DialogDescription className="space-y-2">
-            <p>{getProviderInstructions(providerId)}</p>
-            <p className="text-xs text-muted-foreground">
-              Your API key is stored securely and never shared.
-            </p>
+          <DialogDescription>
+            {getProviderInstructions(providerId)}
           </DialogDescription>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Your API key is stored securely and never shared.
+          </p>
         </DialogHeader>
 
         <div className="space-y-4 py-4">

@@ -46,6 +46,7 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
   onDeleteSession,
 }) => {
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+  const [, setApiKeyRefresh] = useState(0);
   const credentialService = CredentialService.getInstance();
 
   const hasApiKey = credentialService.hasApiKey(selectedProvider);
@@ -63,7 +64,8 @@ export const SessionSidebar: React.FC<SessionSidebarProps> = ({
         providerId={selectedProvider}
         providerName={providerNames[selectedProvider] || selectedProvider}
         onKeyConfigured={() => {
-          // Optionally refresh or notify
+          // Force refresh of hasApiKey check
+          setApiKeyRefresh(prev => prev + 1);
         }}
       />
 
