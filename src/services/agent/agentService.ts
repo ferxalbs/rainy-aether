@@ -9,8 +9,11 @@ import { agentActions, getAgentState } from '@/stores/agentStore';
 import type { Message } from '@/stores/agentStore';
 import { ProviderManager } from './providerManager';
 import { CredentialService } from './credentialService';
-import type { ChatMessage } from './providers/base';
+import type { ChatMessage, ToolCall } from './providers/base';
 import { calculateCost } from './providers/base';
+import { executeToolCalls, type ToolExecutionResult } from './toolExecutor';
+import { getToolRegistry } from './tools/registry';
+import type { ToolDefinition as AgentToolDefinition } from './providers/base';
 
 // ============================================================================
 // TYPES
@@ -25,6 +28,9 @@ export interface SendMessageOptions {
   onToken?: (token: string) => void;
   onComplete?: (message: Message) => void;
   onError?: (error: Error) => void;
+  onToolCall?: (toolName: string, result: ToolExecutionResult) => void;
+  enableTools?: boolean;
+  workspaceRoot?: string;
 }
 
 /**
@@ -78,7 +84,16 @@ export class AgentService {
    * Send a message and get a streaming response
    */
   async sendMessage(options: SendMessageOptions): Promise<void> {
-    const { sessionId, content, onToken, onComplete, onError } = options;
+    const {
+      sessionId,
+      content,
+      onToken,
+      onComplete,
+      onError,
+      onToolCall,
+      enableTools = true,
+      workspaceRoot,
+    } = options;
     const startTime = Date.now();
 
     try {
@@ -127,9 +142,16 @@ export class AgentService {
       // Add the new user message
       messages.push({ role: 'user', content });
 
+      // Prepare tool definitions if tools are enabled
+      let tools: AgentToolDefinition[] | undefined;
+      if (enableTools && model.supportsTools) {
+        tools = this.getToolDefinitions();
+      }
+
       let assistantContent = '';
       let promptTokens = 0;
       let completionTokens = 0;
+      const toolCalls: ToolCall[] = [];
 
       try {
         // Stream response
@@ -138,9 +160,12 @@ export class AgentService {
           messages,
           apiKey,
           config: session.config,
+          tools,
           onProgress: (event) => {
             if (event.type === 'text-delta') {
               onToken?.(event.text);
+            } else if (event.type === 'tool-call') {
+              toolCalls.push(event.toolCall);
             }
           },
         });
@@ -149,6 +174,9 @@ export class AgentService {
           if (event.type === 'text-delta') {
             assistantContent += event.text;
             agentActions.updateMessageContent(sessionId, assistantMessageId, assistantContent);
+          } else if (event.type === 'tool-call') {
+            // Tool calls are already collected in the onProgress callback
+            // We don't need to do anything here
           } else if (event.type === 'finish') {
             if (event.usage) {
               promptTokens = event.usage.promptTokens;
@@ -178,6 +206,16 @@ export class AgentService {
           } else if (event.type === 'error') {
             throw event.error;
           }
+        }
+
+        // Execute tool calls if any
+        if (toolCalls.length > 0) {
+          await this.handleToolCalls(toolCalls, {
+            sessionId,
+            assistantMessageId,
+            workspaceRoot,
+            onToolCall,
+          });
         }
 
         // Record response time
@@ -381,6 +419,109 @@ export class AgentService {
     if (this.responseTimings.length === 0) return 0;
     const sum = this.responseTimings.reduce((a, b) => a + b, 0);
     return sum / this.responseTimings.length;
+  }
+
+  /**
+   * Get tool definitions for the AI provider
+   */
+  private getToolDefinitions(): AgentToolDefinition[] {
+    const registry = getToolRegistry();
+    const allTools = registry.listAll();
+
+    return allTools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema as unknown as Record<string, unknown>,
+    }));
+  }
+
+  /**
+   * Handle tool calls from the AI agent
+   */
+  private async handleToolCalls(
+    toolCalls: ToolCall[],
+    options: {
+      sessionId: string;
+      assistantMessageId: string;
+      workspaceRoot?: string;
+      onToolCall?: (toolName: string, result: ToolExecutionResult) => void;
+    }
+  ): Promise<void> {
+    const { sessionId, assistantMessageId, workspaceRoot, onToolCall } = options;
+
+    // Execute tool calls
+    const batchResult = await executeToolCalls(
+      toolCalls,
+      {
+        sessionId,
+        workspaceRoot,
+        onProgress: (update) => {
+          // Update message content with tool progress
+          const session = agentActions.getSession(sessionId);
+          if (!session) return;
+
+          const message = session.messages.find((m) => m.id === assistantMessageId);
+          if (!message) return;
+
+          // Append tool status to message
+          let statusText = `\n\n**Tool: ${update.toolName}**\n`;
+          statusText += `Status: ${update.status}\n`;
+          if (update.message) {
+            statusText += `${update.message}\n`;
+          }
+
+          const currentContent = message.content || '';
+          if (!currentContent.includes(`**Tool: ${update.toolName}**`)) {
+            agentActions.updateMessageContent(sessionId, assistantMessageId, currentContent + statusText);
+          }
+        },
+      },
+      false // Sequential execution
+    );
+
+    // Append tool results to message
+    let toolResultsText = '\n\n---\n\n**Tool Executions:**\n\n';
+
+    for (const result of batchResult.results) {
+      toolResultsText += `### ${result.toolName}\n\n`;
+
+      if (result.success) {
+        toolResultsText += `✓ Success (${result.duration}ms)\n\n`;
+        toolResultsText += '```\n';
+        toolResultsText += result.formattedOutput;
+        toolResultsText += '\n```\n\n';
+      } else {
+        toolResultsText += `✗ Error (${result.duration}ms)\n\n`;
+        toolResultsText += '```\n';
+        toolResultsText += result.error || 'Unknown error';
+        toolResultsText += '\n```\n\n';
+      }
+
+      // Notify callback
+      onToolCall?.(result.toolName, result);
+    }
+
+    // Update message with final tool results
+    const session = agentActions.getSession(sessionId);
+    if (session) {
+      const message = session.messages.find((m) => m.id === assistantMessageId);
+      if (message) {
+        const baseContent = message.content.split('\n\n---\n\n')[0]; // Remove any previous tool results
+        agentActions.updateMessageContent(sessionId, assistantMessageId, baseContent + toolResultsText);
+      }
+    }
+
+    // Update message metadata with tool execution info
+    agentActions.updateMessageMetadata(sessionId, assistantMessageId, {
+      metadata: {
+        toolCalls: batchResult.results.map((r) => ({
+          toolName: r.toolName,
+          success: r.success,
+          duration: r.duration,
+        })),
+        toolExecutionTime: batchResult.totalDuration,
+      },
+    });
   }
 }
 
