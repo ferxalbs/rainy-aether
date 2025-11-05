@@ -60,30 +60,66 @@ export const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({
   }, [open, providerId]);
 
   const handleSave = async () => {
-    if (!apiKey.trim()) {
+    const trimmedKey = apiKey.trim();
+
+    if (!trimmedKey) {
       setErrorMessage('API key cannot be empty');
       return;
     }
 
-    // Save API key
-    credentialService.setApiKey(providerId, apiKey.trim());
+    // Validate API key format based on provider
+    const formatValid = validateKeyFormat(providerId, trimmedKey);
+    if (!formatValid) {
+      setErrorMessage(getFormatErrorMessage(providerId));
+      setValidationStatus('invalid');
+      return;
+    }
 
-    // Validate the key (optional, depends on provider support)
+    // Save API key
     setIsValidating(true);
     setValidationStatus('idle');
     setErrorMessage('');
 
     try {
-      // For now, just save without validation
-      // TODO: Add provider-specific validation when available
+      credentialService.setApiKey(providerId, trimmedKey);
       setValidationStatus('valid');
       onKeyConfigured?.();
-      onOpenChange(false);
+
+      // Close dialog after a brief delay to show success
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 500);
     } catch (error) {
       setValidationStatus('invalid');
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to validate API key');
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to save API key');
     } finally {
       setIsValidating(false);
+    }
+  };
+
+  const validateKeyFormat = (provider: string, key: string): boolean => {
+    switch (provider.toLowerCase()) {
+      case 'groq':
+        return key.startsWith('gsk_') && key.length > 20;
+      case 'openai':
+        return key.startsWith('sk-') && key.length > 20;
+      case 'anthropic':
+        return key.startsWith('sk-ant-') && key.length > 20;
+      default:
+        return key.length > 20;
+    }
+  };
+
+  const getFormatErrorMessage = (provider: string): string => {
+    switch (provider.toLowerCase()) {
+      case 'groq':
+        return 'Invalid Groq API key format. Must start with "gsk_"';
+      case 'openai':
+        return 'Invalid OpenAI API key format. Must start with "sk-"';
+      case 'anthropic':
+        return 'Invalid Anthropic API key format. Must start with "sk-ant-"';
+      default:
+        return 'Invalid API key format';
     }
   };
 
@@ -104,6 +140,19 @@ export const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({
         return 'Get your API key from https://console.anthropic.com/settings/keys';
       default:
         return `Get your ${provider} API key from the provider's console`;
+    }
+  };
+
+  const getKeyExample = (provider: string): string => {
+    switch (provider.toLowerCase()) {
+      case 'groq':
+        return 'gsk_...';
+      case 'openai':
+        return 'sk-...';
+      case 'anthropic':
+        return 'sk-ant-...';
+      default:
+        return 'API key';
     }
   };
 
@@ -133,7 +182,7 @@ export const ApiKeyDialog: React.FC<ApiKeyDialogProps> = ({
                 type={showKey ? 'text' : 'password'}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
+                placeholder={getKeyExample(providerId)}
                 className={cn(
                   'pr-20',
                   validationStatus === 'valid' && 'border-green-500',

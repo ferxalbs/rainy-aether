@@ -109,6 +109,22 @@ const AgentsView: React.FC = () => {
     } catch (error) {
       console.error('Failed to send message:', error);
       setIsSending(false);
+
+      // Show user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (errorMessage.includes('Invalid API Key') || errorMessage.includes('401')) {
+        // Add error message to chat
+        agentActions.addMessage(activeSession.id, {
+          role: 'system',
+          content: '❌ **API Key Error**: Your API key appears to be invalid. Please check:\n\n1. The API key is correct and properly formatted\n2. For Groq: Key should start with `gsk_`\n3. For OpenAI: Key should start with `sk-`\n4. For Anthropic: Key should start with `sk-ant-`\n\nClick the key icon (🔑) in the sidebar to update your API key.',
+        });
+      } else {
+        agentActions.addMessage(activeSession.id, {
+          role: 'system',
+          content: `❌ **Error**: ${errorMessage}`,
+        });
+      }
     }
   };
 
