@@ -6,17 +6,20 @@ import type { AgentSession } from '@/stores/agentStore';
 import { WelcomeMessage } from './WelcomeMessage';
 import { EmptySessionMessage } from './EmptySessionMessage';
 import { MessageBubble } from './MessageBubble';
+import { cn } from '@/lib/utils';
 
 interface ChatMessagesProps {
   activeSession: AgentSession | null;
   onNewSession: () => void;
   hasProvider: boolean;
+  containerClassName?: string;
 }
 
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
   activeSession,
   onNewSession,
   hasProvider,
+  containerClassName,
 }) => {
   const agentState = useAgentState();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -27,8 +30,13 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
   }, [activeSession?.messages]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 lg:p-6">
-      <div className="max-w-3xl xl:max-w-4xl mx-auto space-y-4">
+    <div
+      className={cn(
+        'flex-1 overflow-y-auto px-4 pb-32 pt-6 sm:px-6 sm:pb-40 lg:px-8',
+        containerClassName
+      )}
+    >
+      <div className="mx-auto flex max-w-3xl flex-col gap-4 xl:max-w-4xl">
         {!activeSession ? (
           <WelcomeMessage onNewSession={onNewSession} hasProvider={hasProvider} />
         ) : activeSession.messages.length === 0 ? (

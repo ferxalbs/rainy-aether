@@ -4,7 +4,7 @@ import { MemorySaver } from '@langchain/langgraph';
 
 import type { AgentSession, Message } from '@/stores/agentStore';
 
-import type { LangGraphConfig, LangGraphStreamMode } from './types';
+import type { LangGraphConfig } from './types';
 import { buildLangGraphTools, type LangGraphToolProgressHandler } from './tools';
 import { createLangGraphChatModel } from './modelFactory';
 
@@ -59,8 +59,8 @@ export function buildLangGraphAgent(options: BuildLangGraphAgentOptions) {
     messages: [...history, new HumanMessage(newUserMessage)],
   };
 
-  const streamModes: LangGraphStreamMode[] = ['messages', 'updates', 'custom'];
-
+  // Use 'values' stream mode for complete state updates (recommended for most use cases)
+  // This gives us the full state after each step, making it easier to track progress
   const streamConfig = {
     configurable: {
       thread_id: config.threadId, // LangGraph standard key
@@ -69,7 +69,7 @@ export function buildLangGraphAgent(options: BuildLangGraphAgentOptions) {
       userId: config.userId,
       messages: session.messages,
     },
-    streamMode: streamModes,
+    streamMode: 'values' as const, // Stream complete state after each step
   };
 
   return {

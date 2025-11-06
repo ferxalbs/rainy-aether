@@ -10,11 +10,12 @@
  * - Provider/model selection
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAgentState, agentActions } from '@/stores/agentStore';
 import { getAgentService } from '@/services/agent/agentService';
 import { ProviderManager } from '@/services/agent/providerManager';
 import { AgentToolsPanel } from './agent-tools/AgentToolsPanel';
+import { cn } from '@/lib/utils';
 import { useIDEState } from '@/stores/ideStore';
 import {
   SessionSidebar,
@@ -34,11 +35,10 @@ const AgentsView: React.FC = () => {
   const workspace = ideState.workspace;
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [showToolsPanel, setShowToolsPanel] = useState(false);
+  const [showToolsPanel, setShowToolsPanel] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState('groq');
   const [selectedModel, setSelectedModel] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const agentService = getAgentService();
   const providerManager = ProviderManager.getInstance();
@@ -51,11 +51,6 @@ const AgentsView: React.FC = () => {
   useEffect(() => {
     agentService.initialize(workspace?.path);
   }, [workspace?.path]);
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeSession?.messages]);
 
   // Load available models for selected provider
   useEffect(() => {
@@ -217,9 +212,22 @@ Remember: You are working with a REAL codebase. Use tools to interact with it!`;
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-gradient-to-br from-background via-background to-muted/10">
-      {/* Fixed-width History Panel - Session Sidebar */}
-      <div className={`border-r border-border/50 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'w-12' : 'w-64'} shadow-sm`}>
+    <ResizablePanelGroup
+      direction="horizontal"
+      className="flex h-full w-full overflow-hidden bg-background"
+    >
+      {/* Left Panel - Sessions */}
+      <ResizablePanel
+        defaultSize={22}
+        minSize={18}
+        maxSize={30}
+        collapsible
+        collapsedSize={ sidebarCollapsed ? 6 : undefined }
+        className={cn(
+          'flex h-full flex-col border-r border-border/50 bg-muted/10 backdrop-blur-sm transition-all duration-300 ease-in-out',
+          sidebarCollapsed && 'min-w-[3.5rem] max-w-[3.5rem]'
+        )}
+      >
         <SessionSidebar
           sessions={agentState.sessions}
           activeSessionId={agentState.activeSessionId}
@@ -230,52 +238,53 @@ Remember: You are working with a REAL codebase. Use tools to interact with it!`;
           onNewSession={handleNewSession}
           onDeleteSession={handleDeleteSession}
           collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
         />
-      </div>
+      </ResizablePanel>
 
-      <ResizablePanelGroup direction="horizontal" className="flex-1 h-full">
-        {/* Chat Panel - Main Chat Interface */}
-        <ResizablePanel defaultSize={65} minSize={40}>
-          <div className="flex flex-col h-full overflow-hidden relative">
-            <ChatHeader
+      <ResizableHandle withHandle className="hidden lg:flex" />
+
+      {/* Center Panel - Conversation */}
+      <ResizablePanel defaultSize={showToolsPanel ? 56 : 78} minSize={38} className="flex">
+        <div className="relative flex h-full w-full flex-col overflow-hidden">
+          <ChatHeader
+            activeSession={activeSession}
+            showToolsPanel={showToolsPanel}
+            onToggleToolsPanel={() => setShowToolsPanel((prev) => !prev)}
+            className="relative z-10 border-b border-border/60 bg-background/95 backdrop-blur"
+          />
+
+          <div className="relative flex flex-1 flex-col overflow-hidden bg-gradient-to-b from-background via-background to-muted/10">
+            <ChatMessages
               activeSession={activeSession}
-              showToolsPanel={showToolsPanel}
-              onToggleToolsPanel={() => setShowToolsPanel(!showToolsPanel)}
+              onNewSession={handleNewSession}
+              hasProvider={!!selectedModel}
+              containerClassName="pb-40"
             />
 
-            <div className="flex-1 overflow-hidden pb-24">
-              <ChatMessages
-                activeSession={activeSession}
-                onNewSession={handleNewSession}
-                hasProvider={!!selectedModel}
-              />
-            </div>
+            <ChatInput
+              variant="floating"
+              input={input}
+              isSending={isSending}
+              activeSession={activeSession}
+              onInputChange={setInput}
+              onSendMessage={handleSendMessage}
+              onKeyDown={handleKeyDown}
+              className="pointer-events-none absolute bottom-6 left-1/2 w-full -translate-x-1/2 px-4 sm:px-6 md:max-w-4xl"
+            />
           </div>
-        </ResizablePanel>
+        </div>
+      </ResizablePanel>
 
-        <ResizableHandle withHandle />
-
-        {/* Tools/Metrics Panel - Full Space Agent Tools */}
-        <ResizablePanel defaultSize={35} minSize={25}>
-          <div className="h-full border-l border-border/50 overflow-hidden shadow-sm">
-            <AgentToolsPanel defaultTab="executions" />
-          </div>
-        </ResizablePanel>
-      </ResizablePanelGroup>
-
-      {/* Floating Chat Input */}
-      <div className="absolute bottom-0 left-0 right-0 z-10">
-        <ChatInput
-          input={input}
-          isSending={isSending}
-          activeSession={activeSession}
-          onInputChange={setInput}
-          onSendMessage={handleSendMessage}
-          onKeyDown={handleKeyDown}
-        />
-      </div>
-    </div>
+      {showToolsPanel && (
+        <>
+          <ResizableHandle withHandle className="hidden lg:flex" />
+          <ResizablePanel defaultSize={22} minSize={20} maxSize={30} className="hidden h-full flex-col border-l border-border/50 bg-muted/8 lg:flex">
+            <AgentToolsPanel defaultTab="executions" className="flex-1 overflow-hidden" />
+          </ResizablePanel>
+        </>
+      )}
+    </ResizablePanelGroup>
   );
 };
 

@@ -567,42 +567,67 @@ export class AgentService {
           },
         });
 
-        // Process stream events
-        for await (const chunk of stream) {
-          // chunk is an array of stream events from different modes
-          for (const [nodeName, nodeOutput] of Object.entries(chunk)) {
-            // Skip the agent node itself
-            if (nodeName === '__end__' || nodeName === 'agent') {
-              continue;
-            }
+        // Process stream events with proper token streaming
+        let lastContent = '';
 
-            // Handle messages from the graph
-            if (nodeOutput && typeof nodeOutput === 'object' && 'messages' in nodeOutput) {
-              const messages = (nodeOutput as any).messages;
-              if (Array.isArray(messages)) {
-                for (const msg of messages) {
-                  if (msg instanceof AIMessage) {
-                    // Stream AI message content
-                    if (msg.content) {
-                      const newContent = String(msg.content);
-                      // Only append if it's new content
-                      if (!assistantContent.includes(newContent)) {
-                        assistantContent = newContent;
+        for await (const chunk of stream) {
+          // Handle object-style chunks from LangGraph
+          if (chunk && typeof chunk === 'object') {
+            for (const [nodeName, nodeOutput] of Object.entries(chunk)) {
+              // Skip control nodes
+              if (nodeName === '__end__' || nodeName === 'agent') {
+                continue;
+              }
+
+              // Handle messages from the graph
+              if (nodeOutput && typeof nodeOutput === 'object' && 'messages' in nodeOutput) {
+                const messages = (nodeOutput as any).messages;
+                if (Array.isArray(messages)) {
+                  // Get the last message (most recent)
+                  const lastMsg = messages[messages.length - 1];
+
+                  if (lastMsg instanceof AIMessage) {
+                    // Stream AI message content incrementally
+                    if (lastMsg.content) {
+                      const currentContent = String(lastMsg.content);
+
+                      // Calculate delta (only new content)
+                      if (currentContent.length > lastContent.length) {
+                        const delta = currentContent.slice(lastContent.length);
+                        assistantContent = currentContent;
+                        lastContent = currentContent;
+
+                        // Update UI with new content
                         agentActions.updateMessageContent(sessionId, assistantMessageId, assistantContent);
-                        onToken?.(newContent);
+
+                        // Stream delta to onToken callback
+                        if (delta) {
+                          onToken?.(delta);
+                        }
+                      }
+                      // Handle complete replacement (e.g., after tool execution)
+                      else if (currentContent !== lastContent) {
+                        assistantContent = currentContent;
+                        lastContent = currentContent;
+                        agentActions.updateMessageContent(sessionId, assistantMessageId, assistantContent);
                       }
                     }
 
-                    // Extract token usage if available
-                    if (msg.response_metadata) {
-                      const metadata = msg.response_metadata as any;
+                    // Extract token usage from response metadata
+                    if (lastMsg.response_metadata) {
+                      const metadata = lastMsg.response_metadata as any;
                       if (metadata.tokenUsage) {
-                        promptTokens = metadata.tokenUsage.promptTokens || 0;
-                        completionTokens = metadata.tokenUsage.completionTokens || 0;
+                        promptTokens = metadata.tokenUsage.promptTokens || promptTokens;
+                        completionTokens = metadata.tokenUsage.completionTokens || completionTokens;
                       } else if (metadata.usage) {
-                        promptTokens = metadata.usage.prompt_tokens || 0;
-                        completionTokens = metadata.usage.completion_tokens || 0;
+                        promptTokens = metadata.usage.prompt_tokens || promptTokens;
+                        completionTokens = metadata.usage.completion_tokens || completionTokens;
                       }
+                    }
+
+                    // Handle tool calls
+                    if (lastMsg.tool_calls && lastMsg.tool_calls.length > 0) {
+                      console.log('[LangGraph] Tool calls detected:', lastMsg.tool_calls.length);
                     }
                   }
                 }
@@ -610,6 +635,9 @@ export class AgentService {
             }
           }
         }
+
+        // Log final state
+        console.log(`[LangGraph] Stream complete. Tokens: ${promptTokens}/${completionTokens}`);
 
         // Calculate cost (estimation)
         const provider = this.providerManager.getProvider(session.providerId);

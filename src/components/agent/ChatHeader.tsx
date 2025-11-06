@@ -1,7 +1,6 @@
 import React from 'react';
 import { Settings, Wrench } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import type { AgentSession } from '@/stores/agentStore';
 
@@ -9,24 +8,33 @@ interface ChatHeaderProps {
   activeSession: AgentSession | null;
   showToolsPanel: boolean;
   onToggleToolsPanel: () => void;
+  className?: string;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   activeSession,
   showToolsPanel,
   onToggleToolsPanel,
+  className,
 }) => {
   return (
-    <div className="h-12 border-b border-border flex items-center justify-between px-3 lg:px-4 bg-muted/20">
-      <div className="flex items-center gap-2 lg:gap-3 min-w-0 flex-1">
-        <h1 className="text-sm font-medium text-foreground truncate">
-          {activeSession ? activeSession.name : 'Agent Workspace'}
-        </h1>
-        {activeSession && (
-          <Badge variant="secondary" className="text-xs hidden sm:inline-flex">
-            {activeSession.providerId} · {activeSession.modelId}
-          </Badge>
-        )}
+    <div
+      className={cn(
+        'flex h-14 items-center justify-between border-b border-border/40 bg-background/85 px-4 shadow-sm backdrop-blur-sm lg:h-16 lg:px-6',
+        className
+      )}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-2 lg:gap-3">
+        <div className="flex flex-col">
+          <h1 className="truncate text-sm font-semibold text-foreground lg:text-base">
+            {activeSession ? activeSession.name : 'Agent Workspace'}
+          </h1>
+          {activeSession && (
+            <span className="text-xs text-muted-foreground/80">
+              {activeSession.providerId} · {activeSession.modelId}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-1 lg:gap-2">
@@ -34,9 +42,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           variant="ghost"
           size="sm"
           onClick={onToggleToolsPanel}
-          className={cn(showToolsPanel && 'bg-accent')}
+          className={cn(
+            'gap-2 rounded-full px-3 text-xs font-medium transition-colors',
+            showToolsPanel ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground'
+          )}
         >
-          <Wrench className="h-4 w-4 mr-1 lg:mr-2" />
+          <Wrench className="h-4 w-4" />
           <span className="hidden sm:inline">Tools</span>
         </Button>
         <Button variant="ghost" size="sm">
