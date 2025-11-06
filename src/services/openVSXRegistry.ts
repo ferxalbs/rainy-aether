@@ -1,7 +1,6 @@
 import {
   OpenVSXExtension,
   OpenVSXQueryRequest,
-  OpenVSXQueryResponse,
   ExtensionManifest
 } from '../types/extension';
 
@@ -82,50 +81,92 @@ export class OpenVSXRegistryService {
         throw new Error(`Open VSX API error: ${response.status} ${response.statusText}`);
       }
 
-      const data: OpenVSXQueryResponse = await response.json();
+      const data: any = await response.json();
+
+      // Debug: Log the actual response structure
+      console.log('Open VSX API Response:', JSON.stringify(data, null, 2).substring(0, 1000));
 
       if (!data.results || data.results.length === 0) {
+        console.warn('No results found in API response');
         return [];
       }
 
-      const rawResults = data.results[0].extensions || [];
-
-      // Validate and filter extensions with proper data
-      const results = rawResults.filter((ext): ext is OpenVSXExtension => {
-        // Validate required fields
-        if (!ext || typeof ext !== 'object') {
-          console.warn('Invalid extension data (not an object):', ext);
-          return false;
-        }
-
-        if (!ext.name || typeof ext.name !== 'string') {
-          console.warn('Extension missing valid name:', ext);
-          return false;
-        }
-
-        if (!ext.publisher || typeof ext.publisher !== 'object') {
-          console.warn('Extension missing valid publisher:', ext);
-          return false;
-        }
-
-        if (!ext.publisher.name || typeof ext.publisher.name !== 'string') {
-          console.warn('Extension publisher missing valid name:', ext);
-          return false;
-        }
-
-        if (!ext.version || typeof ext.version !== 'string') {
-          console.warn('Extension missing valid version:', ext);
-          return false;
-        }
-
-        // All required fields are present
-        return true;
-      });
-
-      // Log if we filtered out any invalid extensions
-      if (results.length < rawResults.length) {
-        console.warn(`Filtered out ${rawResults.length - results.length} invalid extensions from search results`);
+      const firstResult = data.results[0];
+      if (!firstResult) {
+        console.warn('First result is empty');
+        return [];
       }
+
+      // The API returns extensions in firstResult.extensions, but each extension has a different structure
+      // It uses extensionId, extensionName, publisher.publisherName, and versions array
+      const rawExtensions = firstResult.extensions || [];
+
+      // Debug: Log first extension structure
+      if (rawExtensions.length > 0) {
+        console.log('First extension structure:', JSON.stringify(rawExtensions[0], null, 2).substring(0, 500));
+      }
+
+      // Transform VS Code Marketplace API format to our expected format
+      const results: OpenVSXExtension[] = rawExtensions
+        .map((ext: any) => {
+          try {
+            // VS Code Marketplace API format uses different field names
+            const latestVersion = ext.versions && ext.versions[0];
+            if (!latestVersion) {
+              console.warn('Extension has no versions:', ext);
+              return null;
+            }
+
+            // Extract publisher info
+            const publisherName = ext.publisher?.publisherName || ext.publisher?.publisherId;
+            const publisherDisplayName = ext.publisher?.displayName || publisherName;
+
+            // Extract extension info
+            const extensionName = ext.extensionName || ext.extensionId;
+            const displayName = ext.displayName || extensionName;
+
+            if (!publisherName || !extensionName) {
+              console.warn('Extension missing publisher or name:', { publisherName, extensionName, ext });
+              return null;
+            }
+
+            // Transform to our expected format
+            return {
+              namespace: publisherName,
+              name: extensionName,
+              displayName: displayName,
+              description: ext.shortDescription || ext.description || '',
+              version: latestVersion.version,
+              publisher: {
+                name: publisherName,
+                displayName: publisherDisplayName,
+                domain: ext.publisher?.domain
+              },
+              categories: ext.categories || [],
+              tags: ext.tags || [],
+              license: latestVersion.license,
+              repository: ext.repository,
+              bugs: ext.bugs,
+              homepage: ext.homepage,
+              engines: latestVersion.properties?.find((p: any) => p.key === 'Microsoft.VisualStudio.Code.Engine')?.value || {},
+              dependencies: {},
+              extensionDependencies: latestVersion.properties?.find((p: any) => p.key === 'Microsoft.VisualStudio.Code.ExtensionDependencies')?.value?.split(',') || [],
+              preview: false,
+              preRelease: ext.releaseDate ? false : undefined,
+              published: ext.publishedDate || ext.releaseDate || new Date().toISOString(),
+              lastUpdated: ext.lastUpdated || ext.publishedDate || new Date().toISOString(),
+              downloads: ext.statistics?.find((s: any) => s.statisticName === 'install')?.value || 0,
+              rating: ext.statistics?.find((s: any) => s.statisticName === 'averagerating')?.value,
+              ratingCount: ext.statistics?.find((s: any) => s.statisticName === 'ratingcount')?.value
+            };
+          } catch (error) {
+            console.error('Error transforming extension:', error, ext);
+            return null;
+          }
+        })
+        .filter((ext: OpenVSXExtension | null): ext is OpenVSXExtension => ext !== null);
+
+      console.log(`Successfully transformed ${results.length} out of ${rawExtensions.length} extensions`);
 
       // Cache the results
       this.searchCache.set(cacheKey, {
