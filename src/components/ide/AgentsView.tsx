@@ -231,10 +231,6 @@ Remember: You are working with a REAL codebase. Use tools to interact with it!`;
         <SessionSidebar
           sessions={agentState.sessions}
           activeSessionId={agentState.activeSessionId}
-          selectedProvider={selectedProvider}
-          selectedModel={selectedModel}
-          onProviderChange={setSelectedProvider}
-          onModelChange={setSelectedModel}
           onNewSession={handleNewSession}
           onDeleteSession={handleDeleteSession}
           collapsed={sidebarCollapsed}
@@ -270,6 +266,11 @@ Remember: You are working with a REAL codebase. Use tools to interact with it!`;
               onInputChange={setInput}
               onSendMessage={handleSendMessage}
               onKeyDown={handleKeyDown}
+              selectedProvider={selectedProvider}
+              selectedModel={selectedModel}
+              onProviderChange={setSelectedProvider}
+              onModelChange={setSelectedModel}
+              onNewSession={handleNewSession}
               className="pointer-events-none absolute bottom-6 left-1/2 w-full -translate-x-1/2 px-4 sm:px-6 md:max-w-4xl"
             />
           </div>

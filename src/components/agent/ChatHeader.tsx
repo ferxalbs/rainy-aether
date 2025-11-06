@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Settings, Wrench } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 import type { AgentSession } from '@/stores/agentStore';
+import { AgentSettingsModal } from './AgentSettingsModal';
 
 interface ChatHeaderProps {
   activeSession: AgentSession | null;
@@ -17,6 +18,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   onToggleToolsPanel,
   className,
 }) => {
+  const [showSettings, setShowSettings] = useState(false);
   return (
     <div
       className={cn(
@@ -50,10 +52,21 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           <Wrench className="h-4 w-4" />
           <span className="hidden sm:inline">Tools</span>
         </Button>
-        <Button variant="ghost" size="sm">
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={() => setShowSettings(true)}
+          className="gap-2"
+        >
           <Settings className="h-4 w-4" />
+          <span className="hidden sm:inline">Settings</span>
         </Button>
       </div>
+      
+      <AgentSettingsModal 
+        open={showSettings} 
+        onOpenChange={setShowSettings} 
+      />
     </div>
   );
 };
