@@ -20,6 +20,8 @@ export interface LangGraphStreamChunk {
   payload: unknown;
 }
 
+export type LangGraphStreamMode = 'messages' | 'updates' | 'custom';
+
 export const AgentStateAnnotation = Annotation.Root({
   ...MessagesAnnotation.spec,
   context: Annotation<string | null>({

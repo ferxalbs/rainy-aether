@@ -6,6 +6,8 @@ import { executeTool } from '@/services/agent/tools/executor';
 import type { ToolDefinition } from '@/services/agent/tools/types';
 import type { LangGraphToolUpdate } from './types';
 
+export type LangGraphToolProgressHandler = (update: LangGraphToolUpdate) => void;
+
 function toLangGraphToolSchema(definition: ToolDefinition) {
   return definition.inputSchema as z.ZodTypeAny;
 }
@@ -16,7 +18,7 @@ export function isToolRunnable(definition: ToolDefinition): boolean {
 
 export function createLangGraphTool(
   definition: ToolDefinition,
-  onProgress?: (update: LangGraphToolUpdate) => void
+  onProgress?: LangGraphToolProgressHandler
 ) {
   const schema = toLangGraphToolSchema(definition);
 
@@ -70,7 +72,7 @@ export function createLangGraphTool(
   );
 }
 
-export function buildLangGraphTools(onProgress?: (update: LangGraphToolUpdate) => void) {
+export function buildLangGraphTools(onProgress?: LangGraphToolProgressHandler) {
   const registry = getToolRegistry();
   const tools = registry.listAll();
   return tools.filter(isToolRunnable).map((toolDef) => createLangGraphTool(toolDef, onProgress));

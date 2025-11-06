@@ -3,8 +3,8 @@ import { createReactAgent } from '@langchain/langgraph/prebuilt';
 
 import type { AgentSession, Message } from '@/stores/agentStore';
 
-import type { LangGraphConfig } from './types';
-import { buildLangGraphTools } from './tools';
+import type { LangGraphConfig, LangGraphStreamMode } from './types';
+import { buildLangGraphTools, type LangGraphToolProgressHandler } from './tools';
 import { createLangGraphChatModel } from './modelFactory';
 
 export interface BuildLangGraphAgentOptions {
@@ -12,7 +12,7 @@ export interface BuildLangGraphAgentOptions {
   newUserMessage: string;
   apiKey: string;
   config: LangGraphConfig;
-  onToolUpdate?: Parameters<typeof buildLangGraphTools>[0];
+  onToolUpdate?: LangGraphToolProgressHandler;
 }
 
 function toLangChainMessages(history: Message[]): (HumanMessage | AIMessage | SystemMessage)[] {
@@ -49,7 +49,9 @@ export function buildLangGraphAgent(options: BuildLangGraphAgentOptions) {
     messages: [...history, new HumanMessage(newUserMessage)],
   };
 
-  const stream = agent.stream(inputs, {
+  const streamModes: LangGraphStreamMode[] = ['messages', 'updates', 'custom'];
+
+  const streamConfig = {
     configurable: {
       sessionId: config.sessionId,
       threadId: config.threadId,
@@ -57,11 +59,12 @@ export function buildLangGraphAgent(options: BuildLangGraphAgentOptions) {
       userId: config.userId,
       messages: session.messages,
     },
-    streamMode: ['messages', 'updates', 'custom'],
-  });
+    streamMode: streamModes,
+  };
 
   return {
     agent,
-    stream,
+    inputs,
+    streamConfig,
   };
 }
