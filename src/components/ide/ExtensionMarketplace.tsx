@@ -123,22 +123,39 @@ const ExtensionMarketplace: React.FC<ExtensionMarketplaceProps> = ({ isOpen, onC
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {searchResults.map((extension) => {
-              const installed = isExtensionInstalled(extension.publisher.name, extension.name);
-              const state = getExtensionState(extension.publisher.name, extension.name);
-              const isInstallingThis = isInstalling && installingExtension === `${extension.publisher.name}.${extension.name}`;
+            {searchResults
+              .filter((extension) => {
+                // Filter out invalid extensions with missing required data
+                if (!extension || !extension.publisher || !extension.name) {
+                  console.warn('Skipping invalid extension:', extension);
+                  return false;
+                }
+                if (!extension.publisher.name || !extension.name) {
+                  console.warn('Skipping extension with missing publisher or name:', extension);
+                  return false;
+                }
+                return true;
+              })
+              .map((extension) => {
+                const publisherName = extension.publisher.name;
+                const extensionName = extension.name;
+                const extensionId = `${publisherName}.${extensionName}`;
 
-              return (
-                <ExtensionCard
-                  key={`${extension.publisher.name}.${extension.name}`}
-                  extension={extension}
-                  installed={installed}
-                  state={state}
-                  isInstalling={isInstallingThis}
-                  onInstall={() => handleInstall(extension)}
-                />
-              );
-            })}
+                const installed = isExtensionInstalled(publisherName, extensionName);
+                const state = getExtensionState(publisherName, extensionName);
+                const isInstallingThis = isInstalling && installingExtension === extensionId;
+
+                return (
+                  <ExtensionCard
+                    key={extensionId}
+                    extension={extension}
+                    installed={installed}
+                    state={state}
+                    isInstalling={isInstallingThis}
+                    onInstall={() => handleInstall(extension)}
+                  />
+                );
+              })}
           </div>
         </div>
       </div>
