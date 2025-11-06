@@ -6,7 +6,7 @@
  * Frontend (this) <--IPC--> Rust Backend <--stdio--> Language Server Process
  */
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { JSONRPCProtocol, JSONRPCMessage } from './JSONRPCProtocol';
 

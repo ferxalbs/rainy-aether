@@ -3,7 +3,7 @@
  * Provides file system operations needed by LSP clients
  */
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 /**
  * File content and metadata

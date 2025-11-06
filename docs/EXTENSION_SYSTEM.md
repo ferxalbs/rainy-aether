@@ -22,6 +22,7 @@ The extension system consists of four layers:
 ### 1. **Extension API Layer** (`src/types/extension-api.ts`)
 
 Provides comprehensive TypeScript interfaces for all extension capabilities:
+
 - Workspace API (file operations, text documents)
 - Editor API (text editing, decorations, selections)
 - Languages API (completions, diagnostics, formatting, etc.)
@@ -254,17 +255,20 @@ Extensions must declare capabilities in `package.json`:
 ### Available Capabilities
 
 #### File System
+
 - `fs:read` - Read files from workspace
 - `fs:write` - Create, modify, and delete files
 - `fs:watch` - Watch for file changes
 
 #### Editor
+
 - `editor:edit` - Edit text in editor
 - `editor:read` - Read text from editor
 - `editor:cursor` - Access cursor position
 - `editor:decorations` - Add decorations
 
 #### Language Features
+
 - `language:completions` - Provide code completions
 - `language:diagnostics` - Show diagnostic messages
 - `language:hover` - Provide hover information
@@ -276,6 +280,7 @@ Extensions must declare capabilities in `package.json`:
 - `language:symbols` - Provide symbol information
 
 #### UI
+
 - `ui:statusBar` - Add status bar items
 - `ui:notifications` - Show notifications
 - `ui:quickPick` - Show quick pick menus
@@ -284,31 +289,38 @@ Extensions must declare capabilities in `package.json`:
 - `ui:webviews` - Create webview panels
 
 #### Terminal
+
 - `terminal:create` - Create terminal sessions
 - `terminal:write` - Write to terminals
 - `terminal:read` - Read from terminals
 
 #### Commands
+
 - `commands:register` - Register custom commands
 - `commands:execute` - Execute commands
 
 #### Network
+
 - `network:http` - Make HTTP requests
 - `network:websocket` - Create WebSocket connections
 
 #### Storage
+
 - `storage:global` - Store global state
 - `storage:workspace` - Store workspace state
 - `storage:secrets` - Store secrets securely
 
 #### Git
+
 - `git:read` - Read Git repository information
 - `git:write` - Modify Git repository
 
 #### Process
+
 - `process:spawn` - Spawn child processes (⚠️ Dangerous)
 
 #### Debug
+
 - `debug:adapter` - Provide debug adapter
 - `debug:breakpoints` - Manage breakpoints
 
@@ -442,6 +454,7 @@ npm install --save-dev @rainycode/extension-api
 ```
 
 `tsconfig.json`:
+
 ```json
 {
   "compilerOptions": {
@@ -461,6 +474,7 @@ npm install --save-dev @rainycode/extension-api
 ### Extension Entry Point
 
 `src/extension.ts`:
+
 ```typescript
 import * as rainycode from 'rainycode';
 
@@ -586,6 +600,7 @@ npm start
 ### Configure Custom Registry in IDE
 
 Settings → Extensions → Registry:
+
 ```json
 {
   "extensions.registry": "https://your-server.com/api"
@@ -771,11 +786,11 @@ function getWebviewContent(webview: rainycode.Webview, extensionUri: rainycode.U
 
 ## Resources
 
-- **API Reference**: https://docs.rainycode.com/api
-- **Extension Samples**: https://github.com/rainycode/extension-samples
+- **API Reference**: <https://docs.rainycode.com/api>
+- **Extension Samples**: <https://github.com/rainycode/extension-samples>
 - **Extension Generator**: `npm install -g rainycode-extension-generator`
-- **Community Forum**: https://community.rainycode.com
-- **Extension Marketplace**: https://marketplace.rainycode.com
+- **Community Forum**: <https://community.rainycode.com>
+- **Extension Marketplace**: <https://marketplace.rainycode.com>
 
 ---
 

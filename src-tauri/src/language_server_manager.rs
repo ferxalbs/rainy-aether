@@ -9,7 +9,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::io::{BufRead, BufReader, Write};
 use std::thread;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter};
 
 /// Language server process information
 #[derive(Debug)]
@@ -154,7 +154,7 @@ impl LanguageServerManager {
                         // If we have a complete message, send it
                         if !buffer.is_empty() && content_length.is_none() {
                             let event_name = format!("lsp-message-{}", server_id_stdout);
-                            let _ = app_handle_stdout.emit_all(&event_name, serde_json::json!({
+                            let _ = app_handle_stdout.emit(&event_name, serde_json::json!({
                                 "message": buffer.clone()
                             }));
                             buffer.clear();
@@ -169,7 +169,7 @@ impl LanguageServerManager {
 
             // Server process ended
             let event_name = format!("lsp-close-{}", server_id_stdout);
-            let _ = app_handle_stdout.emit_all(&event_name, ());
+            let _ = app_handle_stdout.emit(&event_name, ());
         });
 
         // Spawn thread to read stderr and log
@@ -184,7 +184,7 @@ impl LanguageServerManager {
 
                         // Emit error event
                         let event_name = format!("lsp-error-{}", server_id_stderr);
-                        let _ = app_handle_stderr.emit_all(&event_name, serde_json::json!({
+                        let _ = app_handle_stderr.emit(&event_name, serde_json::json!({
                             "error": line
                         }));
                     }

@@ -349,6 +349,12 @@ export class JSONRPCProtocol {
   // Private methods
 
   private handleResponse(message: JSONRPCResponse | JSONRPCError): void {
+    // JSONRPCError can have null ID (for errors that can't be associated with a request)
+    if (message.id === null) {
+      console.warn('[JSON-RPC] Received error response with null ID:', message);
+      return;
+    }
+
     const pending = this.pendingRequests.get(message.id);
     if (!pending) {
       console.warn('[JSON-RPC] Received response for unknown request:', message.id);

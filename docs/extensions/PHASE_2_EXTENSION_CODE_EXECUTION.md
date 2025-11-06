@@ -57,6 +57,7 @@ src/services/monacoExtensionHost.ts    # Integrated code execution
 **Purpose:** Manages Web Worker-based sandboxes for safe extension code execution.
 
 **Key Features:**
+
 - Web Worker isolation for security
 - Message passing protocol (host ↔ worker)
 - Lifecycle management (initialize, activate, deactivate, dispose)
@@ -64,6 +65,7 @@ src/services/monacoExtensionHost.ts    # Integrated code execution
 - API call routing
 
 **API:**
+
 ```typescript
 const sandbox = createExtensionSandbox({
   extensionId: 'publisher.extension',
@@ -84,6 +86,7 @@ await sandbox.dispose();
 ```
 
 **Message Flow:**
+
 ```
 Host (ExtensionSandbox)     Worker (extension.worker.ts)
         │                            │
@@ -105,6 +108,7 @@ Host (ExtensionSandbox)     Worker (extension.worker.ts)
 **Purpose:** Implements CommonJS module system for loading extension code.
 
 **Key Features:**
+
 - `require()` function implementation
 - Module resolution (relative, absolute, node_modules)
 - Circular dependency handling
@@ -113,6 +117,7 @@ Host (ExtensionSandbox)     Worker (extension.worker.ts)
 - Source map support
 
 **API:**
+
 ```typescript
 const moduleLoader = createModuleLoader(
   {
@@ -133,6 +138,7 @@ await mainModule.activate(context);
 ```
 
 **Built-in Module Shims:**
+
 - ✅ `path` - Path manipulation
 - ✅ `util` - Utility functions
 - ✅ `events` - EventEmitter
@@ -148,6 +154,7 @@ await mainModule.activate(context);
 **Implemented Namespaces:**
 
 **`vscode.window`**
+
 - ✅ `showInformationMessage()`
 - ✅ `showWarningMessage()`
 - ✅ `showErrorMessage()`
@@ -158,6 +165,7 @@ await mainModule.activate(context);
 - ⏳ `visibleTextEditors` (placeholder)
 
 **`vscode.workspace`**
+
 - ✅ `fs.readFile()`
 - ✅ `fs.writeFile()`
 - ✅ `fs.delete()`
@@ -171,11 +179,13 @@ await mainModule.activate(context);
 - ⏳ `applyEdit()` (routed to host)
 
 **`vscode.commands`**
+
 - ✅ `registerCommand()`
 - ✅ `executeCommand()`
 - ✅ `getCommands()`
 
 **Classes:**
+
 - ✅ `Uri` - Full implementation
 - ✅ `Position` - Full implementation
 - ✅ `Range` - Full implementation
@@ -184,12 +194,14 @@ await mainModule.activate(context);
 - ✅ `EventEmitter` - Full implementation
 
 **Enums:**
+
 - ✅ `DiagnosticSeverity`
 - ✅ `CompletionItemKind`
 - ✅ `SymbolKind`
 - ✅ `TextEditorRevealType`
 
 **API Example:**
+
 ```typescript
 // Inside extension code
 import * as vscode from 'vscode';
@@ -212,6 +224,7 @@ export function activate(context: vscode.ExtensionContext) {
 **Purpose:** Provides extension-specific context and state storage.
 
 **Key Features:**
+
 - Workspace state (key-value storage)
 - Global state (persistent across workspaces)
 - Subscription management
@@ -219,6 +232,7 @@ export function activate(context: vscode.ExtensionContext) {
 - Automatic persistence
 
 **API:**
+
 ```typescript
 const context = createExtensionContext({
   extensionId: 'publisher.extension',
@@ -249,12 +263,14 @@ context.disposeSubscriptions();
 **Purpose:** Manages extension activation events and lifecycle.
 
 **Key Features:**
+
 - Activation event parsing
 - Event matching and routing
 - Extension state tracking
 - Lifecycle management (not activated → activating → activated)
 
 **Supported Activation Events:**
+
 - ✅ `*` - Always activate
 - ✅ `onLanguage:python` - Activate when language is opened
 - ✅ `onCommand:extension.hello` - Activate when command is executed
@@ -265,6 +281,7 @@ context.disposeSubscriptions();
 - ⏳ Other activation events (to be implemented)
 
 **API:**
+
 ```typescript
 const manager = createActivationManager();
 
@@ -293,6 +310,7 @@ manager.markFailed('publisher.extension', 'Error message');
 **Purpose:** Web Worker entry point for extension code execution.
 
 **Responsibilities:**
+
 - Receive initialization and activation messages
 - Load extension modules via ModuleLoader
 - Create VS Code API instance
@@ -301,6 +319,7 @@ manager.markFailed('publisher.extension', 'Error message');
 - Route API calls to host
 
 **Lifecycle:**
+
 ```
 1. Worker started
 2. Host sends Initialize message
@@ -321,6 +340,7 @@ manager.markFailed('publisher.extension', 'Error message');
 ### Updated `monacoExtensionHost.ts`
 
 **New Features:**
+
 1. **Activation Manager** - Tracks extension activation state
 2. **Sandbox Management** - Creates and manages extension sandboxes
 3. **Automatic Activation** - Activates extensions based on activation events
@@ -329,6 +349,7 @@ manager.markFailed('publisher.extension', 'Error message');
 **Changes:**
 
 **Before:**
+
 ```typescript
 async loadExtension(extension: InstalledExtension) {
   // Load static contributions only
@@ -337,6 +358,7 @@ async loadExtension(extension: InstalledExtension) {
 ```
 
 **After:**
+
 ```typescript
 async loadExtension(extension: InstalledExtension) {
   // Load static contributions
@@ -355,6 +377,7 @@ async loadExtension(extension: InstalledExtension) {
 ```
 
 **New Methods:**
+
 - `initializeExtensionSandbox()` - Create and configure sandbox
 - `tryActivateExtension()` - Check and activate if needed
 - `activateExtension()` - Activate extension with event
@@ -457,6 +480,7 @@ All code passes `tsc --noEmit` with no critical errors:
 ✅ **VS Code API type compatibility**
 
 **Remaining Warnings:**
+
 - ⚠️ Environment-specific modules (monaco-editor, @tauri-apps/api) - Expected, work at runtime
 - ⚠️ Minor unused parameters (prefixed with `_`)
 
@@ -465,21 +489,25 @@ All code passes `tsc --noEmit` with no critical errors:
 ## Performance Considerations
 
 ### Initialization
+
 - **Web Worker creation:** ~10-20ms
 - **Sandbox initialization:** ~50-100ms
 - **Extension loading:** Depends on extension size
 
 ### Activation
+
 - **Module loading:** 10-50ms per module
 - **Extension activation:** Depends on extension code
 - **Timeout protection:** 10 seconds (configurable)
 
 ### Runtime
+
 - **Message passing:** <1ms per message
 - **API calls:** 1-5ms (depends on operation)
 - **Memory per extension:** ~2-5MB (sandbox + modules)
 
 ### Optimization
+
 - ✅ Lazy activation (only activate when needed)
 - ✅ Module caching (load once, reuse)
 - ✅ Worker isolation (no blocking main thread)
@@ -491,18 +519,21 @@ All code passes `tsc --noEmit` with no critical errors:
 ## Security Considerations
 
 ### Sandboxing
+
 - ✅ **Web Worker isolation** - Extensions run in separate context
 - ✅ **No direct DOM access** - Extensions cannot manipulate UI directly
 - ✅ **Controlled API surface** - Only exposed APIs are accessible
 - ✅ **Message-based communication** - All interaction via structured messages
 
 ### Restrictions
+
 - ❌ **No file system access** - Extensions use vscode.workspace.fs API
 - ❌ **No child processes** - Cannot spawn processes
 - ❌ **No native modules** - Only pure JavaScript
 - ❌ **No network without permission** - Blocked by default
 
 ### Future Enhancements
+
 - ⏳ Resource limits (CPU, memory)
 - ⏳ Permission system (prompt for dangerous APIs)
 - ⏳ Content Security Policy (CSP) enforcement
@@ -575,6 +606,7 @@ All code passes `tsc --noEmit` with no critical errors:
 ### Automated Testing (Future)
 
 Consider adding:
+
 - Unit tests for ExtensionSandbox
 - Unit tests for ModuleLoader
 - Unit tests for ActivationManager
@@ -588,6 +620,7 @@ Consider adding:
 Here's a minimal extension that works with Phase 2:
 
 **`package.json`:**
+
 ```json
 {
   "name": "hello-world",
@@ -613,6 +646,7 @@ Here's a minimal extension that works with Phase 2:
 ```
 
 **`extension.js`:**
+
 ```javascript
 const vscode = require('vscode');
 
@@ -637,6 +671,7 @@ module.exports = {
 ```
 
 **Expected Behavior:**
+
 1. Extension activates on startup (`*`)
 2. Registers command `extension.helloWorld`
 3. When command is executed, shows information message
@@ -719,12 +754,14 @@ export * from './types';
 **Symptom:** Extension is loaded but never activates
 
 **Possible Causes:**
+
 1. Activation event doesn't match
 2. Main entry point missing or incorrect
 3. Sandbox initialization failed
 4. Module loading error
 
 **Debug:**
+
 - Check browser console for errors
 - Verify `main` field in package.json
 - Check activation events in manifest
@@ -735,11 +772,13 @@ export * from './types';
 **Symptom:** Error: "Cannot find module 'xyz'"
 
 **Possible Causes:**
+
 1. Module path is incorrect
 2. Built-in module not shimmed
 3. node_modules dependencies not supported yet
 
 **Solution:**
+
 - Check module paths in require()
 - Verify built-in module is supported
 - Bundle dependencies with extension
@@ -749,11 +788,13 @@ export * from './types';
 **Symptom:** VS Code API call throws error
 
 **Possible Causes:**
+
 1. API not implemented yet
 2. Message passing failure
 3. Host not handling API call
 
 **Debug:**
+
 - Check if API is in VSCodeAPIShim
 - Verify message passing in console
 - Check host-side API handling

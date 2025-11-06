@@ -326,8 +326,8 @@ function log(level: 'info' | 'warn' | 'error' | 'debug', message: string, ...arg
 /**
  * Error handler
  */
-self.onerror = (event: ErrorEvent | string) => {
-  const errorMessage = typeof event === 'string' ? event : (event.error || event.message);
+self.onerror = (event: Event | string) => {
+  const errorMessage = typeof event === 'string' ? event : ((event as ErrorEvent).error || (event as ErrorEvent).message);
   log('error', 'Unhandled error in worker:', errorMessage);
 };
 

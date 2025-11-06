@@ -56,12 +56,14 @@ public/
 **Purpose:** Core service that initializes Oniguruma WASM and creates the TextMate Registry.
 
 **Key Features:**
+
 - Lazy initialization (only loads when needed)
 - Automatic WASM loading from public directory
 - Grammar registration and loading
 - Error handling and logging
 
 **API:**
+
 ```typescript
 // Initialize the service
 await textMateService.initialize();
@@ -82,12 +84,14 @@ await textMateService.loadGrammarByLanguage('python');
 **Purpose:** Manages the registry of loaded TextMate grammars.
 
 **Key Features:**
+
 - Grammar storage and retrieval
 - Configuration management
 - Disposable pattern for cleanup
 - Language-to-scope mapping
 
 **API:**
+
 ```typescript
 // Get a loaded grammar
 const grammar = grammarRegistry.getGrammar('python');
@@ -104,12 +108,14 @@ grammarRegistry.unloadGrammar('python');
 **Purpose:** Bridges TextMate grammars with Monaco's tokenization system.
 
 **Key Features:**
+
 - Implements Monaco's tokenization interface
 - Supports both encoded and legacy tokenization
 - State management for incremental tokenization
 - Scope-to-token conversion
 
 **API:**
+
 ```typescript
 // Register a language with TextMate tokenization
 await registerTextMateLanguage('python');
@@ -126,12 +132,14 @@ unregisterTextMateLanguage('python');
 **Purpose:** Converts VS Code/TextMate themes to Monaco theme format.
 
 **Key Features:**
+
 - TextMate scope to Monaco token conversion
 - Color normalization (hex format)
 - Theme inheritance support
 - Light/dark theme detection
 
 **API:**
+
 ```typescript
 // Convert and apply a theme
 ThemeConverter.applyTheme('myTheme', vsCodeTheme, 'vs-dark');
@@ -155,6 +163,7 @@ The `loadGrammars` method was updated to:
 5. Handle cleanup on extension unload
 
 **Before:**
+
 ```typescript
 private async loadGrammars(extension, grammars, loadedExtension) {
   console.log(`Extension provides TextMate grammars, but Monaco doesn't support them natively`);
@@ -162,6 +171,7 @@ private async loadGrammars(extension, grammars, loadedExtension) {
 ```
 
 **After:**
+
 ```typescript
 private async loadGrammars(extension, grammars, loadedExtension) {
   const { textMateService, registerTextMateLanguage } = await import('./textmate');
@@ -303,6 +313,7 @@ Both dependencies were already present in `package.json`.
 ### Automated Testing (Future)
 
 Consider adding:
+
 - Unit tests for TextMateService
 - Unit tests for GrammarRegistry
 - Integration tests for Monaco tokenization
@@ -417,6 +428,7 @@ export type {
 **Symptom:** Console error about WASM file not found
 
 **Solution:**
+
 ```bash
 # Ensure WASM file is copied to public directory
 cp node_modules/vscode-oniguruma/release/onig.wasm public/onig.wasm
@@ -427,11 +439,13 @@ cp node_modules/vscode-oniguruma/release/onig.wasm public/onig.wasm
 **Symptom:** Extension installed but no syntax highlighting
 
 **Possible Causes:**
+
 1. Grammar file path is incorrect
 2. Grammar JSON is malformed
 3. Language ID doesn't match
 
 **Debug:**
+
 - Check browser console for errors
 - Verify grammar path in extension manifest
 - Ensure language is registered in Monaco
@@ -441,6 +455,7 @@ cp node_modules/vscode-oniguruma/release/onig.wasm public/onig.wasm
 **Symptom:** Syntax highlighting works but colors are wrong
 
 **Solution:**
+
 - Check theme conversion in ThemeConverter
 - Verify theme scopes match grammar scopes
 - Ensure theme is properly registered with Monaco

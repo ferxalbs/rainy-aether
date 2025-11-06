@@ -21,12 +21,6 @@ function toLSPPosition(position: monaco.Position): { line: number; character: nu
   };
 }
 
-/**
- * Convert LSP position to Monaco position
- */
-function toMonacoPosition(line: number, character: number): monaco.Position {
-  return new monaco.Position(line + 1, character + 1);
-}
 
 /**
  * Convert LSP range to Monaco range
@@ -252,6 +246,7 @@ export function createDocumentSymbolProvider(client: LSPClient): monaco.language
           range: toMonacoRange(symbol.range),
           selectionRange: toMonacoRange(symbol.selectionRange),
           children: symbol.children ? symbol.children.map(convertSymbol) : undefined,
+          tags: [], // Monaco expects tags property
         };
 
         return monacoSymbol;
@@ -280,22 +275,27 @@ export function createSignatureHelpProvider(client: LSPClient): monaco.languages
         return null;
       }
 
-      return {
-        activeSignature: signatureHelp.activeSignature ?? 0,
-        activeParameter: signatureHelp.activeParameter ?? 0,
-        signatures: signatureHelp.signatures.map(sig => ({
-          label: sig.label,
-          documentation: typeof sig.documentation === 'string'
-            ? { value: sig.documentation }
-            : sig.documentation,
-          parameters: sig.parameters?.map(param => ({
-            label: param.label,
-            documentation: typeof param.documentation === 'string'
-              ? { value: param.documentation }
-              : param.documentation,
-          })) || [],
-        })),
+      const result: monaco.languages.SignatureHelpResult = {
+        value: {
+          activeSignature: signatureHelp.activeSignature ?? 0,
+          activeParameter: signatureHelp.activeParameter ?? 0,
+          signatures: signatureHelp.signatures.map(sig => ({
+            label: sig.label,
+            documentation: typeof sig.documentation === 'string'
+              ? { value: sig.documentation }
+              : sig.documentation,
+            parameters: sig.parameters?.map(param => ({
+              label: param.label,
+              documentation: typeof param.documentation === 'string'
+                ? { value: param.documentation }
+                : param.documentation,
+            })) || [],
+          })),
+        },
+        dispose: () => {}, // Required by SignatureHelpResult
       };
+
+      return result;
     },
   };
 }
@@ -389,7 +389,7 @@ export function createRenameProvider(client: LSPClient): monaco.languages.Rename
       }
 
       // Convert workspace edit to resource edits
-      const edits: monaco.languages.WorkspaceFileEdit[] = [];
+      const edits: monaco.languages.IWorkspaceTextEdit[] = [];
 
       if (workspaceEdit.changes) {
         for (const [fileUri, changes] of Object.entries(workspaceEdit.changes)) {
