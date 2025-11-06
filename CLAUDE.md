@@ -4,12 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Rainy Aether (branded as "Rainy Code") is a modern desktop code editor built with **Tauri 2.0** (Rust) and **React** (TypeScript). Recently migrated from CodeMirror 6 to **Monaco Editor** for enhanced editing capabilities. This is an AI-first IDE with ambitious plans for multi-agent orchestration, voice mode, and autonomous development workflows.
+Rainy Aether (branded as "Rainy Code") is a modern desktop code editor built with **Tauri 2.0** (Rust) and **React** (TypeScript). Recently migrated from CodeMirror 6 to **Monaco Editor** for enhanced editing capabilities. This is an AI-first IDE with **LangGraph-powered agent orchestration**, ambitious plans for multi-agent systems, voice mode, and autonomous development workflows.
+
+**Major Update (2025-11-05):** Agent system migrated from Vercel AI SDK to **LangGraph** as the core orchestration framework, providing ReAct agents, conversation memory, and advanced tool integration.
 
 **Key Technologies:**
 
 - Frontend: React 19 + TypeScript, Tailwind CSS v4, Monaco Editor
 - Desktop: Tauri 2.0 with Rust backend
+- **Agent System: LangGraph (LangChain) + ReAct agents** (migrated from AI SDK)
 - Terminal: PTY-backed sessions via `portable-pty`
 - Git: Native integration via `git2` crate
 - State: React stores using `useSyncExternalStore`
@@ -329,6 +332,129 @@ if (updateInfo?.available) {
 
 - `update-status` - Progress updates during check/download/install
 
+## LangGraph Agent System
+
+**✨ NEW** - Replaces Vercel AI SDK as the core agent orchestration framework.
+
+See **`docs/LANGGRAPH_MIGRATION.md`** for comprehensive documentation.
+
+### Architecture
+
+**4-Layer System:**
+
+1. **UI Layer**: AgentView.tsx, ChatInterface.tsx
+2. **Service Layer**: AgentService.ts (branching logic)
+3. **LangGraph Layer**: runner.ts → graphFactory.ts → modelFactory.ts → tools.ts
+4. **Provider/Tool Layer**: LangChain chat models + Tool Registry
+
+### Key Files
+
+```
+src/services/agent/langgraph/
+├── featureFlag.ts      # Feature flag management
+├── types.ts            # TypeScript interfaces
+├── modelFactory.ts     # Multi-provider model factory (Groq, OpenAI, Anthropic, Google, Cerebras)
+├── graphFactory.ts     # ReAct agent creation + MemorySaver
+├── tools.ts            # Tool adapter layer (wraps existing tool registry)
+└── runner.ts           # Entry point (runLangGraphSession)
+```
+
+### Usage
+
+```typescript
+// Enable LangGraph
+import { setLangGraphFeatureFlag } from '@/services/agent/langgraph/featureFlag';
+await setLangGraphFeatureFlag(true);
+
+// Create session (automatically uses LangGraph if enabled)
+const agentService = getAgentService();
+const sessionId = await agentService.createSession({
+  name: 'Test Session',
+  providerId: 'groq',
+  modelId: 'llama-3.3-70b-versatile',
+  systemPrompt: 'You are a helpful coding assistant.',
+});
+
+// Send message
+await agentService.sendMessage({
+  sessionId,
+  content: 'List all TypeScript files',
+  enableTools: true,
+});
+```
+
+### Features
+
+- ✅ **ReAct Agents**: Reasoning loops with tool usage
+- ✅ **Conversation Memory**: MemorySaver for context persistence
+- ✅ **Multi-Provider**: Groq, OpenAI, Anthropic, Google Gemini, Cerebras
+- ✅ **Tool Integration**: All existing tools work seamlessly
+- ✅ **Streaming**: Real-time message and tool progress updates
+- ✅ **Cost Tracking**: Token usage and cost estimation
+- ✅ **Feature Flag**: Gradual rollout with AI SDK fallback
+
+### Feature Flag
+
+**Default:** OFF (opt-in)
+**Storage:** Tauri Store (`agent.langgraph.enabled`)
+**Override:** Environment variable `VITE_AGENT_LANGGRAPH_ENABLED`
+
+```bash
+# Enable via environment
+VITE_AGENT_LANGGRAPH_ENABLED=true pnpm tauri dev
+```
+
+### Migration Status
+
+**Current:** Phase 1 - Internal Testing
+- Both LangGraph and AI SDK paths coexist
+- Feature flag controls which path is used
+- LangGraph OFF by default
+
+**Next:** Phase 2 - Beta Testing (1 week)
+- Enable for beta users
+- Monitor stability and performance
+
+**Future:** Phase 3 - Full Migration (1-2 months)
+- LangGraph ON by default
+- Remove AI SDK dependencies
+
+### Supported Providers
+
+| Provider | Status | Model Factory |
+|----------|--------|---------------|
+| Groq | ✅ Complete | `ChatGroq` |
+| OpenAI | ✅ Complete | `ChatOpenAI` |
+| Anthropic | ✅ Complete | `ChatAnthropic` |
+| Google Gemini | ✅ Complete | `ChatGoogleGenerativeAI` |
+| Cerebras | ✅ Complete | `ChatCerebras` |
+
+### Browser Compatibility
+
+**Node.js Polyfills**: LangGraph uses Node.js APIs (`async_hooks`) that aren't available in browsers/Tauri. We've added polyfills:
+
+- **`src/polyfills/async_hooks.ts`**: AsyncLocalStorage polyfill for context propagation
+- **`vite.config.ts`**: Aliases `async_hooks` and `node:async_hooks` to polyfill
+- **Trade-off**: Works for sequential operations, simplified vs. Node.js's true async isolation
+
+### Troubleshooting
+
+**"AsyncLocalStorage is not a constructor"** → ✅ Fixed with polyfill (restart dev server)
+**"LangGraph is not enabled"** → Enable feature flag
+**"Unsupported provider"** → Check provider ID matches modelFactory
+**Tools not executing** → Verify tool registry and schemas
+**No token usage** → Normal for some providers, falls back to estimation
+
+### Advanced Features (Future)
+
+- Plan-and-Execute agents
+- Human-in-the-loop (via `interruptBefore`)
+- Multi-agent orchestration
+- PostgreSQL checkpointer for production
+- LangSmith integration for debugging
+
+---
+
 ## Code Style & Conventions
 
 ### TypeScript
@@ -484,8 +610,9 @@ The roadmap targets making Rainy Aether the definitive AI-first IDE, combining i
 
 ## Additional Documentation
 
+- **docs/LANGGRAPH_MIGRATION.md**: **NEW** - Complete LangGraph migration guide, architecture, and usage
 - **AGENTS.md**: Comprehensive agent-focused guide with detailed setup checklist
 - **ROADMAP.md**: Feature roadmap with market analysis and timeline
 - **MONACO_NAVIGATION_FEATURES.md**: Detailed Monaco editor integration documentation
 - **README.md**: Information about the project, installation, and usage
-- **LSP.md**: Language Server Protocol integration details.
+- **LSP.md**: Language Server Protocol integration details

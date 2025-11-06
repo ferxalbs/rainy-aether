@@ -16,6 +16,9 @@ import { getToolRegistry } from './tools/registry';
 import { initializeToolSystem } from './tools';
 import type { ToolDefinition as AgentToolDefinition } from './providers/base';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { canUseLangGraph, runLangGraphSession } from './langgraph/runner';
+import type { LangGraphToolUpdate } from './langgraph/types';
+import { AIMessage } from '@langchain/core/messages';
 
 // ============================================================================
 // TYPES
@@ -116,16 +119,36 @@ export class AgentService {
         throw new Error('Session not found');
       }
 
-      // Get provider
-      const provider = this.providerManager.getProvider(session.providerId);
-      if (!provider) {
-        throw new Error(`Provider not found: ${session.providerId}`);
-      }
-
       // Get API key (using synchronous localStorage method)
       const apiKey = this.credentialService.getApiKey(session.providerId);
       if (!apiKey) {
         throw new Error(`No API key found for provider: ${session.providerId}`);
+      }
+
+      // ==========================================================================
+      // LANGGRAPH PATH (NEW)
+      // ==========================================================================
+      if (canUseLangGraph()) {
+        return await this.sendMessageWithLangGraph({
+          sessionId,
+          content,
+          onToken,
+          onComplete,
+          onError,
+          onToolCall,
+          enableTools,
+          workspaceRoot,
+        });
+      }
+
+      // ==========================================================================
+      // AI SDK PATH (LEGACY - TO BE DEPRECATED)
+      // ==========================================================================
+
+      // Get provider
+      const provider = this.providerManager.getProvider(session.providerId);
+      if (!provider) {
+        throw new Error(`Provider not found: ${session.providerId}`);
       }
 
       // Validate model
@@ -467,6 +490,181 @@ export class AgentService {
         parameters,
       };
     });
+  }
+
+  /**
+   * Send message using LangGraph (new path)
+   */
+  private async sendMessageWithLangGraph(options: SendMessageOptions): Promise<void> {
+    const {
+      sessionId,
+      content,
+      onToken,
+      onComplete,
+      onError,
+      workspaceRoot,
+    } = options;
+    const startTime = Date.now();
+
+    try {
+      const session = agentActions.getSession(sessionId);
+      if (!session) {
+        throw new Error('Session not found');
+      }
+
+      const apiKey = this.credentialService.getApiKey(session.providerId);
+      if (!apiKey) {
+        throw new Error(`No API key found for provider: ${session.providerId}`);
+      }
+
+      // Add user message
+      const userMessageId = agentActions.addMessage(sessionId, {
+        role: 'user',
+        content,
+      });
+
+      // Create assistant message placeholder
+      const assistantMessageId = agentActions.addMessage(sessionId, {
+        role: 'assistant',
+        content: '',
+      });
+
+      // Set streaming state
+      agentActions.setStreaming(sessionId, true, assistantMessageId);
+
+      let assistantContent = '';
+      let promptTokens = 0;
+      let completionTokens = 0;
+
+      try {
+        // Run LangGraph session
+        const { stream } = await runLangGraphSession({
+          session,
+          apiKey,
+          userMessage: content,
+          config: {
+            sessionId,
+            threadId: sessionId, // Use sessionId as threadId for persistence
+            workspaceRoot,
+            userId: 'default-user',
+          },
+          onToolUpdate: (update: LangGraphToolUpdate) => {
+            // Handle tool progress updates
+            const currentContent = assistantContent || '';
+            let statusText = `\n\n**Tool: ${update.toolName}**\n`;
+            statusText += `Status: ${update.status}\n`;
+            if (update.message) {
+              statusText += `${update.message}\n`;
+            }
+            if (update.progress !== undefined) {
+              statusText += `Progress: ${update.progress}%\n`;
+            }
+
+            if (!currentContent.includes(`**Tool: ${update.toolName}**`)) {
+              assistantContent += statusText;
+              agentActions.updateMessageContent(sessionId, assistantMessageId, assistantContent);
+            }
+          },
+        });
+
+        // Process stream events
+        for await (const chunk of stream) {
+          // chunk is an array of stream events from different modes
+          for (const [nodeName, nodeOutput] of Object.entries(chunk)) {
+            // Skip the agent node itself
+            if (nodeName === '__end__' || nodeName === 'agent') {
+              continue;
+            }
+
+            // Handle messages from the graph
+            if (nodeOutput && typeof nodeOutput === 'object' && 'messages' in nodeOutput) {
+              const messages = (nodeOutput as any).messages;
+              if (Array.isArray(messages)) {
+                for (const msg of messages) {
+                  if (msg instanceof AIMessage) {
+                    // Stream AI message content
+                    if (msg.content) {
+                      const newContent = String(msg.content);
+                      // Only append if it's new content
+                      if (!assistantContent.includes(newContent)) {
+                        assistantContent = newContent;
+                        agentActions.updateMessageContent(sessionId, assistantMessageId, assistantContent);
+                        onToken?.(newContent);
+                      }
+                    }
+
+                    // Extract token usage if available
+                    if (msg.response_metadata) {
+                      const metadata = msg.response_metadata as any;
+                      if (metadata.tokenUsage) {
+                        promptTokens = metadata.tokenUsage.promptTokens || 0;
+                        completionTokens = metadata.tokenUsage.completionTokens || 0;
+                      } else if (metadata.usage) {
+                        promptTokens = metadata.usage.prompt_tokens || 0;
+                        completionTokens = metadata.usage.completion_tokens || 0;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Calculate cost (estimation)
+        const provider = this.providerManager.getProvider(session.providerId);
+        const model = provider?.getModel(session.modelId);
+        let cost: number | undefined;
+        if (model && promptTokens > 0) {
+          const calculatedCost = calculateCost(model, { promptTokens, completionTokens });
+          cost = calculatedCost !== null ? calculatedCost : undefined;
+        }
+
+        // Update message metadata
+        agentActions.updateMessageMetadata(sessionId, assistantMessageId, {
+          tokens: completionTokens,
+          cost: cost || undefined,
+          metadata: {
+            usage: { promptTokens, completionTokens },
+            langgraph: true,
+          },
+        });
+
+        // Update user message with prompt tokens
+        agentActions.updateMessageMetadata(sessionId, userMessageId, {
+          tokens: promptTokens,
+        });
+
+        // Record response time
+        const responseTime = Date.now() - startTime;
+        this.recordResponseTime(responseTime);
+
+        // Clear streaming state
+        agentActions.setStreaming(sessionId, false, null);
+
+        // Get final message
+        const finalMessage = agentActions.getSession(sessionId)?.messages.find(
+          (m) => m.id === assistantMessageId
+        );
+
+        if (finalMessage) {
+          onComplete?.(finalMessage);
+        }
+      } catch (error) {
+        // Clear streaming state on error
+        agentActions.setStreaming(sessionId, false, null);
+
+        // Remove incomplete assistant message
+        await agentActions.deleteMessage(sessionId, assistantMessageId);
+
+        throw error;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      agentActions.setError(errorMessage);
+      onError?.(error instanceof Error ? error : new Error(errorMessage));
+      throw error;
+    }
   }
 
   /**

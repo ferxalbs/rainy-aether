@@ -1,5 +1,6 @@
 import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { MemorySaver } from '@langchain/langgraph';
 
 import type { AgentSession, Message } from '@/stores/agentStore';
 
@@ -27,6 +28,9 @@ function toLangChainMessages(history: Message[]): (HumanMessage | AIMessage | Sy
   });
 }
 
+// Create a shared checkpointer instance for memory persistence
+const checkpointer = new MemorySaver();
+
 export function buildLangGraphAgent(options: BuildLangGraphAgentOptions) {
   const { session, newUserMessage, apiKey, config } = options;
 
@@ -39,12 +43,18 @@ export function buildLangGraphAgent(options: BuildLangGraphAgentOptions) {
 
   const tools = buildLangGraphTools(options.onToolUpdate);
 
+  // Add system message if present
+  const systemMessage = session.messages.find((m) => m.role === 'system');
+  const stateModifier = systemMessage ? new SystemMessage(systemMessage.content) : undefined;
+
   const agent = createReactAgent({
     llm: model,
     tools,
+    checkpointSaver: checkpointer,
+    ...(stateModifier && { stateModifier }),
   });
 
-  const history = toLangChainMessages(session.messages);
+  const history = toLangChainMessages(session.messages.filter((m) => m.role !== 'system'));
   const inputs = {
     messages: [...history, new HumanMessage(newUserMessage)],
   };
@@ -53,8 +63,8 @@ export function buildLangGraphAgent(options: BuildLangGraphAgentOptions) {
 
   const streamConfig = {
     configurable: {
+      thread_id: config.threadId, // LangGraph standard key
       sessionId: config.sessionId,
-      threadId: config.threadId,
       workspaceRoot: config.workspaceRoot,
       userId: config.userId,
       messages: session.messages,

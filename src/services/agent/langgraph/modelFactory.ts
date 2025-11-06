@@ -1,4 +1,8 @@
 import { ChatGroq } from '@langchain/groq';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatCerebras } from '@langchain/cerebras';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 import type { AgentConfig } from '@/stores/agentStore';
@@ -31,6 +35,10 @@ function applyCommonSamplingConfig(config: AgentConfig) {
   return sampling;
 }
 
+/**
+ * Create a LangChain chat model based on provider configuration
+ * Supports: Groq, OpenAI, Anthropic, Google Gemini, Cerebras
+ */
 export function createLangGraphChatModel(options: LangGraphModelFactoryOptions): BaseChatModel {
   const { providerId, modelId, apiKey, config } = options;
   const validatedKey = ensureApiKey(apiKey, providerId);
@@ -44,6 +52,39 @@ export function createLangGraphChatModel(options: LangGraphModelFactoryOptions):
         ...samplingConfig,
       });
     }
+
+    case 'openai': {
+      return new ChatOpenAI({
+        model: modelId,
+        apiKey: validatedKey,
+        ...samplingConfig,
+      });
+    }
+
+    case 'anthropic': {
+      return new ChatAnthropic({
+        model: modelId,
+        apiKey: validatedKey,
+        ...samplingConfig,
+      });
+    }
+
+    case 'google': {
+      return new ChatGoogleGenerativeAI({
+        model: modelId,
+        apiKey: validatedKey,
+        ...samplingConfig,
+      });
+    }
+
+    case 'cerebras': {
+      return new ChatCerebras({
+        model: modelId,
+        apiKey: validatedKey,
+        ...samplingConfig,
+      });
+    }
+
     default: {
       throw new Error(`Unsupported LangGraph provider: ${providerId}`);
     }
