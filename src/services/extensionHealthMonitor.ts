@@ -1,5 +1,4 @@
 import { EventEmitter } from '../utils/EventEmitter';
-import { InstalledExtension } from '../types/extension';
 
 interface ExtensionHealth {
   id: string;
@@ -11,7 +10,7 @@ interface ExtensionHealth {
   healthScore: number;
 }
 
-interface HealthMonitorEvents {
+interface HealthMonitorEvents extends Record<string, (...args: any[]) => void> {
   'health:degraded': (extensionId: string, health: ExtensionHealth) => void;
   'health:critical': (extensionId: string, health: ExtensionHealth) => void;
   'health:recovered': (extensionId: string, health: ExtensionHealth) => void;

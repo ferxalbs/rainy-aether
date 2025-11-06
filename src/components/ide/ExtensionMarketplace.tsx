@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Star, AlertTriangle, CheckCircle, XCircle, Shield, TrendingUp, Download } from 'lucide-react';
+import { Search, Star, AlertTriangle, CheckCircle, XCircle, Shield, Download } from 'lucide-react';
 import { useExtensionStore, useMarketplaceSearch, useExtensionInstallation } from '../../stores/extensionStore';
 import { OpenVSXExtension } from '../../types/extension';
 import { openVSXRegistry } from '../../services/openVSXRegistry';
@@ -46,7 +46,13 @@ const ExtensionMarketplace: React.FC<ExtensionMarketplaceProps> = ({ isOpen, onC
   };
 
   const isExtensionInstalled = (publisher: string, name: string): boolean => {
-    return installedExtensions.some(ext => ext.publisher === publisher && ext.name === name);
+    const extension = installedExtensions.find(ext => ext.publisher === publisher && ext.name === name);
+    // Only consider extension as "installed" if it's in a valid installed state
+    // Exclude error, installing, and uninstalling states
+    if (!extension) return false;
+
+    const validInstalledStates: Array<string> = ['installed', 'enabled', 'disabled', 'enabling', 'disabling'];
+    return validInstalledStates.includes(extension.state);
   };
 
   const getExtensionState = (publisher: string, name: string) => {
@@ -219,7 +225,9 @@ const ExtensionCard: React.FC<ExtensionCardProps> = ({
           <div className="flex items-center gap-2">
             <h3 className="font-medium text-sm truncate">{extension.displayName}</h3>
             {!compatibility.isCompatible && (
-              <AlertTriangle className="w-3 h-3 text-destructive flex-shrink-0" title="Compatibility issues detected" />
+              <span title="Compatibility issues detected">
+                <AlertTriangle className="w-3 h-3 text-destructive flex-shrink-0" />
+              </span>
             )}
           </div>
           <p className="text-xs text-muted-foreground truncate">

@@ -88,7 +88,44 @@ export class OpenVSXRegistryService {
         return [];
       }
 
-      const results = data.results[0].extensions || [];
+      const rawResults = data.results[0].extensions || [];
+
+      // Validate and filter extensions with proper data
+      const results = rawResults.filter((ext): ext is OpenVSXExtension => {
+        // Validate required fields
+        if (!ext || typeof ext !== 'object') {
+          console.warn('Invalid extension data (not an object):', ext);
+          return false;
+        }
+
+        if (!ext.name || typeof ext.name !== 'string') {
+          console.warn('Extension missing valid name:', ext);
+          return false;
+        }
+
+        if (!ext.publisher || typeof ext.publisher !== 'object') {
+          console.warn('Extension missing valid publisher:', ext);
+          return false;
+        }
+
+        if (!ext.publisher.name || typeof ext.publisher.name !== 'string') {
+          console.warn('Extension publisher missing valid name:', ext);
+          return false;
+        }
+
+        if (!ext.version || typeof ext.version !== 'string') {
+          console.warn('Extension missing valid version:', ext);
+          return false;
+        }
+
+        // All required fields are present
+        return true;
+      });
+
+      // Log if we filtered out any invalid extensions
+      if (results.length < rawResults.length) {
+        console.warn(`Filtered out ${rawResults.length - results.length} invalid extensions from search results`);
+      }
 
       // Cache the results
       this.searchCache.set(cacheKey, {

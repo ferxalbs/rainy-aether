@@ -16,6 +16,8 @@ export class ExtensionManager extends EventEmitter {
   private isInitialized = false;
   private cleanupTimer?: NodeJS.Timeout;
   private readonly cleanupInterval = 60 * 1000; // 1 minute
+  private installationTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private readonly installationTimeout = 5 * 60 * 1000; // 5 minutes max for installation
 
   constructor() {
     super();
@@ -101,23 +103,47 @@ export class ExtensionManager extends EventEmitter {
       this.emit('extension:installing', installedExtension);
       this.saveInstalledExtensions();
 
-      // Download and extract extension
-      await this.downloadAndExtractExtension(extension, version, installedExtension);
+      // Set up installation timeout to prevent stuck states
+      const timeoutId = setTimeout(() => {
+        console.error(`Installation timeout for extension ${id}`);
+        const ext = this.extensions.get(id);
+        if (ext && ext.state === 'installing') {
+          ext.state = 'error';
+          ext.error = 'Installation timeout - took longer than 5 minutes';
+          extensionHealthMonitor.recordFailure(id, 'Installation timeout');
+          this.emit('extension:error', ext, 'Installation timeout');
+          this.saveInstalledExtensions();
+        }
+      }, this.installationTimeout);
 
-      // Install dependencies if any
-      if (installedExtension.dependencies && installedExtension.dependencies.length > 0) {
-        await this.installDependencies(installedExtension);
+      this.installationTimeouts.set(id, timeoutId);
+
+      try {
+        // Download and extract extension
+        await this.downloadAndExtractExtension(extension, version, installedExtension);
+
+        // Install dependencies if any
+        if (installedExtension.dependencies && installedExtension.dependencies.length > 0) {
+          await this.installDependencies(installedExtension);
+        }
+
+        // Clear timeout on success
+        this.clearInstallationTimeout(id);
+
+        // Mark as installed
+        installedExtension.state = 'installed';
+        this.emit('extension:installed', installedExtension);
+        this.saveInstalledExtensions();
+
+        // Record successful installation in health monitor
+        extensionHealthMonitor.recordSuccess(id);
+
+        return installedExtension;
+      } catch (installError) {
+        // Clear timeout on error
+        this.clearInstallationTimeout(id);
+        throw installError;
       }
-
-      // Mark as installed
-      installedExtension.state = 'installed';
-      this.emit('extension:installed', installedExtension);
-      this.saveInstalledExtensions();
-
-      // Record successful installation in health monitor
-      extensionHealthMonitor.recordSuccess(id);
-
-      return installedExtension;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
@@ -237,7 +263,7 @@ export class ExtensionManager extends EventEmitter {
   /**
    * Uninstall an extension
    */
-  async uninstallExtension(id: string): Promise<void> {
+  async uninstallExtension(id: string, force: boolean = false): Promise<void> {
     await this.ensureInitialized();
     const extension = this.extensions.get(id);
     if (!extension) {
@@ -245,9 +271,19 @@ export class ExtensionManager extends EventEmitter {
     }
 
     try {
-      // Disable first if enabled
-      if (extension.state === 'enabled') {
-        await this.disableExtension(id);
+      // Disable first if enabled (skip if forcing uninstall)
+      if (extension.state === 'enabled' && !force) {
+        try {
+          await this.disableExtension(id);
+        } catch (error) {
+          console.warn(`Failed to disable extension ${id} during uninstall, continuing anyway:`, error);
+          // Continue with uninstall even if disable fails
+        }
+      }
+
+      // If extension is in a stuck state (installing, error), allow force removal
+      if (force || extension.state === 'error' || extension.state === 'installing') {
+        console.log(`Force uninstalling extension ${id} in state: ${extension.state}`);
       }
 
       extension.state = 'uninstalling';
@@ -255,17 +291,25 @@ export class ExtensionManager extends EventEmitter {
       this.saveInstalledExtensions();
 
       // Remove extension files
-      await this.removeExtensionFiles(extension);
+      try {
+        await this.removeExtensionFiles(extension);
+      } catch (error) {
+        console.warn(`Failed to remove extension files for ${id}:`, error);
+        // Continue with uninstall even if file removal fails
+      }
 
       // Remove from installed extensions
       this.extensions.delete(id);
       this.emit('extension:uninstalled', extension);
       this.saveInstalledExtensions();
+
+      // Reset health monitor for this extension
+      extensionHealthMonitor.reset(id);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       if (extension) {
         extension.state = 'error';
-        extension.error = errorMessage;
+        extension.error = `Uninstall failed: ${errorMessage}`;
         this.emit('extension:error', extension, errorMessage);
         this.saveInstalledExtensions();
       }
@@ -405,7 +449,28 @@ export class ExtensionManager extends EventEmitter {
       const installed = JSON.parse(installedData) as InstalledExtension[];
 
       for (const ext of installed) {
+        // Auto-recover from stuck states on load
+        if (ext.state === 'installing' || ext.state === 'uninstalling') {
+          console.warn(`Extension ${ext.id} was in "${ext.state}" state - marking as error`);
+          ext.state = 'error';
+          ext.error = `Extension was stuck in "${ext.state}" state. You can safely uninstall it.`;
+        }
+
+        // Reset transient states to stable states
+        if (ext.state === 'enabling') {
+          ext.state = 'disabled';
+          ext.enabled = false;
+        } else if (ext.state === 'disabling') {
+          ext.state = 'enabled';
+          ext.enabled = true;
+        }
+
         this.extensions.set(ext.id, ext);
+      }
+
+      // Save the recovered state
+      if (installed.length > 0) {
+        await this.saveInstalledExtensions();
       }
     } catch (error) {
       console.warn('Failed to load installed extensions:', error);
@@ -581,6 +646,23 @@ export class ExtensionManager extends EventEmitter {
   async cleanup(): Promise<void> {
     this.stopPeriodicCleanup();
     extensionHealthMonitor.stopMonitoring();
+
+    // Clear all installation timeouts
+    for (const [id, timeoutId] of this.installationTimeouts.entries()) {
+      clearTimeout(timeoutId);
+      this.installationTimeouts.delete(id);
+    }
+  }
+
+  /**
+   * Clear installation timeout for a specific extension
+   */
+  private clearInstallationTimeout(id: string): void {
+    const timeoutId = this.installationTimeouts.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      this.installationTimeouts.delete(id);
+    }
   }
 }
 

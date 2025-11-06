@@ -2,14 +2,21 @@
  * Browser-compatible EventEmitter implementation
  * Replaces Node.js EventEmitter for browser environments
  */
-export class EventEmitter {
-  private events: Map<string, Array<(...args: any[]) => void>>;
+
+// Type for event listener function
+type EventListener = (...args: any[]) => void;
+
+// Extract event names from event map
+type EventKey<T> = string & keyof T;
+
+export class EventEmitter<EventMap extends Record<string, EventListener> = Record<string, EventListener>> {
+  private events: Map<string, Array<EventListener>>;
 
   constructor() {
     this.events = new Map();
   }
 
-  on(event: string, listener: (...args: any[]) => void): this {
+  on<K extends EventKey<EventMap>>(event: K, listener: EventMap[K]): this {
     if (!this.events.has(event)) {
       this.events.set(event, []);
     }
@@ -17,7 +24,7 @@ export class EventEmitter {
     return this;
   }
 
-  off(event: string, listener: (...args: any[]) => void): this {
+  off<K extends EventKey<EventMap>>(event: K, listener: EventMap[K]): this {
     if (!this.events.has(event)) {
       return this;
     }
@@ -35,7 +42,7 @@ export class EventEmitter {
     return this;
   }
 
-  emit(event: string, ...args: any[]): boolean {
+  emit<K extends EventKey<EventMap>>(event: K, ...args: Parameters<EventMap[K]>): boolean {
     if (!this.events.has(event)) {
       return false;
     }
@@ -65,7 +72,7 @@ export class EventEmitter {
     return this.events.get(event)?.length ?? 0;
   }
 
-  listeners(event: string): Array<(...args: any[]) => void> {
+  listeners(event: string): Array<EventListener> {
     return this.events.get(event)?.slice() ?? [];
   }
 }

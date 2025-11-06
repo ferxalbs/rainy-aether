@@ -40,23 +40,73 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
     }
   };
 
-  const handleUninstallExtension = async (extension: InstalledExtension) => {
-    if (!confirm(`Are you sure you want to uninstall ${extension.displayName}?`)) {
+  const handleUninstallExtension = async (extension: InstalledExtension, forceDelete: boolean = false) => {
+    // Determine if this is a stuck extension that needs force deletion
+    const isStuck = extension.state === 'error' || extension.state === 'installing';
+    const shouldForce = forceDelete || isStuck;
+
+    let confirmMessage = `Are you sure you want to uninstall ${extension.displayName}?`;
+    if (isStuck && !forceDelete) {
+      confirmMessage = `Extension "${extension.displayName}" appears to be in an error state. Force uninstall?`;
+    }
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
     try {
-      await uninstallExtension(extension.id);
+      await uninstallExtension(extension.id, shouldForce);
       // Refresh health report
       setHealthReport(extensionManager.getHealthReport());
     } catch (error) {
       console.error('Failed to uninstall extension:', error);
+
+      // If uninstall failed and not already forcing, offer to force delete
+      if (!shouldForce) {
+        const forceConfirm = confirm(
+          `Normal uninstall failed. Force delete "${extension.displayName}"? This will remove all traces of the extension.`
+        );
+        if (forceConfirm) {
+          await handleUninstallExtension(extension, true);
+        }
+      }
     }
   };
 
   const handleRefresh = () => {
     refreshExtensions();
     setHealthReport(extensionManager.getHealthReport());
+  };
+
+  const handleCleanupAll = async () => {
+    // Find all extensions in error or stuck states
+    const stuckExtensions = installedExtensions.filter(
+      ext => ext.state === 'error' || ext.state === 'installing'
+    );
+
+    if (stuckExtensions.length === 0) {
+      alert('No extensions require cleanup.');
+      return;
+    }
+
+    const confirmMessage = `Found ${stuckExtensions.length} extension(s) in error/stuck state:\n\n${stuckExtensions.map(e => `• ${e.displayName}`).join('\n')}\n\nRemove all these extensions?`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // Uninstall all stuck extensions
+    for (const ext of stuckExtensions) {
+      try {
+        await uninstallExtension(ext.id, true);
+      } catch (error) {
+        console.error(`Failed to cleanup extension ${ext.id}:`, error);
+      }
+    }
+
+    // Refresh after cleanup
+    handleRefresh();
+    alert(`Cleanup complete. Removed ${stuckExtensions.length} extension(s).`);
   };
 
   const getStatusIcon = (extension: InstalledExtension) => {
@@ -103,6 +153,15 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold">Extension Manager</h2>
             <div className="flex items-center gap-2">
+              {installedExtensions.some(ext => ext.state === 'error' || ext.state === 'installing') && (
+                <button
+                  onClick={handleCleanupAll}
+                  className="px-3 py-1.5 text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 rounded transition-colors"
+                  title="Remove all extensions in error/stuck state"
+                >
+                  Clean Up All
+                </button>
+              )}
               <button
                 onClick={handleRefresh}
                 className="p-1.5 hover:bg-muted rounded transition-colors"
@@ -231,7 +290,9 @@ const ExtensionItem: React.FC<ExtensionItemProps> = ({
   statusText
 }) => {
   const canToggle = extension.state === 'enabled' || extension.state === 'disabled' || extension.state === 'installed';
-  const canUninstall = extension.state === 'enabled' || extension.state === 'disabled' || extension.state === 'installed';
+  // Always allow uninstalling, even in error/stuck states
+  const canUninstall = true;
+  const isStuckOrError = extension.state === 'error' || extension.state === 'installing';
 
   // Get health information
   const health = extensionManager.getExtensionHealth(extension.id);
@@ -244,7 +305,10 @@ const ExtensionItem: React.FC<ExtensionItemProps> = ({
   };
 
   return (
-    <div className="p-4 hover:bg-muted/50 transition-colors">
+    <div className={cn(
+      "p-4 hover:bg-muted/50 transition-colors",
+      isStuckOrError && "border-l-2 border-l-destructive"
+    )}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="flex-shrink-0">
@@ -254,7 +318,12 @@ const ExtensionItem: React.FC<ExtensionItemProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="font-medium text-sm truncate">{extension.displayName}</h3>
-              {health && health.healthScore < 100 && (
+              {isStuckOrError && (
+                <span className="px-1.5 py-0.5 text-xs bg-destructive/10 text-destructive rounded">
+                  Action Required
+                </span>
+              )}
+              {health && health.healthScore < 100 && !isStuckOrError && (
                 <div className="flex items-center gap-1" title={`Health Score: ${health.healthScore}%`}>
                   <div className={cn("w-1.5 h-1.5 rounded-full", getHealthColor())}></div>
                   <span className="text-xs text-muted-foreground">{health.healthScore}%</span>

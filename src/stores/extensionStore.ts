@@ -20,7 +20,7 @@ interface ExtensionStoreActions {
 
   // Installation actions
   installExtension: (publisher: string, name: string, version?: string) => Promise<void>;
-  uninstallExtension: (id: string) => Promise<void>;
+  uninstallExtension: (id: string, force?: boolean) => Promise<void>;
   enableExtension: (id: string) => Promise<void>;
   disableExtension: (id: string) => Promise<void>;
 
@@ -209,9 +209,9 @@ const storeActions: ExtensionStoreActions = {
     }
   },
 
-  async uninstallExtension(id: string) {
+  async uninstallExtension(id: string, force: boolean = false) {
     try {
-      await extensionManager.uninstallExtension(id);
+      await extensionManager.uninstallExtension(id, force);
     } catch (error) {
       console.error('Failed to uninstall extension:', error);
       throw error;
