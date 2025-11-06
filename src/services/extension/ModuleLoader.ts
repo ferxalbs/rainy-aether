@@ -301,6 +301,8 @@ export class ModuleLoader {
       'child_process',
       'process',
       'timers',
+      'vscode-languageclient', // VS Code language client shim
+      'vscode-jsonrpc', // JSON-RPC protocol
     ];
 
     return builtInModules.includes(id);
@@ -350,6 +352,14 @@ export class ModuleLoader {
         throw new Error(
           'crypto module is not supported in browser environment. Use Web Crypto API instead.'
         );
+
+      case 'vscode-languageclient':
+        // Dynamically import the shim to avoid circular dependencies
+        return this.getVSCodeLanguageClientShim();
+
+      case 'vscode-jsonrpc':
+        // Provide JSON-RPC shim
+        return this.getVSCodeJsonRpcShim();
 
       default:
         throw new Error(`Built-in module '${id}' is not supported`);
@@ -510,6 +520,39 @@ export class ModuleLoader {
       cwd: () => '/',
       nextTick: (callback: Function, ...args: any[]) => {
         setTimeout(() => callback(...args), 0);
+      },
+    };
+  }
+
+  /**
+   * VS Code Language Client shim
+   */
+  private getVSCodeLanguageClientShim(): any {
+    // Dynamically import to avoid circular dependencies
+    // This will be resolved at runtime
+    return import('./vscode-languageclient-shim').then(
+      (module) => module.vscodeLanguageClient
+    );
+  }
+
+  /**
+   * VS Code JSON-RPC shim
+   */
+  private getVSCodeJsonRpcShim(): any {
+    // Basic JSON-RPC exports that extensions might need
+    return {
+      MessageType: {
+        Error: 1,
+        Warning: 2,
+        Info: 3,
+        Log: 4,
+      },
+      ErrorCodes: {
+        ParseError: -32700,
+        InvalidRequest: -32600,
+        MethodNotFound: -32601,
+        InvalidParams: -32602,
+        InternalError: -32603,
       },
     };
   }
