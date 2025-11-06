@@ -26,6 +26,7 @@
 The Rainy Aether extension system is currently **partially functional**. Users can browse, download, and install extensions from Open VSX, but **extensions do not actually execute or provide functionality** in the editor. This document outlines the path to full VS Code extension compatibility.
 
 ### Current Capabilities
+
 - ✅ Extension marketplace browsing and search
 - ✅ Extension download and installation
 - ✅ Extension lifecycle management (install/uninstall/enable/disable)
@@ -33,6 +34,7 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 - ✅ Robust error handling and state recovery
 
 ### Missing Capabilities
+
 - ❌ Extension code execution
 - ❌ Language Server Protocol (LSP) integration
 - ❌ TextMate grammar syntax highlighting
@@ -47,9 +49,11 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 ### What's Working
 
 #### 1. Extension Infrastructure (100%)
+
 **Location:** `src/services/extensionManager.ts`, `src-tauri/src/extension_manager.rs`
 
 **Capabilities:**
+
 - Full extension lifecycle management
 - Installation timeout protection (5 minutes)
 - Auto-recovery from stuck states on restart
@@ -59,14 +63,17 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 - Persistent storage with JSON serialization
 
 **Security:**
+
 - All file operations restricted to `extensions/` folder
 - Path validation and sanitization
 - Safe VSIX extraction with error handling
 
 #### 2. Open VSX Integration (100%)
+
 **Location:** `src/services/openVSXRegistry.ts`
 
 **Capabilities:**
+
 - Native Open VSX API integration
 - Extension search with filtering and pagination
 - Complete extension metadata retrieval
@@ -76,14 +83,17 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 - Retry logic with exponential backoff
 
 **API Endpoints:**
+
 - Search: `https://open-vsx.org/api/-/search`
 - Download: `https://open-vsx.org/vscode/asset/{publisher}/{name}/{version}`
 - Manifest: `https://open-vsx.org/vscode/unpkg/{publisher}/{name}/{version}`
 
 #### 3. UI/UX (100%)
+
 **Location:** `src/components/ide/ExtensionMarketplace.tsx`, `src/components/ide/ExtensionManager.tsx`
 
 **Features:**
+
 - Extension marketplace with grid layout
 - Real-time search with 300ms debounce
 - Category filtering
@@ -94,9 +104,11 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 - Visual indicators for stuck/error states
 
 #### 4. Monaco Extension Host (30%)
+
 **Location:** `src/services/monacoExtensionHost.ts`
 
 **Implemented:**
+
 - Extension loading infrastructure
 - Language registration (file extensions, MIME types)
 - Language configuration (brackets, comments, indentation)
@@ -105,6 +117,7 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 - Disposable resource management
 
 **Not Implemented:**
+
 - TextMate grammar loading
 - Extension code execution
 - VS Code API shims
@@ -115,11 +128,13 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 ### What's NOT Working
 
 #### 1. Language Intelligence (0%)
+
 **Impact:** HIGH - This is the core value proposition of extensions
 
 **Missing Components:**
 
 **a) Language Server Protocol (LSP) Client**
+
 - No LSP client implementation
 - No WebSocket or Worker-based communication
 - No message routing (request/response/notification)
@@ -127,6 +142,7 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 - No LSP feature providers for Monaco
 
 **Required for:**
+
 - IntelliSense / Auto-completion
 - Go to Definition / Peek Definition
 - Find All References / Find Implementations
@@ -137,6 +153,7 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 - Diagnostics (errors, warnings)
 
 **Popular Extensions That Won't Work:**
+
 - `ms-python.python` (Python IntelliSense)
 - `rust-lang.rust-analyzer` (Rust IntelliSense)
 - `golang.go` (Go IntelliSense)
@@ -144,26 +161,31 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 - `ms-vscode.cpptools` (C++ IntelliSense)
 
 #### 2. Syntax Highlighting (0%)
+
 **Impact:** HIGH - Makes code unreadable without colors
 
 **Problem:** Monaco doesn't support TextMate grammars natively.
 
 **Technical Details:**
+
 - VS Code extensions use TextMate grammars (`.tmLanguage.json`)
 - TextMate uses Oniguruma regular expressions (WASM required)
 - Monaco uses Monarch tokenizers (different format)
 - No automatic conversion exists
 
 **Required Libraries:**
+
 - `vscode-textmate` - TextMate grammar parser
 - `vscode-oniguruma` - WASM Oniguruma regex engine
 - Integration with Monaco's tokenization system
 
 **Example Extensions:**
+
 - Any language extension provides TextMate grammars
 - `zhuangtongfa.material-theme` (depends on grammar tokens)
 
 #### 3. Extension Code Execution (0%)
+
 **Impact:** HIGH - Prevents any dynamic functionality
 
 **Problem:** Extensions have a `main` entry point (JavaScript/TypeScript) that needs to run.
@@ -171,31 +193,37 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 **Technical Challenges:**
 
 **a) Security Sandbox**
+
 - Extensions are untrusted code
 - Need Web Worker isolation
 - File system access must be controlled
 - Network access must be limited
 
 **b) VS Code API Compatibility**
+
 - Extensions expect `vscode` module to exist
 - Need to implement ~200 API endpoints
 - API surface is massive and complex
 
 **c) Module System**
+
 - Extensions use CommonJS (`require()`)
 - Need module loader (like SystemJS)
 - Need to resolve dependencies
 - Handle circular dependencies
 
 **d) Activation Events**
+
 - Extensions activate on specific triggers
 - Need to parse `activationEvents` from manifest
 - Implement event system to trigger activation
 
 #### 4. Command System (0%)
+
 **Impact:** MEDIUM - Prevents user interaction with extensions
 
 **Missing:**
+
 - Command registry (keybinding -> function)
 - Command palette integration
 - Context menu integration
@@ -203,6 +231,7 @@ The Rainy Aether extension system is currently **partially functional**. Users c
 - When-clause evaluation (command enablement)
 
 **Example:**
+
 ```typescript
 vscode.commands.registerCommand('extension.helloWorld', () => {
   vscode.window.showInformationMessage('Hello World!');
@@ -210,9 +239,11 @@ vscode.commands.registerCommand('extension.helloWorld', () => {
 ```
 
 #### 5. Debug Adapter Protocol (0%)
+
 **Impact:** MEDIUM - No debugging support
 
 **Missing:**
+
 - DAP client implementation
 - Debug session management
 - Breakpoint synchronization
@@ -333,6 +364,7 @@ vscode.commands.registerCommand('extension.helloWorld', () => {
 #### Tasks
 
 1. **Add TextMate Dependencies** (1 day)
+
    ```bash
    pnpm add vscode-textmate vscode-oniguruma
    ```
@@ -366,12 +398,14 @@ vscode.commands.registerCommand('extension.helloWorld', () => {
    - Test theme compatibility
 
 #### Success Criteria
+
 - ✅ 50+ languages have syntax highlighting
 - ✅ Themes display colors correctly
 - ✅ Performance: <100ms grammar load time
 - ✅ No console errors during tokenization
 
 #### Files to Create
+
 ```
 src/services/textmate/
 ├── TextMateService.ts
@@ -381,6 +415,7 @@ src/services/textmate/
 ```
 
 #### Code Example
+
 ```typescript
 // TextMateService.ts
 import { Registry, IGrammar } from 'vscode-textmate';
@@ -458,6 +493,7 @@ export class TextMateService {
    - Error boundary implementation
 
 #### Success Criteria
+
 - ✅ Extensions can execute main entry point
 - ✅ Basic VS Code API calls work
 - ✅ Extensions can be activated/deactivated
@@ -465,6 +501,7 @@ export class TextMateService {
 - ✅ Memory leaks are prevented
 
 #### Files to Create
+
 ```
 src/services/extension/
 ├── ExtensionSandbox.ts
@@ -562,6 +599,7 @@ src/services/extension/
    - Configuration: JDK path, Maven/Gradle
 
 #### Success Criteria
+
 - ✅ LSP protocol fully implemented
 - ✅ 3-5 language servers working
 - ✅ IntelliSense appears within 500ms
@@ -570,6 +608,7 @@ src/services/extension/
 - ✅ Server crashes handled gracefully
 
 #### Files to Create
+
 ```
 src/services/lsp/
 ├── LSPClient.ts
@@ -588,6 +627,7 @@ src/config/
 ```
 
 #### Code Example
+
 ```typescript
 // LSPClient.ts
 export class LSPClient {
@@ -652,6 +692,7 @@ export class LSPClient {
    - Extension-defined contexts
 
 #### Success Criteria
+
 - ✅ Extensions can register commands
 - ✅ Command palette shows all commands
 - ✅ Keyboard shortcuts work
@@ -720,6 +761,7 @@ export class LSPClient {
 | **Webviews** | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 **Legend:**
+
 - ✅ Fully working
 - ⚠️ Partially working
 - ❌ Not working
@@ -733,6 +775,7 @@ export class LSPClient {
 **Problem:** VS Code has ~200 API endpoints across 20+ namespaces.
 
 **Examples:**
+
 - `vscode.window` (27 methods)
 - `vscode.workspace` (35 methods)
 - `vscode.languages` (22 methods)
@@ -741,6 +784,7 @@ export class LSPClient {
 - `vscode.scm` (10 methods)
 
 **Solution:**
+
 - Implement incrementally, starting with most-used APIs
 - Create API compatibility matrix
 - Version API by extension requirements
@@ -751,6 +795,7 @@ export class LSPClient {
 **Problem:** VS Code extensions expect Node.js APIs.
 
 **Missing APIs:**
+
 - `fs` (file system)
 - `path` (path manipulation)
 - `child_process` (spawn processes)
@@ -758,6 +803,7 @@ export class LSPClient {
 - `os` (operating system info)
 
 **Solution:**
+
 - Polyfill common APIs (`path`, basic `fs`)
 - Proxy file operations through Tauri
 - Block dangerous operations (`child_process`)
@@ -768,11 +814,13 @@ export class LSPClient {
 **Problem:** TextMate grammars use Oniguruma (WASM), which has overhead.
 
 **Impact:**
+
 - Initial load: 50-100ms
 - Per-line tokenization: 1-5ms
 - Large files (>1000 lines): noticeable lag
 
 **Solution:**
+
 - Lazy load grammars (only when needed)
 - Cache tokenization results
 - Use Web Workers for tokenization
@@ -784,6 +832,7 @@ export class LSPClient {
 **Problem:** Need to download and manage language server binaries.
 
 **Challenges:**
+
 - Platform-specific binaries (Windows, macOS, Linux)
 - Architecture variants (x64, ARM)
 - Version management
@@ -791,6 +840,7 @@ export class LSPClient {
 - Security (verify signatures)
 
 **Solution:**
+
 - Use Open VSX's language server registry
 - Download on-demand (lazy installation)
 - Store in `{app_data}/language-servers/`
@@ -803,12 +853,14 @@ export class LSPClient {
 **Problem:** Extensions can leak memory, especially with large workspaces.
 
 **Risks:**
+
 - Monaco models accumulating
 - LSP clients not closing
 - Event listeners not disposed
 - TextMate grammar cache growing unbounded
 
 **Solution:**
+
 - Strict disposable pattern enforcement
 - Resource tracking per extension
 - Memory limits per extension
@@ -824,17 +876,20 @@ export class LSPClient {
 **Goal:** Make installed extensions immediately useful
 
 **Priority 1: TextMate Grammars (Phase 1)**
+
 - **Effort:** 1-2 weeks
 - **Value:** HIGH
 - **Risk:** LOW
 
 **Benefits:**
+
 - Syntax highlighting for 50+ languages
 - Better theme compatibility
 - Immediate visual improvement
 - Low implementation risk
 
 **Deliverables:**
+
 - Working syntax highlighting
 - Theme integration
 - Documentation
@@ -844,22 +899,26 @@ export class LSPClient {
 **Goal:** Enable language intelligence
 
 **Priority 2: LSP Infrastructure (Phase 3)**
+
 - **Effort:** 4-6 weeks
 - **Value:** VERY HIGH
 - **Risk:** MEDIUM
 
 **Focus Languages:**
+
 1. Python (most popular)
 2. Rust (strategic importance)
 3. Go (developer productivity)
 
 **Benefits:**
+
 - Real IntelliSense
 - Error diagnostics
 - Code navigation
 - Competitive with VS Code for core languages
 
 **Deliverables:**
+
 - Working LSP client
 - 3 language servers integrated
 - Documentation and troubleshooting guide
@@ -869,16 +928,19 @@ export class LSPClient {
 **Goal:** Full VS Code extension compatibility
 
 **Priority 3: Extension Code Execution (Phase 2)**
+
 - **Effort:** 2-3 weeks
 - **Value:** MEDIUM
 - **Risk:** MEDIUM
 
 **Priority 4: Command System (Phase 4)**
+
 - **Effort:** 1-2 weeks
 - **Value:** MEDIUM
 - **Risk:** LOW
 
 **Priority 5: Advanced Features (Phase 5)**
+
 - **Effort:** 4-6 weeks
 - **Value:** MEDIUM
 - **Risk:** HIGH
@@ -886,21 +948,25 @@ export class LSPClient {
 ### Alternative: Incremental Approach
 
 **Month 1-2:** TextMate + Basic Extension Execution
+
 - Syntax highlighting working
 - Simple extensions can execute
 - Minimal VS Code API shims
 
 **Month 3-4:** LSP for Python + TypeScript
+
 - Focus on 2 languages deeply
 - Production-quality implementation
 - Great user experience
 
 **Month 5-6:** Expand Language Support
+
 - Add Rust, Go, Java
 - Improve LSP stability
 - Add LSP features (formatting, refactoring)
 
 **Month 7-12:** Advanced Features
+
 - Commands and keybindings
 - Debug adapter protocol
 - Task system
@@ -913,11 +979,13 @@ export class LSPClient {
 ### Development Team
 
 **Core Team (Required):**
+
 - 1 Senior Frontend Engineer (TypeScript, React, Monaco)
 - 1 Senior Backend Engineer (Rust, Tauri, LSP)
 - 1 DevOps/Release Engineer (CI/CD, packaging)
 
 **Extended Team (Recommended):**
+
 - 1 UI/UX Designer (extension UX, command palette)
 - 1 QA Engineer (testing, automation)
 - 1 Technical Writer (documentation)
@@ -936,12 +1004,14 @@ export class LSPClient {
 ### Infrastructure
 
 **Required:**
+
 - CI/CD pipeline for testing across platforms
 - Automated extension testing framework
 - Language server binary distribution (CDN or GitHub Releases)
 - Monitoring and error tracking (Sentry, LogRocket)
 
 **Optional:**
+
 - Extension marketplace analytics
 - Telemetry for feature usage
 - A/B testing infrastructure
@@ -951,12 +1021,14 @@ export class LSPClient {
 ## Success Metrics
 
 ### Phase 1 Success (TextMate)
+
 - ✅ 50+ languages have syntax highlighting
 - ✅ <100ms grammar load time
 - ✅ Zero tokenization errors in console
 - ✅ Theme colors match VS Code
 
 ### Phase 3 Success (LSP)
+
 - ✅ 3+ language servers working
 - ✅ IntelliSense appears within 500ms
 - ✅ 95%+ uptime for language servers
@@ -964,12 +1036,14 @@ export class LSPClient {
 - ✅ Diagnostics update within 1 second
 
 ### Overall Success
+
 - ✅ 80% of top 100 extensions compatible
 - ✅ 90% user satisfaction rating
 - ✅ <1% crash rate
 - ✅ Feature parity with VS Code for top 5 languages
 
 ### User Feedback Metrics
+
 - Extension installation rate
 - Extension enable/disable rate
 - Time to first IntelliSense result
@@ -981,6 +1055,7 @@ export class LSPClient {
 ## References
 
 ### Official Documentation
+
 - [VS Code Extension API](https://code.visualstudio.com/api)
 - [Language Server Protocol Specification](https://microsoft.github.io/language-server-protocol/)
 - [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/)
@@ -988,6 +1063,7 @@ export class LSPClient {
 - [Monaco Editor API](https://microsoft.github.io/monaco-editor/api/index.html)
 
 ### Key Libraries
+
 - [vscode-textmate](https://github.com/microsoft/vscode-textmate) - TextMate grammar support
 - [vscode-oniguruma](https://github.com/microsoft/vscode-oniguruma) - Oniguruma WASM
 - [vscode-languageserver-protocol](https://github.com/microsoft/vscode-languageserver-node) - LSP types
@@ -995,12 +1071,14 @@ export class LSPClient {
 - [vscode-jsonrpc](https://github.com/microsoft/vscode-languageserver-node) - JSON-RPC implementation
 
 ### Example Implementations
+
 - [Theia IDE](https://github.com/eclipse-theia/theia) - Monaco + LSP + Extensions
 - [CodeSandbox](https://github.com/codesandbox/codesandbox-client) - Monaco + LSP
 - [GitPod](https://github.com/gitpod-io/gitpod) - VS Code in browser
 - [StackBlitz](https://github.com/stackblitz/webcontainer-core) - Node.js in browser
 
 ### Language Servers
+
 - [Python: pylsp](https://github.com/python-lsp/python-lsp-server)
 - [Python: Pyright](https://github.com/microsoft/pyright)
 - [Rust: rust-analyzer](https://github.com/rust-lang/rust-analyzer)
@@ -1107,6 +1185,7 @@ export class LSPClient {
 ## Appendix C: Implementation Checklist
 
 ### Phase 1: TextMate Grammars
+
 - [ ] Install dependencies (`vscode-textmate`, `vscode-oniguruma`)
 - [ ] Create TextMate service infrastructure
 - [ ] Load Oniguruma WASM binary
@@ -1120,6 +1199,7 @@ export class LSPClient {
 - [ ] Documentation
 
 ### Phase 2: Extension Execution
+
 - [ ] Create Web Worker sandbox
 - [ ] Implement message passing protocol
 - [ ] Build CommonJS module loader
@@ -1134,6 +1214,7 @@ export class LSPClient {
 - [ ] Documentation
 
 ### Phase 3: Language Server Protocol
+
 - [ ] Implement JSON-RPC 2.0 protocol
 - [ ] Create LSP client core
 - [ ] Build connection management
