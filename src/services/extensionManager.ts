@@ -79,7 +79,16 @@ export class ExtensionManager extends EventEmitter {
       // Log compatibility score
       console.log(`Extension ${id} compatibility score: ${compatibility.compatibilityScore}%`);
 
-      const version = options.version || extension.version;
+      // Get version - prefer from versions array, fallback to extension.version
+      const latestVersion = extension.versions && extension.versions.length > 0
+        ? extension.versions[0].version
+        : extension.version;
+
+      if (!latestVersion) {
+        throw new Error(`Extension ${id} has no version information`);
+      }
+
+      const version = options.version || latestVersion;
 
       // Create installed extension object
       const installedExtension: InstalledExtension = {
@@ -87,7 +96,7 @@ export class ExtensionManager extends EventEmitter {
         publisher,
         name,
         displayName: extension.displayName,
-        description: extension.description,
+        description: extension.shortDescription || extension.description || '',
         version,
         state: 'installing',
         installedAt: new Date().toISOString(),
@@ -244,31 +253,55 @@ export class ExtensionManager extends EventEmitter {
       throw new Error(`Extension ${id} not found`);
     }
 
+    let fileCleanupFailed = false;
+    let fileCleanupError: Error | null = null;
+
     try {
-      // Disable first if enabled
+      // Try to disable first if enabled (don't fail uninstall if this fails)
       if (extension.state === 'enabled') {
-        await this.disableExtension(id);
+        try {
+          await this.disableExtension(id);
+        } catch (disableError) {
+          console.warn(`Failed to disable extension ${id} during uninstall:`, disableError);
+          // Continue with uninstall even if disable fails
+        }
       }
 
       extension.state = 'uninstalling';
       this.emit('extension:uninstalling', extension);
       this.saveInstalledExtensions();
 
-      // Remove extension files
-      await this.removeExtensionFiles(extension);
+      // Try to remove extension files (don't fail uninstall if this fails)
+      try {
+        await this.removeExtensionFiles(extension);
+      } catch (error) {
+        console.warn(`Failed to remove extension files for ${id}:`, error);
+        fileCleanupFailed = true;
+        fileCleanupError = error instanceof Error ? error : new Error('Unknown error');
+        // Continue with removal from registry even if file cleanup fails
+      }
 
-      // Remove from installed extensions
+      // Always remove from installed extensions registry, even if file cleanup failed
       this.extensions.delete(id);
       this.emit('extension:uninstalled', extension);
       this.saveInstalledExtensions();
+
+      // Warn about file cleanup failure but don't throw
+      if (fileCleanupFailed) {
+        console.warn(`Extension ${id} was uninstalled but file cleanup failed:`, fileCleanupError);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      if (extension) {
+      console.error(`Failed to uninstall extension ${id}:`, errorMessage);
+
+      // If the error happened before we could remove from registry, mark as error
+      if (this.extensions.has(id)) {
         extension.state = 'error';
         extension.error = errorMessage;
         this.emit('extension:error', extension, errorMessage);
         this.saveInstalledExtensions();
       }
+
       throw error;
     }
   }
@@ -320,10 +353,15 @@ export class ExtensionManager extends EventEmitter {
     installedExtension: InstalledExtension
   ): Promise<void> {
     try {
+      // Validate extension data
+      if (!extension.publisher?.publisherName || !extension.extensionName) {
+        throw new Error('Invalid extension data: missing publisher or extension name');
+      }
+
       // Download VSIX package
       const vsixData = await openVSXRegistry.downloadExtension(
-        extension.publisher.name,
-        extension.name,
+        extension.publisher.publisherName,
+        extension.extensionName,
         version
       );
 
@@ -339,8 +377,8 @@ export class ExtensionManager extends EventEmitter {
 
       // Load manifest
       const manifest = await openVSXRegistry.getExtensionManifest(
-        extension.publisher.name,
-        extension.name,
+        extension.publisher.publisherName,
+        extension.extensionName,
         version
       );
 

@@ -106,8 +106,8 @@ export class OpenVSXRegistryService {
   /**
    * Get extension details by publisher and name with caching
    */
-  async getExtension(publisher: string, name: string): Promise<OpenVSXExtension | null> {
-    const cacheKey = `${publisher}.${name}`;
+  async getExtension(publisherName: string, extensionName: string): Promise<OpenVSXExtension | null> {
+    const cacheKey = `${publisherName}.${extensionName}`;
 
     // Check cache
     const cached = this.extensionCache.get(cacheKey);
@@ -116,8 +116,14 @@ export class OpenVSXRegistryService {
     }
 
     try {
-      const extensions = await this.searchExtensions(`${publisher}.${name}`, { limit: 1 });
-      const extension = extensions.length > 0 ? extensions[0] : null;
+      // Search for the specific extension
+      const extensions = await this.searchExtensions(`${publisherName}.${extensionName}`, { limit: 10 });
+
+      // Find exact match by publisher and extension name
+      const extension = extensions.find(ext =>
+        ext.publisher?.publisherName === publisherName &&
+        ext.extensionName === extensionName
+      ) || null;
 
       if (extension) {
         // Cache the extension
@@ -130,24 +136,24 @@ export class OpenVSXRegistryService {
       return extension;
     } catch (error) {
       console.error('Failed to get extension:', error);
-      throw new Error(`Failed to get extension ${publisher}.${name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to get extension ${publisherName}.${extensionName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
    * Get extension manifest from the VSIX package
    */
-  async getExtensionManifest(publisher: string, name: string, version: string): Promise<ExtensionManifest | null> {
+  async getExtensionManifest(publisherName: string, extensionName: string, version: string): Promise<ExtensionManifest | null> {
     try {
       // First get the extension to find available assets
-      const extension = await this.getExtension(publisher, name);
+      const extension = await this.getExtension(publisherName, extensionName);
       if (!extension) {
         return null;
       }
 
       // Get the manifest from unpkg URL
-      const manifestUrl = `${this.unpkgUrl}/${publisher}/${name}/${version}/extension/package.json`;
-      const response = await fetch(manifestUrl);
+      const manifestUrl = `${this.unpkgUrl}/${publisherName}/${extensionName}/${version}/extension/package.json`;
+      const response = await this.fetchWithRetry(manifestUrl);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch manifest: ${response.status} ${response.statusText}`);
@@ -163,9 +169,9 @@ export class OpenVSXRegistryService {
   /**
    * Download extension VSIX package with retry logic
    */
-  async downloadExtension(publisher: string, name: string, version: string): Promise<ArrayBuffer | null> {
+  async downloadExtension(publisherName: string, extensionName: string, version: string): Promise<ArrayBuffer | null> {
     try {
-      const downloadUrl = `${this.baseUrl}/vscode/asset/${publisher}/${name}/${version}/Microsoft.VisualStudio.Services.VSIXPackage`;
+      const downloadUrl = `${this.baseUrl}/vscode/asset/${publisherName}/${extensionName}/${version}/Microsoft.VisualStudio.Services.VSIXPackage`;
 
       const response = await this.fetchWithRetry(downloadUrl);
 
@@ -183,22 +189,22 @@ export class OpenVSXRegistryService {
       return arrayBuffer;
     } catch (error) {
       console.error('Failed to download extension:', error);
-      throw new Error(`Failed to download extension ${publisher}.${name}@${version}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Failed to download extension ${publisherName}.${extensionName}@${version}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
    * Get extension icon URL
    */
-  getExtensionIconUrl(publisher: string, name: string, version: string): string {
-    return `${this.baseUrl}/vscode/asset/${publisher}/${name}/${version}/Microsoft.VisualStudio.Services.Icons.Default`;
+  getExtensionIconUrl(publisherName: string, extensionName: string, version: string): string {
+    return `${this.baseUrl}/vscode/asset/${publisherName}/${extensionName}/${version}/Microsoft.VisualStudio.Services.Icons.Default`;
   }
 
   /**
    * Get extension README URL
    */
-  getExtensionReadmeUrl(publisher: string, name: string, version: string): string {
-    return `${this.unpkgUrl}/${publisher}/${name}/${version}/extension/README.md`;
+  getExtensionReadmeUrl(publisherName: string, extensionName: string, version: string): string {
+    return `${this.unpkgUrl}/${publisherName}/${extensionName}/${version}/extension/README.md`;
   }
 
   /**
@@ -231,7 +237,7 @@ export class OpenVSXRegistryService {
     let compatibilityScore = 100;
 
     // Check if extension data is complete
-    if (!extension.publisher || !extension.name || !extension.version) {
+    if (!extension.publisher?.publisherName || !extension.extensionName) {
       issues.push('Extension metadata is incomplete');
       compatibilityScore -= 50;
     }
@@ -259,9 +265,11 @@ export class OpenVSXRegistryService {
     }
 
     // Check extension age
-    if (extension.published) {
-      const publishedDate = new Date(extension.published);
-      const ageInYears = (Date.now() - publishedDate.getTime()) / (1000 * 60 * 60 * 24 * 365);
+    const publishDate = extension.publishedDate || extension.releaseDate;
+    if (publishDate) {
+      const publishedDate = new Date(publishDate);
+      const lastUpdate = extension.lastUpdated ? new Date(extension.lastUpdated) : publishedDate;
+      const ageInYears = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24 * 365);
 
       if (ageInYears > 3) {
         warnings.push('Extension has not been updated in over 3 years');
@@ -276,7 +284,9 @@ export class OpenVSXRegistryService {
     }
 
     // Check download count and rating for quality indicators
-    if (extension.downloads !== undefined && extension.downloads < 100) {
+    // Note: Open VSX statistics are in a different format
+    const downloadCount = this.getDownloadCount(extension);
+    if (downloadCount !== undefined && downloadCount < 100) {
       warnings.push('Extension has very few downloads - use with caution');
       compatibilityScore -= 10;
     }
@@ -329,9 +339,30 @@ export class OpenVSXRegistryService {
   /**
    * Clear cache for a specific extension
    */
-  clearExtensionCache(publisher: string, name: string): void {
-    const cacheKey = `${publisher}.${name}`;
+  clearExtensionCache(publisherName: string, extensionName: string): void {
+    const cacheKey = `${publisherName}.${extensionName}`;
     this.extensionCache.delete(cacheKey);
+  }
+
+  /**
+   * Extract download count from extension statistics
+   */
+  private getDownloadCount(extension: OpenVSXExtension): number | undefined {
+    if (extension.downloads !== undefined) {
+      return extension.downloads;
+    }
+
+    // Check statistics array for download count
+    if (extension.statistics) {
+      const downloadStat = extension.statistics.find(
+        stat => stat.statisticName === 'install' || stat.statisticName === 'downloads'
+      );
+      if (downloadStat) {
+        return downloadStat.value;
+      }
+    }
+
+    return undefined;
   }
 
   /**

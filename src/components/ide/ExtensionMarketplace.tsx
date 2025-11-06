@@ -39,18 +39,23 @@ const ExtensionMarketplace: React.FC<ExtensionMarketplaceProps> = ({ isOpen, onC
 
   const handleInstall = async (extension: OpenVSXExtension) => {
     try {
-      await installExtension(extension.publisher.name, extension.name);
+      // Validate required fields
+      if (!extension.publisher?.publisherName || !extension.extensionName) {
+        throw new Error('Invalid extension data: missing publisher or name');
+      }
+      await installExtension(extension.publisher.publisherName, extension.extensionName);
     } catch (error) {
       console.error('Failed to install extension:', error);
+      alert(`Failed to install extension: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
-  const isExtensionInstalled = (publisher: string, name: string): boolean => {
-    return installedExtensions.some(ext => ext.publisher === publisher && ext.name === name);
+  const isExtensionInstalled = (publisherName: string, extensionName: string): boolean => {
+    return installedExtensions.some(ext => ext.publisher === publisherName && ext.name === extensionName);
   };
 
-  const getExtensionState = (publisher: string, name: string) => {
-    const extension = installedExtensions.find(ext => ext.publisher === publisher && ext.name === name);
+  const getExtensionState = (publisherName: string, extensionName: string) => {
+    const extension = installedExtensions.find(ext => ext.publisher === publisherName && ext.name === extensionName);
     return extension?.state || null;
   };
 
@@ -123,22 +128,28 @@ const ExtensionMarketplace: React.FC<ExtensionMarketplaceProps> = ({ isOpen, onC
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {searchResults.map((extension) => {
-              const installed = isExtensionInstalled(extension.publisher.name, extension.name);
-              const state = getExtensionState(extension.publisher.name, extension.name);
-              const isInstallingThis = isInstalling && installingExtension === `${extension.publisher.name}.${extension.name}`;
+            {searchResults
+              .filter(ext => ext.publisher?.publisherName && ext.extensionName) // Filter out invalid extensions
+              .map((extension) => {
+                const publisherName = extension.publisher.publisherName;
+                const extensionName = extension.extensionName;
+                const extensionId = `${publisherName}.${extensionName}`;
 
-              return (
-                <ExtensionCard
-                  key={`${extension.publisher.name}.${extension.name}`}
-                  extension={extension}
-                  installed={installed}
-                  state={state}
-                  isInstalling={isInstallingThis}
-                  onInstall={() => handleInstall(extension)}
-                />
-              );
-            })}
+                const installed = isExtensionInstalled(publisherName, extensionName);
+                const state = getExtensionState(publisherName, extensionName);
+                const isInstallingThis = isInstalling && installingExtension === extensionId;
+
+                return (
+                  <ExtensionCard
+                    key={extensionId}
+                    extension={extension}
+                    installed={installed}
+                    state={state}
+                    isInstalling={isInstallingThis}
+                    onInstall={() => handleInstall(extension)}
+                  />
+                );
+              })}
           </div>
         </div>
       </div>
@@ -163,6 +174,25 @@ const ExtensionCard: React.FC<ExtensionCardProps> = ({
 }) => {
   // Get compatibility information
   const compatibility = openVSXRegistry.validateExtensionCompatibility(extension);
+
+  // Get download count from extension
+  const getDownloadCount = (): number => {
+    if (extension.downloads !== undefined) {
+      return extension.downloads;
+    }
+    // Check statistics array
+    if (extension.statistics) {
+      const downloadStat = extension.statistics.find(
+        stat => stat.statisticName === 'install' || stat.statisticName === 'downloads'
+      );
+      if (downloadStat) {
+        return downloadStat.value;
+      }
+    }
+    return 0;
+  };
+
+  const downloadCount = getDownloadCount();
 
   const getStatusIcon = () => {
     if (isInstalling) {
@@ -213,7 +243,7 @@ const ExtensionCard: React.FC<ExtensionCardProps> = ({
       </div>
 
       <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
-        {extension.description}
+        {extension.shortDescription || extension.description || 'No description available'}
       </p>
 
       {/* Compatibility and Stats */}
@@ -225,7 +255,7 @@ const ExtensionCard: React.FC<ExtensionCardProps> = ({
           </div>
           <div className="flex items-center gap-1">
             <Download className="w-3 h-3" />
-            <span>{extension.downloads ? (extension.downloads >= 1000 ? `${(extension.downloads / 1000).toFixed(1)}k` : extension.downloads) : '0'}</span>
+            <span>{downloadCount >= 1000 ? `${(downloadCount / 1000).toFixed(1)}k` : downloadCount}</span>
           </div>
           <div className="flex items-center gap-1" title={`Compatibility Score: ${compatibility.compatibilityScore}%`}>
             <Shield className={cn("w-3 h-3", getCompatibilityColor(compatibility.compatibilityScore))} />

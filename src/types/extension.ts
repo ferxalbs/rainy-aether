@@ -1,29 +1,46 @@
 // Open VSX Registry Service Types
+// Based on actual API response from https://open-vsx.org/vscode/gallery
 export interface OpenVSXExtension {
-  namespace: string;
-  name: string;
+  extensionId: string; // UUID
+  extensionName: string; // Unique extension name
   displayName: string;
-  description: string;
-  version: string;
+  shortDescription?: string;
   publisher: {
-    name: string;
+    publisherName: string; // Unique publisher name
+    publisherId: string; // UUID
     displayName: string;
-    domain?: string;
+    domain?: string | null;
+    isDomainVerified?: boolean | null;
   };
-  categories: string[];
-  tags: string[];
+  categories?: string[];
+  tags?: string[];
+  releaseDate?: string;
+  publishedDate?: string;
+  lastUpdated?: string;
+  flags?: string;
+  statistics?: Array<{ statisticName: string; value: number }>;
+  versions?: Array<{
+    version: string;
+    lastUpdated?: string;
+    assetUri?: string;
+    fallbackAssetUri?: string;
+  }>;
+
+  // Additional fields (may not always be present)
+  namespace?: string | null; // Often null in API responses
+  name?: string | null; // Often null in API responses
+  description?: string;
+  version?: string;
   license?: string;
   repository?: string;
   bugs?: string;
   homepage?: string;
-  engines: Record<string, string>;
+  engines?: Record<string, string>;
   dependencies?: Record<string, string>;
   extensionDependencies?: string[];
   preview?: boolean;
   preRelease?: boolean;
-  published: string;
-  lastUpdated: string;
-  downloads: number;
+  downloads?: number;
   rating?: number;
   ratingCount?: number;
 }
