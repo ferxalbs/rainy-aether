@@ -39,6 +39,8 @@ reqwest = { version = "0.12.24", features = ["json", "stream"] }
 keyring = "3.6.3"
 git2 = "0.20.2"
 walkdir = "2.5.0"
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
 
 
 

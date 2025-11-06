@@ -1,5 +1,6 @@
 mod credential_manager;
 mod extension_manager;
+mod extension_registry;
 mod file_operations;
 mod git_manager;
 mod project_manager;
@@ -305,6 +306,16 @@ pub fn run() {
         extension_manager::create_extension_directory,
         extension_manager::list_extension_files,
         extension_manager::read_extension_file,
+        // Extension Registry
+        extension_registry::get_extension_registry,
+        extension_registry::update_extension_registry,
+        extension_registry::add_extension_to_registry,
+        extension_registry::remove_extension_from_registry,
+        extension_registry::enable_extension_in_registry,
+        extension_registry::disable_extension_in_registry,
+        extension_registry::get_extension_cache_dir,
+        extension_registry::clear_extension_cache,
+        extension_registry::get_extension_stats,
         // Update management
         update_manager::check_for_updates,
         update_manager::install_update,
