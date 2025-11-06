@@ -217,9 +217,9 @@ Remember: You are working with a REAL codebase. Use tools to interact with it!`;
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background">
+    <div className="flex h-full w-full overflow-hidden bg-gradient-to-br from-background via-background to-muted/10">
       {/* Fixed-width History Panel - Session Sidebar */}
-      <div className={`border-r border-border transition-all duration-200 ${sidebarCollapsed ? 'w-12' : 'w-64'}`}>
+      <div className={`border-r border-border/50 transition-all duration-300 ease-in-out ${sidebarCollapsed ? 'w-12' : 'w-64'} shadow-sm`}>
         <SessionSidebar
           sessions={agentState.sessions}
           activeSessionId={agentState.activeSessionId}
@@ -237,29 +237,18 @@ Remember: You are working with a REAL codebase. Use tools to interact with it!`;
       <ResizablePanelGroup direction="horizontal" className="flex-1 h-full">
         {/* Chat Panel - Main Chat Interface */}
         <ResizablePanel defaultSize={65} minSize={40}>
-          <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex flex-col h-full overflow-hidden relative">
             <ChatHeader
               activeSession={activeSession}
               showToolsPanel={showToolsPanel}
               onToggleToolsPanel={() => setShowToolsPanel(!showToolsPanel)}
             />
 
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-hidden">
-                <ChatMessages
-                  activeSession={activeSession}
-                  onNewSession={handleNewSession}
-                  hasProvider={!!selectedModel}
-                />
-              </div>
-
-              <ChatInput
-                input={input}
-                isSending={isSending}
+            <div className="flex-1 overflow-hidden pb-24">
+              <ChatMessages
                 activeSession={activeSession}
-                onInputChange={setInput}
-                onSendMessage={handleSendMessage}
-                onKeyDown={handleKeyDown}
+                onNewSession={handleNewSession}
+                hasProvider={!!selectedModel}
               />
             </div>
           </div>
@@ -269,11 +258,23 @@ Remember: You are working with a REAL codebase. Use tools to interact with it!`;
 
         {/* Tools/Metrics Panel - Full Space Agent Tools */}
         <ResizablePanel defaultSize={35} minSize={25}>
-          <div className="h-full border-l border-border overflow-hidden">
+          <div className="h-full border-l border-border/50 overflow-hidden shadow-sm">
             <AgentToolsPanel defaultTab="executions" />
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>
+
+      {/* Floating Chat Input */}
+      <div className="absolute bottom-0 left-0 right-0 z-10">
+        <ChatInput
+          input={input}
+          isSending={isSending}
+          activeSession={activeSession}
+          onInputChange={setInput}
+          onSendMessage={handleSendMessage}
+          onKeyDown={handleKeyDown}
+        />
+      </div>
     </div>
   );
 };
