@@ -179,14 +179,56 @@ export class MonacoExtensionHost {
   }
 
   private async loadGrammars(
-    _extension: InstalledExtension,
-    _grammars: any[],
-    _loadedExtension: LoadedExtension
+    extension: InstalledExtension,
+    grammars: any[],
+    loadedExtension: LoadedExtension
   ): Promise<void> {
-    // Monaco doesn't natively support TextMate grammars
-    // This would require additional libraries like vscode-textmate
-    // For now, we'll log that this feature isn't implemented
-    console.log(`Extension ${_extension.id} provides TextMate grammars, but Monaco doesn't support them natively`);
+    console.log(`Loading TextMate grammars from extension ${extension.id}`);
+
+    try {
+      // Import TextMate services
+      const { textMateService, registerTextMateLanguage } = await import('./textmate');
+
+      // Initialize TextMate service if not already initialized
+      if (!textMateService.isInitialized()) {
+        await textMateService.initialize();
+      }
+
+      // Load each grammar
+      for (const grammar of grammars) {
+        try {
+          // Resolve grammar path
+          const grammarPath = this.resolveExtensionPath(extension, grammar.path);
+
+          // Register grammar configuration
+          textMateService.registerGrammar({
+            language: grammar.language,
+            scopeName: grammar.scopeName,
+            path: grammarPath,
+            embeddedLanguages: grammar.embeddedLanguages,
+            tokenTypes: grammar.tokenTypes
+          });
+
+          // Register with Monaco
+          await registerTextMateLanguage(grammar.language);
+
+          console.log(`Successfully loaded TextMate grammar for ${grammar.language}`);
+
+          // Add disposable for cleanup
+          loadedExtension.disposables.push({
+            dispose: () => {
+              // Grammar cleanup is handled by grammarRegistry
+              console.log(`Unloading grammar for ${grammar.language}`);
+            }
+          });
+        } catch (grammarError) {
+          console.error(`Failed to load grammar for ${grammar.language}:`, grammarError);
+          // Continue with other grammars even if one fails
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to load TextMate grammars from ${extension.id}:`, error);
+    }
   }
 
   private async loadThemes(
