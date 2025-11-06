@@ -487,4 +487,5 @@ The roadmap targets making Rainy Aether the definitive AI-first IDE, combining i
 - **AGENTS.md**: Comprehensive agent-focused guide with detailed setup checklist
 - **ROADMAP.md**: Feature roadmap with market analysis and timeline
 - **MONACO_NAVIGATION_FEATURES.md**: Detailed Monaco editor integration documentation
-- **README.md**: Basic project setup (minimal Tauri template info)
+- **README.md**: Information about the project, installation, and usage
+- **LSP.md**: Language Server Protocol integration details.
