@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Trash2, Power, PowerOff, AlertTriangle, CheckCircle, XCircle, Package } from 'lucide-react';
+import { Trash2, Power, PowerOff, AlertTriangle, CheckCircle, XCircle, Package, Activity, RefreshCw } from 'lucide-react';
 import { useExtensionStore, useExtensionInstallation } from '../../stores/extensionStore';
 import { InstalledExtension } from '../../types/extension';
+import { extensionManager } from '../../services/extensionManager';
 import { cn } from '../../lib/cn';
 
 interface ExtensionManagerProps {
@@ -10,10 +11,11 @@ interface ExtensionManagerProps {
 }
 
 const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) => {
-  const { installedExtensions } = useExtensionStore();
+  const { installedExtensions, refreshExtensions } = useExtensionStore();
   const { enableExtension, disableExtension, uninstallExtension } = useExtensionInstallation();
 
   const [filter, setFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [healthReport, setHealthReport] = useState(extensionManager.getHealthReport());
 
   const filteredExtensions = installedExtensions.filter(ext => {
     switch (filter) {
@@ -45,9 +47,16 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
 
     try {
       await uninstallExtension(extension.id);
+      // Refresh health report
+      setHealthReport(extensionManager.getHealthReport());
     } catch (error) {
       console.error('Failed to uninstall extension:', error);
     }
+  };
+
+  const handleRefresh = () => {
+    refreshExtensions();
+    setHealthReport(extensionManager.getHealthReport());
   };
 
   const getStatusIcon = (extension: InstalledExtension) => {
@@ -90,14 +99,51 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
       <div className="bg-background border border-border rounded-lg shadow-xl w-4/5 h-4/5 max-w-6xl flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-lg font-semibold">Extension Manager</h2>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-muted rounded"
-          >
-            ✕
-          </button>
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Extension Manager</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRefresh}
+                className="p-1.5 hover:bg-muted rounded transition-colors"
+                title="Refresh"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1.5 hover:bg-muted rounded transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Health Report */}
+          {healthReport.total > 0 && (
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5" />
+                <span>Health:</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span>{healthReport.healthy} Healthy</span>
+              </div>
+              {healthReport.degraded > 0 && (
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                  <span>{healthReport.degraded} Degraded</span>
+                </div>
+              )}
+              {healthReport.critical > 0 && (
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-destructive"></div>
+                  <span>{healthReport.critical} Critical</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Filters */}
@@ -187,6 +233,16 @@ const ExtensionItem: React.FC<ExtensionItemProps> = ({
   const canToggle = extension.state === 'enabled' || extension.state === 'disabled' || extension.state === 'installed';
   const canUninstall = extension.state === 'enabled' || extension.state === 'disabled' || extension.state === 'installed';
 
+  // Get health information
+  const health = extensionManager.getExtensionHealth(extension.id);
+
+  const getHealthColor = () => {
+    if (!health) return 'bg-gray-500';
+    if (health.healthScore >= 80) return 'bg-green-500';
+    if (health.healthScore >= 60) return 'bg-yellow-500';
+    return 'bg-destructive';
+  };
+
   return (
     <div className="p-4 hover:bg-muted/50 transition-colors">
       <div className="flex items-center justify-between">
@@ -196,7 +252,15 @@ const ExtensionItem: React.FC<ExtensionItemProps> = ({
           </div>
 
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-sm truncate">{extension.displayName}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-medium text-sm truncate">{extension.displayName}</h3>
+              {health && health.healthScore < 100 && (
+                <div className="flex items-center gap-1" title={`Health Score: ${health.healthScore}%`}>
+                  <div className={cn("w-1.5 h-1.5 rounded-full", getHealthColor())}></div>
+                  <span className="text-xs text-muted-foreground">{health.healthScore}%</span>
+                </div>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground truncate">
               {extension.publisher} • v{extension.version}
             </p>

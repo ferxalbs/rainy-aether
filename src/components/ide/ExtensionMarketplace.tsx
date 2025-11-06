@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Star, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Star, AlertTriangle, CheckCircle, XCircle, Shield, TrendingUp, Download } from 'lucide-react';
 import { useExtensionStore, useMarketplaceSearch, useExtensionInstallation } from '../../stores/extensionStore';
 import { OpenVSXExtension } from '../../types/extension';
+import { openVSXRegistry } from '../../services/openVSXRegistry';
 import { cn } from '../../lib/cn';
 
 interface ExtensionMarketplaceProps {
@@ -160,6 +161,9 @@ const ExtensionCard: React.FC<ExtensionCardProps> = ({
   isInstalling,
   onInstall
 }) => {
+  // Get compatibility information
+  const compatibility = openVSXRegistry.validateExtensionCompatibility(extension);
+
   const getStatusIcon = () => {
     if (isInstalling) {
       return <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>;
@@ -177,17 +181,30 @@ const ExtensionCard: React.FC<ExtensionCardProps> = ({
     }
   };
 
+  const getCompatibilityColor = (score: number) => {
+    if (score >= 80) return 'text-green-500';
+    if (score >= 60) return 'text-yellow-500';
+    return 'text-destructive';
+  };
+
   const getInstallButtonText = () => {
     if (isInstalling) return 'Installing...';
     if (installed) return 'Installed';
     return 'Install';
   };
 
+  const canInstall = compatibility.isCompatible && !installed && !isInstalling;
+
   return (
     <div className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors">
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm truncate">{extension.displayName}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-sm truncate">{extension.displayName}</h3>
+            {!compatibility.isCompatible && (
+              <AlertTriangle className="w-3 h-3 text-destructive flex-shrink-0" title="Compatibility issues detected" />
+            )}
+          </div>
           <p className="text-xs text-muted-foreground truncate">
             {extension.publisher.displayName}
           </p>
@@ -199,32 +216,49 @@ const ExtensionCard: React.FC<ExtensionCardProps> = ({
         {extension.description}
       </p>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Star className="w-3 h-3" />
-          {extension.rating?.toFixed(1) || 'N/A'}
-          <span>({extension.downloads?.toLocaleString() || 0})</span>
+      {/* Compatibility and Stats */}
+      <div className="flex items-center justify-between mb-3 text-xs">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <Star className="w-3 h-3 text-yellow-500" />
+            <span>{extension.rating?.toFixed(1) || 'N/A'}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Download className="w-3 h-3" />
+            <span>{extension.downloads ? (extension.downloads >= 1000 ? `${(extension.downloads / 1000).toFixed(1)}k` : extension.downloads) : '0'}</span>
+          </div>
+          <div className="flex items-center gap-1" title={`Compatibility Score: ${compatibility.compatibilityScore}%`}>
+            <Shield className={cn("w-3 h-3", getCompatibilityColor(compatibility.compatibilityScore))} />
+            <span className={getCompatibilityColor(compatibility.compatibilityScore)}>
+              {compatibility.compatibilityScore}%
+            </span>
+          </div>
         </div>
-
-        <button
-          onClick={onInstall}
-          disabled={installed || isInstalling}
-          className={cn(
-            "px-3 py-1 text-xs rounded transition-colors",
-            installed
-              ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : isInstalling
-                ? "bg-primary/50 text-primary cursor-wait"
-                : "bg-primary text-primary-foreground hover:bg-primary/90"
-          )}
-        >
-          {getInstallButtonText()}
-        </button>
       </div>
 
-      {extension.categories && extension.categories.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {extension.categories.slice(0, 2).map((category) => (
+      {/* Compatibility warnings */}
+      {compatibility.warnings.length > 0 && (
+        <div className="mb-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded text-xs">
+          <div className="flex items-start gap-1">
+            <AlertTriangle className="w-3 h-3 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <span className="text-yellow-700 dark:text-yellow-400">{compatibility.warnings[0]}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Compatibility issues */}
+      {compatibility.issues.length > 0 && (
+        <div className="mb-2 p-2 bg-destructive/10 border border-destructive/20 rounded text-xs">
+          <div className="flex items-start gap-1">
+            <XCircle className="w-3 h-3 text-destructive flex-shrink-0 mt-0.5" />
+            <span className="text-destructive">{compatibility.issues[0]}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div className="flex flex-wrap gap-1">
+          {extension.categories && extension.categories.slice(0, 2).map((category) => (
             <span
               key={category}
               className="px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded"
@@ -233,7 +267,25 @@ const ExtensionCard: React.FC<ExtensionCardProps> = ({
             </span>
           ))}
         </div>
-      )}
+
+        <button
+          onClick={onInstall}
+          disabled={!canInstall}
+          title={!compatibility.isCompatible ? `Cannot install: ${compatibility.issues.join(', ')}` : ''}
+          className={cn(
+            "px-3 py-1 text-xs rounded transition-colors",
+            installed
+              ? "bg-muted text-muted-foreground cursor-not-allowed"
+              : isInstalling
+                ? "bg-primary/50 text-primary cursor-wait"
+                : !compatibility.isCompatible
+                  ? "bg-destructive/20 text-destructive cursor-not-allowed"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+          )}
+        >
+          {getInstallButtonText()}
+        </button>
+      </div>
     </div>
   );
 };
