@@ -2,6 +2,7 @@ import { EventEmitter } from '../utils/EventEmitter';
 import { invoke } from '@tauri-apps/api/core';
 import { openVSXRegistry } from './openVSXRegistry';
 import { monacoExtensionHost } from './monacoExtensionHost';
+import { extensionHealthMonitor } from './extensionHealthMonitor';
 import {
   InstalledExtension,
   ExtensionInstallOptions,
@@ -13,10 +14,13 @@ export class ExtensionManager extends EventEmitter {
   private extensions: Map<string, InstalledExtension> = new Map();
   private readonly extensionsDir = 'extensions'; // Relative to app data directory
   private isInitialized = false;
+  private cleanupTimer?: NodeJS.Timeout;
+  private readonly cleanupInterval = 60 * 1000; // 1 minute
 
   constructor() {
     super();
     // Don't load extensions in constructor - do it lazily
+    this.setupHealthMonitoring();
   }
 
   /**
@@ -36,7 +40,7 @@ export class ExtensionManager extends EventEmitter {
   }
 
   /**
-   * Install an extension from Open VSX
+   * Install an extension from Open VSX with validation and health monitoring
    */
   async installExtension(
     publisher: string,
@@ -56,8 +60,24 @@ export class ExtensionManager extends EventEmitter {
       // Get extension info from registry
       const extension = await openVSXRegistry.getExtension(publisher, name);
       if (!extension) {
-        throw new Error(`Extension ${id} not found in registry`);
+        throw new Error(`Extension ${id} not found in Open VSX registry`);
       }
+
+      // Validate compatibility before installation
+      const compatibility = openVSXRegistry.validateExtensionCompatibility(extension);
+
+      if (!compatibility.isCompatible) {
+        const issues = compatibility.issues.join('; ');
+        throw new Error(`Extension ${id} is not compatible: ${issues}`);
+      }
+
+      // Warn about compatibility issues
+      if (compatibility.warnings.length > 0) {
+        console.warn(`Extension ${id} compatibility warnings:`, compatibility.warnings);
+      }
+
+      // Log compatibility score
+      console.log(`Extension ${id} compatibility score: ${compatibility.compatibilityScore}%`);
 
       const version = options.version || extension.version;
 
@@ -94,9 +114,15 @@ export class ExtensionManager extends EventEmitter {
       this.emit('extension:installed', installedExtension);
       this.saveInstalledExtensions();
 
+      // Record successful installation in health monitor
+      extensionHealthMonitor.recordSuccess(id);
+
       return installedExtension;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Record failure in health monitor
+      extensionHealthMonitor.recordFailure(id, errorMessage);
 
       // Update extension state to error
       const extension = this.extensions.get(id);
@@ -105,9 +131,15 @@ export class ExtensionManager extends EventEmitter {
         extension.error = errorMessage;
         this.emit('extension:error', extension, errorMessage);
         this.saveInstalledExtensions();
+
+        // Check if should auto-cleanup
+        if (extensionHealthMonitor.shouldAutoUninstall(id)) {
+          console.warn(`Extension ${id} has critical errors - scheduling for cleanup`);
+          setTimeout(() => this.cleanupFailedExtension(id), 5000);
+        }
       }
 
-      throw error;
+      throw new Error(`Failed to install extension ${id}: ${errorMessage}`);
     }
   }
 
@@ -141,13 +173,28 @@ export class ExtensionManager extends EventEmitter {
       extension.enabled = true;
       this.emit('extension:enabled', extension);
       this.saveInstalledExtensions();
+
+      // Record success in health monitor
+      extensionHealthMonitor.recordSuccess(id);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Record failure in health monitor
+      extensionHealthMonitor.recordFailure(id, errorMessage);
+
       extension.state = 'error';
       extension.error = errorMessage;
       this.emit('extension:error', extension, errorMessage);
       this.saveInstalledExtensions();
-      throw error;
+
+      // Check if should auto-disable
+      if (extensionHealthMonitor.shouldAutoDisable(id)) {
+        console.warn(`Extension ${id} has repeated failures - auto-disabling`);
+        extension.state = 'disabled';
+        extension.enabled = false;
+      }
+
+      throw new Error(`Failed to enable extension ${id}: ${errorMessage}`);
     }
   }
 
@@ -375,6 +422,165 @@ export class ExtensionManager extends EventEmitter {
     } catch (error) {
       console.error('Failed to save installed extensions:', error);
     }
+  }
+
+  /**
+   * Setup health monitoring for extensions
+   */
+  private setupHealthMonitoring(): void {
+    // Start the health monitor
+    extensionHealthMonitor.startMonitoring();
+
+    // Listen to health events
+    extensionHealthMonitor.on('health:critical', (extensionId, health) => {
+      console.warn(`[ExtensionManager] Extension ${extensionId} health is critical:`, health);
+
+      const extension = this.extensions.get(extensionId);
+      if (extension && extension.enabled) {
+        // Auto-disable critically unhealthy extensions
+        this.disableExtension(extensionId).catch(error => {
+          console.error(`Failed to auto-disable unhealthy extension ${extensionId}:`, error);
+        });
+      }
+    });
+
+    extensionHealthMonitor.on('cleanup:required', (extensionId) => {
+      console.warn(`[ExtensionManager] Extension ${extensionId} requires cleanup`);
+      // Schedule cleanup for later to avoid immediate removal
+      setTimeout(() => {
+        this.cleanupFailedExtension(extensionId).catch(error => {
+          console.error(`Failed to cleanup extension ${extensionId}:`, error);
+        });
+      }, 10000); // Wait 10 seconds before cleanup
+    });
+
+    // Start periodic cleanup check
+    this.startPeriodicCleanup();
+  }
+
+  /**
+   * Start periodic cleanup of failed extensions
+   */
+  private startPeriodicCleanup(): void {
+    if (this.cleanupTimer) {
+      return; // Already running
+    }
+
+    this.cleanupTimer = setInterval(() => {
+      this.performCleanupCheck();
+    }, this.cleanupInterval);
+
+    console.log('[ExtensionManager] Started periodic cleanup');
+  }
+
+  /**
+   * Stop periodic cleanup
+   */
+  stopPeriodicCleanup(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = undefined;
+      console.log('[ExtensionManager] Stopped periodic cleanup');
+    }
+  }
+
+  /**
+   * Perform cleanup check for all extensions
+   */
+  private async performCleanupCheck(): Promise<void> {
+    const unhealthy = extensionHealthMonitor.getUnhealthyExtensions();
+
+    for (const health of unhealthy) {
+      const extension = this.extensions.get(health.id);
+      if (!extension) continue;
+
+      // Auto-uninstall if extension should be removed
+      if (extensionHealthMonitor.shouldAutoUninstall(health.id)) {
+        console.warn(`Auto-uninstalling critically failed extension: ${health.id}`);
+        try {
+          await this.cleanupFailedExtension(health.id);
+        } catch (error) {
+          console.error(`Failed to cleanup extension ${health.id}:`, error);
+        }
+      }
+      // Auto-disable if extension should be disabled
+      else if (extensionHealthMonitor.shouldAutoDisable(health.id) && extension.enabled) {
+        console.warn(`Auto-disabling failed extension: ${health.id}`);
+        try {
+          await this.disableExtension(health.id);
+        } catch (error) {
+          console.error(`Failed to disable extension ${health.id}:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Cleanup a failed extension
+   */
+  private async cleanupFailedExtension(id: string): Promise<void> {
+    const extension = this.extensions.get(id);
+    if (!extension) {
+      console.warn(`Extension ${id} not found for cleanup`);
+      return;
+    }
+
+    // Only cleanup if in error state
+    if (extension.state !== 'error') {
+      console.log(`Extension ${id} is not in error state - skipping cleanup`);
+      return;
+    }
+
+    console.log(`Cleaning up failed extension: ${id}`);
+
+    try {
+      // First try to disable if enabled
+      if (extension.enabled) {
+        try {
+          await this.disableExtension(id);
+        } catch (error) {
+          console.warn(`Failed to disable extension ${id} during cleanup:`, error);
+        }
+      }
+
+      // Remove extension files
+      await this.removeExtensionFiles(extension);
+
+      // Remove from registry
+      this.extensions.delete(id);
+      this.emit('extension:uninstalled', extension);
+      await this.saveInstalledExtensions();
+
+      // Reset health monitor for this extension
+      extensionHealthMonitor.reset(id);
+
+      console.log(`Successfully cleaned up extension: ${id}`);
+    } catch (error) {
+      console.error(`Failed to cleanup extension ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get health status for an extension
+   */
+  getExtensionHealth(id: string) {
+    return extensionHealthMonitor.getHealth(id);
+  }
+
+  /**
+   * Get overall health report
+   */
+  getHealthReport() {
+    return extensionHealthMonitor.getHealthReport();
+  }
+
+  /**
+   * Cleanup all resources
+   */
+  async cleanup(): Promise<void> {
+    this.stopPeriodicCleanup();
+    extensionHealthMonitor.stopMonitoring();
   }
 }
 
