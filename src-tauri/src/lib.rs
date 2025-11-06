@@ -3,6 +3,7 @@ mod extension_manager;
 mod extension_registry;
 mod file_operations;
 mod git_manager;
+mod language_server_manager;
 mod project_manager;
 mod terminal_manager;
 mod update_manager;
@@ -53,6 +54,7 @@ pub fn run() {
             watcher: std::sync::Arc::new(std::sync::Mutex::new(None)),
         })
         .manage(terminal_manager::TerminalState::default())
+        .manage(language_server_manager::LanguageServerManager::new())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -320,6 +322,12 @@ pub fn run() {
         update_manager::check_for_updates,
         update_manager::install_update,
         update_manager::get_app_version,
+        // Language Server Protocol
+        language_server_manager::lsp_start_server,
+        language_server_manager::lsp_stop_server,
+        language_server_manager::lsp_send_message,
+        language_server_manager::lsp_is_server_running,
+        language_server_manager::lsp_get_running_servers,
     ]);
 
     builder

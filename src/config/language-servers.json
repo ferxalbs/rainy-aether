@@ -1,0 +1,199 @@
+{
+  "$schema": "./language-servers-schema.json",
+  "servers": [
+    {
+      "id": "typescript",
+      "name": "TypeScript Language Server",
+      "description": "TypeScript and JavaScript language server",
+      "languages": ["typescript", "javascript", "typescriptreact", "javascriptreact"],
+      "fileExtensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"],
+      "builtIn": true,
+      "installation": {
+        "type": "none",
+        "instructions": "TypeScript support is built into Monaco Editor"
+      }
+    },
+    {
+      "id": "python",
+      "name": "Python Language Server",
+      "description": "Python language server (pylsp)",
+      "languages": ["python"],
+      "fileExtensions": [".py", ".pyi", ".pyw"],
+      "builtIn": false,
+      "installation": {
+        "type": "pip",
+        "package": "python-lsp-server[all]",
+        "command": "pylsp",
+        "args": [],
+        "instructions": "Install with: pip install python-lsp-server[all]"
+      },
+      "config": {
+        "command": "pylsp",
+        "args": [],
+        "initializationOptions": {}
+      }
+    },
+    {
+      "id": "pyright",
+      "name": "Pyright Language Server",
+      "description": "Fast Python type checker and language server",
+      "languages": ["python"],
+      "fileExtensions": [".py", ".pyi", ".pyw"],
+      "builtIn": false,
+      "installation": {
+        "type": "npm",
+        "package": "pyright",
+        "command": "pyright-langserver",
+        "args": ["--stdio"],
+        "instructions": "Install with: npm install -g pyright"
+      },
+      "config": {
+        "command": "pyright-langserver",
+        "args": ["--stdio"],
+        "initializationOptions": {}
+      }
+    },
+    {
+      "id": "rust-analyzer",
+      "name": "Rust Analyzer",
+      "description": "Rust language server providing IDE support",
+      "languages": ["rust"],
+      "fileExtensions": [".rs"],
+      "builtIn": false,
+      "installation": {
+        "type": "rustup",
+        "component": "rust-analyzer",
+        "command": "rust-analyzer",
+        "args": [],
+        "instructions": "Install with: rustup component add rust-analyzer"
+      },
+      "config": {
+        "command": "rust-analyzer",
+        "args": [],
+        "initializationOptions": {
+          "checkOnSave": {
+            "command": "clippy"
+          }
+        }
+      }
+    },
+    {
+      "id": "gopls",
+      "name": "Go Language Server",
+      "description": "Official Go language server",
+      "languages": ["go"],
+      "fileExtensions": [".go"],
+      "builtIn": false,
+      "installation": {
+        "type": "go",
+        "package": "golang.org/x/tools/gopls@latest",
+        "command": "gopls",
+        "args": [],
+        "instructions": "Install with: go install golang.org/x/tools/gopls@latest"
+      },
+      "config": {
+        "command": "gopls",
+        "args": [],
+        "initializationOptions": {}
+      }
+    },
+    {
+      "id": "clangd",
+      "name": "Clangd",
+      "description": "C/C++ language server",
+      "languages": ["c", "cpp"],
+      "fileExtensions": [".c", ".cpp", ".cc", ".cxx", ".h", ".hpp", ".hh", ".hxx"],
+      "builtIn": false,
+      "installation": {
+        "type": "manual",
+        "command": "clangd",
+        "args": [],
+        "instructions": "Install clangd from your system package manager or download from https://clangd.llvm.org/"
+      },
+      "config": {
+        "command": "clangd",
+        "args": ["--background-index"],
+        "initializationOptions": {}
+      }
+    },
+    {
+      "id": "java",
+      "name": "Eclipse JDT Language Server",
+      "description": "Java language server from Eclipse",
+      "languages": ["java"],
+      "fileExtensions": [".java"],
+      "builtIn": false,
+      "installation": {
+        "type": "manual",
+        "command": "jdtls",
+        "args": [],
+        "instructions": "Download and install from https://github.com/eclipse/eclipse.jdt.ls"
+      },
+      "config": {
+        "command": "jdtls",
+        "args": [],
+        "initializationOptions": {}
+      }
+    },
+    {
+      "id": "html",
+      "name": "HTML Language Server",
+      "description": "HTML language support",
+      "languages": ["html"],
+      "fileExtensions": [".html", ".htm"],
+      "builtIn": false,
+      "installation": {
+        "type": "npm",
+        "package": "vscode-langservers-extracted",
+        "command": "vscode-html-language-server",
+        "args": ["--stdio"],
+        "instructions": "Install with: npm install -g vscode-langservers-extracted"
+      },
+      "config": {
+        "command": "vscode-html-language-server",
+        "args": ["--stdio"],
+        "initializationOptions": {}
+      }
+    },
+    {
+      "id": "css",
+      "name": "CSS Language Server",
+      "description": "CSS, SCSS, and LESS language support",
+      "languages": ["css", "scss", "less"],
+      "fileExtensions": [".css", ".scss", ".less"],
+      "builtIn": false,
+      "installation": {
+        "type": "npm",
+        "package": "vscode-langservers-extracted",
+        "command": "vscode-css-language-server",
+        "args": ["--stdio"],
+        "instructions": "Install with: npm install -g vscode-langservers-extracted"
+      },
+      "config": {
+        "command": "vscode-css-language-server",
+        "args": ["--stdio"],
+        "initializationOptions": {}
+      }
+    },
+    {
+      "id": "json",
+      "name": "JSON Language Server",
+      "description": "JSON language support with schema validation",
+      "languages": ["json"],
+      "fileExtensions": [".json", ".jsonc"],
+      "builtIn": false,
+      "installation": {
+        "type": "npm",
+        "package": "vscode-langservers-extracted",
+        "command": "vscode-json-language-server",
+        "args": ["--stdio"],
+        "instructions": "Install with: npm install -g vscode-langservers-extracted"
+      },
+      "config": {
+        "command": "vscode-json-language-server",
+        "args": ["--stdio"],
+        "initializationOptions": {}
+      }
+    }
+  ]
+}
