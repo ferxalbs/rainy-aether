@@ -19,6 +19,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { canUseLangGraph, runLangGraphSession } from './langgraph/runner';
 import type { LangGraphToolUpdate } from './langgraph/types';
 import { AIMessage } from '@langchain/core/messages';
+import { agentConfigStore, agentConfigActions } from '@/stores/agentConfigStore';
 
 // ============================================================================
 // TYPES
@@ -85,6 +86,9 @@ export class AgentService {
   async initialize(workspaceRoot?: string): Promise<void> {
     await agentActions.initialize();
 
+    // Initialize agent configuration store
+    await agentConfigActions.initialize();
+
     // Initialize tool system if not already done
     if (!this.isToolSystemInitialized) {
       await initializeToolSystem({
@@ -94,6 +98,9 @@ export class AgentService {
       this.isToolSystemInitialized = true;
       console.log('[AgentService] Tool system initialized with', getToolRegistry().size, 'tools');
     }
+
+    const selectedAgent = agentConfigStore.getSelectedAgent();
+    console.log('[AgentService] Initialized with agent:', selectedAgent);
   }
 
   /**
@@ -126,10 +133,39 @@ export class AgentService {
       }
 
       // ==========================================================================
-      // LANGGRAPH PATH (NEW)
+      // DUAL-AGENT ROUTING LOGIC
       // ==========================================================================
-      if (canUseLangGraph()) {
-        return await this.sendMessageWithLangGraph({
+      // Determine which agent to use based on configuration
+      const settings = agentConfigStore.getSettings();
+      const selectedAgent = agentConfigStore.getSelectedAgent();
+
+      let useAgent2 = false;
+
+      // Priority 1: Use explicitly selected agent if enabled
+      if (selectedAgent === 'agent2' && settings.agent2.enabled) {
+        useAgent2 = true;
+        console.log('[AgentService] Using Agent 2 (LangGraph) - explicitly selected');
+      } else if (selectedAgent === 'agent1' && settings.agent1.enabled) {
+        useAgent2 = false;
+        console.log('[AgentService] Using Agent 1 (Custom) - explicitly selected');
+      }
+      // Priority 2: Fallback if selected agent is disabled
+      else if (selectedAgent === 'agent1' && !settings.agent1.enabled && settings.agent2.enabled) {
+        useAgent2 = true;
+        console.log('[AgentService] Fallback to Agent 2 (LangGraph) - Agent 1 disabled');
+      } else if (selectedAgent === 'agent2' && !settings.agent2.enabled && settings.agent1.enabled) {
+        useAgent2 = false;
+        console.log('[AgentService] Fallback to Agent 1 (Custom) - Agent 2 disabled');
+      }
+      // Priority 3: Legacy feature flag support (backward compatibility)
+      else if (canUseLangGraph() && settings.agent2.enabled) {
+        useAgent2 = true;
+        console.log('[AgentService] Using Agent 2 (LangGraph) - feature flag enabled');
+      }
+
+      // Route to appropriate agent
+      if (useAgent2) {
+        return await this.sendMessageWithAgent2({
           sessionId,
           content,
           onToken,
@@ -142,7 +178,7 @@ export class AgentService {
       }
 
       // ==========================================================================
-      // AI SDK PATH (LEGACY - TO BE DEPRECATED)
+      // AGENT 1 PATH (CUSTOM AI SDK IMPLEMENTATION)
       // ==========================================================================
 
       // Get provider
@@ -493,9 +529,9 @@ export class AgentService {
   }
 
   /**
-   * Send message using LangGraph (new path)
+   * Send message using Agent 2 (LangGraph-based ReAct agent)
    */
-  private async sendMessageWithLangGraph(options: SendMessageOptions): Promise<void> {
+  private async sendMessageWithAgent2(options: SendMessageOptions): Promise<void> {
     const {
       sessionId,
       content,

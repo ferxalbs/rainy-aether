@@ -332,26 +332,35 @@ if (updateInfo?.available) {
 
 - `update-status` - Progress updates during check/download/install
 
-## LangGraph Agent System
+## Dual-Agent System
 
-**✨ NEW** - Replaces Vercel AI SDK as the core agent orchestration framework.
+**✨ NEW** - Dual-agent architecture with Agent 1 (Custom) and Agent 2 (LangGraph).
 
-See **`docs/LANGGRAPH_MIGRATION.md`** for comprehensive documentation.
+See **`docs/DUAL_AGENT_SYSTEM.md`** and **`docs/LANGGRAPH_MIGRATION.md`** for comprehensive documentation.
 
-### Architecture
+### Architecture Overview
+
+**Agent 1 (Custom)**: AI SDK-based implementation, optimized for speed and simplicity
+**Agent 2 (LangGraph)**: ReAct agent with conversation memory and advanced reasoning
 
 **4-Layer System:**
 
 1. **UI Layer**: AgentView.tsx, ChatInterface.tsx
-2. **Service Layer**: AgentService.ts (branching logic)
-3. **LangGraph Layer**: runner.ts → graphFactory.ts → modelFactory.ts → tools.ts
-4. **Provider/Tool Layer**: LangChain chat models + Tool Registry
+2. **Service Layer**: AgentService.ts (dual-agent routing logic)
+3. **Agent Layer**:
+   - Agent 1: Direct AI SDK integration
+   - Agent 2: LangGraph → graphFactory.ts → modelFactory.ts → tools.ts
+4. **Provider/Tool Layer**: Multi-provider support + Tool Registry
 
 ### Key Files
 
 ```
+src/types/agentConfig.ts          # Dual-agent type definitions
+src/stores/agentConfigStore.ts    # Agent configuration state management
+src/services/agent/agentService.ts  # Dual-agent routing logic
+
 src/services/agent/langgraph/
-├── featureFlag.ts      # Feature flag management
+├── featureFlag.ts      # Feature flag management (legacy support)
 ├── types.ts            # TypeScript interfaces
 ├── modelFactory.ts     # Multi-provider model factory (Groq, OpenAI, Anthropic, Google, Cerebras)
 ├── graphFactory.ts     # ReAct agent creation + MemorySaver
@@ -362,11 +371,14 @@ src/services/agent/langgraph/
 ### Usage
 
 ```typescript
-// Enable LangGraph
-import { setLangGraphFeatureFlag } from '@/services/agent/langgraph/featureFlag';
-await setLangGraphFeatureFlag(true);
+// Initialize agent configuration
+import { agentConfigActions } from '@/stores/agentConfigStore';
+await agentConfigActions.initialize();
 
-// Create session (automatically uses LangGraph if enabled)
+// Select agent (agent1 or agent2)
+agentConfigActions.selectAgent('agent2');
+
+// Create session (automatically uses selected agent)
 const agentService = getAgentService();
 const sessionId = await agentService.createSession({
   name: 'Test Session',
@@ -375,7 +387,7 @@ const sessionId = await agentService.createSession({
   systemPrompt: 'You are a helpful coding assistant.',
 });
 
-// Send message
+// Send message (routing happens automatically)
 await agentService.sendMessage({
   sessionId,
   content: 'List all TypeScript files',
@@ -383,40 +395,72 @@ await agentService.sendMessage({
 });
 ```
 
-### Features
+### Agent Comparison
 
-- ✅ **ReAct Agents**: Reasoning loops with tool usage
-- ✅ **Conversation Memory**: MemorySaver for context persistence
-- ✅ **Multi-Provider**: Groq, OpenAI, Anthropic, Google Gemini, Cerebras
-- ✅ **Tool Integration**: All existing tools work seamlessly
-- ✅ **Streaming**: Real-time message and tool progress updates
-- ✅ **Cost Tracking**: Token usage and cost estimation
-- ✅ **Feature Flag**: Gradual rollout with AI SDK fallback
+| Feature | Agent 1 (Custom) | Agent 2 (LangGraph) |
+|---------|------------------|---------------------|
+| **Streaming** | ✅ Fast | ✅ Token-by-token |
+| **Tools** | ✅ Sequential | ✅ Parallel + ReAct |
+| **Memory** | ❌ None | ✅ MemorySaver |
+| **Multi-turn** | ❌ No context | ✅ Full context |
+| **Reasoning** | ❌ Direct response | ✅ ReAct pattern |
+| **Status** | ✅ Stable | ✅ Beta |
+| **Latency** | Lower | Slightly higher |
+| **Best For** | Quick queries | Complex tasks |
 
-### Feature Flag
+### Configuration
 
-**Default:** OFF (opt-in)
-**Storage:** Tauri Store (`agent.langgraph.enabled`)
-**Override:** Environment variable `VITE_AGENT_LANGGRAPH_ENABLED`
+**React Hooks:**
 
-```bash
-# Enable via environment
-VITE_AGENT_LANGGRAPH_ENABLED=true pnpm tauri dev
+```typescript
+import { useAgentConfig, useAgentSettings, useSelectedAgent } from '@/stores/agentConfigStore';
+
+const { settings, metrics, comparisons } = useAgentConfig();
+const settings = useAgentSettings();
+const selectedAgent = useSelectedAgent();
 ```
+
+**Agent Settings:**
+
+```typescript
+// Update Agent 2 (LangGraph) configuration
+agentConfigActions.updateAgent2Config({
+  maxIterations: 15,
+  reasoningVerbosity: 'verbose',
+  checkpointing: true,
+  multiAgent: true,
+});
+
+// Toggle agents
+agentConfigActions.toggleAgentEnabled('agent1', false);
+agentConfigActions.toggleAgentEnabled('agent2', true);
+```
+
+### Routing Logic
+
+AgentService automatically routes requests based on:
+
+1. **Priority 1**: Explicitly selected agent (if enabled)
+2. **Priority 2**: Fallback to other agent if selected is disabled
+3. **Priority 3**: Legacy feature flag support (backward compatibility)
+
+Console logs show which agent is being used for each request.
 
 ### Migration Status
 
-**Current:** Phase 1 - Internal Testing
-- Both LangGraph and AI SDK paths coexist
-- Feature flag controls which path is used
-- LangGraph OFF by default
+**Current:** Dual-Agent System Active
 
-**Next:** Phase 2 - Beta Testing (1 week)
-- Enable for beta users
-- Monitor stability and performance
+- Both Agent 1 and Agent 2 coexist
+- Agent 1 (Custom) is default
+- User can switch between agents via configuration
+- Metrics and comparison tracking enabled
 
-**Future:** Phase 3 - Full Migration (1-2 months)
-- LangGraph ON by default
+**Future:** Flexible Migration Path
+
+- Keep both agents indefinitely, OR
+- Phase out Agent 1 (remove AI SDK), OR
+- Phase out Agent 2 (remove LangGraph)
+- Decision based on performance metrics and user preference
 - Remove AI SDK dependencies
 
 ### Supported Providers
