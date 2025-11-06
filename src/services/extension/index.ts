@@ -13,5 +13,8 @@ export { ActivationManager, createActivationManager, ActivationEvents } from './
 // API shim
 export { createVSCodeAPI } from './VSCodeAPIShim';
 
+// Language Server Protocol shim
+export { LanguageClient, State as LanguageClientState, vscodeLanguageClient } from './vscode-languageclient-shim';
+
 // Types
 export * from './types';
