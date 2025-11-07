@@ -6,12 +6,47 @@
  * while we handle the connection to Monaco behind the scenes.
  */
 
-import { MonacoLanguageClient } from 'monaco-languageclient';
-import { MessageTransports, CloseAction, ErrorAction } from 'vscode-languageclient/browser.js';
-import { Message } from 'vscode-jsonrpc';
-import { Emitter } from 'vscode-jsonrpc';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+
+// JSON-RPC Message types (simplified, no external dependencies)
+interface JSONRPCMessage {
+  jsonrpc: '2.0';
+}
+
+interface JSONRPCRequest extends JSONRPCMessage {
+  id: number | string;
+  method: string;
+  params?: any;
+}
+
+interface JSONRPCResponse extends JSONRPCMessage {
+  id: number | string;
+  result?: any;
+  error?: {
+    code: number;
+    message: string;
+    data?: any;
+  };
+}
+
+interface JSONRPCNotification extends JSONRPCMessage {
+  method: string;
+  params?: any;
+}
+
+type Message = JSONRPCRequest | JSONRPCResponse | JSONRPCNotification;
+
+// LSP action enums
+export enum CloseAction {
+  DoNotRestart = 1,
+  Restart = 2,
+}
+
+export enum ErrorAction {
+  Continue = 1,
+  Shutdown = 2,
+}
 
 /**
  * Server Options - VS Code format
@@ -57,32 +92,36 @@ export enum State {
 }
 
 /**
- * LanguageClient - VS Code compatible wrapper for MonacoLanguageClient
+ * LanguageClient - VS Code compatible language client
  *
- * This class mimics the VS Code LanguageClient API while using MonacoLanguageClient
- * under the hood to provide language server functionality in Monaco editor.
+ * This class mimics the VS Code LanguageClient API and manages LSP communication
+ * via Tauri backend. For now, it's a simplified implementation that will be
+ * enhanced with Monaco integration later.
  */
 export class LanguageClient {
   private id: string;
   private name: string;
   private serverOptions: ServerOptions;
-  private clientOptions: ClientOptions;
-  private monacoClient: MonacoLanguageClient | null = null;
   private state: State = State.Stopped;
   private serverId: string | null = null;
   private disposables: (() => void)[] = [];
   private unlistenFunctions: UnlistenFn[] = [];
+  private messageHandlers: Map<string, (params: any) => void> = new Map();
+  private requestId = 0;
+  private pendingRequests: Map<
+    number | string,
+    { resolve: (value: any) => void; reject: (error: any) => void }
+  > = new Map();
 
   constructor(
     id: string,
     name: string,
     serverOptions: ServerOptions,
-    clientOptions: ClientOptions
+    _clientOptions: ClientOptions // Prefixed with _ to indicate intentionally unused
   ) {
     this.id = id;
     this.name = name;
     this.serverOptions = serverOptions;
-    this.clientOptions = clientOptions;
 
     console.log(`[LanguageClient] Created: ${name} (${id})`);
   }
@@ -101,25 +140,7 @@ export class LanguageClient {
 
     try {
       // Create connection to language server
-      const transports = await this.createConnection();
-
-      // Create Monaco Language Client
-      this.monacoClient = new MonacoLanguageClient({
-        name: this.name,
-        clientOptions: {
-          documentSelector: this.clientOptions.documentSelector || [{ scheme: 'file' }],
-          errorHandler: {
-            error: () => ({ action: ErrorAction.Continue }),
-            closed: () => ({ action: CloseAction.DoNotRestart }),
-          },
-          middleware: this.clientOptions.middleware,
-          initializationOptions: this.clientOptions.initializationOptions,
-        },
-        messageTransports: transports,
-      });
-
-      // Start the Monaco client
-      await this.monacoClient.start();
+      await this.createConnection();
 
       this.state = State.Running;
       console.log(`[LanguageClient] Started: ${this.name}`);
@@ -139,12 +160,6 @@ export class LanguageClient {
     }
 
     console.log(`[LanguageClient] Stopping: ${this.name}`);
-
-    if (this.monacoClient) {
-      await this.monacoClient.stop();
-      this.monacoClient.dispose();
-      this.monacoClient = null;
-    }
 
     // Stop the language server process
     if (this.serverId) {
@@ -166,6 +181,10 @@ export class LanguageClient {
     this.disposables.forEach(dispose => dispose());
     this.disposables = [];
 
+    // Clear pending requests
+    this.pendingRequests.clear();
+    this.messageHandlers.clear();
+
     this.state = State.Stopped;
     console.log(`[LanguageClient] Stopped: ${this.name}`);
   }
@@ -181,30 +200,58 @@ export class LanguageClient {
    * Send request to language server
    */
   async sendRequest(method: string, params?: any): Promise<any> {
-    if (!this.monacoClient) {
+    if (this.state !== State.Running || !this.serverId) {
       throw new Error('Language client not started');
     }
-    return await this.monacoClient.sendRequest(method, params);
+
+    const id = ++this.requestId;
+    const message: JSONRPCRequest = {
+      jsonrpc: '2.0',
+      id,
+      method,
+      params,
+    };
+
+    return new Promise((resolve, reject) => {
+      this.pendingRequests.set(id, { resolve, reject });
+
+      invoke('lsp_send_message', {
+        serverId: this.serverId,
+        message: JSON.stringify(message),
+      }).catch((error) => {
+        this.pendingRequests.delete(id);
+        reject(error);
+      });
+    });
   }
 
   /**
    * Send notification to language server
    */
   sendNotification(method: string, params?: any): void {
-    if (!this.monacoClient) {
+    if (this.state !== State.Running || !this.serverId) {
       throw new Error('Language client not started');
     }
-    this.monacoClient.sendNotification(method, params);
+
+    const message: JSONRPCNotification = {
+      jsonrpc: '2.0',
+      method,
+      params,
+    };
+
+    invoke('lsp_send_message', {
+      serverId: this.serverId,
+      message: JSON.stringify(message),
+    }).catch((error) => {
+      console.error('[LanguageClient] Failed to send notification:', error);
+    });
   }
 
   /**
    * Register a callback for a notification from the server
    */
   onNotification(method: string, handler: (params: any) => void): void {
-    if (!this.monacoClient) {
-      throw new Error('Language client not started');
-    }
-    this.monacoClient.onNotification(method, handler);
+    this.messageHandlers.set(method, handler);
   }
 
   /**
@@ -217,18 +264,18 @@ export class LanguageClient {
   /**
    * Create connection to language server via Tauri events
    */
-  private async createConnection(): Promise<MessageTransports> {
+  private async createConnection(): Promise<void> {
     if (!this.serverOptions.command) {
       throw new Error('No server command specified');
     }
 
-    return await this.createTauriConnection();
+    await this.createTauriConnection();
   }
 
   /**
    * Create Tauri event-based connection
    */
-  private async createTauriConnection(): Promise<MessageTransports> {
+  private async createTauriConnection(): Promise<void> {
     console.log(`[LanguageClient] Starting server: ${this.serverOptions.command}`);
 
     // Start language server process via Tauri
@@ -250,21 +297,12 @@ export class LanguageClient {
 
     console.log(`[LanguageClient] Server started with ID: ${this.serverId}`);
 
-    // Create message queue for incoming messages
-    const messageQueue: any[] = [];
-    let messageCallback: ((message: any) => void) | null = null;
-
     // Listen to messages from language server
     const messageEvent = `lsp-message-${this.serverId}`;
     const unlistenMessages = await listen<{ message: string }>(messageEvent, (event) => {
       try {
         const message = JSON.parse(event.payload.message);
-
-        if (messageCallback) {
-          messageCallback(message);
-        } else {
-          messageQueue.push(message);
-        }
+        this.handleMessage(message);
       } catch (error) {
         console.error('[LanguageClient] Failed to parse message:', error);
       }
@@ -287,69 +325,45 @@ export class LanguageClient {
     this.unlistenFunctions.push(unlistenError);
 
     console.log(`[LanguageClient] Event listeners registered for: ${this.name}`);
+  }
 
-    // Create message transports with proper reader/writer implementations
-    const readerErrorEmitter = new Emitter<Error>();
-    const writerErrorEmitter = new Emitter<[Error, Message | undefined, number | undefined]>();
-    const closeEmitter = new Emitter<void>();
-    const partialMessageEmitter = new Emitter<any>();
+  /**
+   * Handle incoming message from language server
+   */
+  private handleMessage(message: Message): void {
+    // Check if it's a response
+    if ('id' in message && 'result' in message) {
+      const response = message as JSONRPCResponse;
+      const pending = this.pendingRequests.get(response.id);
+      if (pending) {
+        this.pendingRequests.delete(response.id);
+        if (response.error) {
+          pending.reject(new Error(response.error.message));
+        } else {
+          pending.resolve(response.result);
+        }
+      }
+      return;
+    }
 
-    return {
-      reader: {
-        onError: readerErrorEmitter.event,
-        onClose: closeEmitter.event,
-        onPartialMessage: partialMessageEmitter.event,
-        listen: (callback: (message: Message) => void) => {
-          messageCallback = callback;
+    // Check if it's a notification
+    if ('method' in message && !('id' in message)) {
+      const notification = message as JSONRPCNotification;
+      const handler = this.messageHandlers.get(notification.method);
+      if (handler) {
+        try {
+          handler(notification.params);
+        } catch (error) {
+          console.error('[LanguageClient] Error in notification handler:', error);
+        }
+      }
+      return;
+    }
 
-          // Flush queued messages
-          while (messageQueue.length > 0) {
-            const message = messageQueue.shift();
-            callback(message);
-          }
-
-          return {
-            dispose: () => {
-              messageCallback = null;
-            },
-          };
-        },
-        dispose: () => {
-          readerErrorEmitter.dispose();
-          partialMessageEmitter.dispose();
-        },
-      },
-      writer: {
-        onError: writerErrorEmitter.event,
-        onClose: closeEmitter.event,
-        write: async (message: Message) => {
-          if (!this.serverId) {
-            console.error('[LanguageClient] Cannot write, server not started');
-            return;
-          }
-
-          try {
-            await invoke('lsp_send_message', {
-              serverId: this.serverId,
-              message: JSON.stringify(message),
-            });
-          } catch (error) {
-            console.error('[LanguageClient] Failed to send message:', error);
-            writerErrorEmitter.fire([error as Error, message, undefined]);
-          }
-        },
-        end: () => {
-          if (this.serverId) {
-            invoke('lsp_stop_server', { serverId: this.serverId }).then(() => {
-              closeEmitter.fire();
-            });
-          }
-        },
-        dispose: () => {
-          closeEmitter.dispose();
-        },
-      },
-    };
+    // Check if it's a request from server (not commonly used, but possible)
+    if ('id' in message && 'method' in message) {
+      console.warn('[LanguageClient] Received request from server, not supported yet:', message);
+    }
   }
 }
 

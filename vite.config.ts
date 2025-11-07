@@ -23,10 +23,16 @@ export default defineConfig(async () => ({
   },
   optimizeDeps: {
     include: ['monaco-editor'],
+    exclude: ['vscode'], // Exclude vscode module from bundling
     esbuildOptions: {
       define: {
         global: 'globalThis',
       },
+    },
+  },
+  build: {
+    rollupOptions: {
+      external: ['vscode'], // Mark vscode as external (provided by extension host)
     },
   },
 
