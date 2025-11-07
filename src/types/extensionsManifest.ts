@@ -45,7 +45,10 @@ export interface ExtensionManifestEntry {
   identifier: ExtensionIdentifier;
   /** Version of the extension */
   version: string;
-  /** Installation path relative to extensions directory */
+  /**
+   * Installation path relative to extensions directory
+   * Format: publisher.name-version (e.g., "pkief.material-icon-theme-5.28.0")
+   */
   relative_path: string;
   /** Extension metadata */
   metadata: ExtensionMetadata;
