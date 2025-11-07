@@ -7,6 +7,48 @@ use zip::ZipArchive;
 
 // Extension management commands for Tauri
 
+/// Get the Rainy Aether user directory (.rainy-aether in user's home)
+/// This is where ALL user data, extensions, and settings are stored
+fn get_rainy_aether_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let home_dir = app
+        .path()
+        .home_dir()
+        .map_err(|e| format!("Failed to get home directory: {}", e))?;
+
+    let rainy_dir = home_dir.join(".rainy-aether");
+
+    // Ensure .rainy-aether directory exists
+    if !rainy_dir.exists() {
+        fs::create_dir_all(&rainy_dir)
+            .map_err(|e| format!("Failed to create .rainy-aether directory: {}", e))?;
+        println!(
+            "[ExtensionManager] Created .rainy-aether directory: {:?}",
+            rainy_dir
+        );
+    }
+
+    Ok(rainy_dir)
+}
+
+/// Get the extensions directory path and ensure it exists
+/// Extensions are stored in: ~/.rainy-aether/extensions/
+fn get_extensions_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let rainy_dir = get_rainy_aether_dir(app)?;
+    let extensions_dir = rainy_dir.join("extensions");
+
+    // Ensure extensions directory exists
+    if !extensions_dir.exists() {
+        fs::create_dir_all(&extensions_dir)
+            .map_err(|e| format!("Failed to create extensions directory: {}", e))?;
+        println!(
+            "[ExtensionManager] Created extensions directory: {:?}",
+            extensions_dir
+        );
+    }
+
+    Ok(extensions_dir)
+}
+
 /// VS Code-compatible extensions.json manifest structure
 /// Tracks all installed extensions with their metadata
 #[derive(Debug, Serialize, Deserialize)]
@@ -60,12 +102,8 @@ pub struct ExtensionMetadata {
 
 #[tauri::command]
 pub fn load_installed_extensions(app: AppHandle) -> Result<String, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    let extensions_file = app_data_dir.join("installed_extensions.json");
+    let rainy_dir = get_rainy_aether_dir(&app)?;
+    let extensions_file = rainy_dir.join("installed_extensions.json");
 
     if !extensions_file.exists() {
         return Ok("[]".to_string());
@@ -77,16 +115,8 @@ pub fn load_installed_extensions(app: AppHandle) -> Result<String, String> {
 
 #[tauri::command]
 pub fn save_installed_extensions(app: AppHandle, extensions: String) -> Result<(), String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    // Ensure the directory exists
-    fs::create_dir_all(&app_data_dir)
-        .map_err(|e| format!("Failed to create app data directory: {}", e))?;
-
-    let extensions_file = app_data_dir.join("installed_extensions.json");
+    let rainy_dir = get_rainy_aether_dir(&app)?;
+    let extensions_file = rainy_dir.join("installed_extensions.json");
 
     fs::write(&extensions_file, extensions)
         .map_err(|e| format!("Failed to write extensions file: {}", e))
@@ -98,12 +128,15 @@ pub fn extract_extension(
     vsix_data: Vec<u8>,
     target_path: String,
 ) -> Result<(), String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+    let extensions_dir = get_extensions_dir(&app)?;
 
-    let full_target_path = app_data_dir.join(&target_path);
+    // target_path should be relative (e.g., "PKief/material-icon-theme/5.28.0")
+    let full_target_path = extensions_dir.join(&target_path);
+
+    println!(
+        "[ExtensionManager] Extracting extension to: {:?}",
+        full_target_path
+    );
 
     // Create target directory
     fs::create_dir_all(&full_target_path)
@@ -164,37 +197,28 @@ pub fn extract_extension(
 
 #[tauri::command]
 pub fn remove_directory(app: AppHandle, path: String) -> Result<(), String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    let full_path = app_data_dir.join(&path);
+    let extensions_dir = get_extensions_dir(&app)?;
+    let full_path = extensions_dir.join(&path);
 
     if !full_path.exists() {
         return Ok(()); // Already removed
     }
 
     // Safety check - ensure we're only removing directories under our extensions folder
-    let extensions_dir = app_data_dir.join("extensions");
     if !full_path.starts_with(&extensions_dir) {
         return Err("Cannot remove directory outside extensions folder".to_string());
     }
 
+    println!("[ExtensionManager] Removing directory: {:?}", full_path);
     fs::remove_dir_all(&full_path).map_err(|e| format!("Failed to remove directory: {}", e))
 }
 
 #[tauri::command]
 pub fn create_extension_directory(app: AppHandle, path: String) -> Result<(), String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    let full_path = app_data_dir.join(&path);
+    let extensions_dir = get_extensions_dir(&app)?;
+    let full_path = extensions_dir.join(&path);
 
     // Safety check - ensure we're only creating directories under our extensions folder
-    let extensions_dir = app_data_dir.join("extensions");
     if !full_path.starts_with(&extensions_dir) {
         return Err("Cannot create directory outside extensions folder".to_string());
     }
@@ -205,15 +229,10 @@ pub fn create_extension_directory(app: AppHandle, path: String) -> Result<(), St
 
 #[tauri::command]
 pub fn list_extension_files(app: AppHandle, path: String) -> Result<Vec<String>, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    let full_path = app_data_dir.join(&path);
+    let extensions_dir = get_extensions_dir(&app)?;
+    let full_path = extensions_dir.join(&path);
 
     // Safety check - ensure we're only listing directories under our extensions folder
-    let extensions_dir = app_data_dir.join("extensions");
     if !full_path.starts_with(&extensions_dir) {
         return Err("Cannot list files outside extensions folder".to_string());
     }
@@ -237,60 +256,29 @@ pub fn list_extension_files(app: AppHandle, path: String) -> Result<Vec<String>,
 
 #[tauri::command]
 pub fn read_extension_file(app: AppHandle, path: String) -> Result<String, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    let full_path = app_data_dir.join(&path);
+    let extensions_dir = get_extensions_dir(&app)?;
+    let full_path = extensions_dir.join(&path);
 
     // Safety check - ensure we're only reading files under our extensions folder
-    let extensions_dir = app_data_dir.join("extensions");
     if !full_path.starts_with(&extensions_dir) {
         return Err("Cannot read file outside extensions folder".to_string());
     }
 
     if !full_path.exists() {
-        return Err(format!("File does not exist: {}", path));
+        return Err(format!(
+            "File does not exist: {} (full path: {:?})",
+            path, full_path
+        ));
     }
 
     fs::read_to_string(&full_path).map_err(|e| format!("Failed to read file: {}", e))
 }
 
-/// Get the extensions directory path and ensure it exists
-fn get_extensions_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    let extensions_dir = app_data_dir.join("extensions");
-
-    // Ensure extensions directory exists
-    if !extensions_dir.exists() {
-        fs::create_dir_all(&extensions_dir)
-            .map_err(|e| format!("Failed to create extensions directory: {}", e))?;
-        println!(
-            "[ExtensionManager] Created extensions directory: {:?}",
-            extensions_dir
-        );
-    }
-
-    Ok(extensions_dir)
-}
-
 /// Load the extensions.json manifest file
 #[tauri::command]
 pub fn load_extensions_manifest(app: AppHandle) -> Result<String, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    // Ensure extensions directory exists
-    let _ = get_extensions_dir(&app)?;
-
-    let manifest_file = app_data_dir.join("extensions").join("extensions.json");
+    let extensions_dir = get_extensions_dir(&app)?;
+    let manifest_file = extensions_dir.join("extensions.json");
 
     if !manifest_file.exists() {
         // Return empty manifest if file doesn't exist
@@ -306,15 +294,8 @@ pub fn load_extensions_manifest(app: AppHandle) -> Result<String, String> {
 /// Save the extensions.json manifest file
 #[tauri::command]
 pub fn save_extensions_manifest(app: AppHandle, manifest: String) -> Result<(), String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    // Ensure extensions directory exists
-    let _ = get_extensions_dir(&app)?;
-
-    let manifest_file = app_data_dir.join("extensions").join("extensions.json");
+    let extensions_dir = get_extensions_dir(&app)?;
+    let manifest_file = extensions_dir.join("extensions.json");
 
     // Validate JSON before writing
     let _: ExtensionsManifest =
@@ -324,15 +305,12 @@ pub fn save_extensions_manifest(app: AppHandle, manifest: String) -> Result<(), 
         .map_err(|e| format!("Failed to write extensions manifest: {}", e))
 }
 
-/// Get the app data directory path (for diagnostics)
+/// Get the Rainy Aether directory path (for diagnostics)
+/// Returns the path to ~/.rainy-aether/
 #[tauri::command]
 pub fn get_app_data_directory(app: AppHandle) -> Result<String, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    Ok(app_data_dir.to_string_lossy().to_string())
+    let rainy_dir = get_rainy_aether_dir(&app)?;
+    Ok(rainy_dir.to_string_lossy().to_string())
 }
 
 /// Ensure extensions directory structure exists

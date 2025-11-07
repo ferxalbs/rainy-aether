@@ -477,8 +477,28 @@ export class MonacoExtensionHost {
   private resolveExtensionPath(extension: InstalledExtension, relativePath: string): string {
     // Convert relative path to absolute path in the extension directory
     // Remove leading ./ if present
-    const cleanPath = relativePath.startsWith('./') ? relativePath.substring(2) : relativePath;
-    return `${extension.path}/${cleanPath}`;
+    let cleanPath = relativePath.startsWith('./') ? relativePath.substring(2) : relativePath;
+
+    // Normalize the path by resolving .. components
+    // Split the extension path and relative path
+    const extensionParts = extension.path.split('/');
+    const relativeParts = cleanPath.split('/');
+
+    // Process relative path parts
+    for (const part of relativeParts) {
+      if (part === '..') {
+        // Go up one directory
+        extensionParts.pop();
+      } else if (part !== '.' && part !== '') {
+        // Add the part to the path
+        extensionParts.push(part);
+      }
+    }
+
+    // Join back together
+    const normalized = extensionParts.join('/');
+    console.log(`[IconTheme] Resolved path: ${relativePath} -> ${normalized}`);
+    return normalized;
   }
 
   private async loadJsonFile(path: string): Promise<any> {
