@@ -29,12 +29,16 @@ const RenderIcon: React.FC<{ icon: IconDefinition; size?: number; className?: st
 
   // Icon path (extension-provided icons)
   if (icon.iconPath) {
+    console.log(`[RenderIcon] Rendering icon with path:`, icon.iconPath.substring(0, 100) + '...');
+
     // Check if it's an SVG string
     if (icon.iconPath.startsWith('<svg')) {
       return <div dangerouslySetInnerHTML={{ __html: icon.iconPath }} style={{ width: size, height: size, ...style }} className={className} />;
     }
-    // Otherwise it's a path to an image
-    return <img src={icon.iconPath} alt="" style={{ width: size, height: size, ...style }} className={className} />;
+    // Otherwise it's a path/data URL to an image
+    return <img src={icon.iconPath} alt="" style={{ width: size, height: size, ...style }} className={className} onError={(e) => {
+      console.error('[RenderIcon] Failed to load icon:', icon.iconPath?.substring(0, 100));
+    }} />;
   }
 
   // Font-based icon (future support)
@@ -55,6 +59,7 @@ const RenderIcon: React.FC<{ icon: IconDefinition; size?: number; className?: st
   }
 
   // Fallback to generic file icon
+  console.log('[RenderIcon] Using fallback icon');
   return <File size={size} className={className} style={style} />;
 };
 

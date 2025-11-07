@@ -404,16 +404,37 @@ export class MonacoExtensionHost {
                   // Read the icon file
                   const iconContent = await invoke<string>('read_extension_file', { path: fullPath });
 
-                  // If it's an SVG, convert to data URL
+                  // If it's an SVG, convert to data URL (properly encoded for UTF-8)
                   if (fullPath.endsWith('.svg')) {
-                    const dataUrl = `data:image/svg+xml;base64,${btoa(iconContent)}`;
+                    // Properly encode UTF-8 strings for base64
+                    // Use TextEncoder to handle UTF-8 characters correctly
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(iconContent);
+                    // Convert to base64 using Uint8Array
+                    let binary = '';
+                    const len = data.byteLength;
+                    for (let i = 0; i < len; i++) {
+                      binary += String.fromCharCode(data[i]);
+                    }
+                    const base64 = btoa(binary);
+                    const dataUrl = `data:image/svg+xml;base64,${base64}`;
                     iconDefinitions[iconId] = { iconPath: dataUrl };
                     loadedCount++;
                   } else {
                     // For PNG/JPG, we'd need to determine MIME type
                     const ext = fullPath.split('.').pop()?.toLowerCase();
                     const mimeType = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/svg+xml';
-                    const dataUrl = `data:${mimeType};base64,${btoa(iconContent)}`;
+                    // For binary files, we need to read them differently
+                    // For now, use the same encoding approach
+                    const encoder = new TextEncoder();
+                    const data = encoder.encode(iconContent);
+                    let binary = '';
+                    const len = data.byteLength;
+                    for (let i = 0; i < len; i++) {
+                      binary += String.fromCharCode(data[i]);
+                    }
+                    const base64 = btoa(binary);
+                    const dataUrl = `data:${mimeType};base64,${base64}`;
                     iconDefinitions[iconId] = { iconPath: dataUrl };
                     loadedCount++;
                   }
