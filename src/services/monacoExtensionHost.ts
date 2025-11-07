@@ -496,30 +496,24 @@ export class MonacoExtensionHost {
   }
 
   private resolveExtensionPath(extension: InstalledExtension, relativePath: string): string {
-    // Convert relative path to absolute path in the extension directory
-    // Remove leading ./ if present
+    // The iconPath in material-icons.json is relative to the dist/ folder
+    // Example: iconPath: "./../icons/git.svg" means go up from dist/ to extension root, then into icons/
+
+    // Start with the extension folder name (e.g., "pkief.material-icon-theme-5.28.0")
     let cleanPath = relativePath.startsWith('./') ? relativePath.substring(2) : relativePath;
 
-    // Normalize the path by resolving .. components
-    // Split the extension path and relative path
-    const extensionParts = extension.path.split('/');
-    const relativeParts = cleanPath.split('/');
-
-    // Process relative path parts
-    for (const part of relativeParts) {
-      if (part === '..') {
-        // Go up one directory
-        extensionParts.pop();
-      } else if (part !== '.' && part !== '') {
-        // Add the part to the path
-        extensionParts.push(part);
-      }
+    // If the path starts with ../, it's relative to dist/ folder
+    // We need to resolve it relative to the extension root
+    if (cleanPath.startsWith('../')) {
+      // Remove the ../ prefix (going up from dist/)
+      cleanPath = cleanPath.substring(3);
     }
 
-    // Join back together
-    const normalized = extensionParts.join('/');
-    console.log(`[IconTheme] Resolved path: ${relativePath} -> ${normalized}`);
-    return normalized;
+    // Build the final path: extension-folder/resolved-path
+    const finalPath = `${extension.path}/${cleanPath}`;
+
+    console.log(`[IconTheme] Resolved path: ${relativePath} -> ${finalPath}`);
+    return finalPath;
   }
 
   private async loadJsonFile(path: string): Promise<any> {
