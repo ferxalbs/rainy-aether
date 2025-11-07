@@ -151,6 +151,11 @@ export class MonacoExtensionHost {
     if (contributes.commands) {
       await this.loadCommands(extension, contributes.commands, loadedExtension);
     }
+
+    // Load icon themes
+    if (contributes.iconThemes) {
+      await this.loadIconThemes(extension, contributes.iconThemes, loadedExtension);
+    }
   }
 
   private async loadLanguages(
@@ -349,9 +354,131 @@ export class MonacoExtensionHost {
     console.log(`Extension ${_extension.id} provides commands, but Monaco integration is limited`);
   }
 
+  private async loadIconThemes(
+    extension: InstalledExtension,
+    iconThemes: any[],
+    loadedExtension: LoadedExtension
+  ): Promise<void> {
+    console.log(`[IconTheme] Extension ${extension.id} provides ${iconThemes.length} icon theme(s)`);
+
+    try {
+      // Dynamically import the icon theme API
+      const { iconThemeActions } = await import('@/stores/iconThemeStore');
+
+      for (const iconThemeContrib of iconThemes) {
+        console.log(`[IconTheme] Loading icon theme: ${iconThemeContrib.label} (${iconThemeContrib.id})`);
+
+        try {
+          // Resolve the path to the icon theme JSON file
+          const themePath = this.resolveExtensionPath(extension, iconThemeContrib.path);
+          console.log(`[IconTheme] Loading theme file from: ${themePath}`);
+
+          // Load the icon theme data
+          const themeData = await this.loadJsonFile(themePath);
+          console.log(`[IconTheme] Loaded theme data for ${iconThemeContrib.id}`);
+
+          // Convert icon paths to full extension paths and load as data URLs
+          const iconDefinitions: Record<string, any> = {};
+          if (themeData.iconDefinitions) {
+            const { invoke } = await import('@tauri-apps/api/core');
+            let loadedCount = 0;
+            let failedCount = 0;
+
+            for (const [iconId, iconDef] of Object.entries<any>(themeData.iconDefinitions)) {
+              try {
+                // Handle different formats:
+                // 1. Object with iconPath property: { iconPath: "./icons/file.svg" }
+                // 2. Direct string value (legacy format)
+                let iconPath: string | undefined;
+
+                if (typeof iconDef === 'string') {
+                  iconPath = iconDef;
+                } else if (iconDef && typeof iconDef === 'object' && iconDef.iconPath) {
+                  iconPath = iconDef.iconPath;
+                }
+
+                if (iconPath) {
+                  // Convert relative path to full extension path
+                  const fullPath = this.resolveExtensionPath(extension, iconPath);
+
+                  // Read the icon file
+                  const iconContent = await invoke<string>('read_extension_file', { path: fullPath });
+
+                  // If it's an SVG, convert to data URL
+                  if (fullPath.endsWith('.svg')) {
+                    const dataUrl = `data:image/svg+xml;base64,${btoa(iconContent)}`;
+                    iconDefinitions[iconId] = { iconPath: dataUrl };
+                    loadedCount++;
+                  } else {
+                    // For PNG/JPG, we'd need to determine MIME type
+                    const ext = fullPath.split('.').pop()?.toLowerCase();
+                    const mimeType = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/svg+xml';
+                    const dataUrl = `data:${mimeType};base64,${btoa(iconContent)}`;
+                    iconDefinitions[iconId] = { iconPath: dataUrl };
+                    loadedCount++;
+                  }
+                } else {
+                  // No iconPath, keep the definition as-is (might be font-based icon)
+                  iconDefinitions[iconId] = iconDef;
+                }
+              } catch (error) {
+                failedCount++;
+                console.warn(`[IconTheme] Failed to load icon ${iconId}:`, error);
+                // Skip this icon - don't add it to iconDefinitions
+              }
+            }
+
+            console.log(`[IconTheme] Loaded ${loadedCount} icons, ${failedCount} failed for theme ${iconThemeContrib.id}`);
+          }
+
+          // Register the icon theme
+          iconThemeActions.registerTheme({
+            id: iconThemeContrib.id,
+            label: iconThemeContrib.label,
+            extensionId: extension.id,
+            iconDefinitions,
+            // Copy VS Code standard properties
+            file: themeData.file,
+            folder: themeData.folder,
+            folderExpanded: themeData.folderExpanded,
+            rootFolder: themeData.rootFolder,
+            rootFolderExpanded: themeData.rootFolderExpanded,
+            fileExtensions: themeData.fileExtensions,
+            fileNames: themeData.fileNames,
+            languageIds: themeData.languageIds,
+            folderNames: themeData.folderNames,
+            folderNamesExpanded: themeData.folderNamesExpanded,
+            rootFolderNames: themeData.rootFolderNames,
+            rootFolderNamesExpanded: themeData.rootFolderNamesExpanded,
+          });
+
+          console.log(`[IconTheme] Successfully registered icon theme: ${iconThemeContrib.id}`);
+
+          // Auto-activate the theme (extensions providing icon themes typically want them active)
+          iconThemeActions.setActiveTheme(iconThemeContrib.id);
+          console.log(`[IconTheme] Activated icon theme: ${iconThemeContrib.id}`);
+
+          // Add disposal callback
+          loadedExtension.disposables.push({
+            dispose: () => {
+              console.log(`[IconTheme] Unregistering icon theme: ${iconThemeContrib.id}`);
+              iconThemeActions.unregisterTheme(iconThemeContrib.id);
+            },
+          });
+        } catch (error) {
+          console.error(`[IconTheme] Failed to load icon theme ${iconThemeContrib.id}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error(`[IconTheme] Failed to import icon theme store:`, error);
+    }
+  }
+
   private resolveExtensionPath(extension: InstalledExtension, relativePath: string): string {
     // Convert relative path to absolute path in the extension directory
-    return `${extension.path}/${relativePath}`;
+    // Remove leading ./ if present
+    const cleanPath = relativePath.startsWith('./') ? relativePath.substring(2) : relativePath;
+    return `${extension.path}/${cleanPath}`;
   }
 
   private async loadJsonFile(path: string): Promise<any> {

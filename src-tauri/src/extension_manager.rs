@@ -66,9 +66,19 @@ pub fn extract_extension(
             .by_index(i)
             .map_err(|e| format!("Failed to read file from archive: {}", e))?;
 
-        let outpath = full_target_path.join(file.name());
+        let file_name = file.name().to_string();
 
-        if file.name().ends_with('/') {
+        // VS Code extensions have files inside an "extension/" folder in the VSIX
+        // Strip this prefix if it exists
+        let relative_path = if file_name.starts_with("extension/") {
+            file_name.strip_prefix("extension/").unwrap_or(&file_name)
+        } else {
+            &file_name
+        };
+
+        let outpath = full_target_path.join(relative_path);
+
+        if file_name.ends_with('/') {
             // Create directory
             fs::create_dir_all(&outpath)
                 .map_err(|e| format!("Failed to create directory: {}", e))?;
@@ -85,6 +95,11 @@ pub fn extract_extension(
 
             std::io::copy(&mut file, &mut outfile)
                 .map_err(|e| format!("Failed to extract file: {}", e))?;
+
+            // Log extraction for debugging (only for important files)
+            if relative_path.ends_with(".json") || relative_path.contains("material-icons") {
+                println!("[ExtensionExtract] Extracted: {} -> {}", file_name, relative_path);
+            }
         }
     }
 
