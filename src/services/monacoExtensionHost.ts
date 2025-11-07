@@ -474,6 +474,10 @@ export class MonacoExtensionHost {
           });
 
           console.log(`[IconTheme] Successfully registered icon theme: ${iconThemeContrib.id}`);
+          console.log(`[IconTheme] Theme has ${Object.keys(iconDefinitions).length} icon definitions`);
+          console.log(`[IconTheme] Theme has ${Object.keys(themeData.fileExtensions || {}).length} file extensions`);
+          console.log(`[IconTheme] Theme has ${Object.keys(themeData.fileNames || {}).length} file names`);
+          console.log(`[IconTheme] Sample fileExtensions:`, Object.keys(themeData.fileExtensions || {}).slice(0, 30));
 
           // Auto-activate the theme when the extension is enabled
           // This ensures the user sees the icons immediately
