@@ -13,7 +13,8 @@ import {
 
 export class ExtensionManager extends EventEmitter {
   private extensions: Map<string, InstalledExtension> = new Map();
-  private readonly extensionsDir = 'extensions'; // Relative to app data directory
+  // Path is just the folder name relative to extensions directory (VS Code compatible)
+  // Example: "pkief.material-icon-theme-5.28.0"
   private isInitialized = false;
   private cleanupTimer?: NodeJS.Timeout;
   private readonly cleanupInterval = 60 * 1000; // 1 minute
@@ -355,8 +356,14 @@ export class ExtensionManager extends EventEmitter {
 
   // Private methods
 
+  /**
+   * Get extension folder name (VS Code compatible format)
+   * Format: publisher.name-version
+   * Example: pkief.material-icon-theme-5.28.0
+   */
   private getExtensionPath(publisher: string, name: string, version: string): string {
-    return `${this.extensionsDir}/${publisher}/${name}/${version}`;
+    // VS Code format: lowercase publisher.name-version
+    return `${publisher.toLowerCase()}.${name.toLowerCase()}-${version}`;
   }
 
   private async downloadAndExtractExtension(

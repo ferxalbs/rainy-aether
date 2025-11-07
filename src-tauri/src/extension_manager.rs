@@ -65,6 +65,7 @@ pub struct ExtensionManifestEntry {
     /// Version of the extension
     pub version: String,
     /// Installation path relative to extensions directory
+    /// Format: publisher.name-version (e.g., "pkief.material-icon-theme-5.28.0")
     pub relative_path: String,
     /// Extension metadata
     pub metadata: ExtensionMetadata,
@@ -130,7 +131,8 @@ pub fn extract_extension(
 ) -> Result<(), String> {
     let extensions_dir = get_extensions_dir(&app)?;
 
-    // target_path should be relative (e.g., "PKief/material-icon-theme/5.28.0")
+    // target_path is in VS Code format: "publisher.name-version"
+    // Example: "pkief.material-icon-theme-5.28.0"
     let full_target_path = extensions_dir.join(&target_path);
 
     println!(
