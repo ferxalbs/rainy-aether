@@ -115,6 +115,11 @@ export const getFileIcon = (fileName: string, languageId?: string): IconDefiniti
     return null;
   }
 
+  console.log(`[IconTheme] Looking up icon for file: "${fileName}"`);
+  console.log(`[IconTheme] Active theme: ${state.activeThemeId}`);
+  console.log(`[IconTheme] Available fileExtensions:`, Object.keys(activeTheme.fileExtensions || {}).slice(0, 20));
+  console.log(`[IconTheme] Available fileNames:`, Object.keys(activeTheme.fileNames || {}).slice(0, 20));
+
   const { iconDefinitions } = activeTheme;
   let iconId: string | undefined;
 
@@ -122,7 +127,7 @@ export const getFileIcon = (fileName: string, languageId?: string): IconDefiniti
   if (activeTheme.fileNames) {
     iconId = activeTheme.fileNames[fileName.toLowerCase()];
     if (iconId && iconDefinitions[iconId]) {
-      console.log(`[IconTheme] Found icon for file "${fileName}" via fileNames: ${iconId}`);
+      console.log(`[IconTheme] ✅ Found icon for file "${fileName}" via fileNames: ${iconId}`);
       return iconDefinitions[iconId];
     }
   }
@@ -130,13 +135,21 @@ export const getFileIcon = (fileName: string, languageId?: string): IconDefiniti
   // 2. Check file extension match (can match multiple for files like lib.d.ts)
   if (activeTheme.fileExtensions) {
     const parts = fileName.toLowerCase().split('.');
+    console.log(`[IconTheme] File parts:`, parts);
+
     // Try multi-part extensions first (e.g., 'd.ts' before 'ts')
     for (let i = 1; i < parts.length; i++) {
       const ext = parts.slice(i).join('.');
+      console.log(`[IconTheme] Trying extension: "${ext}"`);
       iconId = activeTheme.fileExtensions[ext];
-      if (iconId && iconDefinitions[iconId]) {
-        console.log(`[IconTheme] Found icon for file "${fileName}" via extension ".${ext}": ${iconId}`);
-        return iconDefinitions[iconId];
+      if (iconId) {
+        console.log(`[IconTheme] Found iconId: ${iconId}, checking if definition exists...`);
+        if (iconDefinitions[iconId]) {
+          console.log(`[IconTheme] ✅ Found icon for file "${fileName}" via extension ".${ext}": ${iconId}`);
+          return iconDefinitions[iconId];
+        } else {
+          console.warn(`[IconTheme] IconId ${iconId} not found in iconDefinitions!`);
+        }
       }
     }
   }
@@ -145,18 +158,19 @@ export const getFileIcon = (fileName: string, languageId?: string): IconDefiniti
   if (languageId && activeTheme.languageIds) {
     iconId = activeTheme.languageIds[languageId];
     if (iconId && iconDefinitions[iconId]) {
-      console.log(`[IconTheme] Found icon for file "${fileName}" via languageId "${languageId}": ${iconId}`);
+      console.log(`[IconTheme] ✅ Found icon for file "${fileName}" via languageId "${languageId}": ${iconId}`);
       return iconDefinitions[iconId];
     }
   }
 
   // 4. Fall back to default file icon
   if (activeTheme.file && iconDefinitions[activeTheme.file]) {
-    console.log(`[IconTheme] Using default file icon for "${fileName}": ${activeTheme.file}`);
+    console.log(`[IconTheme] ⚠️ Using default file icon for "${fileName}": ${activeTheme.file}`);
     return iconDefinitions[activeTheme.file];
   }
 
-  console.warn(`[IconTheme] No icon found for file "${fileName}"`);
+  console.error(`[IconTheme] ❌ No icon found for file "${fileName}"`);
+  console.log(`[IconTheme] Total icon definitions loaded: ${Object.keys(iconDefinitions).length}`);
   return null;
 };
 
