@@ -9,6 +9,7 @@
 ## 🎯 Vision
 
 Create a **fully extensible IDE** where the community can add:
+
 - 🎨 Icon Themes (✅ **DONE**)
 - 🌈 Color Themes
 - 📝 Language Support & Syntax Highlighting
@@ -45,6 +46,7 @@ The current icon theme system establishes the **foundation** for all future exte
 ### ✅ What We Have (Reusable Infrastructure)
 
 **1. Extension Installation System:**
+
 ```
 ✅ OpenVSX Registry API integration
 ✅ .vsix download & extraction
@@ -54,6 +56,7 @@ The current icon theme system establishes the **foundation** for all future exte
 ```
 
 **2. Extension Lifecycle Management:**
+
 ```
 ✅ Install/Uninstall/Enable/Disable
 ✅ State persistence
@@ -62,6 +65,7 @@ The current icon theme system establishes the **foundation** for all future exte
 ```
 
 **3. Extension Loading Pipeline:**
+
 ```
 ✅ MonacoExtensionHost (extension loader)
 ✅ Package.json parsing
@@ -71,6 +75,7 @@ The current icon theme system establishes the **foundation** for all future exte
 ```
 
 **4. Backend Infrastructure:**
+
 ```
 ✅ Rust commands for file operations
 ✅ Safe path validation
@@ -81,6 +86,7 @@ The current icon theme system establishes the **foundation** for all future exte
 ### 🔄 What Needs Extension-Specific Implementation
 
 Each new contribution type needs:
+
 1. **Store** - State management (like iconThemeStore.ts)
 2. **Loader** - Parse and register contribution (in monacoExtensionHost.ts)
 3. **Renderer/Integrator** - Apply to Monaco/UI (like RenderIcon component)
@@ -95,6 +101,7 @@ Each new contribution type needs:
 **Status:** Production Ready (with minor icon recognition issues)
 
 **Implemented:**
+
 - Icon theme registration
 - SVG → Data URL conversion
 - File/folder icon lookup
@@ -102,6 +109,7 @@ Each new contribution type needs:
 - ProjectExplorer integration
 
 **Files Created:**
+
 - `iconThemeStore.ts` - State management
 - `monacoExtensionHost.ts::loadIconThemes()` - Loading
 - `ProjectExplorer.tsx::RenderIcon` - Rendering
@@ -115,6 +123,7 @@ Each new contribution type needs:
 #### Implementation Plan
 
 **1. Theme Store** (`src/stores/colorThemeStore.ts`)
+
 ```typescript
 interface ColorTheme {
   id: string;
@@ -138,6 +147,7 @@ interface ColorTheme {
 ```
 
 **2. Extension Loader** (`monacoExtensionHost.ts`)
+
 ```typescript
 private async loadColorThemes(
   extension: InstalledExtension,
@@ -169,16 +179,19 @@ private async loadColorThemes(
 ```
 
 **3. Integration with Existing Theme System**
+
 - Merge with current `themeStore.ts`
 - Support both built-in and extension themes
 - Allow switching via settings
 
 **4. UI Updates**
+
 - Theme selector in settings
 - Live preview
 - Import from VS Code theme extensions
 
 **VS Code Compatibility:**
+
 ```json
 {
   "contributes": {
@@ -202,6 +215,7 @@ private async loadColorThemes(
 #### Implementation Plan
 
 **1. Language Store** (`src/stores/languageStore.ts`)
+
 ```typescript
 interface LanguageDefinition {
   id: string;
@@ -220,6 +234,7 @@ interface LanguageDefinition {
 ```
 
 **2. Language Registration**
+
 ```typescript
 private async loadLanguages(
   extension: InstalledExtension,
@@ -248,6 +263,7 @@ private async loadLanguages(
 ```
 
 **VS Code Compatibility:**
+
 ```json
 {
   "contributes": {
@@ -272,6 +288,7 @@ private async loadLanguages(
 #### Implementation Plan
 
 **1. Grammar Loading**
+
 ```typescript
 private async loadGrammars(
   extension: InstalledExtension,
@@ -299,16 +316,19 @@ private async loadGrammars(
 ```
 
 **2. Dependencies Needed**
+
 ```bash
 npm install vscode-textmate vscode-oniguruma
 ```
 
 **3. TextMate Service Integration**
+
 - Load `.tmLanguage.json` or `.tmLanguage` files
 - Wire up to Monaco's tokenization
 - Support for scope-based syntax highlighting
 
 **VS Code Compatibility:**
+
 ```json
 {
   "contributes": {
@@ -332,6 +352,7 @@ npm install vscode-textmate vscode-oniguruma
 #### Implementation Plan
 
 **1. Snippet Store** (`src/stores/snippetStore.ts`)
+
 ```typescript
 interface Snippet {
   prefix: string;
@@ -347,6 +368,7 @@ interface SnippetCollection {
 ```
 
 **2. Snippet Registration**
+
 ```typescript
 private async loadSnippets(
   extension: InstalledExtension,
@@ -371,6 +393,7 @@ private async loadSnippets(
 ```
 
 **VS Code Compatibility:**
+
 ```json
 {
   "contributes": {
@@ -393,6 +416,7 @@ private async loadSnippets(
 #### Implementation Plan
 
 **1. Command Registry** (`src/services/commandRegistry.ts`)
+
 ```typescript
 interface Command {
   id: string;
@@ -417,6 +441,7 @@ class CommandRegistry {
 ```
 
 **2. Keybinding Integration**
+
 ```typescript
 private async loadKeybindings(
   extension: InstalledExtension,
@@ -460,6 +485,7 @@ interface ConfigurationContribution {
 **Goal:** Extensions can add custom UI panels
 
 **Examples:**
+
 - Git graph view
 - Database explorer
 - REST client
@@ -601,6 +627,7 @@ import * as oniguruma from 'vscode-oniguruma';
 | LSP               | ✅ Full        | 🔮 Future           | Very High  |
 
 **Legend:**
+
 - ✅ Implemented and working
 - 🔄 In progress / Next sprint
 - 📋 Planned for near future
@@ -611,24 +638,28 @@ import * as oniguruma from 'vscode-oniguruma';
 ## 🚀 Success Metrics
 
 ### Phase 1 (Icon Themes) ✅
+
 - ✅ Can install Material Icon Theme
 - ✅ Icons display in sidebar
 - ✅ Theme persists across restarts
 - 🟡 95%+ file types recognized (currently ~80%)
 
 ### Phase 2 (Color Themes) 🎯
+
 - [ ] Can install popular themes (Monokai, Dracula, One Dark)
 - [ ] Theme applies to editor
 - [ ] Theme applies to UI (sidebar, status bar)
 - [ ] Smooth theme switching
 
 ### Phase 3-4 (Languages) 🎯
+
 - [ ] Can install language extensions (Rust, Go, Python)
 - [ ] Syntax highlighting works
 - [ ] Auto-completion for language
 - [ ] Bracket matching & auto-close
 
 ### Phase 5+ (Advanced) 🎯
+
 - [ ] Code snippets work
 - [ ] Custom commands execute
 - [ ] Keybindings customize
@@ -673,6 +704,7 @@ import * as oniguruma from 'vscode-oniguruma';
 ```
 
 **Rainy Aether Support:**
+
 - ✅ Icon theme loads
 - 🔄 Color theme loads (Phase 2)
 - 🔄 Language registration (Phase 3)
@@ -744,6 +776,7 @@ Q2 2026+:
 ## 🎯 Ultimate Goal
 
 **Vision:** A fully extensible IDE where developers can:
+
 - Install any VS Code extension from OpenVSX
 - Customize every aspect of the editor
 - Build their own extensions
