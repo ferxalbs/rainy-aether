@@ -475,9 +475,11 @@ export class MonacoExtensionHost {
 
           console.log(`[IconTheme] Successfully registered icon theme: ${iconThemeContrib.id}`);
 
-          // DO NOT auto-activate - let the user choose or use their saved preference
-          // This fixes the issue where extension themes override the user's choice
-          console.log(`[IconTheme] Icon theme registered but not auto-activated. User can activate it from settings.`);
+          // Auto-activate the theme when the extension is enabled
+          // This ensures the user sees the icons immediately
+          console.log(`[IconTheme] Auto-activating icon theme: ${iconThemeContrib.id}`);
+          await iconThemeActions.setActiveTheme(iconThemeContrib.id, true);
+          console.log(`[IconTheme] Icon theme ${iconThemeContrib.id} is now active`);
 
           // Add disposal callback
           loadedExtension.disposables.push({
