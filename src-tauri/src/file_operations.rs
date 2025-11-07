@@ -4,7 +4,6 @@
  * High-performance file operations for AI agent tools with security controls,
  * batch processing, and efficient I/O.
  */
-
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -229,7 +228,11 @@ pub async fn tool_edit_file(
     // Apply operations
     for operation in operations {
         match operation {
-            EditOperation::Replace { search, replace, all } => {
+            EditOperation::Replace {
+                search,
+                replace,
+                all,
+            } => {
                 if all.unwrap_or(false) {
                     content = content.replace(&search, &replace);
                 } else {
@@ -237,14 +240,20 @@ pub async fn tool_edit_file(
                 }
                 applied += 1;
             }
-            EditOperation::Insert { line, content: insert_content } => {
+            EditOperation::Insert {
+                line,
+                content: insert_content,
+            } => {
                 let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
                 let insert_idx = (line as usize).saturating_sub(1).min(lines.len());
                 lines.insert(insert_idx, insert_content);
                 content = lines.join("\n");
                 applied += 1;
             }
-            EditOperation::Delete { start_line, end_line } => {
+            EditOperation::Delete {
+                start_line,
+                end_line,
+            } => {
                 let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
                 let start_idx = (start_line as usize).saturating_sub(1);
                 let end_idx = (end_line as usize).min(lines.len());
@@ -304,9 +313,12 @@ pub async fn tool_delete_file(
 
             deleted_items = count;
         } else {
-            fs::remove_dir(&full_path)
-                .await
-                .map_err(|e| format!("Failed to delete directory (use recursive=true for non-empty): {}", e))?;
+            fs::remove_dir(&full_path).await.map_err(|e| {
+                format!(
+                    "Failed to delete directory (use recursive=true for non-empty): {}",
+                    e
+                )
+            })?;
             deleted_items = 1;
         }
     } else {
@@ -421,7 +433,10 @@ pub async fn tool_batch_read_files(
         }
     }
 
-    Ok(BatchReadResult { files: results, errors })
+    Ok(BatchReadResult {
+        files: results,
+        errors,
+    })
 }
 
 /// Helper: Copy directory recursively

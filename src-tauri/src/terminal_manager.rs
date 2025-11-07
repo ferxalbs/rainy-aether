@@ -138,7 +138,11 @@ fn detect_available_shells() -> Vec<ShellProfile> {
             });
         }
         // Common shells
-        for (name, cmd) in [("bash", "/bin/bash"), ("zsh", "/bin/zsh"), ("fish", "/usr/bin/fish")] {
+        for (name, cmd) in [
+            ("bash", "/bin/bash"),
+            ("zsh", "/bin/zsh"),
+            ("fish", "/usr/bin/fish"),
+        ] {
             if which::which(cmd).is_ok() {
                 profiles.push(ShellProfile {
                     name: name.to_string(),
@@ -268,10 +272,13 @@ pub fn terminal_create(
         {
             if let Ok(mut s) = state_clone.lock() {
                 *s = SessionState::Active;
-                let _ = app_handle.emit("terminal/state", TerminalStateEvent {
-                    id: session_id.clone(),
-                    state: SessionState::Active,
-                });
+                let _ = app_handle.emit(
+                    "terminal/state",
+                    TerminalStateEvent {
+                        id: session_id.clone(),
+                        state: SessionState::Active,
+                    },
+                );
             }
         }
 
@@ -285,11 +292,15 @@ pub fn terminal_create(
                             *s = SessionState::Exited;
                         }
                     }
-                    let _ = app_handle.emit("terminal/exit", serde_json::json!({ "id": session_id }));
-                    let _ = app_handle.emit("terminal/state", TerminalStateEvent {
-                        id: session_id.clone(),
-                        state: SessionState::Exited,
-                    });
+                    let _ =
+                        app_handle.emit("terminal/exit", serde_json::json!({ "id": session_id }));
+                    let _ = app_handle.emit(
+                        "terminal/state",
+                        TerminalStateEvent {
+                            id: session_id.clone(),
+                            state: SessionState::Exited,
+                        },
+                    );
                     break;
                 }
                 Ok(n) => {
@@ -310,10 +321,13 @@ pub fn terminal_create(
                         "terminal/error",
                         serde_json::json!({ "id": session_id, "error": err.to_string() }),
                     );
-                    let _ = app_handle.emit("terminal/state", TerminalStateEvent {
-                        id: session_id.clone(),
-                        state: SessionState::Error,
-                    });
+                    let _ = app_handle.emit(
+                        "terminal/state",
+                        TerminalStateEvent {
+                            id: session_id.clone(),
+                            state: SessionState::Error,
+                        },
+                    );
                     break;
                 }
             }
@@ -437,7 +451,9 @@ pub fn terminal_get_session(
 
 /// List all active terminal sessions
 #[tauri::command]
-pub fn terminal_list_sessions(state: State<TerminalState>) -> Result<Vec<TerminalSessionInfo>, String> {
+pub fn terminal_list_sessions(
+    state: State<TerminalState>,
+) -> Result<Vec<TerminalSessionInfo>, String> {
     let sessions = state.sessions.lock().map_err(|_| "lock poisoned")?;
     let mut result = Vec::new();
 

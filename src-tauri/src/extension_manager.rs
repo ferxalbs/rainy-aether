@@ -1,9 +1,62 @@
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Cursor;
+use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 use zip::ZipArchive;
 
 // Extension management commands for Tauri
+
+/// VS Code-compatible extensions.json manifest structure
+/// Tracks all installed extensions with their metadata
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExtensionsManifest {
+    /// List of installed extension entries
+    pub extensions: Vec<ExtensionManifestEntry>,
+}
+
+/// Individual extension entry in the manifest
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExtensionManifestEntry {
+    /// Extension identifier (publisher.name)
+    pub identifier: ExtensionIdentifier,
+    /// Version of the extension
+    pub version: String,
+    /// Installation path relative to extensions directory
+    pub relative_path: String,
+    /// Extension metadata
+    pub metadata: ExtensionMetadata,
+}
+
+/// Extension identifier structure
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExtensionIdentifier {
+    /// Full ID (e.g., "PKief.material-icon-theme")
+    pub id: String,
+    /// Unique UUID (optional, for compatibility)
+    pub uuid: Option<String>,
+}
+
+/// Extension metadata
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExtensionMetadata {
+    /// Timestamp when extension was installed (ISO 8601)
+    pub installed_timestamp: Option<i64>,
+    /// Whether the extension is enabled
+    pub is_enabled: bool,
+    /// Whether the extension is pre-installed/built-in
+    pub is_builtin: Option<bool>,
+    /// Whether the extension is a system extension
+    pub is_system: Option<bool>,
+    /// Last updated timestamp
+    pub updated_timestamp: Option<i64>,
+    /// Pre-release version flag
+    pub pre_release_version: Option<bool>,
+    /// Extension display name
+    pub display_name: Option<String>,
+    /// Extension description
+    pub description: Option<String>,
+}
 
 #[tauri::command]
 pub fn load_installed_extensions(app: AppHandle) -> Result<String, String> {
@@ -98,7 +151,10 @@ pub fn extract_extension(
 
             // Log extraction for debugging (only for important files)
             if relative_path.ends_with(".json") || relative_path.contains("material-icons") {
-                println!("[ExtensionExtract] Extracted: {} -> {}", file_name, relative_path);
+                println!(
+                    "[ExtensionExtract] Extracted: {} -> {}",
+                    file_name, relative_path
+                );
             }
         }
     }
@@ -199,4 +255,89 @@ pub fn read_extension_file(app: AppHandle, path: String) -> Result<String, Strin
     }
 
     fs::read_to_string(&full_path).map_err(|e| format!("Failed to read file: {}", e))
+}
+
+/// Get the extensions directory path and ensure it exists
+fn get_extensions_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
+    let extensions_dir = app_data_dir.join("extensions");
+
+    // Ensure extensions directory exists
+    if !extensions_dir.exists() {
+        fs::create_dir_all(&extensions_dir)
+            .map_err(|e| format!("Failed to create extensions directory: {}", e))?;
+        println!(
+            "[ExtensionManager] Created extensions directory: {:?}",
+            extensions_dir
+        );
+    }
+
+    Ok(extensions_dir)
+}
+
+/// Load the extensions.json manifest file
+#[tauri::command]
+pub fn load_extensions_manifest(app: AppHandle) -> Result<String, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
+    // Ensure extensions directory exists
+    let _ = get_extensions_dir(&app)?;
+
+    let manifest_file = app_data_dir.join("extensions").join("extensions.json");
+
+    if !manifest_file.exists() {
+        // Return empty manifest if file doesn't exist
+        let empty_manifest = ExtensionsManifest { extensions: vec![] };
+        return serde_json::to_string_pretty(&empty_manifest)
+            .map_err(|e| format!("Failed to serialize empty manifest: {}", e));
+    }
+
+    fs::read_to_string(&manifest_file)
+        .map_err(|e| format!("Failed to read extensions manifest: {}", e))
+}
+
+/// Save the extensions.json manifest file
+#[tauri::command]
+pub fn save_extensions_manifest(app: AppHandle, manifest: String) -> Result<(), String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
+    // Ensure extensions directory exists
+    let _ = get_extensions_dir(&app)?;
+
+    let manifest_file = app_data_dir.join("extensions").join("extensions.json");
+
+    // Validate JSON before writing
+    let _: ExtensionsManifest =
+        serde_json::from_str(&manifest).map_err(|e| format!("Invalid manifest JSON: {}", e))?;
+
+    fs::write(&manifest_file, manifest)
+        .map_err(|e| format!("Failed to write extensions manifest: {}", e))
+}
+
+/// Get the app data directory path (for diagnostics)
+#[tauri::command]
+pub fn get_app_data_directory(app: AppHandle) -> Result<String, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
+    Ok(app_data_dir.to_string_lossy().to_string())
+}
+
+/// Ensure extensions directory structure exists
+#[tauri::command]
+pub fn ensure_extensions_directory(app: AppHandle) -> Result<String, String> {
+    let extensions_dir = get_extensions_dir(&app)?;
+    Ok(extensions_dir.to_string_lossy().to_string())
 }

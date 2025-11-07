@@ -6,6 +6,7 @@ export type FileIconColorMode = 'theme' | 'custom';
 interface SettingsState {
   fileIconColorMode: FileIconColorMode;
   customFileColors: Record<string, string>; // extension -> color (hex or CSS var)
+  iconThemeId: string | null; // Preferred icon theme ID
 }
 
 const defaultColors: Record<string, string> = {
@@ -24,7 +25,8 @@ const defaultColors: Record<string, string> = {
 
 const initialState: SettingsState = {
   fileIconColorMode: 'theme',
-  customFileColors: defaultColors
+  customFileColors: defaultColors,
+  iconThemeId: null, // null means use default theme
 };
 
 let settingsState: SettingsState = initialState;
@@ -68,11 +70,13 @@ export const getSettingsState = () => settingsState;
 export async function initializeSettings() {
   const mode = await loadFromStore<FileIconColorMode>("rainy-coder-file-icon-mode", "theme");
   const colors = await loadFromStore<Record<string, string>>("rainy-coder-custom-file-colors", defaultColors);
+  const iconThemeId = await loadFromStore<string | null>("rainy-coder-icon-theme-id", null);
 
   setState((prev) => ({
     ...prev,
     fileIconColorMode: mode,
     customFileColors: { ...prev.customFileColors, ...colors },
+    iconThemeId,
   }));
 }
 
@@ -88,6 +92,11 @@ export async function setCustomFileColor(ext: string, color: string) {
     customFileColors: { ...prev.customFileColors, [normalized]: color },
   }));
   await saveToStore("rainy-coder-custom-file-colors", settingsState.customFileColors);
+}
+
+export async function setIconThemeId(themeId: string | null) {
+  setState((prev) => ({ ...prev, iconThemeId: themeId }));
+  await saveToStore("rainy-coder-icon-theme-id", themeId);
 }
 
 export function fileIconColorForExt(ext: string): string {

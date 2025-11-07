@@ -40,9 +40,8 @@ const App: React.FC = () => {
         loadingActions.completeStage('settings');
 
         // Stage 2.5: Icon Themes
-        // Register default icon theme
-        iconThemeActions.registerTheme(defaultIconTheme);
-        iconThemeActions.setActiveTheme(defaultIconTheme.id);
+        // Register default icon theme (auto-activate only if no preference)
+        iconThemeActions.registerTheme(defaultIconTheme, true);
 
         // Stage 3: Extensions
         loadingActions.startStage('extensions');
@@ -60,6 +59,16 @@ const App: React.FC = () => {
             }
           }
           loadingActions.completeStage('extensions');
+
+          // Stage 3.5: Activate preferred icon theme
+          // After extensions are loaded, activate the user's preferred icon theme
+          const { getSettingsState } = await import('./stores/settingsStore');
+          const settings = getSettingsState();
+          if (settings.iconThemeId) {
+            // User has a preferred theme - activate it
+            console.log('[App] Activating preferred icon theme:', settings.iconThemeId);
+            await iconThemeActions.setActiveTheme(settings.iconThemeId, false);
+          }
         } catch (error) {
           console.error("Failed to load extensions:", error);
           loadingActions.errorStage('extensions', 'Some extensions failed to load');

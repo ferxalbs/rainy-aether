@@ -276,7 +276,7 @@ pub async fn watch_project_changes(
                                 && !path_str.contains("\\.git\\")  // Windows path
                                 && !path_str.contains("/.git/")    // Unix path
                                 && !path_str.ends_with("\\.git")   // Windows path
-                                && !path_str.ends_with("/.git")    // Unix path
+                                && !path_str.ends_with("/.git") // Unix path
                         })
                         .collect();
 

@@ -59,10 +59,7 @@ pub async fn check_for_updates(app: AppHandle) -> Result<UpdateInfo, String> {
                                 UpdateProgress {
                                     status: "available".to_string(),
                                     progress: None,
-                                    message: Some(format!(
-                                        "Update available: v{}",
-                                        update.version
-                                    )),
+                                    message: Some(format!("Update available: v{}", update.version)),
                                 },
                             );
 
@@ -177,7 +174,8 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
                                 .download_and_install(
                                     |chunk_length, content_length| {
                                         if let Some(total) = content_length {
-                                            let progress = (chunk_length as f64 / total as f64) * 100.0;
+                                            let progress =
+                                                (chunk_length as f64 / total as f64) * 100.0;
                                             let _ = app.emit(
                                                 "update-status",
                                                 UpdateProgress {
@@ -211,7 +209,7 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
                                             status: "ready".to_string(),
                                             progress: Some(100.0),
                                             message: Some(
-                                                "Update installed! Restart to apply.".to_string()
+                                                "Update installed! Restart to apply.".to_string(),
                                             ),
                                         },
                                     );
@@ -223,7 +221,10 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
                                         UpdateProgress {
                                             status: "error".to_string(),
                                             progress: None,
-                                            message: Some(format!("Failed to install update: {}", e)),
+                                            message: Some(format!(
+                                                "Failed to install update: {}",
+                                                e
+                                            )),
                                         },
                                     );
                                     Err(format!("Failed to install update: {}", e))
