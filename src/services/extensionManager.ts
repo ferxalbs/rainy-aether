@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { openVSXRegistry } from './openVSXRegistry';
 import { monacoExtensionHost } from './monacoExtensionHost';
 import { extensionHealthMonitor } from './extensionHealthMonitor';
+import { extensionsManifestService } from './extensionsManifest';
 import {
   InstalledExtension,
   ExtensionInstallOptions,
@@ -438,7 +439,16 @@ export class ExtensionManager extends EventEmitter {
 
   private async ensureInitialized(): Promise<void> {
     if (!this.isInitialized) {
+      // Initialize manifest service first
+      await extensionsManifestService.initialize();
+
+      // Load installed extensions
       await this.loadInstalledExtensions();
+
+      // Sync manifest with loaded extensions
+      const extensionsList = Array.from(this.extensions.values());
+      await extensionsManifestService.syncWithInstalledExtensions(extensionsList);
+
       this.isInitialized = true;
     }
   }
@@ -484,6 +494,9 @@ export class ExtensionManager extends EventEmitter {
       await invoke('save_installed_extensions', {
         extensions: JSON.stringify(extensions)
       });
+
+      // Also sync with manifest
+      await extensionsManifestService.syncWithInstalledExtensions(extensions);
     } catch (error) {
       console.error('Failed to save installed extensions:', error);
     }

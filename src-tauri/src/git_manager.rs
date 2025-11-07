@@ -490,27 +490,27 @@ pub fn git_clone(
     depth: Option<u32>,
 ) -> Result<String, String> {
     let mut args = vec!["clone"];
-    
+
     if let Some(b) = &branch {
         args.push("--branch");
         args.push(b.as_str());
     }
-    
+
     let depth_str = depth.map(|d| d.to_string());
     if let Some(ref d) = depth_str {
         args.push("--depth");
         args.push(d.as_str());
     }
-    
+
     args.push("--progress");
     args.push(&url);
     args.push(&destination);
-    
+
     let output = Command::new("git")
         .args(&args)
         .output()
         .map_err(|e| format!("Failed to execute git clone: {}", e))?;
-    
+
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
@@ -528,21 +528,22 @@ pub struct Remote {
 #[tauri::command]
 pub fn git_list_remotes(path: String) -> Result<Vec<Remote>, String> {
     let output = run_git(&["remote", "-v"], &path)?;
-    let mut remotes_map: std::collections::HashMap<String, Remote> = std::collections::HashMap::new();
-    
+    let mut remotes_map: std::collections::HashMap<String, Remote> =
+        std::collections::HashMap::new();
+
     for line in output.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 3 {
             let name = parts[0].to_string();
             let url = parts[1].to_string();
             let remote_type = parts[2].trim_matches(|c| c == '(' || c == ')');
-            
+
             let remote = remotes_map.entry(name.clone()).or_insert(Remote {
                 name: name.clone(),
                 fetch_url: String::new(),
                 push_url: String::new(),
             });
-            
+
             if remote_type == "fetch" {
                 remote.fetch_url = url;
             } else if remote_type == "push" {
@@ -550,7 +551,7 @@ pub fn git_list_remotes(path: String) -> Result<Vec<Remote>, String> {
             }
         }
     }
-    
+
     Ok(remotes_map.into_values().collect())
 }
 
@@ -565,7 +566,11 @@ pub fn git_remove_remote(path: String, name: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn git_rename_remote(path: String, old_name: String, new_name: String) -> Result<String, String> {
+pub fn git_rename_remote(
+    path: String,
+    old_name: String,
+    new_name: String,
+) -> Result<String, String> {
     run_git(&["remote", "rename", &old_name, &new_name], &path)
 }
 
@@ -575,25 +580,29 @@ pub fn git_set_remote_url(path: String, name: String, url: String) -> Result<Str
 }
 
 #[tauri::command]
-pub fn git_fetch(path: String, remote: Option<String>, prune: Option<bool>) -> Result<String, String> {
+pub fn git_fetch(
+    path: String,
+    remote: Option<String>,
+    prune: Option<bool>,
+) -> Result<String, String> {
     let remote_name = remote.as_deref().unwrap_or("origin");
     let mut args = vec!["fetch", remote_name];
-    
+
     if prune.unwrap_or(false) {
         args.push("--prune");
     }
-    
+
     run_git(&args, &path)
 }
 
 #[tauri::command]
 pub fn git_fetch_all(path: String, prune: Option<bool>) -> Result<String, String> {
     let mut args = vec!["fetch", "--all"];
-    
+
     if prune.unwrap_or(false) {
         args.push("--prune");
     }
-    
+
     run_git(&args, &path)
 }
 
@@ -604,11 +613,11 @@ pub fn git_fetch_all(path: String, prune: Option<bool>) -> Result<String, String
 #[tauri::command]
 pub fn git_merge(path: String, branch: String, no_ff: Option<bool>) -> Result<String, String> {
     let mut args = vec!["merge"];
-    
+
     if no_ff.unwrap_or(false) {
         args.push("--no-ff");
     }
-    
+
     args.push(&branch);
     run_git(&args, &path)
 }
@@ -619,13 +628,17 @@ pub fn git_merge_abort(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn git_rebase(path: String, branch: String, interactive: Option<bool>) -> Result<String, String> {
+pub fn git_rebase(
+    path: String,
+    branch: String,
+    interactive: Option<bool>,
+) -> Result<String, String> {
     let mut args = vec!["rebase"];
-    
+
     if interactive.unwrap_or(false) {
         args.push("-i");
     }
-    
+
     args.push(&branch);
     run_git(&args, &path)
 }
@@ -671,13 +684,13 @@ pub fn git_list_conflicts(path: String) -> Result<Vec<String>, String> {
 #[tauri::command]
 pub fn git_get_conflict_content(path: String, file_path: String) -> Result<ConflictFile, String> {
     // Get the conflicted file content
-    let ours = run_git(&["show", &format!(":2:{}", file_path)], &path)
-        .unwrap_or_else(|_| String::new());
-    let theirs = run_git(&["show", &format!(":3:{}", file_path)], &path)
-        .unwrap_or_else(|_| String::new());
-    let base = run_git(&["show", &format!(":1:{}", file_path)], &path)
-        .unwrap_or_else(|_| String::new());
-    
+    let ours =
+        run_git(&["show", &format!(":2:{}", file_path)], &path).unwrap_or_else(|_| String::new());
+    let theirs =
+        run_git(&["show", &format!(":3:{}", file_path)], &path).unwrap_or_else(|_| String::new());
+    let base =
+        run_git(&["show", &format!(":1:{}", file_path)], &path).unwrap_or_else(|_| String::new());
+
     Ok(ConflictFile {
         path: file_path,
         ours,
@@ -695,11 +708,11 @@ pub fn git_resolve_conflict(
     // Write the resolved content
     use std::fs;
     use std::path::Path;
-    
+
     let full_path = Path::new(&path).join(&file_path);
     fs::write(&full_path, resolution)
         .map_err(|e| format!("Failed to write resolved file: {}", e))?;
-    
+
     // Stage the resolved file
     run_git(&["add", &file_path], &path)
 }
@@ -735,7 +748,7 @@ pub fn git_list_tags(path: String) -> Result<Vec<Tag>, String> {
         &["tag", "-l", "--format=%(refname:short)%00%(objectname:short)%00%(contents:subject)%00%(taggername)%00%(taggerdate:iso-strict)"],
         &path,
     )?;
-    
+
     let mut tags = Vec::new();
     for line in output.lines() {
         let parts: Vec<&str> = line.split('\u{00}').collect();
@@ -772,7 +785,7 @@ pub fn git_create_tag(
     commit: Option<String>,
 ) -> Result<String, String> {
     let mut args = vec!["tag"];
-    
+
     if let Some(msg) = &message {
         args.push("-a");
         args.push(&name);
@@ -781,11 +794,11 @@ pub fn git_create_tag(
     } else {
         args.push(&name);
     }
-    
+
     if let Some(c) = &commit {
         args.push(c.as_str());
     }
-    
+
     run_git(&args, &path)
 }
 
@@ -828,24 +841,24 @@ pub fn git_diff_files(
     staged: Option<bool>,
 ) -> Result<Vec<FileDiff>, String> {
     let mut args = vec!["diff"];
-    
+
     if staged.unwrap_or(false) {
         args.push("--staged");
     }
-    
+
     args.push("--numstat");
     args.push("--name-status");
-    
+
     if let Some(f) = &from {
         args.push(f.as_str());
     }
-    
+
     if let Some(t) = &to {
         args.push(t.as_str());
     }
-    
+
     let output = run_git(&args, &path)?;
-    
+
     // Parse the output to get file statistics
     let mut diffs = Vec::new();
     for line in output.lines() {
@@ -853,7 +866,7 @@ pub fn git_diff_files(
         if parts.len() >= 3 {
             let status = parts[0].to_string();
             let file_path = parts[parts.len() - 1].to_string();
-            
+
             // Get the actual diff for this file
             let mut diff_args = vec!["diff"];
             if staged.unwrap_or(false) {
@@ -861,9 +874,9 @@ pub fn git_diff_files(
             }
             diff_args.push("--");
             diff_args.push(&file_path);
-            
+
             let diff_output = run_git(&diff_args, &path).unwrap_or_default();
-            
+
             diffs.push(FileDiff {
                 path: file_path.clone(),
                 old_path: None,
@@ -874,7 +887,7 @@ pub fn git_diff_files(
             });
         }
     }
-    
+
     Ok(diffs)
 }
 
@@ -892,8 +905,11 @@ pub fn git_diff_commit(path: String, commit: String) -> Result<Vec<FileDiff>, St
 
     for file_path in files {
         // Get the diff for this specific file
-        let diff_output = run_git(&["show", "--pretty=", "--patch", &commit, "--", &file_path], &path)
-            .unwrap_or_default();
+        let diff_output = run_git(
+            &["show", "--pretty=", "--patch", &commit, "--", &file_path],
+            &path,
+        )
+        .unwrap_or_default();
 
         // Parse the diff to count additions and deletions
         let mut additions = 0;
@@ -947,13 +963,21 @@ pub fn git_diff_between_commits(
 // ============================================================================
 
 #[tauri::command]
-pub fn git_delete_branch(path: String, branch_name: String, force: Option<bool>) -> Result<String, String> {
+pub fn git_delete_branch(
+    path: String,
+    branch_name: String,
+    force: Option<bool>,
+) -> Result<String, String> {
     let flag = if force.unwrap_or(false) { "-D" } else { "-d" };
     run_git(&["branch", flag, &branch_name], &path)
 }
 
 #[tauri::command]
-pub fn git_rename_branch(path: String, old_name: String, new_name: String) -> Result<String, String> {
+pub fn git_rename_branch(
+    path: String,
+    old_name: String,
+    new_name: String,
+) -> Result<String, String> {
     run_git(&["branch", "-m", &old_name, &new_name], &path)
 }
 
@@ -970,14 +994,14 @@ pub fn git_set_upstream(path: String, remote: String, branch: String) -> Result<
 #[tauri::command]
 pub fn git_amend_commit(path: String, message: Option<String>) -> Result<String, String> {
     let mut args = vec!["commit", "--amend"];
-    
+
     if let Some(msg) = &message {
         args.push("-m");
         args.push(msg.as_str());
     } else {
         args.push("--no-edit");
     }
-    
+
     run_git(&args, &path)
 }
 
@@ -991,23 +1015,27 @@ pub fn git_reset(path: String, commit: String, mode: String) -> Result<String, S
 #[tauri::command]
 pub fn git_revert(path: String, commit: String, no_commit: Option<bool>) -> Result<String, String> {
     let mut args = vec!["revert"];
-    
+
     if no_commit.unwrap_or(false) {
         args.push("--no-commit");
     }
-    
+
     args.push(&commit);
     run_git(&args, &path)
 }
 
 #[tauri::command]
-pub fn git_cherry_pick(path: String, commit: String, no_commit: Option<bool>) -> Result<String, String> {
+pub fn git_cherry_pick(
+    path: String,
+    commit: String,
+    no_commit: Option<bool>,
+) -> Result<String, String> {
     let mut args = vec!["cherry-pick"];
-    
+
     if no_commit.unwrap_or(false) {
         args.push("--no-commit");
     }
-    
+
     args.push(&commit);
     run_git(&args, &path)
 }
@@ -1069,23 +1097,23 @@ pub fn git_get_repo_info(path: String) -> Result<serde_json::Value, String> {
         .unwrap_or_default()
         .trim()
         .to_string();
-    
+
     let branch = run_git(&["rev-parse", "--abbrev-ref", "HEAD"], &path)
         .unwrap_or_default()
         .trim()
         .to_string();
-    
+
     let commit_count = run_git(&["rev-list", "--count", "HEAD"], &path)
         .unwrap_or_default()
         .trim()
         .parse::<u32>()
         .unwrap_or(0);
-    
+
     let contributors = run_git(&["shortlog", "-sn", "--all"], &path)
         .unwrap_or_default()
         .lines()
         .count();
-    
+
     Ok(serde_json::json!({
         "remote_url": remote_url,
         "branch": branch,

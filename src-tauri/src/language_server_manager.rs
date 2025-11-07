@@ -5,9 +5,9 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use std::io::{BufRead, BufReader, Write};
 use std::thread;
 use tauri::{AppHandle, Emitter};
 
@@ -74,7 +74,10 @@ impl LanguageServerManager {
             }
         }
 
-        println!("[LSP] Starting language server: {} ({})", server_id, params.command);
+        println!(
+            "[LSP] Starting language server: {} ({})",
+            server_id, params.command
+        );
 
         // Build command
         let mut cmd = Command::new(&params.command);
@@ -96,9 +99,9 @@ impl LanguageServerManager {
             .stderr(Stdio::piped());
 
         // Spawn the process
-        let mut child = cmd.spawn().map_err(|e| {
-            format!("Failed to spawn language server process: {}", e)
-        })?;
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| format!("Failed to spawn language server process: {}", e))?;
 
         // Get handles
         let stdin = child.stdin.take();
@@ -154,9 +157,12 @@ impl LanguageServerManager {
                         // If we have a complete message, send it
                         if !buffer.is_empty() && content_length.is_none() {
                             let event_name = format!("lsp-message-{}", server_id_stdout);
-                            let _ = app_handle_stdout.emit(&event_name, serde_json::json!({
-                                "message": buffer.clone()
-                            }));
+                            let _ = app_handle_stdout.emit(
+                                &event_name,
+                                serde_json::json!({
+                                    "message": buffer.clone()
+                                }),
+                            );
                             buffer.clear();
                         }
                     }
@@ -184,9 +190,12 @@ impl LanguageServerManager {
 
                         // Emit error event
                         let event_name = format!("lsp-error-{}", server_id_stderr);
-                        let _ = app_handle_stderr.emit(&event_name, serde_json::json!({
-                            "error": line
-                        }));
+                        let _ = app_handle_stderr.emit(
+                            &event_name,
+                            serde_json::json!({
+                                "error": line
+                            }),
+                        );
                     }
                     Err(e) => {
                         eprintln!("[LSP] Error reading stderr: {}", e);
@@ -208,9 +217,10 @@ impl LanguageServerManager {
 
         if let Some(mut server_process) = servers.remove(server_id) {
             // Try to gracefully kill the process
-            server_process.child.kill().map_err(|e| {
-                format!("Failed to kill language server process: {}", e)
-            })?;
+            server_process
+                .child
+                .kill()
+                .map_err(|e| format!("Failed to kill language server process: {}", e))?;
 
             // Wait for the process to exit
             let _ = server_process.child.wait();
@@ -230,18 +240,16 @@ impl LanguageServerManager {
             if let Some(stdin) = &mut server_process.stdin {
                 // Write message with Content-Length header (LSP format)
                 let content_length = message.len();
-                let formatted_message = format!(
-                    "Content-Length: {}\r\n\r\n{}",
-                    content_length, message
-                );
+                let formatted_message =
+                    format!("Content-Length: {}\r\n\r\n{}", content_length, message);
 
-                stdin.write_all(formatted_message.as_bytes()).map_err(|e| {
-                    format!("Failed to write to language server stdin: {}", e)
-                })?;
+                stdin
+                    .write_all(formatted_message.as_bytes())
+                    .map_err(|e| format!("Failed to write to language server stdin: {}", e))?;
 
-                stdin.flush().map_err(|e| {
-                    format!("Failed to flush language server stdin: {}", e)
-                })?;
+                stdin
+                    .flush()
+                    .map_err(|e| format!("Failed to flush language server stdin: {}", e))?;
 
                 Ok(())
             } else {
@@ -335,8 +343,6 @@ pub fn lsp_is_server_running(
 
 /// Get list of running servers
 #[tauri::command]
-pub fn lsp_get_running_servers(
-    state: tauri::State<'_, LanguageServerManager>,
-) -> Vec<String> {
+pub fn lsp_get_running_servers(state: tauri::State<'_, LanguageServerManager>) -> Vec<String> {
     state.get_running_servers()
 }

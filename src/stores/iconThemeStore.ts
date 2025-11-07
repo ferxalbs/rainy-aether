@@ -200,15 +200,16 @@ export const getFolderIcon = (folderName: string, isExpanded: boolean, isRoot: b
 /**
  * Register a new icon theme
  */
-export const registerIconTheme = (theme: IconTheme): void => {
+export const registerIconTheme = (theme: IconTheme, autoActivate: boolean = false): void => {
   setState({
     ...state,
     themes: new Map(state.themes).set(theme.id, theme),
   });
 
-  // If this is the first theme or no theme is active, activate it
-  if (!state.activeThemeId) {
-    setActiveIconTheme(theme.id);
+  // Optionally auto-activate if no theme is active
+  if (autoActivate && !state.activeThemeId) {
+    // Don't save preference for auto-activation
+    setActiveIconTheme(theme.id, false);
   }
 };
 
@@ -229,7 +230,7 @@ export const unregisterIconTheme = (themeId: string): void => {
 /**
  * Set the active icon theme
  */
-export const setActiveIconTheme = (themeId: string | null): void => {
+export const setActiveIconTheme = async (themeId: string | null, savePreference: boolean = true): Promise<void> => {
   if (themeId && !state.themes.has(themeId)) {
     console.warn(`[IconTheme] Theme not found: ${themeId}`);
     return;
@@ -241,6 +242,17 @@ export const setActiveIconTheme = (themeId: string | null): void => {
   });
 
   console.log(`[IconTheme] Active theme set to: ${themeId}`);
+
+  // Save user preference
+  if (savePreference) {
+    try {
+      const { setIconThemeId } = await import('./settingsStore');
+      await setIconThemeId(themeId);
+      console.log(`[IconTheme] Saved theme preference: ${themeId}`);
+    } catch (error) {
+      console.error('[IconTheme] Failed to save theme preference:', error);
+    }
+  }
 };
 
 /**

@@ -90,10 +90,7 @@ impl ExtensionRegistry {
     }
 
     pub fn list_enabled_extensions(&self) -> Vec<&ExtensionRegistryEntry> {
-        self.extensions
-            .values()
-            .filter(|e| e.enabled)
-            .collect()
+        self.extensions.values().filter(|e| e.enabled).collect()
     }
 
     pub fn count(&self) -> usize {
@@ -113,11 +110,10 @@ impl ExtensionRegistry {
             return Ok(Self::new());
         }
 
-        let contents = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read registry file: {}", e))?;
+        let contents =
+            fs::read_to_string(path).map_err(|e| format!("Failed to read registry file: {}", e))?;
 
-        serde_json::from_str(&contents)
-            .map_err(|e| format!("Failed to parse registry file: {}", e))
+        serde_json::from_str(&contents).map_err(|e| format!("Failed to parse registry file: {}", e))
     }
 
     pub fn save_to_file(&self, path: &Path) -> Result<(), String> {
@@ -130,8 +126,7 @@ impl ExtensionRegistry {
         let contents = serde_json::to_string_pretty(self)
             .map_err(|e| format!("Failed to serialize registry: {}", e))?;
 
-        fs::write(path, contents)
-            .map_err(|e| format!("Failed to write registry file: {}", e))
+        fs::write(path, contents).map_err(|e| format!("Failed to write registry file: {}", e))
     }
 }
 
@@ -148,8 +143,7 @@ pub fn get_extension_registry(app: AppHandle) -> Result<String, String> {
     let registry_path = get_registry_path(&app)?;
     let registry = ExtensionRegistry::load_from_file(&registry_path)?;
 
-    serde_json::to_string(&registry)
-        .map_err(|e| format!("Failed to serialize registry: {}", e))
+    serde_json::to_string(&registry).map_err(|e| format!("Failed to serialize registry: {}", e))
 }
 
 #[tauri::command]
@@ -220,10 +214,7 @@ pub fn enable_extension_in_registry(app: AppHandle, extension_id: String) -> Res
 }
 
 #[tauri::command]
-pub fn disable_extension_in_registry(
-    app: AppHandle,
-    extension_id: String,
-) -> Result<bool, String> {
+pub fn disable_extension_in_registry(app: AppHandle, extension_id: String) -> Result<bool, String> {
     let registry_path = get_registry_path(&app)?;
     let mut registry = ExtensionRegistry::load_from_file(&registry_path)?;
 
@@ -288,8 +279,7 @@ pub fn get_extension_stats(app: AppHandle) -> Result<ExtensionStats, String> {
     let extensions_dir = get_extensions_dir(&app)?;
 
     // Calculate total size
-    let total_size = calculate_directory_size(&extensions_dir)
-        .unwrap_or(0);
+    let total_size = calculate_directory_size(&extensions_dir).unwrap_or(0);
 
     Ok(ExtensionStats {
         total_count: registry.count(),

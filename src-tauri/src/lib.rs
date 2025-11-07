@@ -308,6 +308,10 @@ pub fn run() {
         extension_manager::create_extension_directory,
         extension_manager::list_extension_files,
         extension_manager::read_extension_file,
+        extension_manager::load_extensions_manifest,
+        extension_manager::save_extensions_manifest,
+        extension_manager::get_app_data_directory,
+        extension_manager::ensure_extensions_directory,
         // Extension Registry
         extension_registry::get_extension_registry,
         extension_registry::update_extension_registry,
