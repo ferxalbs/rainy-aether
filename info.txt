@@ -1,0 +1,15 @@
+Received 1 extensions from API
+openVSXRegistry.ts:133 Successfully transformed 1 out of 1 extensions
+extensionManager.ts:82 Extension PKief.material-icon-theme compatibility score: 100%
+monacoExtensionHost.ts:28 Loading extension PKief.material-icon-theme into Monaco
+monacoExtensionHost.ts:339 Extension PKief.material-icon-theme provides configuration defaults
+monacoExtensionHost.ts:349 Extension PKief.material-icon-theme provides commands, but Monaco integration is limited
+monacoExtensionHost.ts:387 Initializing sandbox for extension PKief.material-icon-theme
+extension.worker.ts:342 [ExtensionWorker] Worker started and ready
+extension.worker.ts:318 [ExtensionWorker:PKief.material-icon-theme] Initializing extension PKief.material-icon-theme
+ExtensionSandbox.ts:287 [ExtensionSandbox] Received message from PKief.material-icon-theme: {type: 'log', data: {…}}
+ExtensionSandbox.ts:355 [Extension:PKief.material-icon-theme] Initializing extension PKief.material-icon-theme
+ExtensionSandbox.ts:287 [ExtensionSandbox] Received message from PKief.material-icon-theme: {type: 'api_response', id: 'req-0', data: {…}}
+ExtensionSandbox.ts:84 [ExtensionSandbox] Initialized sandbox for PKief.material-icon-theme
+monacoExtensionHost.ts:432 Sandbox initialized for extension PKief.material-icon-theme
+monacoExtensionHost.ts:46 Successfully loaded extension PKief.material-icon-theme

@@ -21,18 +21,41 @@ interface FileNodeProps {
  * Render an icon from IconDefinition
  */
 const RenderIcon: React.FC<{ icon: IconDefinition; size?: number; className?: string; style?: React.CSSProperties }> = ({ icon, size = 16, className, style }) => {
-  if (typeof icon === 'string') {
-    // SVG string or path to image
-    if (icon.startsWith('<svg')) {
-      return <div dangerouslySetInnerHTML={{ __html: icon }} style={{ width: size, height: size, ...style }} className={className} />;
-    } else {
-      return <img src={icon} alt="" style={{ width: size, height: size, ...style }} className={className} />;
-    }
-  } else {
-    // React component
-    const IconComponent = icon;
+  // React component (Rainy Aether built-in themes)
+  if (icon.iconComponent) {
+    const IconComponent = icon.iconComponent;
     return <IconComponent size={size} className={className} style={style} />;
   }
+
+  // Icon path (extension-provided icons)
+  if (icon.iconPath) {
+    // Check if it's an SVG string
+    if (icon.iconPath.startsWith('<svg')) {
+      return <div dangerouslySetInnerHTML={{ __html: icon.iconPath }} style={{ width: size, height: size, ...style }} className={className} />;
+    }
+    // Otherwise it's a path to an image
+    return <img src={icon.iconPath} alt="" style={{ width: size, height: size, ...style }} className={className} />;
+  }
+
+  // Font-based icon (future support)
+  if (icon.fontCharacter) {
+    return (
+      <span
+        style={{
+          fontFamily: icon.fontId,
+          color: icon.fontColor,
+          fontSize: size,
+          ...style,
+        }}
+        className={className}
+      >
+        {icon.fontCharacter}
+      </span>
+    );
+  }
+
+  // Fallback to generic file icon
+  return <File size={size} className={className} style={style} />;
 };
 
 const FileNodeComponent: React.FC<FileNodeProps> = ({
@@ -70,11 +93,15 @@ const FileNodeComponent: React.FC<FileNodeProps> = ({
   // Get icon from theme
   const icon = useMemo(() => {
     if (node.is_directory) {
-      const folderIcon = iconThemeActions.getFolderIcon(node.name, isOpen);
-      return folderIcon || (isOpen ? FolderOpen : Folder);
+      const folderIcon = iconThemeActions.getFolderIcon(node.name, isOpen, false);
+      if (folderIcon) return folderIcon;
+      // Fallback to Lucide icon
+      return { iconComponent: isOpen ? FolderOpen : Folder };
     } else {
       const fileIcon = iconThemeActions.getFileIcon(node.name);
-      return fileIcon || File;
+      if (fileIcon) return fileIcon;
+      // Fallback to Lucide icon
+      return { iconComponent: File };
     }
   }, [node, isOpen, activeTheme]);
 
