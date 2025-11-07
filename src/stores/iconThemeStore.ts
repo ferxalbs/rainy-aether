@@ -110,7 +110,10 @@ const getSnapshot = () => state;
  */
 export const getFileIcon = (fileName: string, languageId?: string): IconDefinition | null => {
   const activeTheme = state.activeThemeId ? state.themes.get(state.activeThemeId) : null;
-  if (!activeTheme) return null;
+  if (!activeTheme) {
+    console.log('[IconTheme] No active theme');
+    return null;
+  }
 
   const { iconDefinitions } = activeTheme;
   let iconId: string | undefined;
@@ -119,6 +122,7 @@ export const getFileIcon = (fileName: string, languageId?: string): IconDefiniti
   if (activeTheme.fileNames) {
     iconId = activeTheme.fileNames[fileName.toLowerCase()];
     if (iconId && iconDefinitions[iconId]) {
+      console.log(`[IconTheme] Found icon for file "${fileName}" via fileNames: ${iconId}`);
       return iconDefinitions[iconId];
     }
   }
@@ -131,6 +135,7 @@ export const getFileIcon = (fileName: string, languageId?: string): IconDefiniti
       const ext = parts.slice(i).join('.');
       iconId = activeTheme.fileExtensions[ext];
       if (iconId && iconDefinitions[iconId]) {
+        console.log(`[IconTheme] Found icon for file "${fileName}" via extension ".${ext}": ${iconId}`);
         return iconDefinitions[iconId];
       }
     }
@@ -140,15 +145,18 @@ export const getFileIcon = (fileName: string, languageId?: string): IconDefiniti
   if (languageId && activeTheme.languageIds) {
     iconId = activeTheme.languageIds[languageId];
     if (iconId && iconDefinitions[iconId]) {
+      console.log(`[IconTheme] Found icon for file "${fileName}" via languageId "${languageId}": ${iconId}`);
       return iconDefinitions[iconId];
     }
   }
 
   // 4. Fall back to default file icon
   if (activeTheme.file && iconDefinitions[activeTheme.file]) {
+    console.log(`[IconTheme] Using default file icon for "${fileName}": ${activeTheme.file}`);
     return iconDefinitions[activeTheme.file];
   }
 
+  console.warn(`[IconTheme] No icon found for file "${fileName}"`);
   return null;
 };
 
