@@ -10,6 +10,8 @@ import { useLoadingState, loadingActions } from "./stores/loadingStore";
 import { extensionManager } from "./services/extensionManager";
 import { initTerminalService } from "./services/terminalService";
 import { terminalActions } from "./stores/terminalStore";
+import { iconThemeActions } from "./stores/iconThemeStore";
+import { defaultIconTheme } from "./themes/iconThemes/defaultIconTheme";
 
 const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -36,6 +38,11 @@ const App: React.FC = () => {
         loadingActions.startStage('settings');
         await initializeSettings();
         loadingActions.completeStage('settings');
+
+        // Stage 2.5: Icon Themes
+        // Register default icon theme
+        iconThemeActions.registerTheme(defaultIconTheme);
+        iconThemeActions.setActiveTheme(defaultIconTheme.id);
 
         // Stage 3: Extensions
         loadingActions.startStage('extensions');

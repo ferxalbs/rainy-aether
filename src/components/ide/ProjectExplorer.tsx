@@ -3,7 +3,7 @@ import { useIDEStore, FileNode } from "../../stores/ideStore";
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, FilePlus, FolderPlus } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
-import { fileIconColorForExt } from "../../stores/settingsStore";
+import { iconThemeActions, useActiveIconTheme, type IconDefinition } from "@/stores/iconThemeStore";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import FileDialog from "./file-dialog";
@@ -17,6 +17,24 @@ interface FileNodeProps {
   onContextMenuOpen: (event: React.MouseEvent | KeyboardEvent, node: FileNode) => void;
 }
 
+/**
+ * Render an icon from IconDefinition
+ */
+const RenderIcon: React.FC<{ icon: IconDefinition; size?: number; className?: string; style?: React.CSSProperties }> = ({ icon, size = 16, className, style }) => {
+  if (typeof icon === 'string') {
+    // SVG string or path to image
+    if (icon.startsWith('<svg')) {
+      return <div dangerouslySetInnerHTML={{ __html: icon }} style={{ width: size, height: size, ...style }} className={className} />;
+    } else {
+      return <img src={icon} alt="" style={{ width: size, height: size, ...style }} className={className} />;
+    }
+  } else {
+    // React component
+    const IconComponent = icon;
+    return <IconComponent size={size} className={className} style={style} />;
+  }
+};
+
 const FileNodeComponent: React.FC<FileNodeProps> = ({
   node,
   level,
@@ -27,13 +45,14 @@ const FileNodeComponent: React.FC<FileNodeProps> = ({
 }) => {
   const { actions } = useIDEStore();
   const [isOpen, setIsOpen] = useState(false);
+  const activeTheme = useActiveIconTheme();
 
   const handleToggle = useCallback(async () => {
     setSelectedPath(node.path);
     if (node.is_directory) {
       const willOpen = !isOpen;
       setIsOpen(willOpen);
-      
+
       // Lazy load children if opening and not loaded yet
       // Check both children_loaded flag AND if children array is empty/undefined
       if (willOpen && !node.children_loaded && (!node.children || node.children.length === 0)) {
@@ -48,14 +67,16 @@ const FileNodeComponent: React.FC<FileNodeProps> = ({
     }
   }, [actions, node, setSelectedPath, isOpen]);
 
-  const fileIcon = useMemo(() => {
+  // Get icon from theme
+  const icon = useMemo(() => {
     if (node.is_directory) {
-      return null;
+      const folderIcon = iconThemeActions.getFolderIcon(node.name, isOpen);
+      return folderIcon || (isOpen ? FolderOpen : Folder);
+    } else {
+      const fileIcon = iconThemeActions.getFileIcon(node.name);
+      return fileIcon || File;
     }
-    const ext = node.name.split(".").pop()?.toLowerCase() ?? "";
-    const color = fileIconColorForExt(ext);
-    return <File size={16} style={{ color }} />;
-  }, [node]);
+  }, [node, isOpen, activeTheme]);
 
   const isSelected = selectedPath === node.path;
 
@@ -99,25 +120,19 @@ const FileNodeComponent: React.FC<FileNodeProps> = ({
         onContextMenu={handleContextMenu}
         tabIndex={0}
       >
-        {showChevron ? (
+        {showChevron && (
           <>
             {isOpen ? (
               <ChevronDown size={14} className="mr-1 opacity-80" />
             ) : (
               <ChevronRight size={14} className="mr-1 opacity-80" />
             )}
-            {isOpen ? (
-              <FolderOpen size={16} className="mr-2" style={{ color: "var(--accent-primary)" }} />
-            ) : (
-              <Folder size={16} className="mr-2" style={{ color: "var(--accent-primary)" }} />
-            )}
-          </>
-        ) : (
-          <>
-            <div className="w-4 mr-1" />
-            <div className="mr-2">{fileIcon}</div>
           </>
         )}
+        {!showChevron && <div className="w-4 mr-1" />}
+        <div className="mr-2">
+          <RenderIcon icon={icon} size={16} />
+        </div>
         <div className="flex-1 truncate text-sm file-node-name">
           <span>{node.name}</span>
         </div>
@@ -247,19 +262,39 @@ const ProjectExplorer: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-2">
         {projectRoot ? (
           <>
-            <FileNodeComponent
-              node={projectRoot}
-              level={0}
-              selectedPath={selectedPath}
-              setSelectedPath={setSelectedPath}
-              onStartRename={(node) => {
-                setFileDialogMode("rename");
-                setFileDialogNode(node);
-                setFileDialogIsDirectory(node.is_directory);
-                setFileDialogOpen(true);
-              }}
-              onContextMenuOpen={handleContextMenuOpen}
-            />
+            {/* Show folder name as header */}
+            <div
+              className={cn(
+                "w-full h-7 px-2 flex items-center text-left font-semibold cursor-pointer rounded-md mb-1",
+                selectedPath === projectRoot.path ? "bg-muted" : "hover:bg-muted",
+              )}
+              onClick={() => setSelectedPath(projectRoot.path)}
+              onContextMenu={(event) => handleContextMenuOpen(event, projectRoot)}
+            >
+              <FolderOpen size={16} className="mr-2" style={{ color: "var(--accent-primary)" }} />
+              <span className="text-sm truncate">{projectRoot.name}</span>
+            </div>
+            {/* Show children directly without nesting the root folder */}
+            {projectRoot.children && projectRoot.children.length > 0 && (
+              <div>
+                {projectRoot.children.map((child) => (
+                  <FileNodeComponent
+                    key={child.path}
+                    node={child}
+                    level={0}
+                    selectedPath={selectedPath}
+                    setSelectedPath={setSelectedPath}
+                    onStartRename={(node) => {
+                      setFileDialogMode("rename");
+                      setFileDialogNode(node);
+                      setFileDialogIsDirectory(node.is_directory);
+                      setFileDialogOpen(true);
+                    }}
+                    onContextMenuOpen={handleContextMenuOpen}
+                  />
+                ))}
+              </div>
+            )}
             <ContextMenu
               isOpen={menuOpen}
               x={menuX}

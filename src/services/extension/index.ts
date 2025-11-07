@@ -16,5 +16,9 @@ export { createVSCodeAPI } from './VSCodeAPIShim';
 // Language Server Protocol shim
 export { LanguageClient, State as LanguageClientState, vscodeLanguageClient } from './vscode-languageclient-shim';
 
+// Icon Theme API
+export { iconThemeAPI } from './iconThemeAPI';
+export type { IconThemeContribution } from './iconThemeAPI';
+
 // Types
 export * from './types';

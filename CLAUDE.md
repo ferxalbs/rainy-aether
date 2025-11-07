@@ -66,6 +66,7 @@ cd src-tauri && cargo test
   - `terminalStore.ts`: Terminal sessions, PTY management
   - `gitStore.ts`: Git history, status, branches, stashes
   - `themeStore.ts`: Theme application and system sync
+  - `iconThemeStore.ts`: Icon theme management, file/folder icon lookup
   - `settingsStore.ts`: User preferences persistence
 
 ### Frontend Structure
@@ -204,6 +205,53 @@ See `LSP.md` for comprehensive documentation. Key points:
 2. Ensure all required tokens are present (see existing themes)
 3. Test with `ThemePreview.tsx` component
 4. Validate accessibility with `validateThemeAccessibility` from `themeValidator.ts`
+
+## Icon Theme System
+
+**✨ NEW** - Extension-based file and folder icon customization, similar to VS Code's Material Icon Theme.
+
+See **`docs/extensions/ICON_THEME_SYSTEM.md`** for comprehensive documentation.
+
+**Key Components:**
+
+- **iconThemeStore** (`src/stores/iconThemeStore.ts`): Central state management for icon themes
+- **Default Theme** (`src/themes/iconThemes/defaultIconTheme.tsx`): Built-in theme with Lucide icons
+- **Extension API** (`src/services/extension/iconThemeAPI.ts`): API for extensions to register icon themes
+- **ProjectExplorer** (`src/components/ide/ProjectExplorer.tsx`): Renders icons from active theme
+
+**Quick Usage:**
+
+```typescript
+import { iconThemeActions, IconTheme } from '@/stores/iconThemeStore';
+
+// Register a custom icon theme
+iconThemeActions.registerTheme(myIconTheme);
+
+// Set active theme
+iconThemeActions.setActiveTheme('my-theme-id');
+
+// Get icon for a file
+const icon = iconThemeActions.getFileIcon('App.tsx');
+
+// Get icon for a folder
+const folderIcon = iconThemeActions.getFolderIcon('src', true); // true = expanded
+```
+
+**Features:**
+
+- ✅ **Extensible**: Extensions can register custom icon themes
+- ✅ **Smart Matching**: File name → extension → language ID → default
+- ✅ **Folder Icons**: Special icons for src, dist, node_modules, etc.
+- ✅ **Open/Closed States**: Different icons for expanded/collapsed folders
+- ✅ **45+ File Types**: Comprehensive coverage of common file types
+- ✅ **Color Coding**: Language-specific colors for better visual distinction
+- ✅ **Multiple Format Support**: React components, SVG strings, or image paths
+
+**Project Explorer Improvements:**
+
+- Fixed folder display: Shows project folder name at root level, not nested
+- Children appear directly below root folder (like VS Code)
+- Icons update automatically when theme changes
 
 ## Terminal System
 
