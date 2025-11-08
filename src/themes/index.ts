@@ -13,6 +13,20 @@ export interface Theme {
     secondaryText: number;
     editorText: number;
   };
+
+  // Extension metadata (for themes loaded from extensions)
+  /** Theme source: built-in or from extension */
+  source?: 'builtin' | 'extension';
+  /** Extension ID (publisher.name) if from extension */
+  extensionId?: string;
+  /** Extension display label if from extension */
+  extensionLabel?: string;
+
+  // VS Code compatibility (preserve original theme data)
+  /** Original VS Code colors object (for Monaco integration) */
+  vsCodeColors?: Record<string, string>;
+  /** Original VS Code tokenColors (for syntax highlighting) */
+  vsCodeTokenColors?: any[] | string;
 }
 
 // Navy Blue Theme (Default)

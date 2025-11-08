@@ -72,6 +72,9 @@ const initialState: ThemeState = {
 let themeState: ThemeState = { ...initialState };
 let cachedSnapshot: ThemeState = { ...initialState };
 
+// Extension themes (loaded from VS Code extensions)
+let extensionThemes: Theme[] = [];
+
 type ThemeStateListener = () => void;
 
 const themeStateListeners = new Set<ThemeStateListener>();
@@ -452,9 +455,71 @@ export const initializeTheme = async () => {
   }
 };
 
+// Extension theme management
+export const registerExtensionTheme = (theme: Theme) => {
+  if (theme.source !== 'extension') {
+    console.warn('[ThemeStore] Attempted to register non-extension theme as extension:', theme.name);
+    return;
+  }
+
+  // Check if theme already registered
+  const existingIndex = extensionThemes.findIndex(t => t.name === theme.name);
+  if (existingIndex >= 0) {
+    console.log('[ThemeStore] Updating existing extension theme:', theme.name);
+    extensionThemes[existingIndex] = theme;
+  } else {
+    console.log('[ThemeStore] Registering new extension theme:', theme.displayName);
+    extensionThemes.push(theme);
+  }
+
+  // Notify listeners that available themes changed
+  notifyStateListeners();
+};
+
+export const unregisterExtensionTheme = (themeId: string) => {
+  const initialLength = extensionThemes.length;
+  extensionThemes = extensionThemes.filter(t => t.name !== themeId);
+
+  if (extensionThemes.length < initialLength) {
+    console.log('[ThemeStore] Unregistered extension theme:', themeId);
+
+    // If currently active theme was unregistered, switch to default
+    if (themeState.currentTheme.name === themeId) {
+      console.warn('[ThemeStore] Active theme was unregistered, switching to default');
+      setCurrentTheme(defaultTheme);
+    }
+
+    // Notify listeners
+    notifyStateListeners();
+  }
+};
+
+export const getAllThemes = (): Theme[] => {
+  return [...allThemes, ...extensionThemes];
+};
+
+export const getExtensionThemes = (): Theme[] => {
+  return [...extensionThemes];
+};
+
+export const getBuiltInThemes = (): Theme[] => {
+  return allThemes;
+};
+
+export const findThemeByName = (name: string): Theme | undefined => {
+  // Search built-in themes first
+  const builtInTheme = allThemes.find(t => t.name === name);
+  if (builtInTheme) {
+    return builtInTheme;
+  }
+
+  // Then search extension themes
+  return extensionThemes.find(t => t.name === name);
+};
+
 // Utility functions
 export const getCurrentTheme = () => themeState.currentTheme;
-export const getAvailableThemes = () => allThemes;
+export const getAvailableThemes = () => getAllThemes();
 export const isDayMode = () => themeState.currentTheme.mode === 'day';
 export const isNightMode = () => themeState.currentTheme.mode === 'night';
 export const getUserPreference = () => themeState.userPreference;

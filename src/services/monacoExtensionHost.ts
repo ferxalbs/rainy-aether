@@ -271,26 +271,83 @@ export class MonacoExtensionHost {
     themes: any[],
     loadedExtension: LoadedExtension
   ): Promise<void> {
-    for (const theme of themes) {
-      try {
-        const themePath = this.resolveExtensionPath(extension, theme.path);
-        const themeData = await this.loadJsonFile(themePath);
+    console.log(`[ColorTheme] Extension ${extension.id} provides ${themes.length} color theme(s)`);
 
-        // Register theme with Monaco
-        monaco.editor.defineTheme(theme.id || `theme-${extension.id}`, themeData);
+    try {
+      // Dynamically import theme utilities
+      const { convertVSCodeThemeToRainy, convertTokenColorsToMonaco, inferThemeMode } = await import('@/utils/themeConverter');
+      const { registerExtensionTheme } = await import('@/stores/themeStore');
 
-        loadedExtension.disposables.push({
-          dispose: () => {
-            // Monaco doesn't provide a way to unregister themes
-            // They persist for the session
-          }
-        });
+      for (const themeContrib of themes) {
+        try {
+          console.log(`[ColorTheme] Loading theme: ${themeContrib.label}`);
 
-        console.log(`Loaded theme ${theme.label || theme.id} from ${extension.id}`);
-      } catch (error) {
-        console.warn(`Failed to load theme from ${extension.id}, skipping:`, error);
-        // Continue with other themes even if one fails
+          // 1. Resolve path to theme JSON file
+          const themePath = this.resolveExtensionPath(extension, themeContrib.path);
+          console.log(`[ColorTheme] Theme file path: ${themePath}`);
+
+          // 2. Load VS Code theme data
+          const vsCodeTheme = await this.loadJsonFile(themePath);
+          console.log(`[ColorTheme] Loaded theme data for: ${themeContrib.label}`);
+
+          // 3. Convert to Rainy Aether format
+          const rainyTheme = convertVSCodeThemeToRainy(vsCodeTheme, {
+            extensionId: extension.id,
+            extensionLabel: themeContrib.label,
+            contribution: themeContrib,
+          });
+
+          console.log(`[ColorTheme] Converted theme to Rainy format: ${rainyTheme.name}`);
+          console.log(`[ColorTheme] Theme mode: ${rainyTheme.mode}`);
+          console.log(`[ColorTheme] Theme has ${Object.keys(rainyTheme.variables).length} CSS variables`);
+
+          // 4. Register with Monaco Editor (for syntax highlighting)
+          const monacoThemeId = themeContrib.id || `theme-${extension.id}-${themeContrib.label.toLowerCase().replace(/\s+/g, '-')}`;
+
+          // Determine Monaco base theme
+          const monacoBase = themeContrib.uiTheme === 'vs' ? 'vs' : themeContrib.uiTheme === 'hc-black' ? 'hc-black' : 'vs-dark';
+
+          // Convert token colors to Monaco format
+          const monacoTokenColors = convertTokenColorsToMonaco(vsCodeTheme.tokenColors);
+
+          monaco.editor.defineTheme(monacoThemeId, {
+            base: monacoBase,
+            inherit: true,
+            rules: monacoTokenColors,
+            colors: vsCodeTheme.colors || {},
+          });
+
+          console.log(`[ColorTheme] Registered with Monaco as: ${monacoThemeId}`);
+          console.log(`[ColorTheme] Monaco base: ${monacoBase}, token rules: ${monacoTokenColors.length}`);
+
+          // 5. Register with Rainy Aether theme system
+          registerExtensionTheme(rainyTheme);
+
+          console.log(`[ColorTheme] Successfully registered theme in Rainy theme store`);
+          console.log(`[ColorTheme] Theme available as: "${rainyTheme.displayName}"`);
+
+          // 6. Add disposal callback
+          loadedExtension.disposables.push({
+            dispose: async () => {
+              console.log(`[ColorTheme] Unregistering theme: ${rainyTheme.name}`);
+              // Dynamically import to avoid circular dependencies
+              const { unregisterExtensionTheme } = await import('@/stores/themeStore');
+              unregisterExtensionTheme(rainyTheme.name);
+            },
+          });
+
+          console.log(`[ColorTheme] ✅ Successfully loaded theme: ${themeContrib.label}`);
+
+        } catch (error) {
+          console.error(`[ColorTheme] Failed to load theme ${themeContrib.label}:`, error);
+          // Continue with other themes even if one fails
+        }
       }
+
+      console.log(`[ColorTheme] Finished loading ${themes.length} theme(s) from ${extension.id}`);
+
+    } catch (error) {
+      console.error(`[ColorTheme] Failed to import theme utilities:`, error);
     }
   }
 
