@@ -163,7 +163,24 @@ export const setCurrentTheme = async (theme: Theme, options: SetCurrentThemeOpti
   notifyThemeListeners(theme);
 };
 
-export const setUserPreference = async (preference: ThemeMode) => {
+export const setUserPreference = async (preference: ThemeMode, options: { skipExtensionWarning?: boolean } = {}) => {
+  // Check if an extension theme is active and warn user
+  if (isExtensionThemeActive() && !options.skipExtensionWarning) {
+    console.warn('[ThemeStore] Changing mode will disable extension theme');
+
+    // Show toast notification to user
+    try {
+      const { toast } = await import('sonner');
+      toast.info('Extension Theme Will Be Disabled', {
+        description: `Changing to ${preference === 'system' ? 'System' : preference === 'day' ? 'Day' : 'Night'} mode will switch to a built-in theme. Your extension theme will be deactivated.`,
+      });
+    } catch (error) {
+      console.error('[ThemeStore] Failed to show toast:', error);
+    }
+
+    // Continue to apply the preference (this will switch to built-in theme)
+  }
+
   updateThemeState({ userPreference: preference });
   await saveToStore(THEME_PREF_STORAGE_KEY, preference);
 
@@ -224,6 +241,23 @@ const applySystemTheme = async () => {
 };
 
 export const toggleDayNight = async () => {
+  // Check if an extension theme is active
+  if (isExtensionThemeActive()) {
+    console.warn('[ThemeStore] Cannot toggle day/night with extension theme active');
+
+    // Show toast notification to user
+    try {
+      const { toast } = await import('sonner');
+      toast.warning('Extension Theme Active', {
+        description: 'Day/Night toggle is disabled when using extension themes. Switch to a built-in theme to use this feature.',
+      });
+    } catch (error) {
+      console.error('[ThemeStore] Failed to show toast:', error);
+    }
+
+    return; // Don't toggle
+  }
+
   // Toggle user preference, not just the current theme, for consistency
   const newPref: ThemeMode = themeState.currentTheme.mode === 'day' ? 'night' : 'day';
   await setUserPreference(newPref);
@@ -525,6 +559,13 @@ export const getExtensionThemes = (): Theme[] => {
 
 export const getBuiltInThemes = (): Theme[] => {
   return allThemes;
+};
+
+/**
+ * Check if current theme is from an extension
+ */
+export const isExtensionThemeActive = (): boolean => {
+  return themeState.currentTheme.source === 'extension';
 };
 
 export const findThemeByName = (name: string): Theme | undefined => {

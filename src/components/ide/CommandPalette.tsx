@@ -11,7 +11,7 @@ import {
   FilePlus,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { toggleDayNight, useThemeState } from "../../stores/themeStore";
+import { toggleDayNight, useThemeState, isExtensionThemeActive } from "../../stores/themeStore";
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -25,6 +25,7 @@ type CommandItem = {
   hint?: string;
   run: () => void;
   icon?: "settings" | "folder" | "save" | "palette" | "moon" | "sun" | "fileplus";
+  disabled?: boolean;
 };
 
 function matchScore(query: string, title: string): number {
@@ -111,8 +112,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
       {
         id: "toggle-theme",
         title: `Switch to ${theme.currentTheme.mode === "day" ? "Night" : "Day"} Mode`,
+        hint: isExtensionThemeActive() ? "(Disabled - Extension theme active)" : undefined,
         run: () => toggleDayNight(),
         icon: theme.currentTheme.mode === "day" ? "moon" : "sun",
+        disabled: isExtensionThemeActive(),
       },
       {
         id: "open-theme-store",
@@ -147,7 +150,14 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
       return;
     }
     const index = Math.max(0, Math.min(selectedIndex, filteredCommands.length - 1));
-    filteredCommands[index].run();
+    const command = filteredCommands[index];
+
+    // Don't run disabled commands
+    if (command.disabled) {
+      return;
+    }
+
+    command.run();
     handleClose();
   }, [filteredCommands, handleClose, selectedIndex]);
 
@@ -245,15 +255,18 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
           <div className="max-h-96 overflow-y-auto">
             {filteredCommands.map((item, index) => {
               const isActive = selectedIndex === index;
+              const isDisabled = item.disabled;
               return (
                 <div
                   key={item.id}
                   className={cn(
-                    "px-3 py-2 text-sm cursor-pointer flex items-center gap-2",
-                    isActive ? "bg-muted" : "hover:bg-muted",
+                    "px-3 py-2 text-sm flex items-center gap-2",
+                    isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+                    !isDisabled && (isActive ? "bg-muted" : "hover:bg-muted"),
                   )}
-                  onMouseEnter={() => setSelectedIndex(index)}
+                  onMouseEnter={() => !isDisabled && setSelectedIndex(index)}
                   onClick={() => {
+                    if (isDisabled) return;
                     setSelectedIndex(index);
                     runSelected();
                   }}
