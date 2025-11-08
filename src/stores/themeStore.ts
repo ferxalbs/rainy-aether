@@ -144,7 +144,7 @@ interface SetCurrentThemeOptions {
   persistVariant?: boolean;
 }
 
-export const setCurrentTheme = (theme: Theme, options: SetCurrentThemeOptions = {}) => {
+export const setCurrentTheme = async (theme: Theme, options: SetCurrentThemeOptions = {}) => {
   // Validate theme accessibility before applying
   const validation = validateThemeAccessibility(theme.variables);
   if (!validation.isWCAGAACompliant) {
@@ -155,7 +155,7 @@ export const setCurrentTheme = (theme: Theme, options: SetCurrentThemeOptions = 
   const persistVariant = options.persistVariant ?? themeState.userPreference !== 'system';
 
   updateThemeState({ currentTheme: theme, baseTheme: baseName });
-  applyTheme(theme);
+  await applyTheme(theme);
   persistThemeSelection(baseName, theme.name, persistVariant);
   notifyThemeListeners(theme);
 };
@@ -170,10 +170,10 @@ export const setUserPreference = async (preference: ThemeMode) => {
       const systemTheme = await detectSystemTheme();
       const systemMode = systemThemeToAppTheme(systemTheme);
       updateThemeState({ systemTheme: systemMode });
-      applySystemTheme();
+      await applySystemTheme();
     } catch (error) {
       console.error('Failed to detect system theme for system mode:', error);
-      applySystemTheme();
+      await applySystemTheme();
     }
   } else {
     const activeBase = themeState.baseTheme || getBaseThemeName(themeState.currentTheme);
@@ -191,12 +191,12 @@ export const setUserPreference = async (preference: ThemeMode) => {
     }
 
     if (newTheme) {
-      setCurrentTheme(newTheme, { persistVariant: true });
+      await setCurrentTheme(newTheme, { persistVariant: true });
     }
   }
 };
 
-const applySystemTheme = () => {
+const applySystemTheme = async () => {
   if (themeState.userPreference !== 'system') {
     return;
   }
@@ -216,7 +216,7 @@ const applySystemTheme = () => {
   }
 
   if (newTheme) {
-    setCurrentTheme(newTheme, { persistVariant: false });
+    await setCurrentTheme(newTheme, { persistVariant: false });
   }
 };
 
@@ -226,12 +226,12 @@ export const toggleDayNight = async () => {
   await setUserPreference(newPref);
 };
 
-export const switchBaseTheme = (baseName: string, mode: 'day' | 'night' = 'day') => {
+export const switchBaseTheme = async (baseName: string, mode: 'day' | 'night' = 'day') => {
   const targetMode = themeState.userPreference === 'system' ? themeState.systemTheme : mode;
   const newTheme = allThemes.find(t => t.name === `${baseName}-${targetMode}`);
   if (newTheme) {
     const persistVariant = themeState.userPreference !== 'system';
-    setCurrentTheme(newTheme, { persistVariant });
+    await setCurrentTheme(newTheme, { persistVariant });
   }
 };
 
@@ -265,7 +265,7 @@ export const getThemeBaseOptions = (): ThemeBaseOption[] => {
   return Array.from(baseMap.values()).sort((a, b) => a.label.localeCompare(b.label));
 };
 
-const applyTheme = (theme: Theme) => {
+const applyTheme = async (theme: Theme) => {
   const root = document.documentElement;
 
   // Apply theme variables
@@ -362,6 +362,18 @@ const applyTheme = (theme: Theme) => {
 
   // Remove data-theme attribute to avoid conflicts
   root.removeAttribute('data-theme');
+
+  // Apply Monaco theme if this is an extension theme
+  if (theme.monacoThemeId) {
+    try {
+      // Dynamically import Monaco to avoid circular dependencies
+      const monaco = await import('monaco-editor');
+      monaco.editor.setTheme(theme.monacoThemeId);
+      console.log(`[ThemeStore] Applied Monaco theme: ${theme.monacoThemeId}`);
+    } catch (error) {
+      console.error(`[ThemeStore] Failed to apply Monaco theme:`, error);
+    }
+  }
 };
 
 // Initialize theme
@@ -406,7 +418,7 @@ export const initializeTheme = async () => {
         themeToApply = allThemes.find(t => t.mode === systemMode) || defaultTheme;
       }
 
-      setCurrentTheme(themeToApply, { persistVariant: false });
+      await setCurrentTheme(themeToApply, { persistVariant: false });
     } else {
       const savedThemeName = await loadFromStore<string | null>(THEME_STORAGE_KEY, null);
       const candidateNames: string[] = [];
@@ -428,20 +440,20 @@ export const initializeTheme = async () => {
         themeToApply = allThemes.find(t => t.mode === savedPreference) || defaultTheme;
       }
 
-      setCurrentTheme(themeToApply, { persistVariant: true });
+      await setCurrentTheme(themeToApply, { persistVariant: true });
     }
 
     updateThemeState({ isInitialized: true });
 
     // Listen for system theme changes using our utility
-    onSystemThemeChange((newSystemTheme: SystemTheme) => {
+    onSystemThemeChange(async (newSystemTheme: SystemTheme) => {
       try {
         const newAppTheme = systemThemeToAppTheme(newSystemTheme);
         updateThemeState({ systemTheme: newAppTheme });
 
         // Only apply system theme changes if user preference is 'system'
         if (themeState.userPreference === 'system') {
-          applySystemTheme();
+          await applySystemTheme();
         }
       } catch (error) {
         console.error('Failed to handle system theme change:', error);
@@ -450,7 +462,7 @@ export const initializeTheme = async () => {
   } catch (error) {
     console.error('Failed to initialize theme:', error);
     // Fallback to default theme
-    setCurrentTheme(defaultTheme, { persistVariant: false });
+    await setCurrentTheme(defaultTheme, { persistVariant: false });
     updateThemeState({ isInitialized: true });
   }
 };
@@ -476,7 +488,7 @@ export const registerExtensionTheme = (theme: Theme) => {
   notifyStateListeners();
 };
 
-export const unregisterExtensionTheme = (themeId: string) => {
+export const unregisterExtensionTheme = async (themeId: string) => {
   const initialLength = extensionThemes.length;
   extensionThemes = extensionThemes.filter(t => t.name !== themeId);
 
@@ -486,7 +498,7 @@ export const unregisterExtensionTheme = (themeId: string) => {
     // If currently active theme was unregistered, switch to default
     if (themeState.currentTheme.name === themeId) {
       console.warn('[ThemeStore] Active theme was unregistered, switching to default');
-      setCurrentTheme(defaultTheme);
+      await setCurrentTheme(defaultTheme);
     }
 
     // Notify listeners

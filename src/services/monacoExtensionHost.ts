@@ -302,7 +302,15 @@ export class MonacoExtensionHost {
           console.log(`[ColorTheme] Theme has ${Object.keys(rainyTheme.variables).length} CSS variables`);
 
           // 4. Register with Monaco Editor (for syntax highlighting)
-          const monacoThemeId = themeContrib.id || `theme-${extension.id}-${themeContrib.label.toLowerCase().replace(/\s+/g, '-')}`;
+          // Monaco theme names must only contain alphanumeric characters, underscores, and hyphens
+          // Replace dots and other special characters with hyphens
+          const rawThemeId = themeContrib.id || `theme-${extension.id}-${themeContrib.label.toLowerCase().replace(/\s+/g, '-')}`;
+          const monacoThemeId = rawThemeId.replace(/[^a-zA-Z0-9_-]/g, '-');
+
+          console.log(`[ColorTheme] Monaco theme ID (sanitized): ${monacoThemeId}`);
+
+          // Add Monaco theme ID to Rainy theme object
+          rainyTheme.monacoThemeId = monacoThemeId;
 
           // Determine Monaco base theme
           const monacoBase = themeContrib.uiTheme === 'vs' ? 'vs' : themeContrib.uiTheme === 'hc-black' ? 'hc-black' : 'vs-dark';
@@ -317,7 +325,7 @@ export class MonacoExtensionHost {
             colors: vsCodeTheme.colors || {},
           });
 
-          console.log(`[ColorTheme] Registered with Monaco as: ${monacoThemeId}`);
+          console.log(`[ColorTheme] Successfully registered with Monaco as: ${monacoThemeId}`);
           console.log(`[ColorTheme] Monaco base: ${monacoBase}, token rules: ${monacoTokenColors.length}`);
 
           // 5. Register with Rainy Aether theme system
@@ -579,11 +587,96 @@ export class MonacoExtensionHost {
     return finalPath;
   }
 
+  /**
+   * Strip comments from JSONC (JSON with Comments) content
+   * VS Code theme files often contain comments that need to be removed
+   */
+  private stripJsonComments(jsonc: string): string {
+    let result = '';
+    let inString = false;
+    let inSingleLineComment = false;
+    let inMultiLineComment = false;
+    let escapeNext = false;
+
+    for (let i = 0; i < jsonc.length; i++) {
+      const char = jsonc[i];
+      const nextChar = jsonc[i + 1];
+
+      // Handle escape sequences in strings
+      if (escapeNext) {
+        result += char;
+        escapeNext = false;
+        continue;
+      }
+
+      // Check for escape character in strings
+      if (inString && char === '\\') {
+        result += char;
+        escapeNext = true;
+        continue;
+      }
+
+      // Toggle string state
+      if (char === '"' && !inSingleLineComment && !inMultiLineComment) {
+        inString = !inString;
+        result += char;
+        continue;
+      }
+
+      // Skip processing if we're in a string
+      if (inString) {
+        result += char;
+        continue;
+      }
+
+      // Handle multi-line comment end
+      if (inMultiLineComment) {
+        if (char === '*' && nextChar === '/') {
+          inMultiLineComment = false;
+          i++; // Skip the '/'
+        }
+        continue;
+      }
+
+      // Handle single-line comment
+      if (inSingleLineComment) {
+        if (char === '\n' || char === '\r') {
+          inSingleLineComment = false;
+          result += char; // Keep the newline
+        }
+        continue;
+      }
+
+      // Check for comment starts
+      if (char === '/') {
+        if (nextChar === '/') {
+          inSingleLineComment = true;
+          i++; // Skip the second '/'
+          continue;
+        }
+        if (nextChar === '*') {
+          inMultiLineComment = true;
+          i++; // Skip the '*'
+          continue;
+        }
+      }
+
+      // Add non-comment characters
+      result += char;
+    }
+
+    return result;
+  }
+
   private async loadJsonFile(path: string): Promise<any> {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       const fileContent = await invoke<string>('read_extension_file', { path });
-      return JSON.parse(fileContent);
+
+      // Strip JSONC comments before parsing
+      const cleanedContent = this.stripJsonComments(fileContent);
+
+      return JSON.parse(cleanedContent);
     } catch (error) {
       console.error(`Failed to load file ${path}:`, error);
       throw new Error(`Failed to load extension file: ${path}`);

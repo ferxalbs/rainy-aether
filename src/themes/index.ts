@@ -21,6 +21,8 @@ export interface Theme {
   extensionId?: string;
   /** Extension display label if from extension */
   extensionLabel?: string;
+  /** Monaco Editor theme ID (sanitized name for Monaco) */
+  monacoThemeId?: string;
 
   // VS Code compatibility (preserve original theme data)
   /** Original VS Code colors object (for Monaco integration) */
