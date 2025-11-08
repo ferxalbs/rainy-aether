@@ -1,5 +1,22 @@
 /* Interactive Theme Preview Styles */
 
+/* Theme Section Header */
+.theme-section-header {
+  margin-top: 16px;
+  margin-bottom: 12px;
+  padding: 0 8px;
+}
+
+.theme-section-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+}
+
 .theme-preview-card {
   position: relative;
   display: flex;

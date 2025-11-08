@@ -59,6 +59,8 @@ interface ThemeState {
   systemTheme: 'day' | 'night';
   userPreference: ThemeMode;
   isInitialized: boolean;
+  /** Number of extension themes loaded (triggers re-render when changed) */
+  extensionThemeCount: number;
 }
 
 const initialState: ThemeState = {
@@ -67,6 +69,7 @@ const initialState: ThemeState = {
   systemTheme: 'day',
   userPreference: 'system',
   isInitialized: false,
+  extensionThemeCount: 0,
 };
 
 let themeState: ThemeState = { ...initialState };
@@ -484,6 +487,9 @@ export const registerExtensionTheme = (theme: Theme) => {
     extensionThemes.push(theme);
   }
 
+  // Update extension theme count to trigger re-renders
+  updateThemeState({ extensionThemeCount: extensionThemes.length });
+
   // Notify listeners that available themes changed
   notifyStateListeners();
 };
@@ -494,6 +500,9 @@ export const unregisterExtensionTheme = async (themeId: string) => {
 
   if (extensionThemes.length < initialLength) {
     console.log('[ThemeStore] Unregistered extension theme:', themeId);
+
+    // Update extension theme count to trigger re-renders
+    updateThemeState({ extensionThemeCount: extensionThemes.length });
 
     // If currently active theme was unregistered, switch to default
     if (themeState.currentTheme.name === themeId) {
