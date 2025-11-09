@@ -264,11 +264,7 @@ const IDE: React.FC = () => {
 
       if (ctrl && shift && key === "m") {
         event.preventDefault();
-        console.log('[IDE] Ctrl+Shift+M pressed, toggling problems panel');
-        setIsProblemsPanelOpen((prev) => {
-          console.log('[IDE] Problems panel state changing from', prev, 'to', !prev);
-          return !prev;
-        });
+        setIsProblemsPanelOpen((prev) => !prev);
         return;
       }
     };
@@ -426,15 +422,6 @@ const IDE: React.FC = () => {
   const maxLine = view ? view.getModel()?.getLineCount() ?? 1 : 1;
   const terminalVisible = !isZenMode && terminalSnapshot.visible;
   const problemsPanelVisible = !isZenMode && isProblemsPanelOpen;
-
-  // Debug logging
-  console.log('[IDE] Render state:', {
-    isProblemsPanelOpen,
-    isZenMode,
-    problemsPanelVisible,
-    terminalVisible,
-    currentView: snapshot.currentView
-  });
 
   // Show workspace loading overlay when loading workspace
   const isWorkspaceLoading = loadingState.isLoading && loadingState.loadingContext === 'workspace';

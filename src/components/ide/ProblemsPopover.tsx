@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn';
 interface ProblemsPopoverProps {
   isOpen: boolean;
   onClose: () => void;
-  triggerRef?: React.RefObject<HTMLElement>;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
 export const ProblemsPopover: React.FC<ProblemsPopoverProps> = ({
@@ -77,10 +77,6 @@ export const ProblemsPopover: React.FC<ProblemsPopoverProps> = ({
 
   // Handle marker click
   const handleMarkerClick = (marker: IMarker) => {
-    // Extract file path from resource URI
-    const uri = marker.resource;
-    const filePath = uri.replace('file:///', '').replace(/%20/g, ' ');
-
     // Navigate to the marker location
     editorActions.goToPosition(marker.startLineNumber, marker.startColumn);
 

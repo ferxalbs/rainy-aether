@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import * as monaco from 'monaco-editor';
 import { editorState } from '../../stores/editorStore';
 import { useIDEStore } from '../../stores/ideStore';
@@ -8,6 +8,7 @@ import { getMarkerService, MarkerStatistics } from '../../services/markerService
 import { IStatusBarEntry } from '@/types/statusbar';
 import { StatusBarItem } from './StatusBarItem';
 import { useCurrentProblemStatusBarEntry } from './CurrentProblemIndicator';
+import { ProblemsPopover } from './ProblemsPopover';
 import { cn } from '@/lib/cn';
 import '../../styles/statusbar.css';
 
@@ -39,6 +40,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     clean: true
   });
   const [problems, setProblems] = useState<Problems>({ errors: 0, warnings: 0, infos: 0, hints: 0, total: 0, unknowns: 0 });
+  const [isProblemsPopoverOpen, setIsProblemsPopoverOpen] = useState(false);
+  const problemsButtonRef = useRef<HTMLDivElement>(null);
   const [editorInfo, setEditorInfo] = useState<EditorInfo>({
     language: 'Plain Text',
     encoding: 'UTF-8',
@@ -227,7 +230,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       kind: hasErrors ? 'error' : hasWarnings ? 'warning' : 'standard',
       order: 1,
       position: 'left',
-      onClick: onToggleProblemsPanel,
+      onClick: () => {
+        setIsProblemsPopoverOpen(prev => !prev);
+        // Also call the original handler if provided
+        onToggleProblemsPanel?.();
+      },
     };
   };
 
@@ -318,25 +325,39 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div className={cn(
-      "flex items-stretch justify-between text-xs border-t",
-      "bg-background text-foreground border-border",
-      "h-6 select-none overflow-hidden"
-    )}>
-      {/* Left side items */}
-      <div className="flex items-stretch flex-shrink-0">
-        {leftItems.map(item => (
-          <StatusBarItem key={item.id} entry={item} />
-        ))}
+    <>
+      <div className={cn(
+        "flex items-stretch justify-between text-xs border-t",
+        "bg-background text-foreground border-border",
+        "h-6 select-none overflow-hidden"
+      )}>
+        {/* Left side items */}
+        <div className="flex items-stretch flex-shrink-0">
+          {leftItems.map(item => (
+            <div
+              key={item.id}
+              ref={item.id === 'status.problems' ? problemsButtonRef : undefined}
+            >
+              <StatusBarItem entry={item} />
+            </div>
+          ))}
+        </div>
+
+        {/* Right side items */}
+        <div className="flex items-stretch flex-shrink-0 ml-auto">
+          {rightItems.map(item => (
+            <StatusBarItem key={item.id} entry={item} />
+          ))}
+        </div>
       </div>
 
-      {/* Right side items */}
-      <div className="flex items-stretch flex-shrink-0 ml-auto">
-        {rightItems.map(item => (
-          <StatusBarItem key={item.id} entry={item} />
-        ))}
-      </div>
-    </div>
+      {/* Problems Popover */}
+      <ProblemsPopover
+        isOpen={isProblemsPopoverOpen}
+        onClose={() => setIsProblemsPopoverOpen(false)}
+        triggerRef={problemsButtonRef}
+      />
+    </>
   );
 };
 
