@@ -30,7 +30,7 @@ Phase 1 of the Error System Implementation Plan has been **successfully complete
 
 **Created:** New file (319 lines)
 
-#### Key Features:
+#### Key Features
 
 - **Multi-owner tracking**: `Map<owner, Map<resource, IMarker[]>>`
   - Each owner (typescript, eslint, monaco, etc.) maintains independent markers
@@ -38,6 +38,7 @@ Phase 1 of the Error System Implementation Plan has been **successfully complete
   - Owners are completely isolated from each other
 
 - **Enhanced Type System**:
+
   ```typescript
   export enum MarkerSeverity {
     Hint = 1,
@@ -83,7 +84,7 @@ Phase 1 of the Error System Implementation Plan has been **successfully complete
   - Converts Monaco markers to IMarkerData format
   - Auto-registers as 'monaco' owner
 
-#### Architecture Benefits:
+#### Architecture Benefits
 
 1. **Separation of Concerns**: Each diagnostic source is isolated
 2. **No Conflicts**: TypeScript errors don't override ESLint warnings
@@ -94,14 +95,14 @@ Phase 1 of the Error System Implementation Plan has been **successfully complete
 
 **Modified:** Complete rewrite (384 lines)
 
-#### Strategy:
+#### Strategy
 
 - Deprecated but functional wrapper around `MarkerService`
 - All old APIs still work (`getDiagnosticService()`, `addDiagnostic()`, etc.)
 - Automatic conversion between legacy and new formats
 - Zero breaking changes for existing code
 
-#### Conversion Logic:
+#### Conversion Logic
 
 ```typescript
 // Legacy Diagnostic → IMarkerData
@@ -134,7 +135,7 @@ function markerToDiagnostic(marker: IMarker): Diagnostic {
 }
 ```
 
-#### Maintained APIs:
+#### Maintained APIs
 
 - ✅ `getDiagnosticService()` - Returns compatibility wrapper
 - ✅ `addDiagnostic(diagnostic)` - Converts to marker
@@ -147,9 +148,10 @@ function markerToDiagnostic(marker: IMarker): Diagnostic {
 
 **Modified:** Direct migration to `markerService`
 
-#### Changes:
+#### Changes
 
 **Before:**
+
 ```typescript
 import { getDiagnosticService, Diagnostic, DiagnosticSeverity, DiagnosticSource } from '../../services/diagnosticService';
 
@@ -165,6 +167,7 @@ useEffect(() => {
 ```
 
 **After:**
+
 ```typescript
 import { getMarkerService, IMarker, MarkerSeverity } from '../../services/markerService';
 
@@ -181,7 +184,7 @@ useEffect(() => {
 }, []);
 ```
 
-#### New Capabilities:
+#### New Capabilities
 
 - **Owner badges**: Shows which source created each marker (monaco, typescript, eslint, etc.)
 - **Better filtering**: Can filter by owner in the future
@@ -191,9 +194,10 @@ useEffect(() => {
 
 **Modified:** Updated to use `MarkerStatistics`
 
-#### Changes:
+#### Changes
 
 **Before:**
+
 ```typescript
 import { getDiagnosticService, DiagnosticStats } from '../../services/diagnosticService';
 
@@ -212,6 +216,7 @@ useEffect(() => {
 ```
 
 **After:**
+
 ```typescript
 import { getMarkerService, MarkerStatistics, MarkerSeverity } from '../../services/markerService';
 
@@ -231,7 +236,7 @@ useEffect(() => {
 }, []);
 ```
 
-#### New Field:
+#### New Field
 
 - Added `unknowns` field to track markers with invalid severity
 
@@ -239,7 +244,7 @@ useEffect(() => {
 
 **Created:** Comprehensive test suite (398 lines)
 
-#### Test Coverage:
+#### Test Coverage
 
 ✅ **Singleton Pattern**: Verifies single instance
 ✅ **Single Owner**: Add/read markers for one owner
@@ -379,6 +384,7 @@ useEffect(() => {
 **Issue:** Monaco editor types not properly typed in callbacks
 
 **Error:**
+
 ```
 error TS7006: Parameter 'uris' implicitly has an 'any' type.
 error TS7006: Parameter 'uri' implicitly has an 'any' type.
@@ -386,6 +392,7 @@ error TS7006: Parameter 'm' implicitly has an 'any' type.
 ```
 
 **Solution:** Explicitly typed all Monaco callback parameters
+
 ```typescript
 // Before
 const disposable = monaco.editor.onDidChangeMarkers((uris) => {
@@ -409,6 +416,7 @@ const disposable = monaco.editor.onDidChangeMarkers((uris: readonly monaco.Uri[]
 **Issue:** Old diagnostic system used string IDs like `monaco-file:///test.ts-0`. New system doesn't have IDs.
 
 **Solution:** Generated synthetic IDs from marker properties
+
 ```typescript
 function markerToDiagnostic(marker: IMarker): Diagnostic {
   return {
@@ -425,6 +433,7 @@ function markerToDiagnostic(marker: IMarker): Diagnostic {
 **Issue:** Legacy system used `info` (singular), new system uses `infos` (plural)
 
 **Solution:** Added conversion function
+
 ```typescript
 function markerStatsToDiagnosticStats(stats: MarkerStatistics): DiagnosticStats {
   return {
@@ -442,6 +451,7 @@ function markerStatsToDiagnosticStats(stats: MarkerStatistics): DiagnosticStats 
 **Issue:** Project has preexisting TypeScript errors related to React types not being found
 
 **Example:**
+
 ```
 error TS2307: Cannot find module 'react' or its corresponding type declarations.
 error TS7026: JSX element implicitly has type 'any' because no interface 'JSX.IntrinsicElements' exists.
@@ -452,6 +462,7 @@ error TS7026: JSX element implicitly has type 'any' because no interface 'JSX.In
 **Solution:** Filtered TypeScript output to only show errors from modified files. Verified that new code has no logic errors.
 
 **Recommendation:** Fix these preexisting issues in a separate PR by ensuring React types are properly installed:
+
 ```bash
 pnpm add -D @types/react @types/react-dom
 ```
@@ -463,12 +474,14 @@ pnpm add -D @types/react @types/react-dom
 ### Decision 1: Nested Map vs Flat Map
 
 **Options:**
+
 - A) Flat `Map<string, IMarker>` with composite keys like `"owner:resource:line:col"`
 - B) Nested `Map<owner, Map<resource, IMarker[]>>`
 
 **Chosen:** B (Nested Maps)
 
 **Reasoning:**
+
 - **O(1) lookups** by owner and resource
 - **Natural grouping** of markers
 - **Efficient removal** of all markers for an owner
@@ -477,12 +490,14 @@ pnpm add -D @types/react @types/react-dom
 ### Decision 2: Automatic Monaco Listener
 
 **Options:**
+
 - A) Require manual registration of Monaco listener
 - B) Auto-register Monaco listener in constructor
 
 **Chosen:** B (Auto-register)
 
 **Reasoning:**
+
 - **Convenience** - Works out of the box
 - **No breaking changes** - Existing Monaco markers automatically tracked
 - **Consistency** - Monaco is always the 'monaco' owner
@@ -492,6 +507,7 @@ pnpm add -D @types/react @types/react-dom
 ### Decision 3: Compatibility Shim Strategy
 
 **Options:**
+
 - A) Hard cutover - force all code to migrate immediately
 - B) Compatibility shim - maintain old API temporarily
 - C) Dual exports - support both APIs permanently
@@ -499,6 +515,7 @@ pnpm add -D @types/react @types/react-dom
 **Chosen:** B (Compatibility shim with deprecation warnings)
 
 **Reasoning:**
+
 - **Zero downtime** - Migration can be gradual
 - **Safety** - Can test new system without breaking existing code
 - **Clear path** - Deprecation warnings guide migration
@@ -508,12 +525,14 @@ pnpm add -D @types/react @types/react-dom
 ### Decision 4: Listener Signature
 
 **Options:**
+
 - A) `onMarkerChanged((markers, stats) => void)` - Pass all data
 - B) `onMarkerChanged((resources) => void)` - Pass changed resources only
 
 **Chosen:** B (Resources only)
 
 **Reasoning:**
+
 - **Efficiency** - Don't serialize all markers on every change
 - **Flexibility** - Listeners can query exactly what they need
 - **VS Code parity** - Matches VS Code's IMarkerService
@@ -546,12 +565,14 @@ pnpm add -D @types/react @types/react-dom
 ### Manual Testing Checklist
 
 **Completed:**
+
 - [x] Service initializes without errors
 - [x] Monaco markers appear in Problems panel
 - [x] StatusBar shows correct counts
 - [x] Filtering by severity works
 
 **Pending (for later phases):**
+
 - [ ] Click navigation works
 - [ ] Quick fixes appear
 - [ ] Current problem indicator updates
@@ -576,11 +597,13 @@ pnpm add -D @types/react @types/react-dom
 | Notify listeners | ~1ms | ✅ Excellent |
 
 **Memory:**
+
 - 1000 markers: ~500KB
 - Nested Map overhead: ~100KB
 - Total: ~600KB (acceptable)
 
 **Bottlenecks Identified:**
+
 - None at 1000 markers
 - May need virtual scrolling for 10,000+ markers (Phase 4)
 
@@ -857,6 +880,7 @@ When the compatibility shim is removed:
 Phase 1 has laid a **solid foundation** for the error system refactoring. The multi-owner marker architecture is **production-ready** and **backward compatible**. All components have been successfully migrated, and comprehensive tests ensure stability.
 
 The new system enables powerful features like:
+
 - ✅ Multiple diagnostic sources per file
 - ✅ Efficient querying and filtering
 - ✅ Related information and marker tags

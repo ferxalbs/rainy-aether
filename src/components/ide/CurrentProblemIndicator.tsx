@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import * as monaco from 'monaco-editor';
+import { useEffect, useState } from 'react';
 import { editorState } from '../../stores/editorStore';
 import { getMarkerService, IMarker, MarkerSeverity } from '../../services/markerService';
 import { useSettingsState } from '../../stores/settingsStore';

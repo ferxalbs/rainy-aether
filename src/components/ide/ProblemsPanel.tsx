@@ -4,7 +4,6 @@ import { getMarkerService, IMarker, MarkerSeverity } from '../../services/marker
 import { editorActions } from '../../stores/editorStore';
 import { useSettingsState } from '../../stores/settingsStore';
 import { useCurrentProblem } from './CurrentProblemIndicator';
-import { QuickFixMenu } from './QuickFixMenu';
 import { getCodeActionService } from '../../services/codeActionService';
 import { cn } from '@/lib/cn';
 
@@ -20,8 +19,6 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
   const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(new Set());
-  const [quickFixMarker, setQuickFixMarker] = useState<IMarker | null>(null);
-  const [markerQuickFixAvailable, setMarkerQuickFixAvailable] = useState<Set<string>>(new Set());
   const listRef = useRef<HTMLDivElement>(null);
   const settings = useSettingsState();
   const currentProblem = useCurrentProblem();
@@ -300,43 +297,22 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
     });
   };
 
-  // Get unique marker ID
-  const getMarkerId = (marker: IMarker): string => {
-    return `${marker.resource}-${marker.startLineNumber}-${marker.startColumn}`;
-  };
-
-  // Check if marker has quick fixes (with caching)
-  useEffect(() => {
-    let mounted = true;
-
-    const checkQuickFixes = async () => {
-      const codeActionService = getCodeActionService();
-      const available = new Set<string>();
-
-      // Check each filtered marker for quick fixes
-      for (const marker of filteredMarkers) {
-        const hasActions = await codeActionService.hasCodeActions(marker);
-        if (hasActions) {
-          available.add(getMarkerId(marker));
-        }
-      }
-
-      if (mounted) {
-        setMarkerQuickFixAvailable(available);
-      }
-    };
-
-    checkQuickFixes();
-
-    return () => {
-      mounted = false;
-    };
-  }, [filteredMarkers]);
+  // Monaco shows quick fixes automatically with a lightbulb in the editor
+  // We just provide a button to trigger the same UI from the problems panel
 
   // Handle quick fix button click
-  const handleQuickFixClick = (e: React.MouseEvent, marker: IMarker) => {
+  const handleQuickFixClick = async (e: React.MouseEvent, marker: IMarker) => {
     e.stopPropagation(); // Prevent marker click
-    setQuickFixMarker(marker);
+
+    // Navigate to the problem location first
+    await handleMarkerClick(marker);
+
+    // Then trigger Monaco's built-in quick fix UI
+    const codeActionService = getCodeActionService();
+    await codeActionService.showQuickFixAtPosition(
+      marker.startLineNumber,
+      marker.startColumn
+    );
   };
 
   return (
@@ -550,17 +526,16 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
                             </div>
                           </div>
 
-                          {/* Quick fix button */}
-                          {markerQuickFixAvailable.has(getMarkerId(marker)) && (
+                          {/* Quick fix button - Monaco has built-in quick fixes for errors and warnings */}
+                          {(marker.severity === MarkerSeverity.Error || marker.severity === MarkerSeverity.Warning) && (
                             <button
                               onClick={(e) => handleQuickFixClick(e, marker)}
                               className={cn(
                                 "flex-shrink-0 p-1.5 rounded transition-all",
                                 "opacity-0 group-hover:opacity-100",
-                                "hover:bg-yellow-500/20 text-yellow-500",
-                                quickFixMarker === marker && "opacity-100 bg-yellow-500/20"
+                                "hover:bg-yellow-500/20 text-yellow-500"
                               )}
-                              title="Show quick fixes"
+                              title="Show quick fixes (Ctrl+.)"
                             >
                               <Lightbulb size={16} />
                             </button>
@@ -585,19 +560,6 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
           <span>Esc Close</span>
         </span>
       </div>
-
-      {/* Quick Fix Menu */}
-      {quickFixMarker && (
-        <QuickFixMenu
-          marker={quickFixMarker}
-          onClose={() => setQuickFixMarker(null)}
-          onFixApplied={() => {
-            // Refresh markers after fix is applied
-            const markerService = getMarkerService();
-            setMarkers(markerService.read());
-          }}
-        />
-      )}
     </div>
   );
 };

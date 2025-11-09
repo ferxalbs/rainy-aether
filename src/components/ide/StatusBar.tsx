@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import * as monaco from 'monaco-editor';
-import { GitBranch } from 'lucide-react';
 import { editorState } from '../../stores/editorStore';
 import { useIDEStore } from '../../stores/ideStore';
 import { getCurrentTheme } from '../../stores/themeStore';
@@ -26,7 +25,11 @@ interface EditorInfo {
   tabSize: number;
 }
 
-const StatusBar: React.FC = () => {
+interface StatusBarProps {
+  onToggleProblemsPanel?: () => void;
+}
+
+const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const { state } = useIDEStore();
   const [gitStatus, setGitStatus] = useState<GitStatus>({
     staged: 0,
@@ -224,10 +227,7 @@ const StatusBar: React.FC = () => {
       kind: hasErrors ? 'error' : hasWarnings ? 'warning' : 'standard',
       order: 1,
       position: 'left',
-      onClick: () => {
-        // TODO: Toggle problems panel
-        console.log('Toggle problems panel');
-      },
+      onClick: onToggleProblemsPanel,
     };
   };
 

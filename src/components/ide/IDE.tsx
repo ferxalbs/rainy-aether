@@ -30,6 +30,7 @@ import {
 import ExtensionMarketplace from "./ExtensionMarketplace";
 import ExtensionManager from "./ExtensionManager";
 import { initializeUpdateService, startAutoUpdateCheck } from "../../services/updateService";
+import ProblemsPanel from "./ProblemsPanel";
 
 const IDE: React.FC = () => {
   const { state, actions } = useIDEStore();
@@ -46,6 +47,7 @@ const IDE: React.FC = () => {
   const [isExtensionMarketplaceOpen, setIsExtensionMarketplaceOpen] = useState(false);
   const [isExtensionManagerOpen, setIsExtensionManagerOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
+  const [isProblemsPanelOpen, setIsProblemsPanelOpen] = useState(false);
 
   const tabSwitchHideTimerRef = useRef<number | null>(null);
   const quickOpenRef = useRef(isQuickOpenOpen);
@@ -259,6 +261,16 @@ const IDE: React.FC = () => {
         editorActions.redo();
         return;
       }
+
+      if (ctrl && shift && key === "m") {
+        event.preventDefault();
+        console.log('[IDE] Ctrl+Shift+M pressed, toggling problems panel');
+        setIsProblemsPanelOpen((prev) => {
+          console.log('[IDE] Problems panel state changing from', prev, 'to', !prev);
+          return !prev;
+        });
+        return;
+      }
     };
 
     window.addEventListener("keydown", handler, { capture: true });
@@ -326,6 +338,7 @@ const IDE: React.FC = () => {
       attachListener("shortcut/toggle-sidebar", () => actionsRef.current.toggleSidebar());
       attachListener("shortcut/toggle-terminal", () => terminalActions.toggle());
       attachListener("shortcut/redo", () => editorActions.redo());
+      attachListener("shortcut/toggle-problems", () => setIsProblemsPanelOpen((prev) => !prev));
 
       (async () => {
         try {
@@ -385,6 +398,7 @@ const IDE: React.FC = () => {
           await registerShortcut("CommandOrControl+B", () => actionsRef.current.toggleSidebar());
           await registerShortcut("CommandOrControl+Shift+Z", () => editorActions.redo());
           await registerShortcut("CommandOrControl+Shift+X", () => setIsExtensionMarketplaceOpen(true));
+          await registerShortcut("CommandOrControl+Shift+M", () => setIsProblemsPanelOpen((prev) => !prev));
           console.info("Global shortcuts registered via JS plugin");
         } catch (error) {
           console.warn("Global shortcut plugin registration failed", error);
@@ -411,6 +425,16 @@ const IDE: React.FC = () => {
   const view = editorState.view;
   const maxLine = view ? view.getModel()?.getLineCount() ?? 1 : 1;
   const terminalVisible = !isZenMode && terminalSnapshot.visible;
+  const problemsPanelVisible = !isZenMode && isProblemsPanelOpen;
+
+  // Debug logging
+  console.log('[IDE] Render state:', {
+    isProblemsPanelOpen,
+    isZenMode,
+    problemsPanelVisible,
+    terminalVisible,
+    currentView: snapshot.currentView
+  });
 
   // Show workspace loading overlay when loading workspace
   const isWorkspaceLoading = loadingState.isLoading && loadingState.loadingContext === 'workspace';
@@ -449,13 +473,13 @@ const IDE: React.FC = () => {
                 <div className="flex-1 overflow-hidden">
                   <ResizablePanelGroup direction="vertical" className="h-full">
                     <ResizablePanel
-                      defaultSize={terminalVisible ? 70 : 100}
+                      defaultSize={(terminalVisible || problemsPanelVisible) ? 70 : 100}
                       minSize={30}
                       className="min-h-[200px]"
                     >
                       <FileViewer />
                     </ResizablePanel>
-                    {terminalVisible && (
+                    {(terminalVisible || problemsPanelVisible) && (
                       <>
                         <ResizableHandle withHandle />
                         <ResizablePanel
@@ -465,14 +489,26 @@ const IDE: React.FC = () => {
                           collapsible
                           className="min-h-[160px]"
                         >
-                          <TerminalPanel />
+                          {/* Bottom panel area - can show either terminal or problems */}
+                          {terminalVisible && <TerminalPanel />}
+                          {problemsPanelVisible && !terminalVisible && (
+                            <ProblemsPanel onClose={() => setIsProblemsPanelOpen(false)} />
+                          )}
+                          {/* If both are visible, show them side by side or in tabs */}
+                          {terminalVisible && problemsPanelVisible && (
+                            <div className="h-full flex flex-col">
+                              <div className="flex-1 overflow-hidden">
+                                <ProblemsPanel onClose={() => setIsProblemsPanelOpen(false)} />
+                              </div>
+                            </div>
+                          )}
                         </ResizablePanel>
                       </>
                     )}
                   </ResizablePanelGroup>
                 </div>
               </div>
-              {!isZenMode && <StatusBar />}
+              {!isZenMode && <StatusBar onToggleProblemsPanel={() => setIsProblemsPanelOpen((prev) => !prev)} />}
             </>
           )}
         </>

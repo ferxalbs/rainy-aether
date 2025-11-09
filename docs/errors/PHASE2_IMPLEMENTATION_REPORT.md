@@ -30,7 +30,7 @@ Phase 2 of the Error System Implementation Plan has been **successfully complete
 
 **Created:** New file (48 lines)
 
-#### Key Types:
+#### Key Types
 
 ```typescript
 /**
@@ -63,7 +63,7 @@ export interface IStatusBarEntry {
 }
 ```
 
-#### Benefits:
+#### Benefits
 
 1. **Type Safety**: Strongly typed interface for all status bar items
 2. **Extensibility**: Easy to add new entry kinds in the future
@@ -74,7 +74,7 @@ export interface IStatusBarEntry {
 
 **Created:** New file (88 lines)
 
-#### Key Features:
+#### Key Features
 
 - **Base styles**: Flexbox layout, consistent sizing, transitions
 - **Themed kinds**: CSS classes for each entry kind with theme variable references
@@ -82,7 +82,7 @@ export interface IStatusBarEntry {
 - **Non-clickable states**: Special handling for read-only items
 - **Icon sizing**: Consistent 14x14px icons
 
-#### Example CSS:
+#### Example CSS
 
 ```css
 /* Error kind */
@@ -97,7 +97,7 @@ export interface IStatusBarEntry {
 }
 ```
 
-#### Design Principles:
+#### Design Principles
 
 1. **CSS Variables**: All colors reference theme tokens
 2. **No Hard-coded Colors**: Complete theme flexibility
@@ -108,7 +108,7 @@ export interface IStatusBarEntry {
 
 **Created:** New file (52 lines)
 
-#### Implementation:
+#### Implementation
 
 ```typescript
 export const StatusBarItem: React.FC<IStatusBarItemProps> = ({ entry, onClick }) => {
@@ -158,7 +158,7 @@ export const StatusBarItem: React.FC<IStatusBarItemProps> = ({ entry, onClick })
 };
 ```
 
-#### Features:
+#### Features
 
 - **Keyboard Accessibility**: Enter and Space keys trigger click
 - **Proper ARIA Roles**: 'button' for clickable, 'status' for read-only
@@ -169,21 +169,23 @@ export const StatusBarItem: React.FC<IStatusBarItemProps> = ({ entry, onClick })
 
 **Modified:** Major update (~100 lines changed)
 
-#### Changes:
+#### Changes
 
 **Before:**
+
 - Used local `StatusBarItem` interface
 - Rendered items with manual div elements
 - No themed entry kinds
 - Simple text-based problem display
 
 **After:**
+
 - Uses `IStatusBarEntry` from types
 - Renders with `StatusBarItem` component
 - Supports themed entry kinds (error, warning, standard)
 - VS Code-style problem counter with SVG icons
 
-#### VS Code-Style Problem Counter:
+#### VS Code-Style Problem Counter
 
 ```typescript
 const getProblemsEntry = (): IStatusBarEntry => {
@@ -216,7 +218,7 @@ const getProblemsEntry = (): IStatusBarEntry => {
 };
 ```
 
-#### All Items Converted:
+#### All Items Converted
 
 - ✅ Problems counter (with error/warning/standard kind)
 - ✅ Git branch indicator
@@ -232,7 +234,7 @@ const getProblemsEntry = (): IStatusBarEntry => {
 
 **Modified:** `src/themes/index.ts` (added 216 lines total across 12 themes)
 
-#### New Color Variables (18 per theme):
+#### New Color Variables (18 per theme)
 
 ```typescript
 // StatusBar Item colors
@@ -256,7 +258,7 @@ const getProblemsEntry = (): IStatusBarEntry => {
 '--statusBarItem-offlineBackground': string;
 ```
 
-#### Themes Updated:
+#### Themes Updated
 
 1. ✅ **Navy Blue (Day)** - Blue error/warning with dark text on light background
 2. ✅ **Navy Blue (Night)** - Red error/yellow warning with white text on dark background
@@ -271,15 +273,17 @@ const getProblemsEntry = (): IStatusBarEntry => {
 11. ✅ **Ember (Day)** - Warm orange/yellow tones
 12. ✅ **Ember (Night)** - Ember glow theme
 
-#### Color Strategy:
+#### Color Strategy
 
 **Day Themes:**
+
 - `--statusBarItem-activeBackground`: `rgba(0, 0, 0, 0.12)` (semi-transparent black)
 - `--statusBarItem-hoverBackground`: `rgba(0, 0, 0, 0.09)` (lighter semi-transparent black)
 - Error: Red background (#dc2626) with white text
 - Warning: Yellow/orange background (#f59e0b) with black text
 
 **Night Themes:**
+
 - `--statusBarItem-activeBackground`: `rgba(255, 255, 255, 0.18)` (semi-transparent white)
 - `--statusBarItem-hoverBackground`: `rgba(255, 255, 255, 0.12)` (lighter semi-transparent white)
 - Error: Red background (#dc2626) with white text
@@ -383,11 +387,13 @@ const getProblemsEntry = (): IStatusBarEntry => {
 **Issue:** Using `React.ReactNode` in `statusbar.ts` without importing React
 
 **Error:**
+
 ```
 src/types/statusbar.ts(29,22): error TS2503: Cannot find namespace 'React'.
 ```
 
 **Solution:** Added type import at top of file
+
 ```typescript
 import type React from 'react';
 ```
@@ -399,6 +405,7 @@ import type React from 'react';
 **Issue:** After refactoring, several icon imports from `lucide-react` were no longer used
 
 **Error:**
+
 ```
 src/components/ide/StatusBar.tsx(3,1): error TS6192: All imports in import declaration are unused.
 ```
@@ -406,6 +413,7 @@ src/components/ide/StatusBar.tsx(3,1): error TS6192: All imports in import decla
 **Solution:** Removed unused imports, kept only `GitBranch` which is still used
 
 **Before:**
+
 ```typescript
 import {
   CheckCircle,
@@ -418,6 +426,7 @@ import {
 ```
 
 **After:**
+
 ```typescript
 import { GitBranch } from 'lucide-react';
 ```
@@ -437,6 +446,7 @@ const text = `${errorIcon} ${problems.errors}`;
 ```
 
 **Trade-off:**
+
 - ✅ **Pro**: No need to import icon components, flexible icon rendering
 - ⚠️ **Con**: Using dangerouslySetInnerHTML requires trust in data source
 - ✅ **Mitigation**: All icon strings are controlled by our code, not user input
@@ -448,11 +458,13 @@ const text = `${errorIcon} ${problems.errors}`;
 **Solution:** Created color strategy based on theme mode (day vs night)
 
 **Day Themes:**
+
 - Semi-transparent black overlays for hover states
 - High contrast error/warning colors
 - Black text on yellow warnings for readability
 
 **Night Themes:**
+
 - Semi-transparent white overlays for hover states
 - Bright error/warning colors for visibility
 - White text on all colored backgrounds
@@ -466,6 +478,7 @@ const text = `${errorIcon} ${problems.errors}`;
 ### Decision 1: HTML String vs React Components for Icons
 
 **Options:**
+
 - A) Import Lucide React components for each icon
 - B) Use HTML strings with dangerouslySetInnerHTML
 - C) Create custom icon components
@@ -473,6 +486,7 @@ const text = `${errorIcon} ${problems.errors}`;
 **Chosen:** B (HTML strings)
 
 **Reasoning:**
+
 - **Simplicity**: No need to manage icon component imports
 - **Flexibility**: Easy to swap icons or use custom SVG
 - **Performance**: No component overhead, direct HTML rendering
@@ -481,6 +495,7 @@ const text = `${errorIcon} ${problems.errors}`;
 ### Decision 2: StatusBarEntry Architecture
 
 **Options:**
+
 - A) Keep existing div-based rendering with manual styling
 - B) Create new component-based architecture with typed entries
 - C) Use a third-party status bar library
@@ -488,6 +503,7 @@ const text = `${errorIcon} ${problems.errors}`;
 **Chosen:** B (Component-based with types)
 
 **Reasoning:**
+
 - **Type Safety**: Strongly typed interfaces prevent errors
 - **Reusability**: StatusBarItem component can be used anywhere
 - **Maintainability**: Clear separation of concerns
@@ -497,6 +513,7 @@ const text = `${errorIcon} ${problems.errors}`;
 ### Decision 3: Theme Color Organization
 
 **Options:**
+
 - A) Single shared color palette for all status bar items
 - B) Separate color variables for each entry kind
 - C) Hardcoded colors in CSS
@@ -504,6 +521,7 @@ const text = `${errorIcon} ${problems.errors}`;
 **Chosen:** B (Separate variables per kind)
 
 **Reasoning:**
+
 - **Flexibility**: Each kind can have unique colors per theme
 - **Theme Independence**: No assumptions about color schemes
 - **Hover States**: Separate variables for normal and hover states
@@ -512,6 +530,7 @@ const text = `${errorIcon} ${problems.errors}`;
 ### Decision 4: Click Handler Priority
 
 **Options:**
+
 - A) Only support onClick in entry
 - B) Only support onClick passed as prop
 - C) Support both with clear priority
@@ -519,6 +538,7 @@ const text = `${errorIcon} ${problems.errors}`;
 **Chosen:** C (Both with prop priority)
 
 **Reasoning:**
+
 - **Flexibility**: Parent components can override behavior
 - **Default Behavior**: Entries can specify their own handlers
 - **Clear Priority**: Prop onClick takes precedence over entry onClick
@@ -531,6 +551,7 @@ const text = `${errorIcon} ${problems.errors}`;
 ### Manual Testing Completed
 
 **✅ Verified:**
+
 - [x] TypeScript compilation (no errors in our code)
 - [x] CSS syntax is valid
 - [x] All theme variables are defined
@@ -540,6 +561,7 @@ const text = `${errorIcon} ${problems.errors}`;
 ### Testing Checklist for Next Phase
 
 **Pending (requires running app):**
+
 - [ ] StatusBar renders correctly
 - [ ] Problem counter shows correct counts
 - [ ] Icons display properly in status bar
@@ -558,16 +580,19 @@ const text = `${errorIcon} ${problems.errors}`;
 ### Current Implementation
 
 **StatusBar Rendering:**
+
 - Minimal re-renders (only when problems/editor state changes)
 - CSS transitions (150ms) are GPU-accelerated
 - No heavy computations in render path
 
 **Theme System:**
+
 - CSS variables enable instant theme switching
 - No JavaScript color calculations
 - All colors defined at theme load time
 
 **HTML Icon Rendering:**
+
 - Direct HTML insertion (no React reconciliation)
 - Small SVG sizes (typically <200 bytes per icon)
 - Cached by browser
@@ -575,6 +600,7 @@ const text = `${errorIcon} ${problems.errors}`;
 ### Future Optimizations
 
 **If Performance Issues Arise:**
+
 1. Memoize `getProblemsEntry()` with useMemo
 2. Debounce rapid problem count updates
 3. Virtual scrolling for many status bar items (unlikely scenario)
@@ -778,6 +804,7 @@ Phase 2 has successfully enhanced the StatusBar with **VS Code-compatible archit
 ✅ **Backward Compatibility** - No breaking changes
 
 The StatusBar is now ready for:
+
 - Current problem indicator (Phase 3)
 - Click-to-navigate (Phase 4)
 - Visual polish (Phase 5)

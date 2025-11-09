@@ -34,9 +34,9 @@ export function configureMonaco() {
     resolveJsonModule: true,
     isolatedModules: true,
     allowSyntheticDefaultImports: true,
-    strict: false, // Reduce false positives in editor
-    noUnusedLocals: false,
-    noUnusedParameters: false,
+    strict: true, // Enable strict type checking
+    noUnusedLocals: true, // Detect unused variables
+    noUnusedParameters: true, // Detect unused parameters
     typeRoots: ['node_modules/@types'],
     lib: ['es2020', 'dom', 'dom.iterable', 'esnext'],
   });
@@ -59,17 +59,14 @@ export function configureMonaco() {
     lib: ['es2020', 'dom', 'dom.iterable', 'esnext'],
   });
 
-  // Set diagnostic options - reduce false positives
+  // Set diagnostic options - enable full validation like VS Code
   monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false,
     diagnosticCodesToIgnore: [
-      1108, // Return statement only in functions
+      // Only ignore errors that truly don't apply in editor context
       2307, // Cannot find module (common in editors without full project context)
-      2304, // Cannot find name (reduces noise for globals)
-      6133, // Declared but never used
       7016, // Could not find declaration file for module
-      2345, // Argument type mismatch (can be noisy)
     ],
   });
 
@@ -77,10 +74,7 @@ export function configureMonaco() {
     noSemanticValidation: false,
     noSyntaxValidation: false,
     diagnosticCodesToIgnore: [
-      1108, // Return statement only in functions
       2307, // Cannot find module
-      2304, // Cannot find name
-      6133, // Declared but never used
       7016, // Could not find declaration file for module
     ],
   });

@@ -40,12 +40,20 @@ export interface CodeActionList {
 /**
  * Code Actions Service
  * Provides quick fixes and code actions for diagnostics
+ *
+ * NOTE: Monaco's code action API is limited compared to VS Code.
+ * Quick fixes are automatically shown by Monaco in the editor.
+ * This service provides a way to programmatically query and apply them.
  */
 class CodeActionService {
   /**
    * Get code actions for a specific marker
+   *
+   * Note: Monaco doesn't have a direct API to get code actions.
+   * Code actions are provided by language services and shown automatically.
+   * This is a best-effort implementation that triggers the editor's command.
    */
-  async getCodeActionsForMarker(marker: IMarker): Promise<CodeActionList> {
+  async getCodeActionsForMarker(_marker: IMarker): Promise<CodeActionList> {
     const editor = editorState.view;
     if (!editor) {
       return { actions: [], dispose: () => {} };
@@ -56,62 +64,12 @@ class CodeActionService {
       return { actions: [], dispose: () => {} };
     }
 
-    // Create Monaco range from marker
-    const range = new monaco.Range(
-      marker.startLineNumber,
-      marker.startColumn,
-      marker.endLineNumber,
-      marker.endColumn
-    );
-
-    // Create marker data for context
-    const markerData: monaco.editor.IMarkerData = {
-      severity: marker.severity,
-      message: marker.message,
-      startLineNumber: marker.startLineNumber,
-      startColumn: marker.startColumn,
-      endLineNumber: marker.endLineNumber,
-      endColumn: marker.endColumn,
-      code: marker.code,
-      source: marker.source,
-    };
-
     try {
-      // Get code actions from Monaco
-      const codeActions = await monaco.languages.getCodeActions(
-        model,
-        range,
-        {
-          type: monaco.languages.CodeActionTriggerType.Manual,
-          filter: { include: [monaco.languages.CodeActionKind.QuickFix] },
-        },
-        monaco.CancellationToken.None
-      );
-
-      if (!codeActions || !codeActions.actions) {
-        return { actions: [], dispose: () => {} };
-      }
-
-      // Convert Monaco code actions to our interface
-      const actions: ICodeAction[] = codeActions.actions.map((action) => ({
-        title: action.title,
-        kind: action.kind,
-        diagnostics: action.diagnostics,
-        edit: action.edit,
-        command: action.command,
-        isPreferred: action.isPreferred,
-        disabled: action.disabled,
-      }));
-
-      // Return actions with dispose function
-      return {
-        actions,
-        dispose: () => {
-          if (codeActions.dispose) {
-            codeActions.dispose();
-          }
-        },
-      };
+      // Monaco doesn't expose getCodeActions directly in the public API
+      // Code actions are shown through the editor's context menu and lightbulb
+      // We return empty for now - the UI should use the editor's built-in quick fix
+      console.warn('[CodeActionService] Monaco does not expose code actions API publicly');
+      return { actions: [], dispose: () => {} };
     } catch (error) {
       console.error('[CodeActionService] Failed to get code actions:', error);
       return { actions: [], dispose: () => {} };
@@ -120,95 +78,16 @@ class CodeActionService {
 
   /**
    * Apply a code action
+   * This is theoretical - Monaco handles code actions internally
    */
-  async applyCodeAction(action: ICodeAction): Promise<boolean> {
-    const editor = editorState.view;
-    if (!editor) {
-      console.error('[CodeActionService] No editor available');
-      return false;
-    }
-
-    const model = editor.getModel();
-    if (!model) {
-      console.error('[CodeActionService] No model available');
-      return false;
-    }
-
-    try {
-      // Apply workspace edit if present
-      if (action.edit) {
-        await this.applyWorkspaceEdit(action.edit, model);
-      }
-
-      // Execute command if present
-      if (action.command) {
-        await this.executeCommand(action.command, editor);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('[CodeActionService] Failed to apply code action:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Apply workspace edit to the model
-   */
-  private async applyWorkspaceEdit(
-    edit: monaco.languages.WorkspaceEdit,
-    model: monaco.editor.ITextModel
-  ): Promise<void> {
-    if (!edit.edits || edit.edits.length === 0) {
-      return;
-    }
-
-    const editor = editorState.view;
-    if (!editor) return;
-
-    // Apply edits using Monaco's edit builder
-    editor.executeEdits(
-      'codeAction',
-      edit.edits.map((e) => {
-        if ('resource' in e) {
-          // TextEdit with resource
-          const textEdit = e as monaco.languages.IWorkspaceTextEdit;
-          return {
-            range: textEdit.textEdit.range,
-            text: textEdit.textEdit.text,
-            forceMoveMarkers: true,
-          };
-        } else {
-          // FileEdit (create/delete/rename file)
-          console.warn('[CodeActionService] File edits not yet supported:', e);
-          return null;
-        }
-      }).filter((e): e is monaco.editor.IIdentifiedSingleEditOperation => e !== null)
-    );
-  }
-
-  /**
-   * Execute a command
-   */
-  private async executeCommand(
-    command: monaco.languages.Command,
-    editor: monaco.editor.IStandaloneCodeEditor
-  ): Promise<void> {
-    try {
-      // Try to execute the command using Monaco's command service
-      const action = editor.getAction(command.id);
-      if (action) {
-        await action.run();
-      } else {
-        console.warn('[CodeActionService] Command not found:', command.id);
-      }
-    } catch (error) {
-      console.error('[CodeActionService] Failed to execute command:', error);
-    }
+  async applyCodeAction(_action: ICodeAction): Promise<boolean> {
+    console.warn('[CodeActionService] Monaco handles code action application internally');
+    return false;
   }
 
   /**
    * Get all available code actions at current cursor position
+   * Triggers Monaco's built-in quick fix UI
    */
   async getCodeActionsAtCursor(): Promise<CodeActionList> {
     const editor = editorState.view;
@@ -216,75 +95,62 @@ class CodeActionService {
       return { actions: [], dispose: () => {} };
     }
 
-    const model = editor.getModel();
-    const position = editor.getPosition();
-
-    if (!model || !position) {
-      return { actions: [], dispose: () => {} };
-    }
-
     try {
-      // Get code actions at cursor position
-      const codeActions = await monaco.languages.getCodeActions(
-        model,
-        new monaco.Range(
-          position.lineNumber,
-          position.column,
-          position.lineNumber,
-          position.column
-        ),
-        {
-          type: monaco.languages.CodeActionTriggerType.Manual,
-        },
-        monaco.CancellationToken.None
-      );
-
-      if (!codeActions || !codeActions.actions) {
-        return { actions: [], dispose: () => {} };
+      // Trigger Monaco's built-in quick fix command
+      const action = editor.getAction('editor.action.quickFix');
+      if (action) {
+        await action.run();
       }
 
-      const actions: ICodeAction[] = codeActions.actions.map((action) => ({
-        title: action.title,
-        kind: action.kind,
-        diagnostics: action.diagnostics,
-        edit: action.edit,
-        command: action.command,
-        isPreferred: action.isPreferred,
-        disabled: action.disabled,
-      }));
-
-      return {
-        actions,
-        dispose: () => {
-          if (codeActions.dispose) {
-            codeActions.dispose();
-          }
-        },
-      };
+      return { actions: [], dispose: () => {} };
     } catch (error) {
-      console.error('[CodeActionService] Failed to get code actions at cursor:', error);
+      console.error('[CodeActionService] Failed to trigger quick fix:', error);
       return { actions: [], dispose: () => {} };
     }
   }
 
   /**
    * Check if code actions are available for a marker
+   * Always returns false since we can't query Monaco's code actions
    */
-  async hasCodeActions(marker: IMarker): Promise<boolean> {
-    const result = await this.getCodeActionsForMarker(marker);
-    const hasActions = result.actions.length > 0;
-    result.dispose();
-    return hasActions;
+  async hasCodeActions(_marker: IMarker): Promise<boolean> {
+    return false;
   }
 
   /**
    * Get preferred code action (if available)
    */
-  async getPreferredCodeAction(marker: IMarker): Promise<ICodeAction | null> {
-    const result = await this.getCodeActionsForMarker(marker);
-    const preferred = result.actions.find((action) => action.isPreferred);
-    result.dispose();
-    return preferred || null;
+  async getPreferredCodeAction(_marker: IMarker): Promise<ICodeAction | null> {
+    return null;
+  }
+
+  /**
+   * Trigger Monaco's built-in quick fix UI at a specific position
+   * This is the recommended way to show quick fixes
+   */
+  async showQuickFixAtPosition(lineNumber: number, column: number): Promise<void> {
+    const editor = editorState.view;
+    if (!editor) {
+      return;
+    }
+
+    try {
+      // Set cursor position
+      editor.setPosition({ lineNumber, column });
+
+      // Focus editor
+      editor.focus();
+
+      // Trigger quick fix command
+      const action = editor.getAction('editor.action.quickFix');
+      if (action) {
+        await action.run();
+      } else {
+        console.warn('[CodeActionService] Quick fix action not available');
+      }
+    } catch (error) {
+      console.error('[CodeActionService] Failed to show quick fix:', error);
+    }
   }
 }
 
