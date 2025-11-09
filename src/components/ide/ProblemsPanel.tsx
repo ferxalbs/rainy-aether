@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { XCircle, AlertCircle, Info, Lightbulb, X } from 'lucide-react';
-import { getDiagnosticService, Diagnostic, DiagnosticSeverity, DiagnosticSource } from '../../services/diagnosticService';
+import { getMarkerService, IMarker, MarkerSeverity } from '../../services/markerService';
 import { cn } from '@/lib/cn';
 
 interface ProblemsPanelProps {
@@ -9,31 +9,35 @@ interface ProblemsPanelProps {
 }
 
 const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => {
-  const [diagnostics, setDiagnostics] = useState<Diagnostic[]>([]);
+  const [markers, setMarkers] = useState<IMarker[]>([]);
   const [filter, setFilter] = useState<'all' | 'errors' | 'warnings' | 'info'>('all');
 
   useEffect(() => {
-    const diagnosticService = getDiagnosticService();
-    
-    const unsubscribe = diagnosticService.subscribe((diags) => {
-      setDiagnostics(diags);
+    const markerService = getMarkerService();
+
+    const unsubscribe = markerService.onMarkerChanged(() => {
+      const allMarkers = markerService.read();
+      setMarkers(allMarkers);
     });
+
+    // Initial load
+    setMarkers(markerService.read());
 
     return unsubscribe;
   }, []);
 
   // Get icon for severity
-  const getSeverityIcon = (severity: DiagnosticSeverity) => {
+  const getSeverityIcon = (severity: MarkerSeverity) => {
     const iconProps = { size: 16 };
-    
+
     switch (severity) {
-      case DiagnosticSeverity.Error:
+      case MarkerSeverity.Error:
         return <XCircle {...iconProps} className="text-red-500" />;
-      case DiagnosticSeverity.Warning:
+      case MarkerSeverity.Warning:
         return <AlertCircle {...iconProps} className="text-yellow-500" />;
-      case DiagnosticSeverity.Info:
+      case MarkerSeverity.Info:
         return <Info {...iconProps} className="text-blue-500" />;
-      case DiagnosticSeverity.Hint:
+      case MarkerSeverity.Hint:
         return <Lightbulb {...iconProps} className="text-green-500" />;
       default:
         return <Info {...iconProps} className="text-muted-foreground" />;
@@ -41,15 +45,15 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
   };
 
   // Get severity label
-  const getSeverityLabel = (severity: DiagnosticSeverity): string => {
+  const getSeverityLabel = (severity: MarkerSeverity): string => {
     switch (severity) {
-      case DiagnosticSeverity.Error:
+      case MarkerSeverity.Error:
         return 'Error';
-      case DiagnosticSeverity.Warning:
+      case MarkerSeverity.Warning:
         return 'Warning';
-      case DiagnosticSeverity.Info:
+      case MarkerSeverity.Info:
         return 'Info';
-      case DiagnosticSeverity.Hint:
+      case MarkerSeverity.Hint:
         return 'Hint';
       default:
         return 'Unknown';
@@ -57,44 +61,45 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
   };
 
   // Get source badge color
-  const getSourceColor = (source: DiagnosticSource): string => {
-    switch (source) {
-      case DiagnosticSource.Monaco:
+  const getSourceColor = (owner: string): string => {
+    switch (owner) {
+      case 'monaco':
         return 'bg-blue-500/20 text-blue-500';
-      case DiagnosticSource.TypeScript:
+      case 'typescript':
         return 'bg-blue-600/20 text-blue-600';
-      case DiagnosticSource.Git:
+      case 'git':
         return 'bg-orange-500/20 text-orange-500';
-      case DiagnosticSource.Linter:
+      case 'linter':
+      case 'eslint':
         return 'bg-purple-500/20 text-purple-500';
       default:
         return 'bg-muted text-muted-foreground';
     }
   };
 
-  // Filter diagnostics
-  const filteredDiagnostics = diagnostics.filter((diagnostic) => {
+  // Filter markers
+  const filteredMarkers = markers.filter((marker) => {
     if (filter === 'all') return true;
-    if (filter === 'errors') return diagnostic.severity === DiagnosticSeverity.Error;
-    if (filter === 'warnings') return diagnostic.severity === DiagnosticSeverity.Warning;
-    if (filter === 'info') return diagnostic.severity === DiagnosticSeverity.Info;
+    if (filter === 'errors') return marker.severity === MarkerSeverity.Error;
+    if (filter === 'warnings') return marker.severity === MarkerSeverity.Warning;
+    if (filter === 'info') return marker.severity === MarkerSeverity.Info;
     return true;
   });
 
-  // Group diagnostics by file
-  const groupedDiagnostics = filteredDiagnostics.reduce((acc, diagnostic) => {
-    const file = diagnostic.file || 'Unknown';
+  // Group markers by file
+  const groupedMarkers = filteredMarkers.reduce((acc, marker) => {
+    const file = marker.resource || 'Unknown';
     if (!acc[file]) {
       acc[file] = [];
     }
-    acc[file].push(diagnostic);
+    acc[file].push(marker);
     return acc;
-  }, {} as Record<string, Diagnostic[]>);
+  }, {} as Record<string, IMarker[]>);
 
   // Get counts
-  const errorCount = diagnostics.filter((d) => d.severity === DiagnosticSeverity.Error).length;
-  const warningCount = diagnostics.filter((d) => d.severity === DiagnosticSeverity.Warning).length;
-  const infoCount = diagnostics.filter((d) => d.severity === DiagnosticSeverity.Info).length;
+  const errorCount = markers.filter((m) => m.severity === MarkerSeverity.Error).length;
+  const warningCount = markers.filter((m) => m.severity === MarkerSeverity.Warning).length;
+  const infoCount = markers.filter((m) => m.severity === MarkerSeverity.Info).length;
 
   return (
     <div className={cn("flex flex-col h-full bg-background border-t border-border", className)}>
@@ -103,7 +108,7 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold">Problems</h3>
           <span className="text-xs text-muted-foreground">
-            {diagnostics.length} {diagnostics.length === 1 ? 'problem' : 'problems'}
+            {markers.length} {markers.length === 1 ? 'problem' : 'problems'}
           </span>
         </div>
         
@@ -165,62 +170,59 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
 
       {/* Problems list */}
       <div className="flex-1 overflow-y-auto">
-        {filteredDiagnostics.length === 0 ? (
+        {filteredMarkers.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
             No problems to display
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {Object.entries(groupedDiagnostics).map(([file, fileDiagnostics]) => (
+            {Object.entries(groupedMarkers).map(([file, fileMarkers]) => (
               <div key={file} className="py-2">
                 {/* File header */}
                 <div className="px-3 py-1 text-xs font-medium text-muted-foreground bg-muted/30">
                   {file.split('/').pop() || file}
                   <span className="ml-2 text-muted-foreground/70">
-                    ({fileDiagnostics.length})
+                    ({fileMarkers.length})
                   </span>
                 </div>
 
-                {/* Diagnostics for this file */}
-                {fileDiagnostics.map((diagnostic) => (
+                {/* Markers for this file */}
+                {fileMarkers.map((marker, idx) => (
                   <div
-                    key={diagnostic.id}
+                    key={`${marker.resource}-${marker.startLineNumber}-${marker.startColumn}-${idx}`}
                     className="px-3 py-2 hover:bg-muted/50 cursor-pointer transition-colors"
                   >
                     <div className="flex items-start gap-2">
                       {/* Severity icon */}
                       <div className="mt-0.5">
-                        {getSeverityIcon(diagnostic.severity)}
+                        {getSeverityIcon(marker.severity)}
                       </div>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm">{diagnostic.message}</span>
-                          {diagnostic.code && (
+                          <span className="text-sm">{marker.message}</span>
+                          {marker.code && (
                             <span className="text-xs text-muted-foreground">
-                              [{diagnostic.code}]
+                              [{typeof marker.code === 'string' ? marker.code : marker.code.value}]
                             </span>
                           )}
                         </div>
 
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          {/* Source badge */}
-                          <span className={cn("px-1.5 py-0.5 rounded text-xs font-medium", getSourceColor(diagnostic.source))}>
-                            {diagnostic.source}
+                          {/* Owner badge */}
+                          <span className={cn("px-1.5 py-0.5 rounded text-xs font-medium", getSourceColor(marker.owner))}>
+                            {marker.owner}
                           </span>
 
                           {/* Location */}
-                          {diagnostic.line && (
-                            <span>
-                              Ln {diagnostic.line}
-                              {diagnostic.column && `, Col ${diagnostic.column}`}
-                            </span>
-                          )}
+                          <span>
+                            Ln {marker.startLineNumber}, Col {marker.startColumn}
+                          </span>
 
                           {/* Severity label */}
                           <span className="text-muted-foreground/70">
-                            {getSeverityLabel(diagnostic.severity)}
+                            {getSeverityLabel(marker.severity)}
                           </span>
                         </div>
                       </div>
