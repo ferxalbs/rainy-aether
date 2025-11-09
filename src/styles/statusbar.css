@@ -1,0 +1,98 @@
+/* StatusBar base styles */
+.statusbar-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  height: 24px;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease;
+  cursor: pointer;
+}
+
+.statusbar-item:hover {
+  background-color: var(--statusBarItem-hoverBackground);
+}
+
+/* Error kind */
+.statusbar-item.error-kind {
+  color: var(--statusBarItem-errorForeground);
+  background-color: var(--statusBarItem-errorBackground);
+}
+
+.statusbar-item.error-kind:hover {
+  color: var(--statusBarItem-errorHoverForeground);
+  background-color: var(--statusBarItem-errorHoverBackground);
+}
+
+/* Warning kind */
+.statusbar-item.warning-kind {
+  color: var(--statusBarItem-warningForeground);
+  background-color: var(--statusBarItem-warningBackground);
+}
+
+.statusbar-item.warning-kind:hover {
+  color: var(--statusBarItem-warningHoverForeground);
+  background-color: var(--statusBarItem-warningHoverBackground);
+}
+
+/* Prominent kind */
+.statusbar-item.prominent-kind {
+  color: var(--statusBarItem-prominentForeground);
+  background-color: var(--statusBarItem-prominentBackground);
+}
+
+.statusbar-item.prominent-kind:hover {
+  color: var(--statusBarItem-prominentHoverForeground);
+  background-color: var(--statusBarItem-prominentHoverBackground);
+}
+
+/* Remote kind */
+.statusbar-item.remote-kind {
+  color: var(--statusBarItem-remoteForeground);
+  background-color: var(--statusBarItem-remoteBackground);
+}
+
+/* Offline kind */
+.statusbar-item.offline-kind {
+  color: var(--statusBarItem-offlineForeground);
+  background-color: var(--statusBarItem-offlineBackground);
+}
+
+/* Standard kind (default) */
+.statusbar-item.standard-kind {
+  color: var(--statusBar-foreground);
+  background-color: transparent;
+}
+
+.statusbar-item.standard-kind:hover {
+  background-color: var(--statusBarItem-hoverBackground);
+}
+
+/* Icon spacing */
+.statusbar-item svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Non-clickable items */
+.statusbar-item.cursor-default {
+  cursor: default;
+}
+
+.statusbar-item.cursor-default:hover {
+  background-color: transparent;
+}
+
+.statusbar-item.cursor-default.error-kind:hover {
+  background-color: var(--statusBarItem-errorBackground);
+}
+
+.statusbar-item.cursor-default.warning-kind:hover {
+  background-color: var(--statusBarItem-warningBackground);
+}
+
+.statusbar-item.cursor-default.prominent-kind:hover {
+  background-color: var(--statusBarItem-prominentBackground);
+}

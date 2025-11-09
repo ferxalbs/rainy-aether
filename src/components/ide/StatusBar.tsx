@@ -1,29 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import * as monaco from 'monaco-editor';
-import { 
-  CheckCircle, 
-  AlertCircle, 
-  XCircle, 
-  GitBranch, 
-  GitCommit,
-  Zap
-} from 'lucide-react';
+import { GitBranch } from 'lucide-react';
 import { editorState } from '../../stores/editorStore';
 import { useIDEStore } from '../../stores/ideStore';
 import { getCurrentTheme } from '../../stores/themeStore';
 import { getGitService, GitStatus } from '../../services/gitService';
 import { getMarkerService, MarkerStatistics } from '../../services/markerService';
+import { IStatusBarEntry } from '@/types/statusbar';
+import { StatusBarItem } from './StatusBarItem';
 import { cn } from '@/lib/cn';
-
-// Status bar item interface
-interface StatusBarItem {
-  id: string;
-  content: React.ReactNode;
-  tooltip?: string;
-  onClick?: () => void;
-  order: number;
-  position: 'left' | 'right';
-}
+import '../../styles/statusbar.css';
 
 // Problems interface (now using MarkerStatistics)
 type Problems = MarkerStatistics;
@@ -209,65 +195,54 @@ const StatusBar: React.FC = () => {
     return () => clearInterval(timer);
   }, [state().workspace]);
 
-  // Define status bar items
-  const statusItems: StatusBarItem[] = [
-    // Left side items
-    {
-      id: 'problems',
-      content: (
-        <div className={cn(
-          "flex items-center gap-1",
-          problems.errors > 0 ? "text-red-500" : 
-          problems.warnings > 0 ? "text-yellow-500" : 
-          "text-green-500"
-        )}>
-          {problems.errors > 0 ? (
-            <XCircle size={12} />
-          ) : problems.warnings > 0 ? (
-            <AlertCircle size={12} />
-          ) : (
-            <CheckCircle size={12} />
-          )}
-          <span>
-            {problems.errors > 0 ? `${problems.errors} error${problems.errors > 1 ? 's' : ''}` : 
-             problems.warnings > 0 ? `${problems.warnings} warning${problems.warnings > 1 ? 's' : ''}` : 
-             'No problems'}
-          </span>
-        </div>
-      ),
-      tooltip: problems.errors > 0 ? `${problems.errors} error${problems.errors > 1 ? 's' : ''}` :
-               problems.warnings > 0 ? `${problems.warnings} warning${problems.warnings > 1 ? 's' : ''}` :
-               'No problems detected',
+  /**
+   * Create problems status bar entry (VS Code style)
+   */
+  const getProblemsEntry = (): IStatusBarEntry => {
+    const hasErrors = problems.errors > 0;
+    const hasWarnings = problems.warnings > 0;
+
+    // VS Code style format with icons
+    const errorIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+    const warningIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+
+    // Format: "$(error) 5 $(warning) 3"
+    const text = `${errorIcon} ${problems.errors} ${warningIcon} ${problems.warnings}`;
+    const tooltip = `${problems.errors} error${problems.errors !== 1 ? 's' : ''}, ${problems.warnings} warning${problems.warnings !== 1 ? 's' : ''}`;
+
+    return {
+      id: 'status.problems',
+      name: 'Problems',
+      text,
+      tooltip,
+      ariaLabel: tooltip,
+      command: 'workbench.actions.view.toggleProblems',
+      kind: hasErrors ? 'error' : hasWarnings ? 'warning' : 'standard',
       order: 1,
-      position: 'left'
-    },
+      position: 'left',
+      onClick: () => {
+        // TODO: Toggle problems panel
+        console.log('Toggle problems panel');
+      },
+    };
+  };
+
+  // Define status bar items
+  const statusItems: IStatusBarEntry[] = [
+    // Left side items
+    getProblemsEntry(),
     {
       id: 'git',
-      content: (
-        <div className="flex items-center gap-1">
-          <GitBranch size={12} />
-          <span>{gitStatus.branch || 'No Git'}</span>
-          {!gitStatus.clean && (
-            <span className="text-yellow-500">
-              {gitStatus.staged > 0 && `●${gitStatus.staged}`}
-              {gitStatus.modified > 0 && ` +${gitStatus.modified}`}
-              {gitStatus.untracked > 0 && ` ?${gitStatus.untracked}`}
-            </span>
-          )}
-        </div>
-      ),
+      name: 'Git Branch',
+      text: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg> ${gitStatus.branch || 'No Git'}${!gitStatus.clean ? ` <span class="text-yellow-500">${gitStatus.staged > 0 ? `●${gitStatus.staged}` : ''}${gitStatus.modified > 0 ? ` +${gitStatus.modified}` : ''}${gitStatus.untracked > 0 ? ` ?${gitStatus.untracked}` : ''}</span>` : ''}`,
       tooltip: gitStatus.branch ? `Branch: ${gitStatus.branch}` : 'Not a git repository',
       order: 2,
       position: 'left'
     },
     {
       id: 'sync',
-      content: (
-        <div className="flex items-center gap-1">
-          <GitCommit size={12} />
-          <span>Sync</span>
-        </div>
-      ),
+      name: 'Sync',
+      text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Sync',
       tooltip: 'Sync changes',
       onClick: () => console.log('Sync clicked'),
       order: 3,
@@ -277,44 +252,40 @@ const StatusBar: React.FC = () => {
     // Right side items
     {
       id: 'encoding',
-      content: <span>{editorInfo.encoding}</span>,
+      name: 'File Encoding',
+      text: editorInfo.encoding,
       tooltip: 'File encoding',
       order: 1,
       position: 'right'
     },
     {
       id: 'language',
-      content: <span>{editorInfo.language}</span>,
+      name: 'Language Mode',
+      text: editorInfo.language,
       tooltip: `Language: ${editorInfo.language}`,
       order: 2,
       position: 'right'
     },
     {
       id: 'position',
-      content: (
-        <span>
-          Ln {editorInfo.line}, Col {editorInfo.column}
-          {editorInfo.selection && ` • ${editorInfo.selection}`}
-        </span>
-      ),
+      name: 'Cursor Position',
+      text: `Ln ${editorInfo.line}, Col ${editorInfo.column}${editorInfo.selection ? ` • ${editorInfo.selection}` : ''}`,
       tooltip: 'Cursor position',
       order: 3,
       position: 'right'
     },
     {
       id: 'indentation',
-      content: (
-        <span>
-          {editorInfo.spaces > 0 ? `Spaces: ${editorInfo.spaces}` : `Tab Size: ${editorInfo.tabSize}`}
-        </span>
-      ),
+      name: 'Indentation',
+      text: editorInfo.spaces > 0 ? `Spaces: ${editorInfo.spaces}` : `Tab Size: ${editorInfo.tabSize}`,
       tooltip: 'Indentation settings',
       order: 4,
       position: 'right'
     },
     {
       id: 'theme',
-      content: <span>{getCurrentTheme().displayName}</span>,
+      name: 'Theme',
+      text: getCurrentTheme().displayName,
       tooltip: 'Current theme',
       onClick: () => console.log('Theme clicked'),
       order: 6,
@@ -322,12 +293,8 @@ const StatusBar: React.FC = () => {
     },
     {
       id: 'brand',
-      content: (
-        <div className="flex items-center gap-1">
-          <Zap size={12} />
-          <span>Rainy Aether</span>
-        </div>
-      ),
+      name: 'Rainy Aether',
+      text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> Rainy Aether',
       tooltip: 'Rainy Aether IDE',
       order: 7,
       position: 'right'
@@ -345,41 +312,21 @@ const StatusBar: React.FC = () => {
 
   return (
     <div className={cn(
-      "flex items-center justify-between px-2 py-1 text-xs border-t",
+      "flex items-center justify-between text-xs border-t",
       "bg-background text-foreground border-border",
       "h-6 select-none"
     )}>
       {/* Left side items */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center">
         {leftItems.map(item => (
-          <div
-            key={item.id}
-            className={cn(
-              "flex items-center gap-1",
-              item.onClick && "cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded transition-colors"
-            )}
-            onClick={item.onClick}
-            title={item.tooltip}
-          >
-            {item.content}
-          </div>
+          <StatusBarItem key={item.id} entry={item} />
         ))}
       </div>
 
       {/* Right side items */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center">
         {rightItems.map(item => (
-          <div
-            key={item.id}
-            className={cn(
-              "flex items-center gap-1",
-              item.onClick && "cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded transition-colors"
-            )}
-            onClick={item.onClick}
-            title={item.tooltip}
-          >
-            {item.content}
-          </div>
+          <StatusBarItem key={item.id} entry={item} />
         ))}
       </div>
     </div>
