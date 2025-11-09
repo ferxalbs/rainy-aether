@@ -166,22 +166,65 @@ export const editorActions = {
   },
 
   goToLine(line: number) {
-    const v = editorState.view; 
+    const v = editorState.view;
     if (!v) return;
     if (!Number.isFinite(line)) return;
-    
+
     try {
       const model = v.getModel();
       if (!model) return;
       const total = model.getLineCount();
       if (line < 1 || line > total) return;
-      
+
       const position = { lineNumber: line, column: 1 };
       v.setPosition(position);
       v.revealPositionInCenter(position);
       v.focus();
     } catch (err) {
       console.error('goToLine failed:', err);
+    }
+  },
+
+  goToPosition(line: number, column: number) {
+    const v = editorState.view;
+    if (!v) return;
+    if (!Number.isFinite(line) || !Number.isFinite(column)) return;
+
+    try {
+      const model = v.getModel();
+      if (!model) return;
+      const total = model.getLineCount();
+      if (line < 1 || line > total) return;
+
+      const position = { lineNumber: line, column: Math.max(1, column) };
+      v.setPosition(position);
+      v.revealPositionInCenter(position, 0); // 0 = immediate scroll
+      v.focus();
+    } catch (err) {
+      console.error('goToPosition failed:', err);
+    }
+  },
+
+  revealRange(startLine: number, startColumn: number, endLine: number, endColumn: number) {
+    const v = editorState.view;
+    if (!v) return;
+
+    try {
+      const model = v.getModel();
+      if (!model) return;
+
+      const range = {
+        startLineNumber: startLine,
+        startColumn: startColumn,
+        endLineNumber: endLine,
+        endColumn: endColumn,
+      };
+
+      v.setSelection(range);
+      v.revealRangeInCenter(range, 0); // 0 = immediate scroll
+      v.focus();
+    } catch (err) {
+      console.error('revealRange failed:', err);
     }
   },
 
