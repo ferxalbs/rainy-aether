@@ -12,7 +12,7 @@ import { editorState } from '../../stores/editorStore';
 import { useIDEStore } from '../../stores/ideStore';
 import { getCurrentTheme } from '../../stores/themeStore';
 import { getGitService, GitStatus } from '../../services/gitService';
-import { getDiagnosticService, DiagnosticStats } from '../../services/diagnosticService';
+import { getMarkerService, MarkerStatistics, MarkerSeverity } from '../../services/markerService';
 import { cn } from '@/lib/cn';
 
 // Status bar item interface
@@ -25,8 +25,8 @@ interface StatusBarItem {
   position: 'left' | 'right';
 }
 
-// Problems interface (now using DiagnosticStats)
-type Problems = DiagnosticStats;
+// Problems interface (now using MarkerStatistics)
+type Problems = MarkerStatistics;
 
 // Editor info interface
 interface EditorInfo {
@@ -48,7 +48,7 @@ const StatusBar: React.FC = () => {
     conflicts: 0,
     clean: true
   });
-  const [problems, setProblems] = useState<Problems>({ errors: 0, warnings: 0, info: 0, hints: 0, total: 0 });
+  const [problems, setProblems] = useState<Problems>({ errors: 0, warnings: 0, infos: 0, hints: 0, total: 0, unknowns: 0 });
   const [editorInfo, setEditorInfo] = useState<EditorInfo>({
     language: 'Plain Text',
     encoding: 'UTF-8',
@@ -157,13 +157,17 @@ const StatusBar: React.FC = () => {
     }
   };
 
-  // Subscribe to diagnostic service for real-time problem updates
+  // Subscribe to marker service for real-time problem updates
   useEffect(() => {
-    const diagnosticService = getDiagnosticService();
-    
-    const unsubscribe = diagnosticService.subscribe((_diagnostics, stats) => {
+    const markerService = getMarkerService();
+
+    const unsubscribe = markerService.onMarkerChanged(() => {
+      const stats = markerService.getStatistics();
       setProblems(stats);
     });
+
+    // Initial load
+    setProblems(markerService.getStatistics());
 
     return unsubscribe;
   }, []);
