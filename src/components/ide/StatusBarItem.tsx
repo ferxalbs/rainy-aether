@@ -46,7 +46,10 @@ export const StatusBarItem: React.FC<IStatusBarItemProps> = ({ entry, onClick })
       tabIndex={isClickable ? 0 : -1}
     >
       {/* Render text (supports HTML for icons) */}
-      <span dangerouslySetInnerHTML={{ __html: entry.text }} />
+      <span
+        dangerouslySetInnerHTML={{ __html: entry.text }}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+      />
     </div>
   );
 };

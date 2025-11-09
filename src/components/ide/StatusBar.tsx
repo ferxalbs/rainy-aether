@@ -8,6 +8,7 @@ import { getGitService, GitStatus } from '../../services/gitService';
 import { getMarkerService, MarkerStatistics } from '../../services/markerService';
 import { IStatusBarEntry } from '@/types/statusbar';
 import { StatusBarItem } from './StatusBarItem';
+import { useCurrentProblemStatusBarEntry } from './CurrentProblemIndicator';
 import { cn } from '@/lib/cn';
 import '../../styles/statusbar.css';
 
@@ -44,6 +45,9 @@ const StatusBar: React.FC = () => {
     spaces: 2,
     tabSize: 2
   });
+
+  // Get current problem at cursor (if enabled in settings)
+  const currentProblemEntry = useCurrentProblemStatusBarEntry();
 
   // Get language display name
   const getLanguageDisplayName = (languageId: string): string => {
@@ -228,9 +232,10 @@ const StatusBar: React.FC = () => {
   };
 
   // Define status bar items
-  const statusItems: IStatusBarEntry[] = [
+  const statusItems: Array<IStatusBarEntry | null> = [
     // Left side items
     getProblemsEntry(),
+    currentProblemEntry, // Will be null if disabled or no problem at cursor
     {
       id: 'git',
       name: 'Git Branch',
@@ -301,30 +306,32 @@ const StatusBar: React.FC = () => {
     }
   ];
 
-  // Sort items by order and position
-  const leftItems = statusItems
+  // Filter out null entries, then sort by order and position
+  const validItems = statusItems.filter((item): item is IStatusBarEntry => item !== null);
+
+  const leftItems = validItems
     .filter(item => item.position === 'left')
     .sort((a, b) => a.order - b.order);
 
-  const rightItems = statusItems
+  const rightItems = validItems
     .filter(item => item.position === 'right')
     .sort((a, b) => a.order - b.order);
 
   return (
     <div className={cn(
-      "flex items-center justify-between text-xs border-t",
+      "flex items-stretch justify-between text-xs border-t",
       "bg-background text-foreground border-border",
-      "h-6 select-none"
+      "h-6 select-none overflow-hidden"
     )}>
       {/* Left side items */}
-      <div className="flex items-center">
+      <div className="flex items-stretch flex-shrink-0">
         {leftItems.map(item => (
           <StatusBarItem key={item.id} entry={item} />
         ))}
       </div>
 
       {/* Right side items */}
-      <div className="flex items-center">
+      <div className="flex items-stretch flex-shrink-0 ml-auto">
         {rightItems.map(item => (
           <StatusBarItem key={item.id} entry={item} />
         ))}
