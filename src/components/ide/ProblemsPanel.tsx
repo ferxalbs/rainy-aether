@@ -7,6 +7,7 @@ import { useCurrentProblem } from './CurrentProblemIndicator';
 import { QuickFixMenu } from './QuickFixMenu';
 import { getCodeActionService } from '../../services/codeActionService';
 import { cn } from '@/lib/cn';
+import '@/styles/problems.css';
 
 interface ProblemsPanelProps {
   onClose?: () => void;
@@ -341,15 +342,24 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
 
   return (
     <div
-      className={cn("flex flex-col h-full bg-background border-t border-border", className)}
+      className={cn("flex flex-col h-full bg-background border-t border-border problems-panel", className)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
+      role="region"
+      aria-label="Problems Panel"
+      aria-live="polite"
+      aria-atomic="false"
     >
+      {/* Skip link for keyboard navigation */}
+      <a href="#problems-list" className="problems-skip-link">
+        Skip to problems list
+      </a>
+
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold">Problems</h3>
-          <span className="text-xs text-muted-foreground">
+          <h3 className="text-sm font-semibold" id="problems-panel-title">Problems</h3>
+          <span className="text-xs text-muted-foreground" aria-live="polite" aria-atomic="true">
             {filteredMarkers.length} {filteredMarkers.length === 1 ? 'problem' : 'problems'}
             {filteredMarkers.length !== markers.length && (
               <span className="text-muted-foreground/70"> of {markers.length}</span>
@@ -359,44 +369,52 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
 
         <div className="flex items-center gap-2">
           {/* Filter buttons */}
-          <div className="flex items-center gap-1 text-xs">
+          <div className="flex items-center gap-1 text-xs" role="group" aria-label="Filter problems by severity">
             <button
               onClick={() => setFilter('all')}
               className={cn(
-                "px-2 py-1 rounded transition-colors",
-                filter === 'all' ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                "px-2 py-1 rounded transition-colors filter-button",
+                filter === 'all' ? "bg-primary text-primary-foreground active" : "hover:bg-muted"
               )}
+              aria-label="Show all problems"
+              aria-pressed={filter === 'all'}
             >
               All
             </button>
             <button
               onClick={() => setFilter('errors')}
               className={cn(
-                "px-2 py-1 rounded transition-colors flex items-center gap-1",
-                filter === 'errors' ? "bg-red-500/20 text-red-500" : "hover:bg-muted"
+                "px-2 py-1 rounded transition-colors flex items-center gap-1 filter-button",
+                filter === 'errors' ? "bg-red-500/20 text-red-500 active" : "hover:bg-muted"
               )}
+              aria-label={`Show ${errorCount} error${errorCount !== 1 ? 's' : ''}`}
+              aria-pressed={filter === 'errors'}
             >
-              <XCircle size={12} />
+              <XCircle size={12} aria-hidden="true" />
               {errorCount}
             </button>
             <button
               onClick={() => setFilter('warnings')}
               className={cn(
-                "px-2 py-1 rounded transition-colors flex items-center gap-1",
-                filter === 'warnings' ? "bg-yellow-500/20 text-yellow-500" : "hover:bg-muted"
+                "px-2 py-1 rounded transition-colors flex items-center gap-1 filter-button",
+                filter === 'warnings' ? "bg-yellow-500/20 text-yellow-500 active" : "hover:bg-muted"
               )}
+              aria-label={`Show ${warningCount} warning${warningCount !== 1 ? 's' : ''}`}
+              aria-pressed={filter === 'warnings'}
             >
-              <AlertCircle size={12} />
+              <AlertCircle size={12} aria-hidden="true" />
               {warningCount}
             </button>
             <button
               onClick={() => setFilter('info')}
               className={cn(
-                "px-2 py-1 rounded transition-colors flex items-center gap-1",
-                filter === 'info' ? "bg-blue-500/20 text-blue-500" : "hover:bg-muted"
+                "px-2 py-1 rounded transition-colors flex items-center gap-1 filter-button",
+                filter === 'info' ? "bg-blue-500/20 text-blue-500 active" : "hover:bg-muted"
               )}
+              aria-label={`Show ${infoCount} info message${infoCount !== 1 ? 's' : ''}`}
+              aria-pressed={filter === 'info'}
             >
-              <Info size={12} />
+              <Info size={12} aria-hidden="true" />
               {infoCount}
             </button>
           </div>
@@ -406,8 +424,9 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
               onClick={onClose}
               className="p-1 hover:bg-muted rounded transition-colors"
               title="Close problems panel"
+              aria-label="Close problems panel"
             >
-              <X size={16} />
+              <X size={16} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -417,17 +436,20 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
       <div className="px-3 py-2 border-b border-border space-y-2">
         {/* Search input */}
         <div className="relative">
-          <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <input
-            type="text"
+            type="search"
             placeholder="Search problems..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             className={cn(
-              "w-full pl-8 pr-3 py-1.5 text-sm rounded border",
+              "w-full pl-8 pr-3 py-1.5 text-sm rounded border problems-search-input",
               "bg-background border-border",
               "focus:outline-none focus:ring-2 focus:ring-primary"
             )}
+            aria-label="Search problems"
+            aria-describedby="problems-panel-title"
+            role="searchbox"
           />
         </div>
 
@@ -462,9 +484,21 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
       </div>
 
       {/* Problems list */}
-      <div className="flex-1 overflow-y-auto" ref={listRef}>
+      <div
+        className="flex-1 overflow-y-auto problems-list-container"
+        ref={listRef}
+        id="problems-list"
+        role="list"
+        aria-labelledby="problems-panel-title"
+        aria-live="polite"
+        aria-busy={false}
+      >
         {filteredMarkers.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+          <div
+            className="flex items-center justify-center h-full text-muted-foreground text-sm problems-empty"
+            role="status"
+            aria-live="polite"
+          >
             {searchText || selectedOwners.length > 0
               ? 'No problems match the current filters'
               : 'No problems to display'}
@@ -476,45 +510,65 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
               const fileName = file.split('/').pop() || file;
 
               return (
-                <div key={file}>
+                <div key={file} role="group" aria-labelledby={`file-header-${file}`}>
                   {/* File header */}
-                  <div
-                    className="px-3 py-1.5 text-xs font-medium bg-muted/30 flex items-center gap-2 cursor-pointer hover:bg-muted/50 transition-colors"
+                  <button
+                    id={`file-header-${file}`}
+                    className="px-3 py-1.5 text-xs font-medium bg-muted/30 flex items-center gap-2 cursor-pointer hover:bg-muted/50 transition-colors file-header w-full text-left"
                     onClick={() => toggleFileCollapse(file)}
+                    aria-expanded={!isCollapsed}
+                    aria-controls={`file-problems-${file}`}
+                    aria-label={`${fileName}, ${fileMarkers.length} problem${fileMarkers.length !== 1 ? 's' : ''}, ${isCollapsed ? 'collapsed' : 'expanded'}`}
                   >
-                    {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                    <ChevronRight size={14} className={cn("chevron-icon transition-transform", isCollapsed ? "collapsed" : "expanded")} aria-hidden="true" />
                     <span className="flex-1">
                       {fileName}
                       <span className="ml-2 text-muted-foreground/70">
                         ({fileMarkers.length})
                       </span>
                     </span>
-                  </div>
+                  </button>
 
                   {/* Markers for this file */}
-                  {!isCollapsed && fileMarkers.map((marker, idx) => {
-                    const globalIndex = flatMarkers.findIndex(
-                      ({ marker: m }) => m === marker
-                    );
-                    const isSelected = globalIndex === selectedIndex;
-                    const isCurrent = settings.problems.autoReveal &&
-                      currentProblem &&
-                      marker.resource === currentProblem.resource &&
-                      marker.startLineNumber === currentProblem.startLineNumber &&
-                      marker.startColumn === currentProblem.startColumn;
+                  {!isCollapsed && (
+                    <div id={`file-problems-${file}`} role="list">
+                      {fileMarkers.map((marker, idx) => {
+                        const globalIndex = flatMarkers.findIndex(
+                          ({ marker: m }) => m === marker
+                        );
+                        const isSelected = globalIndex === selectedIndex;
+                        const isCurrent = settings.problems.autoReveal &&
+                          currentProblem &&
+                          marker.resource === currentProblem.resource &&
+                          marker.startLineNumber === currentProblem.startLineNumber &&
+                          marker.startColumn === currentProblem.startColumn;
 
-                    return (
-                      <div
-                        key={`${marker.resource}-${marker.startLineNumber}-${marker.startColumn}-${idx}`}
-                        data-marker-index={globalIndex}
-                        className={cn(
-                          "px-3 py-2 cursor-pointer transition-colors group relative",
-                          isSelected && "bg-primary/10 border-l-2 border-l-primary",
-                          isCurrent && "bg-blue-500/10",
-                          !isSelected && !isCurrent && "hover:bg-muted/50"
-                        )}
-                        onClick={() => handleMarkerClick(marker)}
-                      >
+                        const severityLabel = getSeverityLabel(marker.severity);
+                        const ariaLabel = `${severityLabel}: ${marker.message} at line ${marker.startLineNumber}, column ${marker.startColumn} in ${fileName}`;
+
+                        return (
+                          <div
+                            key={`${marker.resource}-${marker.startLineNumber}-${marker.startColumn}-${idx}`}
+                            data-marker-index={globalIndex}
+                            className={cn(
+                              "px-3 py-2 cursor-pointer transition-colors group relative marker-item",
+                              isSelected && "bg-primary/10 border-l-2 border-l-primary marker-selected",
+                              isCurrent && "bg-blue-500/10",
+                              !isSelected && !isCurrent && "hover:bg-muted/50"
+                            )}
+                            onClick={() => handleMarkerClick(marker)}
+                            role="listitem"
+                            tabIndex={0}
+                            aria-label={ariaLabel}
+                            aria-selected={isSelected}
+                            aria-current={isCurrent ? 'true' : 'false'}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleMarkerClick(marker);
+                              }
+                            }}
+                          >
                         <div className="flex items-start gap-2">
                           {/* Severity icon */}
                           <div className="mt-0.5">
@@ -555,20 +609,23 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
                             <button
                               onClick={(e) => handleQuickFixClick(e, marker)}
                               className={cn(
-                                "flex-shrink-0 p-1.5 rounded transition-all",
+                                "flex-shrink-0 p-1.5 rounded transition-all lightbulb-icon",
                                 "opacity-0 group-hover:opacity-100",
                                 "hover:bg-yellow-500/20 text-yellow-500",
                                 quickFixMarker === marker && "opacity-100 bg-yellow-500/20"
                               )}
                               title="Show quick fixes"
+                              aria-label="Show quick fixes for this problem"
                             >
-                              <Lightbulb size={16} />
+                              <Lightbulb size={16} aria-hidden="true" />
                             </button>
                           )}
                         </div>
                       </div>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}

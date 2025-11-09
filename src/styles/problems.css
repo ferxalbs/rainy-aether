@@ -1,0 +1,429 @@
+/**
+ * Problems Panel Styles
+ * VS Code-inspired animations and visual polish
+ */
+
+/* Panel slide-in animation */
+.problems-panel {
+  animation: slideUp 200ms ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Marker item transitions */
+.marker-item {
+  transition: background-color 150ms ease,
+              transform 100ms ease,
+              border-left-color 150ms ease;
+}
+
+.marker-item:hover {
+  transform: translateX(2px);
+}
+
+.marker-item:active {
+  transform: scale(0.99);
+}
+
+.marker-item:focus-visible {
+  outline: 2px solid var(--primary, #3b82f6);
+  outline-offset: -2px;
+}
+
+/* Activity badge animations */
+.activity-badge {
+  animation: badgeFadeIn 200ms ease-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 150ms ease;
+}
+
+@keyframes badgeFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Subtle pulse when badge count increases */
+.activity-badge.pulse {
+  animation: badgePulse 600ms ease-in-out;
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+/* Quick fix menu */
+.quick-fix-menu {
+  animation: fadeInDown 150ms ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
+              0 2px 4px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Quick fix menu items */
+.quick-fix-item {
+  transition: background-color 100ms ease,
+              transform 100ms ease;
+}
+
+.quick-fix-item:hover:not(:disabled) {
+  transform: translateX(2px);
+}
+
+.quick-fix-item:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Severity icon colors (using theme tokens with fallbacks) */
+.severity-icon {
+  transition: color 150ms ease, transform 150ms ease;
+}
+
+.severity-icon.error {
+  color: var(--problemsErrorIcon-foreground, #dc2626);
+}
+
+.severity-icon.warning {
+  color: var(--problemsWarningIcon-foreground, #eab308);
+}
+
+.severity-icon.info {
+  color: var(--problemsInfoIcon-foreground, #3b82f6);
+}
+
+.severity-icon.hint {
+  color: var(--problemsHintIcon-foreground, #10b981);
+}
+
+.severity-icon:hover {
+  transform: scale(1.1);
+}
+
+/* File header hover effect */
+.file-header {
+  transition: background-color 150ms ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.file-header:hover {
+  background-color: var(--muted-hover, rgba(0, 0, 0, 0.05));
+}
+
+.file-header:active {
+  background-color: var(--muted-active, rgba(0, 0, 0, 0.1));
+}
+
+/* Chevron rotation animation */
+.chevron-icon {
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chevron-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.chevron-icon.expanded {
+  transform: rotate(0deg);
+}
+
+/* Search input focus animation */
+.problems-search-input {
+  transition: border-color 150ms ease,
+              box-shadow 150ms ease;
+}
+
+.problems-search-input:focus {
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 3px var(--primary-alpha-20, rgba(59, 130, 246, 0.2));
+}
+
+/* Filter button transitions */
+.filter-button {
+  transition: background-color 150ms ease,
+              color 150ms ease,
+              transform 100ms ease;
+}
+
+.filter-button:hover {
+  transform: translateY(-1px);
+}
+
+.filter-button:active {
+  transform: translateY(0);
+}
+
+.filter-button.active {
+  animation: filterActivate 200ms ease-out;
+}
+
+@keyframes filterActivate {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Loading skeleton animation */
+.problems-loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Scroll shadow effect */
+.problems-list-container {
+  position: relative;
+}
+
+.problems-list-container::before,
+.problems-list-container::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8px;
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 150ms ease;
+}
+
+.problems-list-container::before {
+  top: 0;
+  background: linear-gradient(to bottom,
+    var(--background, #ffffff) 0%,
+    transparent 100%
+  );
+  opacity: 0;
+}
+
+.problems-list-container::after {
+  bottom: 0;
+  background: linear-gradient(to top,
+    var(--background, #ffffff) 0%,
+    transparent 100%
+  );
+  opacity: 0;
+}
+
+.problems-list-container.has-scroll-top::before {
+  opacity: 1;
+}
+
+.problems-list-container.has-scroll-bottom::after {
+  opacity: 1;
+}
+
+/* Empty state animation */
+.problems-empty {
+  animation: fadeIn 300ms ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Owner badge animations */
+.owner-badge {
+  transition: background-color 150ms ease,
+              color 150ms ease,
+              transform 100ms ease;
+}
+
+.owner-badge:hover {
+  transform: scale(1.05);
+}
+
+.owner-badge:active {
+  transform: scale(0.95);
+}
+
+/* Related information animation */
+.related-info {
+  animation: expandIn 200ms ease-out;
+  transform-origin: top left;
+}
+
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    transform: scaleY(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+/* Lightbulb icon pulse (for quick fixes) */
+.lightbulb-icon {
+  animation: lightbulbPulse 2s ease-in-out infinite;
+  transition: transform 150ms ease;
+}
+
+@keyframes lightbulbPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.lightbulb-icon:hover {
+  animation: none;
+  transform: rotate(15deg) scale(1.1);
+}
+
+/* Selection highlight animation */
+.marker-selected {
+  animation: highlightFlash 300ms ease-out;
+}
+
+@keyframes highlightFlash {
+  0% {
+    background-color: var(--primary-alpha-30, rgba(59, 130, 246, 0.3));
+  }
+  100% {
+    background-color: var(--primary-alpha-10, rgba(59, 130, 246, 0.1));
+  }
+}
+
+/* Responsive design adjustments */
+@media (max-width: 640px) {
+  .marker-item {
+    padding: 8px;
+  }
+
+  .activity-badge {
+    font-size: 9px;
+    min-width: 14px;
+    height: 14px;
+  }
+
+  .quick-fix-menu {
+    max-width: calc(100vw - 32px);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .problems-panel,
+  .marker-item,
+  .activity-badge,
+  .quick-fix-menu,
+  .severity-icon,
+  .file-header,
+  .chevron-icon,
+  .filter-button,
+  .owner-badge,
+  .related-info,
+  .lightbulb-icon,
+  .marker-selected {
+    animation: none;
+    transition-duration: 0.01ms;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .marker-item {
+    border-left: 3px solid transparent;
+  }
+
+  .marker-item:hover {
+    border-left-color: var(--foreground, #000000);
+  }
+
+  .activity-badge {
+    border: 2px solid var(--foreground, #000000);
+  }
+
+  .quick-fix-menu {
+    border: 2px solid var(--foreground, #000000);
+  }
+}
+
+/* Dark mode specific adjustments */
+@media (prefers-color-scheme: dark) {
+  .quick-fix-menu {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+                0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .activity-badge {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Focus visible styles for accessibility */
+.problems-panel *:focus-visible {
+  outline: 2px solid var(--primary, #3b82f6);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Skip link for keyboard navigation */
+.problems-skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--primary, #3b82f6);
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 100;
+}
+
+.problems-skip-link:focus {
+  top: 8px;
+  left: 8px;
+}

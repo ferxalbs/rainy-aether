@@ -70,7 +70,17 @@ export const navyDayTheme: Theme = {
     '--statusBarItem-remoteForeground': '#ffffff',
     '--statusBarItem-remoteBackground': '#10b981',
     '--statusBarItem-offlineForeground': '#999999',
-    '--statusBarItem-offlineBackground': '#d1d5db'
+    '--statusBarItem-offlineBackground': '#d1d5db',
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#dc2626',
+    '--problemsWarningIcon-foreground': '#ea580c',
+    '--problemsInfoIcon-foreground': '#3b82f6',
+    '--problemsHintIcon-foreground': '#10b981',
+    // Activity Badge
+    '--activityBarBadge-background': '#3b82f6',
+    '--activityBarBadge-foreground': '#ffffff',
+    '--activityBarBadge-errorBackground': '#dc2626',
+    '--activityBarBadge-warningBackground': '#ea580c'
   }
 };
 
@@ -113,6 +123,16 @@ export const navyNightTheme: Theme = {
     '--statusBarItem-remoteBackground': '#059669',
     '--statusBarItem-offlineForeground': '#666666',
     '--statusBarItem-offlineBackground': '#4b5563'
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#f87171',
+    '--problemsWarningIcon-foreground': '#fb923c',
+    '--problemsInfoIcon-foreground': '#60a5fa',
+    '--problemsHintIcon-foreground': '#34d399',
+    // Activity Badge
+    '--activityBarBadge-background': '#3b82f6',
+    '--activityBarBadge-foreground': '#ffffff',
+    '--activityBarBadge-errorBackground': '#dc2626',
+    '--activityBarBadge-warningBackground': '#f59e0b'
   }
 };
 
@@ -155,7 +175,17 @@ export const darkDayTheme: Theme = {
     '--statusBarItem-remoteForeground': '#ffffff',
     '--statusBarItem-remoteBackground': '#10b981',
     '--statusBarItem-offlineForeground': '#999999',
-    '--statusBarItem-offlineBackground': '#d1d5db'
+    '--statusBarItem-offlineBackground': '#d1d5db',
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#dc2626',
+    '--problemsWarningIcon-foreground': '#ea580c',
+    '--problemsInfoIcon-foreground': '#6366f1',
+    '--problemsHintIcon-foreground': '#10b981',
+    // Activity Badge
+    '--activityBarBadge-background': '#6366f1',
+    '--activityBarBadge-foreground': '#ffffff',
+    '--activityBarBadge-errorBackground': '#dc2626',
+    '--activityBarBadge-warningBackground': '#ea580c'
   }
 };
 
@@ -198,6 +228,16 @@ export const darkNightTheme: Theme = {
     '--statusBarItem-remoteBackground': '#059669',
     '--statusBarItem-offlineForeground': '#666666',
     '--statusBarItem-offlineBackground': '#4b5563'
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#f87171',
+    '--problemsWarningIcon-foreground': '#fb923c',
+    '--problemsInfoIcon-foreground': '#60a5fa',
+    '--problemsHintIcon-foreground': '#34d399',
+    // Activity Badge
+    '--activityBarBadge-background': '#3b82f6',
+    '--activityBarBadge-foreground': '#ffffff',
+    '--activityBarBadge-errorBackground': '#dc2626',
+    '--activityBarBadge-warningBackground': '#f59e0b'
   }
 };
 
@@ -240,7 +280,17 @@ export const lightDayTheme: Theme = {
     '--statusBarItem-remoteForeground': '#ffffff',
     '--statusBarItem-remoteBackground': '#10b981',
     '--statusBarItem-offlineForeground': '#999999',
-    '--statusBarItem-offlineBackground': '#d1d5db'
+    '--statusBarItem-offlineBackground': '#d1d5db',
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#f87171',
+    '--problemsWarningIcon-foreground': '#fb923c',
+    '--problemsInfoIcon-foreground': '#818cf8',
+    '--problemsHintIcon-foreground': '#34d399',
+    // Activity Badge
+    '--activityBarBadge-background': '#6366f1',
+    '--activityBarBadge-foreground': '#ffffff',
+    '--activityBarBadge-errorBackground': '#dc2626',
+    '--activityBarBadge-warningBackground': '#f59e0b'
   }
 };
 
@@ -282,7 +332,17 @@ export const lightNightTheme: Theme = {
     '--statusBarItem-remoteForeground': '#ffffff',
     '--statusBarItem-remoteBackground': '#10b981',
     '--statusBarItem-offlineForeground': '#999999',
-    '--statusBarItem-offlineBackground': '#cbd5e1'
+    '--statusBarItem-offlineBackground': '#cbd5e1',
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#dc2626',
+    '--problemsWarningIcon-foreground': '#ea580c',
+    '--problemsInfoIcon-foreground': '#2563eb',
+    '--problemsHintIcon-foreground': '#059669',
+    // Activity Badge
+    '--activityBarBadge-background': '#2563eb',
+    '--activityBarBadge-foreground': '#ffffff',
+    '--activityBarBadge-errorBackground': '#dc2626',
+    '--activityBarBadge-warningBackground': '#ea580c'
   }
 };
 
@@ -325,7 +385,17 @@ export const monokaiDayTheme: Theme = {
     '--statusBarItem-remoteForeground': '#000000',
     '--statusBarItem-remoteBackground': '#a6e22e',
     '--statusBarItem-offlineForeground': '#999999',
-    '--statusBarItem-offlineBackground': '#d1d5db'
+    '--statusBarItem-offlineBackground': '#d1d5db',
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#f87171',
+    '--problemsWarningIcon-foreground': '#fb923c',
+    '--problemsInfoIcon-foreground': '#60a5fa',
+    '--problemsHintIcon-foreground': '#34d399',
+    // Activity Badge
+    '--activityBarBadge-background': '#3b82f6',
+    '--activityBarBadge-foreground': '#ffffff',
+    '--activityBarBadge-errorBackground': '#dc2626',
+    '--activityBarBadge-warningBackground': '#f59e0b'
   }
 };
 
@@ -367,7 +437,17 @@ export const monokaiNightTheme: Theme = {
     '--statusBarItem-remoteForeground': '#000000',
     '--statusBarItem-remoteBackground': '#a6e22e',
     '--statusBarItem-offlineForeground': '#666666',
-    '--statusBarItem-offlineBackground': '#49483e'
+    '--statusBarItem-offlineBackground': '#49483e',
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#e63946',
+    '--problemsWarningIcon-foreground': '#f77f00',
+    '--problemsInfoIcon-foreground': '#06aed5',
+    '--problemsHintIcon-foreground': '#06d6a0',
+    // Activity Badge
+    '--activityBarBadge-background': '#06aed5',
+    '--activityBarBadge-foreground': '#ffffff',
+    '--activityBarBadge-errorBackground': '#e63946',
+    '--activityBarBadge-warningBackground': '#f77f00'
   }
 };
 
@@ -410,7 +490,17 @@ export const auroraDayTheme: Theme = {
     '--statusBarItem-remoteForeground': '#ffffff',
     '--statusBarItem-remoteBackground': '#15803d',
     '--statusBarItem-offlineForeground': '#999999',
-    '--statusBarItem-offlineBackground': '#bfdbfe'
+    '--statusBarItem-offlineBackground': '#bfdbfe',
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#f25f5c',
+    '--problemsWarningIcon-foreground': '#ffba08',
+    '--problemsInfoIcon-foreground': '#4cc9f0',
+    '--problemsHintIcon-foreground': '#06ffa5',
+    // Activity Badge
+    '--activityBarBadge-background': '#4cc9f0',
+    '--activityBarBadge-foreground': '#000000',
+    '--activityBarBadge-errorBackground': '#e63946',
+    '--activityBarBadge-warningBackground': '#f77f00'
   }
 };
 
@@ -452,7 +542,17 @@ export const auroraNightTheme: Theme = {
     '--statusBarItem-remoteForeground': '#ffffff',
     '--statusBarItem-remoteBackground': '#16a34a',
     '--statusBarItem-offlineForeground': '#666666',
-    '--statusBarItem-offlineBackground': '#334155'
+    '--statusBarItem-offlineBackground': '#334155',
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#dc2626',
+    '--problemsWarningIcon-foreground': '#d97706',
+    '--problemsInfoIcon-foreground': '#7c3aed',
+    '--problemsHintIcon-foreground': '#059669',
+    // Activity Badge
+    '--activityBarBadge-background': '#7c3aed',
+    '--activityBarBadge-foreground': '#ffffff',
+    '--activityBarBadge-errorBackground': '#dc2626',
+    '--activityBarBadge-warningBackground': '#d97706'
   }
 };
 
@@ -495,7 +595,17 @@ export const emberDayTheme: Theme = {
     '--statusBarItem-remoteForeground': '#ffffff',
     '--statusBarItem-remoteBackground': '#16a34a',
     '--statusBarItem-offlineForeground': '#999999',
-    '--statusBarItem-offlineBackground': '#fcd34d'
+    '--statusBarItem-offlineBackground': '#fcd34d',
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#f87171',
+    '--problemsWarningIcon-foreground': '#fbbf24',
+    '--problemsInfoIcon-foreground': '#a78bfa',
+    '--problemsHintIcon-foreground': '#34d399',
+    // Activity Badge
+    '--activityBarBadge-background': '#8b5cf6',
+    '--activityBarBadge-foreground': '#ffffff',
+    '--activityBarBadge-errorBackground': '#dc2626',
+    '--activityBarBadge-warningBackground': '#f59e0b'
   }
 };
 
@@ -537,7 +647,17 @@ export const emberNightTheme: Theme = {
     '--statusBarItem-remoteForeground': '#ffffff',
     '--statusBarItem-remoteBackground': '#16a34a',
     '--statusBarItem-offlineForeground': '#666666',
-    '--statusBarItem-offlineBackground': '#4a3526'
+    '--statusBarItem-offlineBackground': '#4a3526',
+    // Problems Panel Icons
+    '--problemsErrorIcon-foreground': '#dc2626',
+    '--problemsWarningIcon-foreground': '#ea580c',
+    '--problemsInfoIcon-foreground': '#fb923c',
+    '--problemsHintIcon-foreground': '#16a34a',
+    // Activity Badge
+    '--activityBarBadge-background': '#fb923c',
+    '--activityBarBadge-foreground': '#000000',
+    '--activityBarBadge-errorBackground': '#dc2626',
+    '--activityBarBadge-warningBackground': '#ea580c'
   }
 };
 
