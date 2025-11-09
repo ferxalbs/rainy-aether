@@ -12,7 +12,7 @@ import { editorState } from '../../stores/editorStore';
 import { useIDEStore } from '../../stores/ideStore';
 import { getCurrentTheme } from '../../stores/themeStore';
 import { getGitService, GitStatus } from '../../services/gitService';
-import { getMarkerService, MarkerStatistics, MarkerSeverity } from '../../services/markerService';
+import { getMarkerService, MarkerStatistics } from '../../services/markerService';
 import { cn } from '@/lib/cn';
 
 // Status bar item interface

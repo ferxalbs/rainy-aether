@@ -230,7 +230,7 @@ function normalizeColor(color: string): string {
  */
 function fillMissingVariables(
   variables: Record<string, string>,
-  vsCodeColors: Record<string, string>
+  _vsCodeColors: Record<string, string>
 ): void {
   // Determine if theme is dark or light based on editor background
   const bgColor = variables['--bg-editor'] || variables['--bg-primary'] || '#1e1e1e';
@@ -305,7 +305,7 @@ function fillMissingVariables(
   for (const varName of requiredVars) {
     if (!variables[varName]) {
       console.warn(`[ThemeConverter] Missing variable ${varName}, using default`);
-      variables[varName] = defaults[varName] || '#000000';
+      variables[varName] = (defaults as Record<string, string>)[varName] || '#000000';
     }
   }
 }

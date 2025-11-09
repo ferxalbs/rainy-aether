@@ -275,7 +275,7 @@ export class MonacoExtensionHost {
 
     try {
       // Dynamically import theme utilities
-      const { convertVSCodeThemeToRainy, convertTokenColorsToMonaco, inferThemeMode } = await import('@/utils/themeConverter');
+      const { convertVSCodeThemeToRainy, convertTokenColorsToMonaco } = await import('@/utils/themeConverter');
       const { registerExtensionTheme } = await import('@/stores/themeStore');
 
       for (const themeContrib of themes) {

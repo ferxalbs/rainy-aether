@@ -36,7 +36,7 @@ const RenderIcon: React.FC<{ icon: IconDefinition; size?: number; className?: st
       return <div dangerouslySetInnerHTML={{ __html: icon.iconPath }} style={{ width: size, height: size, ...style }} className={className} />;
     }
     // Otherwise it's a path/data URL to an image
-    return <img src={icon.iconPath} alt="" style={{ width: size, height: size, ...style }} className={className} onError={(e) => {
+    return <img src={icon.iconPath} alt="" style={{ width: size, height: size, ...style }} className={className} onError={() => {
       console.error('[RenderIcon] Failed to load icon:', icon.iconPath?.substring(0, 100));
     }} />;
   }
