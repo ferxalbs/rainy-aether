@@ -3,10 +3,19 @@ import { saveToStore, loadFromStore } from "./app-store";
 
 export type FileIconColorMode = 'theme' | 'custom';
 
+export type ProblemsSortOrder = 'severity' | 'position' | 'name';
+
 interface SettingsState {
   fileIconColorMode: FileIconColorMode;
   customFileColors: Record<string, string>; // extension -> color (hex or CSS var)
   iconThemeId: string | null; // Preferred icon theme ID
+
+  // Problems panel settings
+  problems: {
+    showCurrentInStatus: boolean;   // Show current problem at cursor in status bar
+    sortOrder: ProblemsSortOrder;   // How to sort problems in panel
+    autoReveal: boolean;             // Auto-reveal problem when cursor moves to it
+  };
 }
 
 const defaultColors: Record<string, string> = {
@@ -27,6 +36,11 @@ const initialState: SettingsState = {
   fileIconColorMode: 'theme',
   customFileColors: defaultColors,
   iconThemeId: null, // null means use default theme
+  problems: {
+    showCurrentInStatus: true,
+    sortOrder: 'severity',
+    autoReveal: false,
+  },
 };
 
 let settingsState: SettingsState = initialState;
@@ -72,11 +86,21 @@ export async function initializeSettings() {
   const colors = await loadFromStore<Record<string, string>>("rainy-coder-custom-file-colors", defaultColors);
   const iconThemeId = await loadFromStore<string | null>("rainy-coder-icon-theme-id", null);
 
+  // Load problems settings
+  const showCurrentInStatus = await loadFromStore<boolean>("rainy-coder-problems-show-current", true);
+  const sortOrder = await loadFromStore<ProblemsSortOrder>("rainy-coder-problems-sort-order", "severity");
+  const autoReveal = await loadFromStore<boolean>("rainy-coder-problems-auto-reveal", false);
+
   setState((prev) => ({
     ...prev,
     fileIconColorMode: mode,
     customFileColors: { ...prev.customFileColors, ...colors },
     iconThemeId,
+    problems: {
+      showCurrentInStatus,
+      sortOrder,
+      autoReveal,
+    },
   }));
 }
 
@@ -124,4 +148,29 @@ export function fileIconColorForExt(ext: string): string {
     default:
       return "var(--text-secondary)";
   }
+}
+
+// Problems settings actions
+export async function setShowCurrentProblemInStatus(show: boolean) {
+  setState((prev) => ({
+    ...prev,
+    problems: { ...prev.problems, showCurrentInStatus: show },
+  }));
+  await saveToStore("rainy-coder-problems-show-current", show);
+}
+
+export async function setProblemsSortOrder(order: ProblemsSortOrder) {
+  setState((prev) => ({
+    ...prev,
+    problems: { ...prev.problems, sortOrder: order },
+  }));
+  await saveToStore("rainy-coder-problems-sort-order", order);
+}
+
+export async function setProblemsAutoReveal(autoReveal: boolean) {
+  setState((prev) => ({
+    ...prev,
+    problems: { ...prev.problems, autoReveal },
+  }));
+  await saveToStore("rainy-coder-problems-auto-reveal", autoReveal);
 }

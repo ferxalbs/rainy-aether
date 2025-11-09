@@ -1,14 +1,23 @@
 /* StatusBar base styles */
 .statusbar-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 0 8px;
-  height: 24px;
+  padding: 0 6px;
+  height: 100%;
   font-size: 12px;
+  line-height: 1;
   white-space: nowrap;
   transition: background-color 150ms ease, color 150ms ease;
   cursor: pointer;
+  vertical-align: middle;
+}
+
+.statusbar-item > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
 }
 
 .statusbar-item:hover {
@@ -70,10 +79,18 @@
   background-color: var(--statusBarItem-hoverBackground);
 }
 
-/* Icon spacing */
+/* Icon spacing - ensure SVGs render inline */
 .statusbar-item svg {
+  display: inline-block;
   width: 14px;
   height: 14px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.statusbar-item span svg {
+  display: inline-block;
+  vertical-align: text-bottom;
 }
 
 /* Non-clickable items */
