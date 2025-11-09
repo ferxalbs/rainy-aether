@@ -51,7 +51,26 @@ export const navyDayTheme: Theme = {
     '--border-color': '#e2e8f0',
     '--diff-added': '#16a34a',
     '--diff-removed': '#ef4444',
-    '--diff-hunk': '#3b82f6'
+    '--diff-hunk': '#3b82f6',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(0, 0, 0, 0.12)',
+    '--statusBarItem-hoverBackground': 'rgba(0, 0, 0, 0.09)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#dc2626',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#b91c1c',
+    '--statusBarItem-warningForeground': '#000000',
+    '--statusBarItem-warningBackground': '#f59e0b',
+    '--statusBarItem-warningHoverForeground': '#000000',
+    '--statusBarItem-warningHoverBackground': '#d97706',
+    '--statusBarItem-prominentForeground': '#ffffff',
+    '--statusBarItem-prominentBackground': '#3b82f6',
+    '--statusBarItem-prominentHoverForeground': '#ffffff',
+    '--statusBarItem-prominentHoverBackground': '#2563eb',
+    '--statusBarItem-remoteForeground': '#ffffff',
+    '--statusBarItem-remoteBackground': '#10b981',
+    '--statusBarItem-offlineForeground': '#999999',
+    '--statusBarItem-offlineBackground': '#d1d5db'
   }
 };
 
@@ -74,7 +93,26 @@ export const navyNightTheme: Theme = {
     '--border-color': '#1e293b',
     '--diff-added': '#22c55e',
     '--diff-removed': '#f87171',
-    '--diff-hunk': '#60a5fa'
+    '--diff-hunk': '#60a5fa',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(255, 255, 255, 0.18)',
+    '--statusBarItem-hoverBackground': 'rgba(255, 255, 255, 0.12)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#dc2626',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#ef4444',
+    '--statusBarItem-warningForeground': '#ffffff',
+    '--statusBarItem-warningBackground': '#d97706',
+    '--statusBarItem-warningHoverForeground': '#ffffff',
+    '--statusBarItem-warningHoverBackground': '#f59e0b',
+    '--statusBarItem-prominentForeground': '#ffffff',
+    '--statusBarItem-prominentBackground': '#2563eb',
+    '--statusBarItem-prominentHoverForeground': '#ffffff',
+    '--statusBarItem-prominentHoverBackground': '#3b82f6',
+    '--statusBarItem-remoteForeground': '#ffffff',
+    '--statusBarItem-remoteBackground': '#059669',
+    '--statusBarItem-offlineForeground': '#666666',
+    '--statusBarItem-offlineBackground': '#4b5563'
   }
 };
 
@@ -98,7 +136,26 @@ export const darkDayTheme: Theme = {
     '--border-color': '#e7e5e4',
     '--diff-added': '#16a34a',
     '--diff-removed': '#ef4444',
-    '--diff-hunk': '#a855f7'
+    '--diff-hunk': '#a855f7',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(0, 0, 0, 0.12)',
+    '--statusBarItem-hoverBackground': 'rgba(0, 0, 0, 0.09)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#dc2626',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#b91c1c',
+    '--statusBarItem-warningForeground': '#000000',
+    '--statusBarItem-warningBackground': '#f59e0b',
+    '--statusBarItem-warningHoverForeground': '#000000',
+    '--statusBarItem-warningHoverBackground': '#d97706',
+    '--statusBarItem-prominentForeground': '#ffffff',
+    '--statusBarItem-prominentBackground': '#a855f7',
+    '--statusBarItem-prominentHoverForeground': '#ffffff',
+    '--statusBarItem-prominentHoverBackground': '#9333ea',
+    '--statusBarItem-remoteForeground': '#ffffff',
+    '--statusBarItem-remoteBackground': '#10b981',
+    '--statusBarItem-offlineForeground': '#999999',
+    '--statusBarItem-offlineBackground': '#d1d5db'
   }
 };
 
@@ -121,7 +178,26 @@ export const darkNightTheme: Theme = {
     '--border-color': '#292524',
     '--diff-added': '#22c55e',
     '--diff-removed': '#f87171',
-    '--diff-hunk': '#c084fc'
+    '--diff-hunk': '#c084fc',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(255, 255, 255, 0.18)',
+    '--statusBarItem-hoverBackground': 'rgba(255, 255, 255, 0.12)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#dc2626',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#ef4444',
+    '--statusBarItem-warningForeground': '#ffffff',
+    '--statusBarItem-warningBackground': '#d97706',
+    '--statusBarItem-warningHoverForeground': '#ffffff',
+    '--statusBarItem-warningHoverBackground': '#f59e0b',
+    '--statusBarItem-prominentForeground': '#ffffff',
+    '--statusBarItem-prominentBackground': '#9333ea',
+    '--statusBarItem-prominentHoverForeground': '#ffffff',
+    '--statusBarItem-prominentHoverBackground': '#a855f7',
+    '--statusBarItem-remoteForeground': '#ffffff',
+    '--statusBarItem-remoteBackground': '#059669',
+    '--statusBarItem-offlineForeground': '#666666',
+    '--statusBarItem-offlineBackground': '#4b5563'
   }
 };
 
@@ -145,7 +221,26 @@ export const lightDayTheme: Theme = {
     '--border-color': '#e2e8f0',
     '--diff-added': '#16a34a',
     '--diff-removed': '#ef4444',
-    '--diff-hunk': '#2563eb'
+    '--diff-hunk': '#2563eb',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(0, 0, 0, 0.12)',
+    '--statusBarItem-hoverBackground': 'rgba(0, 0, 0, 0.09)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#dc2626',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#b91c1c',
+    '--statusBarItem-warningForeground': '#000000',
+    '--statusBarItem-warningBackground': '#f59e0b',
+    '--statusBarItem-warningHoverForeground': '#000000',
+    '--statusBarItem-warningHoverBackground': '#d97706',
+    '--statusBarItem-prominentForeground': '#ffffff',
+    '--statusBarItem-prominentBackground': '#2563eb',
+    '--statusBarItem-prominentHoverForeground': '#ffffff',
+    '--statusBarItem-prominentHoverBackground': '#1d4ed8',
+    '--statusBarItem-remoteForeground': '#ffffff',
+    '--statusBarItem-remoteBackground': '#10b981',
+    '--statusBarItem-offlineForeground': '#999999',
+    '--statusBarItem-offlineBackground': '#d1d5db'
   }
 };
 
@@ -168,7 +263,26 @@ export const lightNightTheme: Theme = {
     '--border-color': '#cbd5e1',
     '--diff-added': '#22c55e',
     '--diff-removed': '#f87171',
-    '--diff-hunk': '#3b82f6'
+    '--diff-hunk': '#3b82f6',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(0, 0, 0, 0.12)',
+    '--statusBarItem-hoverBackground': 'rgba(0, 0, 0, 0.09)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#dc2626',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#b91c1c',
+    '--statusBarItem-warningForeground': '#000000',
+    '--statusBarItem-warningBackground': '#f59e0b',
+    '--statusBarItem-warningHoverForeground': '#000000',
+    '--statusBarItem-warningHoverBackground': '#d97706',
+    '--statusBarItem-prominentForeground': '#ffffff',
+    '--statusBarItem-prominentBackground': '#2563eb',
+    '--statusBarItem-prominentHoverForeground': '#ffffff',
+    '--statusBarItem-prominentHoverBackground': '#1d4ed8',
+    '--statusBarItem-remoteForeground': '#ffffff',
+    '--statusBarItem-remoteBackground': '#10b981',
+    '--statusBarItem-offlineForeground': '#999999',
+    '--statusBarItem-offlineBackground': '#cbd5e1'
   }
 };
 
@@ -192,7 +306,26 @@ export const monokaiDayTheme: Theme = {
     '--border-color': '#e7e5e4',
     '--diff-added': '#a6e22e',
     '--diff-removed': '#f92672',
-    '--diff-hunk': '#66d9ef'
+    '--diff-hunk': '#66d9ef',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(0, 0, 0, 0.12)',
+    '--statusBarItem-hoverBackground': 'rgba(0, 0, 0, 0.09)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#f92672',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#e81f5f',
+    '--statusBarItem-warningForeground': '#000000',
+    '--statusBarItem-warningBackground': '#e6db74',
+    '--statusBarItem-warningHoverForeground': '#000000',
+    '--statusBarItem-warningHoverBackground': '#ddd354',
+    '--statusBarItem-prominentForeground': '#000000',
+    '--statusBarItem-prominentBackground': '#66d9ef',
+    '--statusBarItem-prominentHoverForeground': '#000000',
+    '--statusBarItem-prominentHoverBackground': '#53cbe9',
+    '--statusBarItem-remoteForeground': '#000000',
+    '--statusBarItem-remoteBackground': '#a6e22e',
+    '--statusBarItem-offlineForeground': '#999999',
+    '--statusBarItem-offlineBackground': '#d1d5db'
   }
 };
 
@@ -215,7 +348,26 @@ export const monokaiNightTheme: Theme = {
     '--border-color': '#49483e',
     '--diff-added': '#a6e22e',
     '--diff-removed': '#f92672',
-    '--diff-hunk': '#66d9ef'
+    '--diff-hunk': '#66d9ef',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(255, 255, 255, 0.18)',
+    '--statusBarItem-hoverBackground': 'rgba(255, 255, 255, 0.12)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#f92672',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#ff4081',
+    '--statusBarItem-warningForeground': '#000000',
+    '--statusBarItem-warningBackground': '#e6db74',
+    '--statusBarItem-warningHoverForeground': '#000000',
+    '--statusBarItem-warningHoverBackground': '#f1e78e',
+    '--statusBarItem-prominentForeground': '#000000',
+    '--statusBarItem-prominentBackground': '#66d9ef',
+    '--statusBarItem-prominentHoverForeground': '#000000',
+    '--statusBarItem-prominentHoverBackground': '#7fddee',
+    '--statusBarItem-remoteForeground': '#000000',
+    '--statusBarItem-remoteBackground': '#a6e22e',
+    '--statusBarItem-offlineForeground': '#666666',
+    '--statusBarItem-offlineBackground': '#49483e'
   }
 };
 
@@ -239,7 +391,26 @@ export const auroraDayTheme: Theme = {
     '--border-color': '#bfdbfe',
     '--diff-added': '#15803d',
     '--diff-removed': '#dc2626',
-    '--diff-hunk': '#0ea5e9'
+    '--diff-hunk': '#0ea5e9',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(0, 0, 0, 0.12)',
+    '--statusBarItem-hoverBackground': 'rgba(0, 0, 0, 0.09)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#dc2626',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#b91c1c',
+    '--statusBarItem-warningForeground': '#000000',
+    '--statusBarItem-warningBackground': '#f59e0b',
+    '--statusBarItem-warningHoverForeground': '#000000',
+    '--statusBarItem-warningHoverBackground': '#d97706',
+    '--statusBarItem-prominentForeground': '#ffffff',
+    '--statusBarItem-prominentBackground': '#0284c7',
+    '--statusBarItem-prominentHoverForeground': '#ffffff',
+    '--statusBarItem-prominentHoverBackground': '#0369a1',
+    '--statusBarItem-remoteForeground': '#ffffff',
+    '--statusBarItem-remoteBackground': '#15803d',
+    '--statusBarItem-offlineForeground': '#999999',
+    '--statusBarItem-offlineBackground': '#bfdbfe'
   }
 };
 
@@ -262,7 +433,26 @@ export const auroraNightTheme: Theme = {
     '--border-color': '#334155',
     '--diff-added': '#22c55e',
     '--diff-removed': '#f87171',
-    '--diff-hunk': '#38bdf8'
+    '--diff-hunk': '#38bdf8',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(255, 255, 255, 0.18)',
+    '--statusBarItem-hoverBackground': 'rgba(255, 255, 255, 0.12)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#dc2626',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#ef4444',
+    '--statusBarItem-warningForeground': '#ffffff',
+    '--statusBarItem-warningBackground': '#d97706',
+    '--statusBarItem-warningHoverForeground': '#ffffff',
+    '--statusBarItem-warningHoverBackground': '#f59e0b',
+    '--statusBarItem-prominentForeground': '#000000',
+    '--statusBarItem-prominentBackground': '#38bdf8',
+    '--statusBarItem-prominentHoverForeground': '#000000',
+    '--statusBarItem-prominentHoverBackground': '#7dd3fc',
+    '--statusBarItem-remoteForeground': '#ffffff',
+    '--statusBarItem-remoteBackground': '#16a34a',
+    '--statusBarItem-offlineForeground': '#666666',
+    '--statusBarItem-offlineBackground': '#334155'
   }
 };
 
@@ -286,7 +476,26 @@ export const emberDayTheme: Theme = {
     '--border-color': '#fcd34d',
     '--diff-added': '#16a34a',
     '--diff-removed': '#dc2626',
-    '--diff-hunk': '#f97316'
+    '--diff-hunk': '#f97316',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(0, 0, 0, 0.12)',
+    '--statusBarItem-hoverBackground': 'rgba(0, 0, 0, 0.09)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#dc2626',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#b91c1c',
+    '--statusBarItem-warningForeground': '#000000',
+    '--statusBarItem-warningBackground': '#fbbf24',
+    '--statusBarItem-warningHoverForeground': '#000000',
+    '--statusBarItem-warningHoverBackground': '#f59e0b',
+    '--statusBarItem-prominentForeground': '#ffffff',
+    '--statusBarItem-prominentBackground': '#f97316',
+    '--statusBarItem-prominentHoverForeground': '#ffffff',
+    '--statusBarItem-prominentHoverBackground': '#ea580c',
+    '--statusBarItem-remoteForeground': '#ffffff',
+    '--statusBarItem-remoteBackground': '#16a34a',
+    '--statusBarItem-offlineForeground': '#999999',
+    '--statusBarItem-offlineBackground': '#fcd34d'
   }
 };
 
@@ -309,7 +518,26 @@ export const emberNightTheme: Theme = {
     '--border-color': '#4a3526',
     '--diff-added': '#22c55e',
     '--diff-removed': '#f87171',
-    '--diff-hunk': '#fb923c'
+    '--diff-hunk': '#fb923c',
+    // StatusBar Item colors
+    '--statusBarItem-activeBackground': 'rgba(255, 255, 255, 0.18)',
+    '--statusBarItem-hoverBackground': 'rgba(255, 255, 255, 0.12)',
+    '--statusBarItem-errorForeground': '#ffffff',
+    '--statusBarItem-errorBackground': '#dc2626',
+    '--statusBarItem-errorHoverForeground': '#ffffff',
+    '--statusBarItem-errorHoverBackground': '#ef4444',
+    '--statusBarItem-warningForeground': '#000000',
+    '--statusBarItem-warningBackground': '#facc15',
+    '--statusBarItem-warningHoverForeground': '#000000',
+    '--statusBarItem-warningHoverBackground': '#fde047',
+    '--statusBarItem-prominentForeground': '#ffffff',
+    '--statusBarItem-prominentBackground': '#fb923c',
+    '--statusBarItem-prominentHoverForeground': '#ffffff',
+    '--statusBarItem-prominentHoverBackground': '#f97316',
+    '--statusBarItem-remoteForeground': '#ffffff',
+    '--statusBarItem-remoteBackground': '#16a34a',
+    '--statusBarItem-offlineForeground': '#666666',
+    '--statusBarItem-offlineBackground': '#4a3526'
   }
 };
 
