@@ -42,6 +42,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const [problems, setProblems] = useState<Problems>({ errors: 0, warnings: 0, infos: 0, hints: 0, total: 0, unknowns: 0 });
   const [isProblemsPopoverOpen, setIsProblemsPopoverOpen] = useState(false);
   const problemsButtonRef = useRef<HTMLDivElement>(null);
+  const hoverTimeoutRef = useRef<number | null>(null);
   const [editorInfo, setEditorInfo] = useState<EditorInfo>({
     language: 'Plain Text',
     encoding: 'UTF-8',
@@ -54,6 +55,48 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
 
   // Get current problem at cursor (if enabled in settings)
   const currentProblemEntry = useCurrentProblemStatusBarEntry();
+
+  // Cleanup hover timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle hover on problems button
+  const handleProblemsMouseEnter = () => {
+    // Show popover after 300ms delay
+    hoverTimeoutRef.current = window.setTimeout(() => {
+      setIsProblemsPopoverOpen(true);
+    }, 300);
+  };
+
+  const handleProblemsMouseLeave = () => {
+    // Cancel pending hover
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    // Delay close to allow mouse to move to popover
+    hoverTimeoutRef.current = window.setTimeout(() => {
+      setIsProblemsPopoverOpen(false);
+    }, 200);
+  };
+
+  const handlePopoverMouseEnter = () => {
+    // Cancel close timeout when mouse enters popover
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  };
+
+  const handlePopoverMouseLeave = () => {
+    // Close popover when mouse leaves
+    setIsProblemsPopoverOpen(false);
+  };
 
   // Get language display name
   const getLanguageDisplayName = (languageId: string): string => {
@@ -231,8 +274,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       order: 1,
       position: 'left',
       onClick: () => {
-        setIsProblemsPopoverOpen(prev => !prev);
-        // Also call the original handler if provided
+        // Click opens the full panel (Ctrl+Shift+M)
         onToggleProblemsPanel?.();
       },
     };
@@ -337,6 +379,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
             <div
               key={item.id}
               ref={item.id === 'status.problems' ? problemsButtonRef : undefined}
+              onMouseEnter={item.id === 'status.problems' ? handleProblemsMouseEnter : undefined}
+              onMouseLeave={item.id === 'status.problems' ? handleProblemsMouseLeave : undefined}
             >
               <StatusBarItem entry={item} />
             </div>
@@ -356,6 +400,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
         isOpen={isProblemsPopoverOpen}
         onClose={() => setIsProblemsPopoverOpen(false)}
         triggerRef={problemsButtonRef}
+        onMouseEnter={handlePopoverMouseEnter}
+        onMouseLeave={handlePopoverMouseLeave}
       />
     </>
   );

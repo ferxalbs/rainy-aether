@@ -8,12 +8,16 @@ interface ProblemsPopoverProps {
   isOpen: boolean;
   onClose: () => void;
   triggerRef?: React.RefObject<HTMLElement | null>;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export const ProblemsPopover: React.FC<ProblemsPopoverProps> = ({
   isOpen,
   onClose,
   triggerRef,
+  onMouseEnter,
+  onMouseLeave,
 }) => {
   const [markers, setMarkers] = useState<IMarker[]>([]);
   const [position, setPosition] = useState({ bottom: 32, left: 0 });
@@ -121,6 +125,8 @@ export const ProblemsPopover: React.FC<ProblemsPopoverProps> = ({
           bottom: `${position.bottom}px`,
           left: `${position.left}px`,
         }}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">

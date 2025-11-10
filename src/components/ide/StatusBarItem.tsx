@@ -1,6 +1,7 @@
 import React from 'react';
 import { IStatusBarItemProps } from '@/types/statusbar';
 import { cn } from '@/lib/cn';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 /**
  * Individual status bar item component
@@ -34,13 +35,12 @@ export const StatusBarItem: React.FC<IStatusBarItemProps> = ({ entry, onClick })
     ...(entry.color && { color: entry.color }),
   };
 
-  return (
+  const content = (
     <div
       className={className}
       style={style}
       onClick={isClickable ? handleClick : undefined}
       onKeyDown={isClickable ? handleKeyDown : undefined}
-      title={typeof entry.tooltip === 'string' ? entry.tooltip : undefined}
       aria-label={entry.ariaLabel || entry.name}
       role={isClickable ? 'button' : 'status'}
       tabIndex={isClickable ? 0 : -1}
@@ -52,4 +52,19 @@ export const StatusBarItem: React.FC<IStatusBarItemProps> = ({ entry, onClick })
       />
     </div>
   );
+
+  if (entry.tooltip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {content}
+        </TooltipTrigger>
+        <TooltipContent>
+          {entry.tooltip}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return content;
 };
