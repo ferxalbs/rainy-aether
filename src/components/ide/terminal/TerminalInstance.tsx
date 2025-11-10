@@ -18,6 +18,7 @@ import "@xterm/xterm/css/xterm.css";
 import { getTerminalService } from "@/services/terminalService";
 import { useThemeState } from "@/stores/themeStore";
 import { getTerminalState } from "@/stores/terminalStore";
+import { open } from "@tauri-apps/plugin-shell";
 
 interface TerminalInstanceProps {
   sessionId: string;
@@ -88,9 +89,25 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({
     const fitAddon = new FitAddon();
     const searchAddon = new SearchAddon();
 
+    // WebLinksAddon con callback para abrir links en navegador externo
+    const webLinksAddon = new WebLinksAddon((event, uri) => {
+      event.preventDefault();
+      // Usar Tauri para abrir en navegador externo
+      if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+        open(uri).catch((err: Error) => {
+          console.error('Failed to open link:', err);
+          // Fallback si Tauri falla
+          window.open(uri, '_blank');
+        });
+      } else {
+        // Fallback para desarrollo en browser
+        window.open(uri, '_blank');
+      }
+    });
+
     term.loadAddon(fitAddon);
     term.loadAddon(searchAddon);
-    term.loadAddon(new WebLinksAddon());
+    term.loadAddon(webLinksAddon);
 
     // Handle user input
     term.onData((data) => {
@@ -100,8 +117,8 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({
 
     // Open terminal in container
     term.open(containerRef.current);
-    fitAddon.fit();
 
+    // Guardar refs inmediatamente
     terminalRef.current = term;
     fitAddonRef.current = fitAddon;
     searchAddonRef.current = searchAddon;
@@ -115,12 +132,22 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({
     });
     dataUnsubscribeRef.current = unsubscribe;
 
-    // Initial resize
-    if (onResize) {
-      const { cols, rows } = term;
-      onResize(cols, rows);
-      service.resize(sessionId, cols, rows);
-    }
+    // Defer fit to next frame para no bloquear el render inicial
+    requestAnimationFrame(() => {
+      if (fitAddonRef.current && containerRef.current) {
+        try {
+          fitAddon.fit();
+          // Initial resize
+          if (onResize && terminalRef.current) {
+            const { cols, rows } = terminalRef.current;
+            onResize(cols, rows);
+            service.resize(sessionId, cols, rows);
+          }
+        } catch (err) {
+          console.warn('Terminal fit error during initialization:', err);
+        }
+      }
+    });
 
     return () => {
       dataUnsubscribeRef.current?.();

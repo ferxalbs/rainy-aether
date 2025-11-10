@@ -18,7 +18,7 @@ import "../../css/IDE.css";
 import TabSwitcher from "./TabSwitcher";
 import TerminalPanel from "./TerminalPanel";
 import { editorActions, editorState } from "../../stores/editorStore";
-import { terminalActions, useTerminalState } from "../../stores/terminalStore";
+import { terminalActions } from "../../stores/terminalStore";
 import { useLoadingState } from "../../stores/loadingStore";
 import LoadingScreen from "../ui/loading-screen";
 import GoToLineDialog from "../ui/go-to-line-dialog";
@@ -31,13 +31,11 @@ import ExtensionMarketplace from "./ExtensionMarketplace";
 import ExtensionManager from "./ExtensionManager";
 import { initializeUpdateService, startAutoUpdateCheck } from "../../services/updateService";
 import ProblemsPanel from "./ProblemsPanel";
-import { cn } from "@/lib/cn";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 
 const IDE: React.FC = () => {
   const { state, actions } = useIDEStore();
   useIDEState(); // Subscribe to state changes to trigger re-renders
-  const terminalSnapshot = useTerminalState();
   const loadingState = useLoadingState();
 
   const [isThemeSwitcherOpen, setIsThemeSwitcherOpen] = useState(false);

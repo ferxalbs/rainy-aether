@@ -191,7 +191,7 @@ class TerminalService {
   // Terminal operations with error handling
 
   /**
-   * Create a new terminal session
+   * Create a new terminal session with retry logic
    */
   async create(options: {
     shell?: string;
@@ -199,13 +199,39 @@ class TerminalService {
     cols?: number;
     rows?: number;
   } = {}): Promise<string> {
-    try {
-      const id = await invoke<string>("terminal_create", options);
-      return id;
-    } catch (error) {
-      console.error("Failed to create terminal:", error);
-      throw error;
+    const maxRetries = 2;
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 0) {
+          console.log(`Terminal creation retry attempt ${attempt}/${maxRetries}`);
+          // Small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+        }
+
+        const id = await invoke<string>("terminal_create", options);
+
+        if (attempt > 0) {
+          console.log(`Terminal created successfully on attempt ${attempt + 1}`);
+        }
+
+        return id;
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`Failed to create terminal (attempt ${attempt + 1}/${maxRetries + 1}):`, error);
+
+        if (attempt === maxRetries) {
+          // Last attempt failed
+          break;
+        }
+      }
     }
+
+    // All attempts failed
+    const errorMsg = lastError?.message || 'Unknown error';
+    console.error(`Terminal creation failed after ${maxRetries + 1} attempts:`, errorMsg);
+    throw new Error(`Failed to create terminal session: ${errorMsg}`);
   }
 
   /**
