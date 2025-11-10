@@ -56,6 +56,7 @@ This document outlines a comprehensive plan to upgrade Rainy Aether's error/diag
 ### What We Have (Strong Foundation)
 
 #### 1. DiagnosticService (`src/services/diagnosticService.ts`)
+
 - ✅ Centralized singleton service
 - ✅ Monaco marker listener integration
 - ✅ Observer pattern with `subscribe()` method
@@ -64,6 +65,7 @@ This document outlines a comprehensive plan to upgrade Rainy Aether's error/diag
 - ✅ Severity levels matching Monaco (Error=8, Warning=4, Info=2, Hint=1)
 
 #### 2. ProblemsPanel (`src/components/ide/ProblemsPanel.tsx`)
+
 - ✅ Diagnostic display grouped by file
 - ✅ Filtering by severity (All, Errors, Warnings, Info)
 - ✅ Source badges (monaco, typescript, git, linter)
@@ -71,12 +73,14 @@ This document outlines a comprehensive plan to upgrade Rainy Aether's error/diag
 - ✅ Real-time updates via subscription
 
 #### 3. StatusBar (`src/components/ide/StatusBar.tsx`)
+
 - ✅ Aggregate problem count display
 - ✅ Dynamic icon based on severity (✓ green, ⚠ yellow, ✖ red)
 - ✅ Real-time statistics updates
 - ✅ Tooltip with error/warning counts
 
 #### 4. LSP Integration (`src/services/lsp/`)
+
 - ✅ LSP client infrastructure
 - ✅ Monaco adapter for language servers
 - ✅ Diagnostic conversion pipeline
@@ -2702,6 +2706,7 @@ import { FixedSizeList as List } from 'react-window';
 ```
 
 **Benefits:**
+
 - Only renders visible items
 - Handles 10,000+ markers smoothly
 - Constant memory usage
@@ -2835,4 +2840,3 @@ This implementation plan provides a comprehensive roadmap to bring Rainy Aether'
 **Document Status:** ✅ Complete
 **Ready for Implementation:** Yes
 **Estimated Timeline:** 3-4 weeks (full-time developer)
-
