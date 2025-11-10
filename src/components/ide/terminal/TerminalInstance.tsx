@@ -165,23 +165,41 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({
     }
   }, [searchQuery]);
 
-  // Focus when active
+  // Focus when active and trigger resize
   useEffect(() => {
-    if (isActive && terminalRef.current) {
+    if (isActive && terminalRef.current && fitAddonRef.current && containerRef.current) {
       try {
+        // Trigger resize when becoming visible
+        const rect = containerRef.current.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          fitAddonRef.current.fit();
+          const { cols, rows } = terminalRef.current;
+          if (onResize) {
+            onResize(cols, rows);
+          }
+          const service = getTerminalService();
+          service.resize(sessionId, cols, rows);
+        }
+
         terminalRef.current.focus();
       } catch (error) {
         console.warn('Failed to focus terminal:', error);
       }
     }
-  }, [isActive]);
+  }, [isActive, sessionId, onResize]);
 
   // Handle resize
   useEffect(() => {
     if (!fitAddonRef.current || !terminalRef.current) return;
 
     const handleResize = () => {
-      if (!fitAddonRef.current || !terminalRef.current) return;
+      if (!fitAddonRef.current || !terminalRef.current || !containerRef.current) return;
+
+      // Only resize if the terminal is visible and has dimensions
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        return; // Skip resize when element has no dimensions
+      }
 
       try {
         fitAddonRef.current.fit();

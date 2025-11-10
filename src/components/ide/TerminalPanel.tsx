@@ -27,9 +27,12 @@ const TerminalPanel: React.FC = () => {
   // Get current workspace path
   const currentWorkspacePath = ideState().workspace?.path;
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts - always active to allow shortcuts even when hidden
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Only process shortcuts when terminal is visible
+      if (!visible) return;
+
       // Ctrl/Cmd + Shift + F: Toggle search
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
         e.preventDefault();
@@ -52,10 +55,8 @@ const TerminalPanel: React.FC = () => {
       }
     };
 
-    if (visible) {
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
-    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [visible, layout, currentWorkspacePath]);
 
   const handleNewTerminal = useCallback(() => {
@@ -84,10 +85,8 @@ const TerminalPanel: React.FC = () => {
     }
   }, []);
 
-  if (!visible) {
-    return null;
-  }
-
+  // Don't return null - let parent control visibility via CSS
+  // This keeps the component mounted and preserves xterm.js state
   const activeSplit = layout.splits.find(s => s.id === layout.activeSplitId);
 
   return (

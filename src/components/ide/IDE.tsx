@@ -32,6 +32,7 @@ import ExtensionManager from "./ExtensionManager";
 import { initializeUpdateService, startAutoUpdateCheck } from "../../services/updateService";
 import ProblemsPanel from "./ProblemsPanel";
 import { cn } from "@/lib/cn";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 
 const IDE: React.FC = () => {
   const { state, actions } = useIDEStore();
@@ -49,7 +50,6 @@ const IDE: React.FC = () => {
   const [isExtensionManagerOpen, setIsExtensionManagerOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isProblemsPanelOpen, setIsProblemsPanelOpen] = useState(false);
-  const [activeBottomTab, setActiveBottomTab] = useState<'terminal' | 'problems'>('terminal');
 
   const tabSwitchHideTimerRef = useRef<number | null>(null);
   const quickOpenRef = useRef(isQuickOpenOpen);
@@ -266,13 +266,7 @@ const IDE: React.FC = () => {
 
       if (ctrl && shift && key === "m") {
         event.preventDefault();
-        setIsProblemsPanelOpen((prev) => {
-          const newState = !prev;
-          if (newState) {
-            setActiveBottomTab('problems');
-          }
-          return newState;
-        });
+        setIsProblemsPanelOpen((prev) => !prev);
         return;
       }
     };
@@ -468,6 +462,8 @@ const IDE: React.FC = () => {
                 <div className="flex-1 overflow-hidden">
                   <ResizablePanelGroup direction="vertical" className="h-full">
                     <ResizablePanel
+                      id="editor-panel"
+                      order={1}
                       defaultSize={(terminalVisible || problemsPanelVisible) ? 70 : 100}
                       minSize={30}
                       className="min-h-[200px]"
@@ -478,73 +474,47 @@ const IDE: React.FC = () => {
                       <>
                         <ResizableHandle withHandle />
                         <ResizablePanel
+                          id="bottom-panel"
+                          order={2}
                           defaultSize={30}
                           minSize={20}
                           collapsedSize={0}
                           collapsible
                           className="min-h-[160px]"
                         >
-                          {/* Bottom panel area with tabs */}
-                          <div className="h-full flex flex-col">
-                            {/* Tab bar */}
-                            {(terminalVisible || problemsPanelVisible) && (
-                              <div className="flex items-center gap-1 px-2 py-1 bg-muted/30 border-b border-border">
-                                {problemsPanelVisible && (
-                                  <button
-                                    onClick={() => setActiveBottomTab('problems')}
-                                    className={cn(
-                                      "px-3 py-1 text-xs rounded transition-colors",
-                                      activeBottomTab === 'problems'
-                                        ? "bg-background text-foreground"
-                                        : "hover:bg-muted text-muted-foreground"
-                                    )}
-                                  >
-                                    Problems
-                                  </button>
-                                )}
-                                {terminalVisible && (
-                                  <button
-                                    onClick={() => setActiveBottomTab('terminal')}
-                                    className={cn(
-                                      "px-3 py-1 text-xs rounded transition-colors",
-                                      activeBottomTab === 'terminal'
-                                        ? "bg-background text-foreground"
-                                        : "hover:bg-muted text-muted-foreground"
-                                    )}
-                                  >
-                                    Terminal
-                                  </button>
-                                )}
-                              </div>
+                          {/* Bottom panel with Tabs */}
+                          <Tabs defaultValue="terminal" className="h-full flex flex-col gap-0">
+                            <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8">
+                              {terminalVisible && (
+                                <TabsTrigger
+                                  value="terminal"
+                                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                                >
+                                  Terminal
+                                </TabsTrigger>
+                              )}
+                              {problemsPanelVisible && (
+                                <TabsTrigger
+                                  value="problems"
+                                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                                >
+                                  Problems
+                                </TabsTrigger>
+                              )}
+                            </TabsList>
+
+                            {terminalVisible && (
+                              <TabsContent value="terminal" className="flex-1 m-0 h-full">
+                                <TerminalPanel />
+                              </TabsContent>
                             )}
 
-                            {/* Panel content - Keep both mounted, toggle visibility */}
-                            <div className="flex-1 overflow-hidden relative">
-                              {/* Terminal - Always mounted if visible */}
-                              {terminalVisible && (
-                                <div
-                                  className={cn(
-                                    "absolute inset-0",
-                                    activeBottomTab === 'terminal' ? 'block' : 'hidden'
-                                  )}
-                                >
-                                  <TerminalPanel />
-                                </div>
-                              )}
-
-                              {/* Problems Panel - Always mounted if visible */}
-                              {problemsPanelVisible && (
-                                <div
-                                  className={cn(
-                                    "absolute inset-0",
-                                    activeBottomTab === 'problems' ? 'block' : 'hidden'
-                                  )}
-                                >
-                                  <ProblemsPanel onClose={() => setIsProblemsPanelOpen(false)} />
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                            {problemsPanelVisible && (
+                              <TabsContent value="problems" className="flex-1 m-0 h-full">
+                                <ProblemsPanel onClose={() => setIsProblemsPanelOpen(false)} />
+                              </TabsContent>
+                            )}
+                          </Tabs>
                         </ResizablePanel>
                       </>
                     )}
