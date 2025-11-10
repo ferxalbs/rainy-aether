@@ -49,7 +49,8 @@ const IDE: React.FC = () => {
   const [isExtensionMarketplaceOpen, setIsExtensionMarketplaceOpen] = useState(false);
   const [isExtensionManagerOpen, setIsExtensionManagerOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
-  const [isProblemsPanelOpen, setIsProblemsPanelOpen] = useState(false);
+  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(true); // Panel unificado siempre disponible
+  const [activeBottomTab, setActiveBottomTab] = useState<'terminal' | 'problems'>('terminal');
 
   const tabSwitchHideTimerRef = useRef<number | null>(null);
   const quickOpenRef = useRef(isQuickOpenOpen);
@@ -266,7 +267,17 @@ const IDE: React.FC = () => {
 
       if (ctrl && shift && key === "m") {
         event.preventDefault();
-        setIsProblemsPanelOpen((prev) => !prev);
+        // Toggle panel y activar tab de Problems
+        setIsBottomPanelOpen((prev) => {
+          if (!prev) {
+            setActiveBottomTab('problems');
+            return true;
+          }
+          return !prev;
+        });
+        if (isBottomPanelOpen) {
+          setActiveBottomTab('problems');
+        }
         return;
       }
     };
@@ -334,9 +345,15 @@ const IDE: React.FC = () => {
       attachListener("shortcut/open-project", () => actionsRef.current.openFolderDialog());
       attachListener("shortcut/new-file", () => actionsRef.current.createNewFile());
       attachListener("shortcut/toggle-sidebar", () => actionsRef.current.toggleSidebar());
-      attachListener("shortcut/toggle-terminal", () => terminalActions.toggle());
+      attachListener("shortcut/toggle-terminal", () => {
+        setIsBottomPanelOpen(true);
+        setActiveBottomTab('terminal');
+      });
       attachListener("shortcut/redo", () => editorActions.redo());
-      attachListener("shortcut/toggle-problems", () => setIsProblemsPanelOpen((prev) => !prev));
+      attachListener("shortcut/toggle-problems", () => {
+        setIsBottomPanelOpen(true);
+        setActiveBottomTab('problems');
+      });
 
       (async () => {
         try {
@@ -396,7 +413,10 @@ const IDE: React.FC = () => {
           await registerShortcut("CommandOrControl+B", () => actionsRef.current.toggleSidebar());
           await registerShortcut("CommandOrControl+Shift+Z", () => editorActions.redo());
           await registerShortcut("CommandOrControl+Shift+X", () => setIsExtensionMarketplaceOpen(true));
-          await registerShortcut("CommandOrControl+Shift+M", () => setIsProblemsPanelOpen((prev) => !prev));
+          await registerShortcut("CommandOrControl+Shift+M", () => {
+            setIsBottomPanelOpen(true);
+            setActiveBottomTab('problems');
+          });
           console.info("Global shortcuts registered via JS plugin");
         } catch (error) {
           console.warn("Global shortcut plugin registration failed", error);
@@ -422,8 +442,7 @@ const IDE: React.FC = () => {
   const isZenMode = snapshot.isZenMode;
   const view = editorState.view;
   const maxLine = view ? view.getModel()?.getLineCount() ?? 1 : 1;
-  const terminalVisible = !isZenMode && terminalSnapshot.visible;
-  const problemsPanelVisible = !isZenMode && isProblemsPanelOpen;
+  const showBottomPanel = !isZenMode && isBottomPanelOpen;
 
   // Show workspace loading overlay when loading workspace
   const isWorkspaceLoading = loadingState.isLoading && loadingState.loadingContext === 'workspace';
@@ -464,13 +483,13 @@ const IDE: React.FC = () => {
                     <ResizablePanel
                       id="editor-panel"
                       order={1}
-                      defaultSize={(terminalVisible || problemsPanelVisible) ? 70 : 100}
+                      defaultSize={showBottomPanel ? 70 : 100}
                       minSize={30}
                       className="min-h-[200px]"
                     >
                       <FileViewer />
                     </ResizablePanel>
-                    {(terminalVisible || problemsPanelVisible) && (
+                    {showBottomPanel && (
                       <>
                         <ResizableHandle withHandle />
                         <ResizablePanel
@@ -482,38 +501,34 @@ const IDE: React.FC = () => {
                           collapsible
                           className="min-h-[160px]"
                         >
-                          {/* Bottom panel with Tabs */}
-                          <Tabs defaultValue="terminal" className="h-full flex flex-col gap-0">
+                          {/* Panel unificado con Tabs - Siempre muestra ambos tabs */}
+                          <Tabs
+                            value={activeBottomTab}
+                            onValueChange={(value) => setActiveBottomTab(value as 'terminal' | 'problems')}
+                            className="h-full flex flex-col gap-0"
+                          >
                             <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8">
-                              {terminalVisible && (
-                                <TabsTrigger
-                                  value="terminal"
-                                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                                >
-                                  Terminal
-                                </TabsTrigger>
-                              )}
-                              {problemsPanelVisible && (
-                                <TabsTrigger
-                                  value="problems"
-                                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                                >
-                                  Problems
-                                </TabsTrigger>
-                              )}
+                              <TabsTrigger
+                                value="terminal"
+                                className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                              >
+                                Terminal
+                              </TabsTrigger>
+                              <TabsTrigger
+                                value="problems"
+                                className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                              >
+                                Problems
+                              </TabsTrigger>
                             </TabsList>
 
-                            {terminalVisible && (
-                              <TabsContent value="terminal" className="flex-1 m-0 h-full">
-                                <TerminalPanel />
-                              </TabsContent>
-                            )}
+                            <TabsContent value="terminal" className="flex-1 m-0 h-full">
+                              <TerminalPanel />
+                            </TabsContent>
 
-                            {problemsPanelVisible && (
-                              <TabsContent value="problems" className="flex-1 m-0 h-full">
-                                <ProblemsPanel onClose={() => setIsProblemsPanelOpen(false)} />
-                              </TabsContent>
-                            )}
+                            <TabsContent value="problems" className="flex-1 m-0 h-full">
+                              <ProblemsPanel onClose={() => setIsBottomPanelOpen(false)} />
+                            </TabsContent>
                           </Tabs>
                         </ResizablePanel>
                       </>
@@ -521,7 +536,14 @@ const IDE: React.FC = () => {
                   </ResizablePanelGroup>
                 </div>
               </div>
-              {!isZenMode && <StatusBar onToggleProblemsPanel={() => setIsProblemsPanelOpen((prev) => !prev)} />}
+              {!isZenMode && (
+                <StatusBar
+                  onToggleProblemsPanel={() => {
+                    setIsBottomPanelOpen(true);
+                    setActiveBottomTab('problems');
+                  }}
+                />
+              )}
             </>
           )}
         </>
