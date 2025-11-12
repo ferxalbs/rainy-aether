@@ -523,7 +523,7 @@ const IDE: React.FC = () => {
                             <TabsContent value="terminal" className="flex-1 m-0 h-full" forceMount>
                               <div
                                 style={{ display: activeBottomTab === 'terminal' ? 'flex' : 'none' }}
-                                className="h-full flex-col"
+                                className="flex flex-1 flex-col h-full"
                               >
                                 <TerminalPanel />
                               </div>
@@ -532,7 +532,7 @@ const IDE: React.FC = () => {
                             <TabsContent value="problems" className="flex-1 m-0 h-full" forceMount>
                               <div
                                 style={{ display: activeBottomTab === 'problems' ? 'flex' : 'none' }}
-                                className="h-full flex-col"
+                                className="flex flex-1 flex-col h-full"
                               >
                                 <ProblemsPanel onClose={() => setIsBottomPanelOpen(false)} />
                               </div>
