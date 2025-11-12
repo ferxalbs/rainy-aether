@@ -3,6 +3,8 @@ mod extension_manager;
 mod extension_registry;
 mod file_operations;
 mod git_manager;
+mod git_native;  // New: Native libgit2 implementation
+mod git_config;  // New: Feature flags for gradual migration
 mod language_server_manager;
 mod project_manager;
 mod terminal_manager;
@@ -300,6 +302,22 @@ pub fn run() {
         git_manager::git_get_config,
         git_manager::git_set_config,
         git_manager::git_get_repo_info,
+        // Native Git implementation (libgit2)
+        git_native::git_is_repo_native,
+        git_native::git_status_native,
+        git_native::git_get_current_branch_native,
+        git_native::git_log_native,
+        git_native::git_branches_native,
+        git_native::git_create_branch_native,
+        git_native::git_checkout_branch_native,
+        git_native::git_show_files_native,
+        git_native::git_diff_native,
+        git_native::git_unpushed_native,
+        // Git configuration and feature flags
+        git_config::git_get_config,
+        git_config::git_set_use_native,
+        git_config::git_enable_native_operation,
+        git_config::git_disable_native_operation,
         // Extension management
         extension_manager::load_installed_extensions,
         extension_manager::save_installed_extensions,
