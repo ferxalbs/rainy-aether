@@ -286,7 +286,7 @@ pub fn git_log_native(path: String, max_count: Option<u32>) -> Result<Vec<Commit
 
 /// Format git time to ISO 8601 format
 fn format_time(time: Time) -> String {
-    use chrono::{DateTime, Utc};
+    use chrono::DateTime;
 
     let datetime = DateTime::from_timestamp(time.seconds(), 0)
         .unwrap_or_default();
@@ -618,7 +618,7 @@ pub fn git_diff_commit_native(path: String, commit: String) -> Result<Vec<FileDi
         let patch = git2::Patch::from_diff(&diff, idx)
             .map_err(|e| GitError::from_git2_error(e))?;
 
-        let (additions, deletions, diff_text) = if let Some(patch) = patch {
+        let (additions, deletions, diff_text) = if let Some(mut patch) = patch {
             let stats = patch.line_stats().map_err(|e| GitError::from_git2_error(e))?;
             let additions = stats.1 as u32; // additions
             let deletions = stats.2 as u32; // deletions
@@ -668,7 +668,7 @@ pub fn git_diff_file_native(
             .peel_to_tree()
             .map_err(|e| GitError::from_git2_error(e))?;
 
-        let index = repo
+        let mut index = repo
             .index()
             .map_err(|e| GitError::from_git2_error(e))?;
         let index_tree_oid = index
