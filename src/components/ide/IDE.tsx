@@ -520,22 +520,12 @@ const IDE: React.FC = () => {
                               </TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value="terminal" className="flex-1 m-0 h-full" forceMount>
-                              <div
-                                style={{ display: activeBottomTab === 'terminal' ? 'flex' : 'none' }}
-                                className="flex flex-1 flex-col h-full"
-                              >
-                                <TerminalPanel />
-                              </div>
+                            <TabsContent value="terminal" forceMount>
+                              <TerminalPanel />
                             </TabsContent>
 
-                            <TabsContent value="problems" className="flex-1 m-0 h-full" forceMount>
-                              <div
-                                style={{ display: activeBottomTab === 'problems' ? 'flex' : 'none' }}
-                                className="flex flex-1 flex-col h-full"
-                              >
-                                <ProblemsPanel onClose={() => setIsBottomPanelOpen(false)} />
-                              </div>
+                            <TabsContent value="problems" forceMount>
+                              <ProblemsPanel onClose={() => setIsBottomPanelOpen(false)} />
                             </TabsContent>
                           </Tabs>
                         </ResizablePanel>
