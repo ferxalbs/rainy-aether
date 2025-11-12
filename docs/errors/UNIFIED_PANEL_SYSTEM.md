@@ -222,34 +222,44 @@ Usuario está debuggeando:
 - Usuario puede hacer click en tabs
 - Estado sincronizado con React
 
-### Radix UI Hidden Attribute
+### Radix UI ForceMount Pattern
 
-Radix Tabs usa `hidden` attribute en lugar de unmounting:
+⚠️ **IMPORTANTE**: Por defecto, Radix Tabs **UNMOUNTS** el contenido de tabs inactivos, lo que destruye el estado del componente. Para mantener los componentes montados (esencial para preservar PTY sessions del terminal), debemos usar `forceMount` + visibilidad manual con CSS:
 
-```html
-<!-- Terminal activo -->
-<div data-state="active">
-  <TerminalPanel />
-</div>
-<div data-state="inactive" hidden>
-  <ProblemsPanel />
-</div>
+```tsx
+<TabsContent value="terminal" className="flex-1 m-0 h-full" forceMount>
+  <div
+    style={{ display: activeBottomTab === 'terminal' ? 'flex' : 'none' }}
+    className="h-full flex-col"
+  >
+    <TerminalPanel />
+  </div>
+</TabsContent>
 
-<!-- Problems activo -->
-<div data-state="inactive" hidden>
-  <TerminalPanel />
-</div>
-<div data-state="active">
-  <ProblemsPanel />
-</div>
+<TabsContent value="problems" className="flex-1 m-0 h-full" forceMount>
+  <div
+    style={{ display: activeBottomTab === 'problems' ? 'flex' : 'none' }}
+    className="h-full flex-col"
+  >
+    <ProblemsPanel onClose={() => setIsBottomPanelOpen(false)} />
+  </div>
+</TabsContent>
 ```
 
-**Ventajas:**
-- Componentes SIEMPRE montados
-- PTY sessions preservadas
-- Scroll positions preservadas
-- Estado preservado
-- Cambio instantáneo de tabs
+**Comportamiento con `forceMount`:**
+- ✅ Componentes SIEMPRE montados (no se unmount al cambiar tabs)
+- ✅ PTY sessions preservadas (xterm.js no se destruye)
+- ✅ Scroll positions preservadas
+- ✅ Estado preservado completamente
+- ✅ Cambio instantáneo de tabs sin re-renderizado
+- ✅ Visibilidad controlada con CSS (`display: none` cuando inactivo)
+
+**Sin `forceMount` (comportamiento por defecto - ❌ NO USAR):**
+- ❌ Tabs inactivos se unmount del DOM
+- ❌ `TerminalInstance.useEffect` cleanup se ejecuta
+- ❌ `terminalRef.current?.dispose()` destruye xterm.js
+- ❌ PTY connection se pierde
+- ❌ Terminal aparece "congelado" al volver
 
 ### Panel Collapse
 
