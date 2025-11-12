@@ -9,6 +9,7 @@ Rainy Code includes a robust automatic update system powered by the Tauri update
 The update system is organized in four layers:
 
 ### 1. Backend Layer (Rust)
+
 - **Location**: `src-tauri/src/update_manager.rs`
 - **Plugin**: `tauri-plugin-updater` v2
 - **Responsibilities**:
@@ -19,6 +20,7 @@ The update system is organized in four layers:
   - Handle errors and retries
 
 ### 2. Service Layer (TypeScript)
+
 - **Location**: `src/services/updateService.ts`
 - **Responsibilities**:
   - Initialize update service and event listeners
@@ -28,6 +30,7 @@ The update system is organized in four layers:
   - Handle application restart after updates
 
 ### 3. State Management
+
 - **Location**: `src/stores/updateStore.ts`
 - **Pattern**: `useSyncExternalStore` (React 18)
 - **State**:
@@ -39,6 +42,7 @@ The update system is organized in four layers:
   - `showNotification`: Whether to display update notification
 
 ### 4. UI Layer
+
 - **Location**: `src/components/ide/UpdateNotification.tsx`
 - **Features**:
   - Non-intrusive notification in top-right corner
@@ -60,7 +64,7 @@ The updater is configured in `src-tauri/tauri.conf.json`:
     "updater": {
       "active": true,
       "endpoints": [
-        "https://releases.rainycode.com/{{target}}/{{arch}}/{{current_version}}"
+        "https://www.enosislabs.com/releases/{{target}}/{{arch}}/{{current_version}}"
       ],
       "dialog": true,
       "pubkey": "YOUR_PUBLIC_KEY_HERE",
@@ -90,20 +94,22 @@ The updater is configured in `src-tauri/tauri.conf.json`:
 
 Your update server must provide a JSON manifest at the configured endpoint:
 
-**Endpoint Example**: `https://releases.rainycode.com/windows/x86_64/0.1.0`
+**Endpoint Example**: `https://www.enosislabs.com/releases/windows/x86_64/0.1.0`
 
 **Expected Response**:
+
 ```json
 {
   "version": "0.2.0",
   "date": "2025-11-04T12:00:00Z",
   "body": "## What's New\n\n- Feature A\n- Bug fix B\n- Improvement C",
-  "download_url": "https://releases.rainycode.com/downloads/rainy-code-0.2.0-x64.msi",
+  "download_url": "https://www.enosislabs.com/releases//downloads/rainy-code-0.2.0-x64.msi",
   "signature": "BASE64_SIGNATURE_HERE"
 }
 ```
 
 **Fields**:
+
 - `version`: New version number (semantic versioning)
 - `date`: Release date (ISO 8601 format)
 - `body`: Release notes (Markdown supported)
@@ -239,6 +245,7 @@ interface UpdateInfo {
 ```
 
 **Events Emitted**:
+
 - `update-status` with status `"checking"`
 - `update-status` with status `"available"` or `"up-to-date"` or `"error"`
 
@@ -249,6 +256,7 @@ interface UpdateInfo {
 **Returns**: `void`
 
 **Events Emitted**:
+
 - `update-status` with status `"downloading"` and progress updates
 - `update-status` with status `"installing"`
 - `update-status` with status `"ready"` or `"error"`
@@ -273,6 +281,7 @@ await listen('update-status', (event) => {
 ```
 
 **Event Payload**:
+
 ```typescript
 interface UpdateProgress {
   status: 'idle' | 'checking' | 'available' | 'downloading' |
@@ -283,6 +292,7 @@ interface UpdateProgress {
 ```
 
 **Status Lifecycle**:
+
 1. `checking` → Checking for updates
 2. `available` → Update found
 3. `downloading` → Download in progress (with progress %)
@@ -297,6 +307,7 @@ interface UpdateProgress {
 ### Automatic Update Flow
 
 1. **Initialization** (IDE.tsx `useEffect`):
+
    ```typescript
    await initializeUpdateService();
    startAutoUpdateCheck(24); // Check every 24 hours
@@ -338,6 +349,7 @@ await checkForUpdates();
 ```
 
 This can be triggered from:
+
 - Menu bar → Help → Check for Updates
 - Settings page
 - Command palette
@@ -368,6 +380,7 @@ tauri signer generate -w ~/.tauri/myapp.key
 ```
 
 This creates:
+
 - **Private key**: `~/.tauri/myapp.key` (keep secret!)
 - **Public key**: Printed to console
 
@@ -393,10 +406,12 @@ tauri signer sign ~/.tauri/myapp.key /path/to/rainy-code-0.2.0-x64.msi
 ```
 
 This generates a `.sig` file alongside the installer. Your update server must:
+
 1. Read the `.sig` file
 2. Include the signature in the JSON manifest
 
 **Manifest with Signature**:
+
 ```json
 {
   "version": "0.2.0",
@@ -414,6 +429,7 @@ Update endpoints **must** use HTTPS to prevent man-in-the-middle attacks. HTTP e
 ### Endpoint Validation
 
 The updater validates:
+
 - TLS certificate validity
 - Signature authenticity (if configured)
 - Version number format
@@ -447,6 +463,7 @@ The updater validates:
 ### Common Errors
 
 **Network Errors**:
+
 ```typescript
 {
   status: 'error',
@@ -455,6 +472,7 @@ The updater validates:
 ```
 
 **Signature Verification Failed**:
+
 ```typescript
 {
   status: 'error',
@@ -463,6 +481,7 @@ The updater validates:
 ```
 
 **Insufficient Permissions**:
+
 ```typescript
 {
   status: 'error',
@@ -488,11 +507,13 @@ Users can retry failed operations via the UI:
 ### Local Testing
 
 1. **Build a Release**:
+
    ```bash
    pnpm tauri build
    ```
 
 2. **Set Up Local Update Server**:
+
    ```bash
    # Create mock manifest
    cat > update-manifest.json <<EOF
@@ -509,6 +530,7 @@ Users can retry failed operations via the UI:
    ```
 
 3. **Update Configuration** (temporarily):
+
    ```json
    {
      "plugins": {

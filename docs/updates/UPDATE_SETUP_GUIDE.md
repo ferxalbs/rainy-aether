@@ -32,12 +32,14 @@ Add them in: **GitHub Repo → Settings → Secrets and variables → Actions**
 1. **Create a new repository** for your update server (e.g., `yourusername/rainy-aether-updates`)
 
 2. **Copy the update server files**:
+
    ```bash
    cp scripts/update-server.js your-update-repo/
    cp package.json your-update-repo/  # For dependencies
    ```
 
 3. **Configure for production**:
+
    ```bash
    export GITHUB_REPO=yourusername/rainy-aether
    export TAURI_PRIVATE_KEY=your_private_key_path
@@ -66,13 +68,16 @@ Add them in: **GitHub Repo → Settings → Secrets and variables → Actions**
 Before creating a new release:
 
 ### 1. Update Version
+
 ```bash
 # Update version in package.json
 npm version patch  # or minor/major
 ```
 
 ### 2. Create Release Notes
+
 Create a `CHANGELOG.md` file:
+
 ```markdown
 # Changelog
 
@@ -89,6 +94,7 @@ Create a `CHANGELOG.md` file:
 ```
 
 ### 3. Test Locally
+
 ```bash
 # Install dependencies
 pnpm install
@@ -102,6 +108,7 @@ pnpm tauri build
 ```
 
 ### 4. Create Git Tag
+
 ```bash
 git add .
 git commit -m "Release v0.2.0"
@@ -120,6 +127,7 @@ git push origin main --tags
 ## 🧪 Testing Updates
 
 ### Local Testing
+
 ```bash
 # Start local update server
 pnpm update-server
@@ -131,6 +139,7 @@ curl http://localhost:8080/windows/x86_64/0.0.1
 ```
 
 ### End-to-End Testing
+
 1. Build version 0.1.0
 2. Install and run the app
 3. Update package.json to 0.2.0
@@ -141,17 +150,20 @@ curl http://localhost:8080/windows/x86_64/0.0.1
 ## 🚨 Troubleshooting
 
 ### Updates Not Working
+
 - Check GitHub secrets are set correctly
 - Verify update server is accessible
 - Check browser console for error messages
 - Ensure HTTPS is used (HTTP will be rejected)
 
 ### Signature Verification Failed
+
 - Confirm public key in `tauri.conf.json` matches your generated key
 - Check private key is correct in GitHub secrets
 - Verify password is correct
 
 ### Build Failures
+
 - Check Tauri CLI version compatibility
 - Ensure all dependencies are installed
 - Verify signing key format
@@ -159,6 +171,7 @@ curl http://localhost:8080/windows/x86_64/0.0.1
 ## 📞 Support
 
 For issues with the update system:
+
 1. Check this documentation
 2. Review GitHub Actions logs
 3. Test locally first

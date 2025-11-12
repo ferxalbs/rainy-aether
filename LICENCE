@@ -1,33 +1,4 @@
-# Rainy Aether Sustainable Sovereign License
-
-**Version 1.0** | **Effective November 3, 2025**
-
----
-
-## Copyright Notice
-
-**Copyright © 2025 Enosis Labs Inc. All rights reserved.**
-
-This license governs the use, modification, and distribution of Rainy Aether software and associated materials.
-
----
-
-## Table of Contents
-
-1. [Overview & Philosophy](#1-overview--philosophy)
-2. [Definitions](#2-definitions)
-3. [Grant of Rights](#3-grant-of-rights)
-4. [Restrictions & Limitations](#4-restrictions--limitations)
-5. [Network Copyleft (AGPL v3)](#5-network-copyleft-agpl-v3)
-6. [Contributor License Agreement](#6-contributor-license-agreement)
-7. [Commercial Licensing](#7-commercial-licensing)
-8. [Governance & Compliance](#8-governance--compliance)
-9. [Termination](#9-termination)
-10. [Disclaimers & Liability](#10-disclaimers--liability)
-11. [General Provisions](#11-general-provisions)
-12. [Contact Information](#12-contact-information)
-
----
+# Rainy Aether Insiders Sustainable Sovereign License
 
 ## 1. Overview & Philosophy
 
@@ -504,19 +475,3 @@ Governed by Enosis Safety policy frameworks and Rainy Core compliance systems
 
 For more information: https://enosislabs.com/licensing
 ```
-
----
-
-## License Status
-
-**Version**: 1.0
-**Effective Date**: November 3, 2025
-**Last Updated**: November 2025
-**Status**: Active Production License
-**Applies To**: Rainy Aether v0.1.0 and later
-
----
-
-**END OF LICENSE**
-
-*For the latest version of this license, visit: https://github.com/enosislabs/rainy-aether/blob/main/LICENCE.md*

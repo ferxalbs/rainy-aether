@@ -46,12 +46,14 @@ This document outlines a comprehensive plan to migrate Rainy Aether's Git integr
 #### 1. **Visible CMD Windows (Critical on Windows)**
 
 **Problem:**
+
 - Every git operation spawns a new `git.exe` process
 - On Windows, `std::process::Command` creates visible console windows by default
 - With polling every 10 seconds, users see CMD windows flashing constantly
 - Extremely disruptive to user experience
 
 **Current Workaround:**
+
 ```rust
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -62,6 +64,7 @@ Command::new("git")
 ```
 
 **Why This Is Not Ideal:**
+
 - Still spawns a full process for every git operation
 - Adds ~50-200ms latency per operation
 - High CPU usage on frequent polling
@@ -70,12 +73,14 @@ Command::new("git")
 #### 2. **Performance Overhead**
 
 **Process Spawning Cost:**
+
 - Process creation: ~50-100ms
 - Git initialization: ~20-50ms
 - Actual operation: ~10-100ms (varies)
 - **Total per operation: ~80-250ms**
 
 **Current Polling Frequency:**
+
 - Status Bar: Every 10 seconds
 - File changes: On every file save
 - Branch operations: On user action
@@ -84,6 +89,7 @@ Command::new("git")
 #### 3. **Limited Error Handling**
 
 **Current Error Handling:**
+
 ```rust
 fn run_git(args: &[&str], cwd: &str) -> Result<String, String> {
     let output = Command::new("git")
@@ -101,6 +107,7 @@ fn run_git(args: &[&str], cwd: &str) -> Result<String, String> {
 ```
 
 **Problems:**
+
 - Errors are just strings, no structured error types
 - Cannot distinguish between different error types
 - Difficult to provide helpful error messages to users
@@ -109,17 +116,20 @@ fn run_git(args: &[&str], cwd: &str) -> Result<String, String> {
 #### 4. **Resource Consumption**
 
 **Memory Usage:**
+
 - Each git process: ~5-15 MB
 - With 6 concurrent operations: ~30-90 MB
 - Process overhead: ~500 KB per spawn
 
 **CPU Usage:**
+
 - Process creation: 5-10% CPU spike per operation
 - With frequent polling: Constant background CPU usage
 
 #### 5. **Limited Feature Support**
 
 **Current Limitations:**
+
 - Cannot access internal Git objects directly
 - No support for partial clones
 - No support for Git worktrees
@@ -261,6 +271,7 @@ src/services/
 ```
 
 **Problems with this flow:**
+
 - 5 layers of abstraction
 - Process spawn overhead at every operation
 - String parsing required for all output
@@ -305,6 +316,7 @@ src/services/
 ```
 
 **Benefits of this flow:**
+
 - 3 layers instead of 5
 - No process spawning
 - Direct access to Git objects
@@ -349,6 +361,7 @@ git2 = { version = "0.20.2", default-features = true }
 **Current Status:** Already in `Cargo.toml` ✅
 
 **Features we'll use:**
+
 - `default` - Core Git operations
 - `ssh` - SSH authentication
 - `https` - HTTPS authentication
@@ -440,6 +453,7 @@ impl GitError {
 ```
 
 **Why this structure?**
+
 - Encapsulates libgit2 Repository
 - Provides structured error types
 - Clear separation from legacy code
@@ -450,6 +464,7 @@ impl GitError {
 **Priority: CRITICAL** (called every 10 seconds)
 
 **Current Implementation:**
+
 ```rust
 pub fn git_status(path: String) -> Result<Vec<StatusEntry>, String> {
     let output = run_git(&["status", "--porcelain"], &path)?;
@@ -458,6 +473,7 @@ pub fn git_status(path: String) -> Result<Vec<StatusEntry>, String> {
 ```
 
 **New Implementation:**
+
 ```rust
 use git2::{Status, StatusOptions};
 
@@ -533,6 +549,7 @@ pub fn git_status_native(path: String) -> Result<Vec<StatusEntry>, GitError> {
 | git status (1000 files) | ~300ms | ~50ms | **6x faster** |
 
 **Why this is better:**
+
 - No process spawning
 - No string parsing
 - Direct access to Git index
@@ -585,6 +602,7 @@ impl Default for GitConfig {
 ```
 
 **Why feature flags?**
+
 - Gradual migration without breaking changes
 - Easy rollback if issues found
 - A/B testing of performance
@@ -615,6 +633,7 @@ fn git_status(path: String, config: State<GitConfig>) -> Result<Vec<StatusEntry>
 ```
 
 **Why this wrapper?**
+
 - Maintains API compatibility
 - Transparent migration
 - Easy to toggle between implementations
@@ -629,6 +648,7 @@ fn git_status(path: String, config: State<GitConfig>) -> Result<Vec<StatusEntry>
 #### 2.1 Repository Info Operations
 
 **Operations to migrate:**
+
 - `git_is_repo()` - Simple check
 - `git_get_current_branch()` - Read HEAD
 - `git_get_commit_info()` - Read commit object
@@ -656,6 +676,7 @@ pub fn git_get_current_branch_native(path: String) -> Result<String, GitError> {
 ```
 
 **Performance:**
+
 - CLI: ~80ms (spawn process + parse output)
 - Native: ~5ms (direct file read)
 - **Improvement: 16x faster**
@@ -663,6 +684,7 @@ pub fn git_get_current_branch_native(path: String) -> Result<String, GitError> {
 #### 2.2 Log/History Operations
 
 **Operations to migrate:**
+
 - `git_log()` - Commit history
 - `git_show_files()` - Files in commit
 - `git_diff()` - Commit diff
@@ -732,6 +754,7 @@ fn format_time(time: Time) -> String {
 ```
 
 **Performance:**
+
 - CLI (50 commits): ~200ms
 - Native (50 commits): ~30ms
 - **Improvement: 6.6x faster**
@@ -739,6 +762,7 @@ fn format_time(time: Time) -> String {
 #### 2.3 Branch Operations
 
 **Operations to migrate:**
+
 - `git_branches()` - List branches
 - `git_create_branch()` - Create branch
 - `git_checkout_branch()` - Switch branch
@@ -809,6 +833,7 @@ pub fn git_branches_native(path: String) -> Result<Vec<BranchInfo>, GitError> {
 ```
 
 **Performance:**
+
 - CLI (10 branches): ~150ms
 - Native (10 branches): ~20ms
 - **Improvement: 7.5x faster**
@@ -824,6 +849,7 @@ pub fn git_branches_native(path: String) -> Result<Vec<BranchInfo>, GitError> {
 #### 3.1 Staging Operations
 
 **Operations to migrate:**
+
 - `git_stage_file()` - Stage single file
 - `git_stage_all()` - Stage all changes
 - `git_unstage_file()` - Unstage file
@@ -858,6 +884,7 @@ pub fn git_stage_file_native(
 ```
 
 **Safety Measures:**
+
 1. Validate file paths before adding
 2. Check if file exists
 3. Verify repository state
@@ -867,6 +894,7 @@ pub fn git_stage_file_native(
 #### 3.2 Commit Operations
 
 **Operations to migrate:**
+
 - `git_commit()` - Create commit
 - `git_amend_commit()` - Amend last commit
 
@@ -926,6 +954,7 @@ pub fn git_commit_native(
 ```
 
 **Safety Measures:**
+
 1. Verify author information is valid
 2. Check if there are changes to commit
 3. Verify commit message is not empty
@@ -935,6 +964,7 @@ pub fn git_commit_native(
 #### 3.3 Stash Operations
 
 **Operations to migrate:**
+
 - `git_stash_list()` - List stashes
 - `git_stash_push()` - Create stash
 - `git_stash_pop()` - Apply stash
@@ -1052,6 +1082,7 @@ impl AuthCallbacks {
 ```
 
 **Authentication Methods Supported:**
+
 1. SSH keys (`~/.ssh/id_rsa`)
 2. SSH agent
 3. Git credential helper
@@ -1121,6 +1152,7 @@ pub async fn git_clone_native(
 ```
 
 **Features:**
+
 - Real-time progress reporting
 - Authentication support
 - Shallow clone support
@@ -1434,6 +1466,7 @@ pub fn git_resolve_conflict_native(
 #### Cumulative Impact
 
 **Current System (1 hour of active development):**
+
 - Status checks: 360 calls × 120ms = **43.2 seconds**
 - Branch info: 20 calls × 150ms = **3.0 seconds**
 - Log operations: 10 calls × 200ms = **2.0 seconds**
@@ -1441,6 +1474,7 @@ pub fn git_resolve_conflict_native(
 - **Total time in git operations: ~58 seconds/hour**
 
 **Native System (1 hour of active development):**
+
 - Status checks: 360 calls × 15ms = **5.4 seconds**
 - Branch info: 20 calls × 20ms = **0.4 seconds**
 - Log operations: 10 calls × 30ms = **0.3 seconds**
@@ -1454,6 +1488,7 @@ pub fn git_resolve_conflict_native(
 #### Memory Usage
 
 **Current (CLI-based):**
+
 ```
 Base application: ~150 MB
 + 6 concurrent git processes: ~60 MB (10 MB each)
@@ -1462,6 +1497,7 @@ Total peak: ~213 MB
 ```
 
 **Native (libgit2):**
+
 ```
 Base application: ~150 MB
 + libgit2 in-process: ~5 MB
@@ -1474,11 +1510,13 @@ Total peak: ~165 MB
 #### CPU Usage
 
 **Current (CLI-based):**
+
 - Process creation: 5-10% spike per operation
 - With status polling every 10s: **2-5% constant background CPU**
 - During intensive git operations: **15-25% CPU**
 
 **Native (libgit2):**
+
 - No process creation overhead
 - With status polling every 10s: **0.5-1% constant background CPU**
 - During intensive git operations: **5-10% CPU**
@@ -1490,11 +1528,13 @@ Total peak: ~165 MB
 #### 1. No More Flickering Windows (Windows)
 
 **Before:**
+
 - CMD window appears every 10 seconds
 - Visible flash during git operations
 - Distracting and unprofessional
 
 **After:**
+
 - All operations silent
 - No visible windows
 - Professional appearance
@@ -1504,11 +1544,13 @@ Total peak: ~165 MB
 #### 2. Faster Response Times
 
 **Status Bar Update:**
+
 - Before: 120ms delay
 - After: 15ms delay
 - User perceives as **instant** instead of slight lag
 
 **Branch Switching:**
+
 - Before: 150ms + UI render
 - After: 20ms + UI render
 - Feels **significantly more responsive**
@@ -1516,11 +1558,13 @@ Total peak: ~165 MB
 #### 3. Better Error Messages
 
 **Before (CLI):**
+
 ```
 Error: "fatal: not a git repository (or any of the parent directories): .git"
 ```
 
 **After (Native):**
+
 ```json
 {
   "code": "NotFound",
@@ -1535,11 +1579,13 @@ Error: "fatal: not a git repository (or any of the parent directories): .git"
 #### 4. Progress Reporting
 
 **Before (CLI):**
+
 - No progress during clone/fetch
 - User sees frozen UI
 - Unclear if operation is working
 
 **After (Native):**
+
 ```
 Cloning repository...
 Receiving objects: 245/1024 (23%)
@@ -1559,6 +1605,7 @@ Resolving deltas: 89/256 (34%)
 **Risk:** Native implementation could corrupt repository
 
 **Mitigation:**
+
 - Extensive testing on test repositories
 - Never modify `.git` directory directly
 - Use libgit2's atomic operations
@@ -1566,6 +1613,7 @@ Resolving deltas: 89/256 (34%)
 - Add repository validation checks
 
 **Validation:**
+
 ```rust
 fn validate_repo_integrity(path: &str) -> Result<(), GitError> {
     let repo = Repository::open(path)?;
@@ -1591,6 +1639,7 @@ fn validate_repo_integrity(path: &str) -> Result<(), GitError> {
 **Risk:** Users cannot authenticate with remotes
 
 **Mitigation:**
+
 - Support multiple auth methods (SSH, HTTPS, tokens)
 - Use git credential helper integration
 - Provide clear error messages for auth failures
@@ -1598,6 +1647,7 @@ fn validate_repo_integrity(path: &str) -> Result<(), GitError> {
 - Document authentication setup
 
 **Fallback Strategy:**
+
 - If native auth fails, fall back to CLI for remote operations
 - Log detailed auth error for debugging
 
@@ -1606,6 +1656,7 @@ fn validate_repo_integrity(path: &str) -> Result<(), GitError> {
 **Risk:** Unexpected repository states cause failures
 
 **Examples:**
+
 - Detached HEAD state
 - Rebasing/merging in progress
 - Corrupt index
@@ -1614,6 +1665,7 @@ fn validate_repo_integrity(path: &str) -> Result<(), GitError> {
 - Shallow clones
 
 **Mitigation:**
+
 - Comprehensive test suite covering edge cases
 - Graceful error handling
 - Feature flags to disable problematic operations
@@ -1626,6 +1678,7 @@ fn validate_repo_integrity(path: &str) -> Result<(), GitError> {
 **Risk:** Native implementation is slower than CLI for some operations
 
 **Mitigation:**
+
 - Benchmark every operation before migration
 - A/B testing with real users
 - Keep CLI fallback available
@@ -1636,6 +1689,7 @@ fn validate_repo_integrity(path: &str) -> Result<(), GitError> {
 **Risk:** Behavior differs across Windows/Mac/Linux
 
 **Mitigation:**
+
 - Test on all platforms
 - Use platform-specific code where needed
 - CI/CD testing on all platforms
@@ -1647,6 +1701,7 @@ fn validate_repo_integrity(path: &str) -> Result<(), GitError> {
 **Risk:** API changes break frontend
 
 **Mitigation:**
+
 - Maintain API compatibility layer
 - Gradual migration with feature flags
 - Versioned API if needed
@@ -1952,18 +2007,21 @@ mod benchmarks {
 ### Week 1: Foundation (Jan 15-19, 2025)
 
 **Goals:**
+
 - ✅ Setup git_native module
 - ✅ Migrate status operations
 - ✅ Create feature flag system
 - ✅ Write comprehensive tests
 
 **Deliverables:**
+
 - `git_native.rs` module
 - `git_config.rs` feature flags
 - Unit tests for status operations
 - Documentation
 
 **Success Criteria:**
+
 - All status tests passing
 - Performance benchmarks show 6x+ improvement
 - No regression in existing functionality
@@ -1971,17 +2029,20 @@ mod benchmarks {
 ### Week 2: Core Operations (Jan 22-26, 2025)
 
 **Goals:**
+
 - ✅ Migrate repository info operations
 - ✅ Migrate log/history operations
 - ✅ Migrate branch operations
 - ✅ Integration testing
 
 **Deliverables:**
+
 - Native implementations of 15+ operations
 - Integration tests
 - Performance benchmarks
 
 **Success Criteria:**
+
 - All core operations migrated
 - 90%+ test coverage
 - Performance improvements documented
@@ -1989,18 +2050,21 @@ mod benchmarks {
 ### Week 3: Write Operations (Jan 29 - Feb 2, 2025)
 
 **Goals:**
+
 - ✅ Migrate staging operations
 - ✅ Migrate commit operations
 - ✅ Migrate stash operations
 - ✅ Safety validation
 
 **Deliverables:**
+
 - Write operation implementations
 - Atomic operation handling
 - Rollback mechanisms
 - Safety tests
 
 **Success Criteria:**
+
 - All write operations safe and tested
 - No data corruption in any test
 - Rollback working correctly
@@ -2008,18 +2072,21 @@ mod benchmarks {
 ### Week 4: Remote Operations (Feb 5-9, 2025)
 
 **Goals:**
+
 - ✅ Implement authentication system
 - ✅ Migrate push/pull/fetch
 - ✅ Migrate clone operation
 - ✅ Progress reporting
 
 **Deliverables:**
+
 - Auth callback system
 - Remote operations
 - Progress events
 - Auth tests with real services
 
 **Success Criteria:**
+
 - Auth working with GitHub/GitLab
 - Progress events functioning
 - Remote operations stable
@@ -2027,18 +2094,21 @@ mod benchmarks {
 ### Week 5: Advanced Operations (Feb 12-16, 2025)
 
 **Goals:**
+
 - ✅ Migrate merge operations
 - ✅ Migrate conflict resolution
 - ✅ Migrate tag operations
 - ✅ Complete testing
 
 **Deliverables:**
+
 - Advanced operation implementations
 - E2E tests
 - Performance report
 - Migration documentation
 
 **Success Criteria:**
+
 - All operations migrated
 - Full test suite passing
 - Performance targets met
@@ -2047,18 +2117,21 @@ mod benchmarks {
 ### Week 6: Rollout & Monitoring (Feb 19-23, 2025)
 
 **Goals:**
+
 - ✅ Enable native by default
 - ✅ Monitor for issues
 - ✅ Gather user feedback
 - ✅ Fix any critical bugs
 
 **Deliverables:**
+
 - Stable release
 - Monitoring dashboard
 - User feedback system
 - Bug fixes
 
 **Success Criteria:**
+
 - No critical bugs reported
 - Positive user feedback
 - Performance improvements confirmed
@@ -2071,10 +2144,12 @@ mod benchmarks {
 ### Phase A: Internal Testing (Week 6)
 
 **Participants:**
+
 - Development team
 - 5-10 internal testers
 
 **Configuration:**
+
 ```json
 {
   "git": {
@@ -2092,6 +2167,7 @@ mod benchmarks {
 ```
 
 **Metrics to Monitor:**
+
 - Operation success rates
 - Performance metrics
 - Error rates
@@ -2100,11 +2176,13 @@ mod benchmarks {
 ### Phase B: Beta Testing (Week 7)
 
 **Participants:**
+
 - 50-100 beta testers
 - Diverse repository types
 - All platforms (Windows, Mac, Linux)
 
 **Configuration:**
+
 ```json
 {
   "git": {
@@ -2122,6 +2200,7 @@ mod benchmarks {
 ```
 
 **Exit Criteria:**
+
 - < 0.1% error rate
 - No data corruption reports
 - Positive feedback from 90%+ testers
@@ -2133,6 +2212,7 @@ mod benchmarks {
 **Week 10:** 100% of users
 
 **Rollback Plan:**
+
 - Can disable native mode via config
 - CLI fallback always available
 - Emergency override flag
@@ -2140,6 +2220,7 @@ mod benchmarks {
 ### Phase D: CLI Deprecation (Week 12)
 
 **After 4 weeks of stable operation:**
+
 - Mark CLI implementation as deprecated
 - Remove CLI code in next major version
 - Keep CLI fallback for 1 more release
@@ -2181,10 +2262,10 @@ mod benchmarks {
 
 ### Documentation
 
-1. **libgit2 Documentation**: https://libgit2.org/docs/
-2. **git2 Rust Crate**: https://docs.rs/git2/latest/git2/
-3. **Git Internals**: https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain
-4. **Tauri Documentation**: https://tauri.app/v1/guides/
+1. **libgit2 Documentation**: <https://libgit2.org/docs/>
+2. **git2 Rust Crate**: <https://docs.rs/git2/latest/git2/>
+3. **Git Internals**: <https://git-scm.com/book/en/v2/Git-Internals-Plumbing-and-Porcelain>
+4. **Tauri Documentation**: <https://tauri.app/v1/guides/>
 
 ### Example Implementations
 
@@ -2196,8 +2277,8 @@ mod benchmarks {
 ### Learning Resources
 
 1. **Git Internals Book**: Pro Git Chapter 10
-2. **libgit2 Examples**: https://github.com/libgit2/libgit2/tree/main/examples
-3. **git2-rs Examples**: https://github.com/rust-lang/git2-rs/tree/master/examples
+2. **libgit2 Examples**: <https://github.com/libgit2/libgit2/tree/main/examples>
+3. **git2-rs Examples**: <https://github.com/rust-lang/git2-rs/tree/master/examples>
 
 ---
 
@@ -2257,6 +2338,7 @@ mod benchmarks {
 | `git_reset` | ✅ | 📋 Planned | Week 5 | Dangerous |
 
 **Legend:**
+
 - ✅ = Implemented
 - 📋 = Planned
 - ⏸️ = Deferred
