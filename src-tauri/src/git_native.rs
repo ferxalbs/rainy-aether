@@ -648,10 +648,13 @@ pub fn git_diff_commit_native(
 
                 // Truncate if exceeds max lines
                 if max_lines < usize::MAX {
-                    let lines: Vec<&str> = full_diff.lines().collect();
-                    if lines.len() > max_lines {
-                        full_diff = lines[..max_lines].join("\n");
-                        full_diff.push_str(&format!("\n... (truncated {} lines)", lines.len() - max_lines));
+                    let line_count = full_diff.lines().count();
+                    if line_count > max_lines {
+                        let truncated: String = full_diff.lines()
+                            .take(max_lines)
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        full_diff = format!("{}\n... (truncated {} lines)", truncated, line_count - max_lines);
                     }
                 }
 
@@ -737,10 +740,13 @@ pub fn git_diff_commit_file_native(
 
         // Truncate if exceeds max lines
         if max_lines < usize::MAX {
-            let lines: Vec<&str> = diff_string.lines().collect();
-            if lines.len() > max_lines {
-                diff_string = lines[..max_lines].join("\n");
-                diff_string.push_str(&format!("\n... (truncated {} lines)", lines.len() - max_lines));
+            let line_count = diff_string.lines().count();
+            if line_count > max_lines {
+                let truncated: String = diff_string.lines()
+                    .take(max_lines)
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                diff_string = format!("{}\n... (truncated {} lines)", truncated, line_count - max_lines);
             }
         }
 
