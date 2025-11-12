@@ -6,7 +6,7 @@ import react from "@vitejs/plugin-react";
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -32,11 +32,20 @@ export default defineConfig(async () => ({
   },
   build: {
     target: "esnext",
-    worker: {
-      format: "es"
-    },
     rollupOptions: {
       external: ['vscode'], // Mark vscode as external (provided by extension host)
+      output: {
+        // Ensure proper format for workers
+        format: 'es',
+      },
+    },
+  },
+  worker: {
+    format: "es",
+    rollupOptions: {
+      output: {
+        format: 'es',
+      },
     },
   },
 
@@ -61,4 +70,4 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
-}));
+});

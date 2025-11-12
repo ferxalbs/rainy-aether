@@ -50,8 +50,8 @@ pub async fn check_for_updates(app: AppHandle) -> Result<UpdateInfo, String> {
                                 current_version: current_version.clone(),
                                 latest_version: Some(update.version.clone()),
                                 release_notes: update.body.clone(),
-                                release_date: Some(update.date.clone()),
-                                download_url: Some(update.download_url.clone()),
+                                release_date: update.date.map(|d| d.to_string()),
+                                download_url: Some(update.download_url.to_string()),
                             };
 
                             let _ = app.emit(

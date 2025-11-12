@@ -1,6 +1,9 @@
 use serde::Serialize;
 use std::process::Command;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 #[derive(Serialize, Debug, Clone)]
 pub struct GitStatus {
     pub branch: Option<String>,
@@ -33,6 +36,20 @@ pub struct CommitInfo {
 }
 
 fn run_git(args: &[&str], cwd: &str) -> Result<String, String> {
+    // CREATE_NO_WINDOW = 0x08000000
+    // This flag prevents the creation of a console window on Windows
+    #[cfg(target_os = "windows")]
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    #[cfg(target_os = "windows")]
+    let output = Command::new("git")
+        .args(["-C", cwd])
+        .args(args)
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|e| format!("Failed to execute git: {}", e))?;
+
+    #[cfg(not(target_os = "windows"))]
     let output = Command::new("git")
         .args(["-C", cwd])
         .args(args)
@@ -506,6 +523,17 @@ pub fn git_clone(
     args.push(&url);
     args.push(&destination);
 
+    #[cfg(target_os = "windows")]
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+    #[cfg(target_os = "windows")]
+    let output = Command::new("git")
+        .args(&args)
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|e| format!("Failed to execute git clone: {}", e))?;
+
+    #[cfg(not(target_os = "windows"))]
     let output = Command::new("git")
         .args(&args)
         .output()

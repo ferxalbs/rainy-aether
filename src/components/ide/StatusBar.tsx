@@ -241,9 +241,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     const updateStatus = async () => {
       await updateGitStatus();
     };
-    
+
     updateStatus();
-    const timer = setInterval(updateStatus, 5000); // Update every 5 seconds
+    const timer = setInterval(updateStatus, 10000); // Update every 10 seconds (reduced frequency to avoid performance issues)
 
     return () => clearInterval(timer);
   }, [state().workspace]);
