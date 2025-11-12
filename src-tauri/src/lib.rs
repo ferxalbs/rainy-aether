@@ -313,6 +313,8 @@ pub fn run() {
         git_native::git_show_files_native,
         git_native::git_diff_native,
         git_native::git_unpushed_native,
+        git_native::git_diff_commit_native,
+        git_native::git_diff_file_native,
         // Git configuration and feature flags
         git_config::git_get_native_config,
         git_config::git_set_use_native,

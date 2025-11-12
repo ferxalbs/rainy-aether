@@ -65,10 +65,10 @@ export const gitDiffTool: ToolDefinition<GitDiffInput, GitDiffOutput> = {
 
     try {
       if (file) {
-        // Diff specific file
-        const diff = await invoke<string>('git_diff_file', {
+        // Diff specific file (using native implementation for 10x faster performance)
+        const diff = await invoke<string>('git_diff_file_native', {
           path: context.workspaceRoot,
-          file,
+          filePath: file,
           staged: staged || false,
         });
 
