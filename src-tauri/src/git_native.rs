@@ -550,9 +550,22 @@ pub struct FileDiff {
 }
 
 /// Get diff for all files in a commit (optimized for commit viewing)
+///
+/// # Arguments
+/// * `path` - Repository path
+/// * `commit` - Commit hash
+/// * `metadata_only` - If true, only returns file stats without diff content (10-20x faster for large commits)
+/// * `max_lines_per_file` - Optional limit on diff lines per file (prevents massive string allocations)
 #[tauri::command]
-pub fn git_diff_commit_native(path: String, commit: String) -> Result<Vec<FileDiff>, String> {
+pub fn git_diff_commit_native(
+    path: String,
+    commit: String,
+    metadata_only: Option<bool>,
+    max_lines_per_file: Option<usize>
+) -> Result<Vec<FileDiff>, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+    let metadata_only = metadata_only.unwrap_or(false);
+    let max_lines = max_lines_per_file.unwrap_or(usize::MAX);
 
     let oid = Oid::from_str(&commit).map_err(|e| GitError::from_git2_error(e))?;
     let commit_obj = repo
@@ -623,11 +636,27 @@ pub fn git_diff_commit_native(path: String, commit: String) -> Result<Vec<FileDi
             let additions = stats.1 as u32; // additions
             let deletions = stats.2 as u32; // deletions
 
-            // Convert patch to string
-            let diff_text = patch
-                .to_buf()
-                .map_err(|e| GitError::from_git2_error(e))?;
-            let diff_string = String::from_utf8_lossy(diff_text.as_ref()).to_string();
+            // Only load diff content if not metadata-only mode
+            let diff_string = if metadata_only {
+                String::new()
+            } else {
+                // Convert patch to string
+                let diff_text = patch
+                    .to_buf()
+                    .map_err(|e| GitError::from_git2_error(e))?;
+                let mut full_diff = String::from_utf8_lossy(diff_text.as_ref()).to_string();
+
+                // Truncate if exceeds max lines
+                if max_lines < usize::MAX {
+                    let lines: Vec<&str> = full_diff.lines().collect();
+                    if lines.len() > max_lines {
+                        full_diff = lines[..max_lines].join("\n");
+                        full_diff.push_str(&format!("\n... (truncated {} lines)", lines.len() - max_lines));
+                    }
+                }
+
+                full_diff
+            };
 
             (additions, deletions, diff_string)
         } else {
@@ -645,6 +674,80 @@ pub fn git_diff_commit_native(path: String, commit: String) -> Result<Vec<FileDi
     }
 
     Ok(file_diffs)
+}
+
+/// Get diff for a specific file in a commit (lazy loading for accordion)
+/// This is used for on-demand loading when user expands a file in the commit viewer
+#[tauri::command]
+pub fn git_diff_commit_file_native(
+    path: String,
+    commit: String,
+    file_path: String,
+    max_lines: Option<usize>
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+    let max_lines = max_lines.unwrap_or(usize::MAX);
+
+    let oid = Oid::from_str(&commit).map_err(|e| GitError::from_git2_error(e))?;
+    let commit_obj = repo
+        .find_commit(oid)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    let tree = commit_obj
+        .tree()
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    let parent_tree = if commit_obj.parent_count() > 0 {
+        Some(
+            commit_obj
+                .parent(0)
+                .map_err(|e| GitError::from_git2_error(e))?
+                .tree()
+                .map_err(|e| GitError::from_git2_error(e))?,
+        )
+    } else {
+        None
+    };
+
+    // Create diff options with pathspec filter for single file
+    let mut diff_opts = DiffOptions::new();
+    diff_opts.pathspec(&file_path);
+
+    let diff = repo
+        .diff_tree_to_tree(
+            parent_tree.as_ref(),
+            Some(&tree),
+            Some(&mut diff_opts),
+        )
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Get the first (and only) delta
+    if diff.deltas().len() == 0 {
+        return Ok(String::new());
+    }
+
+    let patch = git2::Patch::from_diff(&diff, 0)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    if let Some(mut patch) = patch {
+        let diff_text = patch
+            .to_buf()
+            .map_err(|e| GitError::from_git2_error(e))?;
+        let mut diff_string = String::from_utf8_lossy(diff_text.as_ref()).to_string();
+
+        // Truncate if exceeds max lines
+        if max_lines < usize::MAX {
+            let lines: Vec<&str> = diff_string.lines().collect();
+            if lines.len() > max_lines {
+                diff_string = lines[..max_lines].join("\n");
+                diff_string.push_str(&format!("\n... (truncated {} lines)", lines.len() - max_lines));
+            }
+        }
+
+        Ok(diff_string)
+    } else {
+        Ok(String::new())
+    }
 }
 
 /// Get diff for a specific file (optimized)

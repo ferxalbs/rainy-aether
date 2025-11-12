@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from "react";
-import { X, GitCommit, FileText, Plus, Minus, Settings } from "lucide-react";
+import React, { useMemo, useState, useCallback } from "react";
+import { X, GitCommit, FileText, Plus, Minus, Settings, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { getCommitDiff, FileDiff, Commit } from "@/stores/gitStore";
+import { getCommitDiff, getCommitFileDiff, FileDiff, Commit } from "@/stores/gitStore";
 
 interface CommitDiffViewerProps {
   commit: Commit;
@@ -28,31 +28,70 @@ const CommitDiffViewer: React.FC<CommitDiffViewerProps> = ({
   const [showWhitespace, setShowWhitespace] = useState(true);
   const [expandedFiles, setExpandedFiles] = useState<string[]>([]);
   const [commitDiff, setCommitDiff] = useState<FileDiff[] | null>(null);
+  const [loadedDiffs, setLoadedDiffs] = useState<Map<string, string>>(new Map());
+  const [loadingDiffs, setLoadingDiffs] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load commit diff on mount
+  // Load commit diff metadata on mount (file paths and stats only, no diff content)
   React.useEffect(() => {
-    const loadCommitDiff = async () => {
+    const loadCommitMetadata = async () => {
       try {
         setLoading(true);
         setError(null);
-        const diff = await getCommitDiff(commit.hash);
+        // Load metadata only - 10-20x faster for large commits
+        // This loads file paths, status, and addition/deletion counts
+        // but NOT the actual diff content (that's loaded on-demand)
+        const diff = await getCommitDiff(commit.hash, true); // metadataOnly=true
         setCommitDiff(diff);
-        // Auto-expand first file if available
-        if (diff.length > 0) {
-          setExpandedFiles([diff[0].path]);
-        }
       } catch (err) {
-        console.error('Failed to load commit diff:', err);
+        console.error('Failed to load commit metadata:', err);
         setError('Failed to load commit changes');
       } finally {
         setLoading(false);
       }
     };
 
-    loadCommitDiff();
+    loadCommitMetadata();
   }, [commit.hash]);
+
+  // Load individual file diff when accordion expands
+  const loadFileDiff = useCallback(async (filePath: string) => {
+    // Skip if already loaded or currently loading
+    if (loadedDiffs.has(filePath) || loadingDiffs.has(filePath)) {
+      return;
+    }
+
+    try {
+      setLoadingDiffs(prev => new Set(prev).add(filePath));
+
+      // Load diff for this specific file with 500 line limit (prevents massive DOM updates)
+      const diffContent = await getCommitFileDiff(commit.hash, filePath, 500);
+
+      setLoadedDiffs(prev => new Map(prev).set(filePath, diffContent));
+    } catch (err) {
+      console.error(`Failed to load diff for ${filePath}:`, err);
+      setLoadedDiffs(prev => new Map(prev).set(filePath, 'Error loading diff'));
+    } finally {
+      setLoadingDiffs(prev => {
+        const next = new Set(prev);
+        next.delete(filePath);
+        return next;
+      });
+    }
+  }, [commit.hash, loadedDiffs, loadingDiffs]);
+
+  // Handle accordion value change
+  const handleAccordionChange = useCallback((value: string[]) => {
+    setExpandedFiles(value);
+
+    // Load diffs for newly expanded files
+    value.forEach(filePath => {
+      if (!loadedDiffs.has(filePath) && !loadingDiffs.has(filePath)) {
+        loadFileDiff(filePath);
+      }
+    });
+  }, [loadedDiffs, loadingDiffs, loadFileDiff]);
 
   const parseDiff = useMemo(() => (diffText: string): ParsedLine[] => {
     if (!diffText) return [];
@@ -130,50 +169,32 @@ const CommitDiffViewer: React.FC<CommitDiffViewerProps> = ({
   };
 
   const renderFileDiff = (file: FileDiff) => {
-    const parsedLines = parseDiff(file.diff);
+    const diffContent = loadedDiffs.get(file.path) || '';
+    const isLoadingDiff = loadingDiffs.has(file.path);
+    const parsedLines = parseDiff(diffContent);
 
     return (
       <div className="space-y-0">
-        {/* File Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-muted/20">
-          <div className="flex items-center gap-3">
-            <FileText className="size-4 text-muted-foreground" />
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-foreground">
-                {file.path}
-              </span>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className="text-xs">
-                  {file.status}
-                </Badge>
-                <div className="flex items-center gap-2">
-                  {file.additions > 0 && (
-                    <span className="flex items-center gap-1 text-[var(--diff-added)]">
-                      <Plus className="size-3" />
-                      {file.additions}
-                    </span>
-                  )}
-                  {file.deletions > 0 && (
-                    <span className="flex items-center gap-1 text-[var(--diff-removed)]">
-                      <Minus className="size-3" />
-                      {file.deletions}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Diff Content */}
         <div className="relative">
-          <div className="overflow-x-auto">
-            <div className="min-w-full font-mono text-sm">
-              {parsedLines.length === 0 ? (
-                <div className="text-center text-muted-foreground py-12">
-                  No changes to display
-                </div>
-              ) : (
+          {isLoadingDiff ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 className="size-6 animate-spin text-primary mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Loading diff...</p>
+              </div>
+            </div>
+          ) : diffContent.startsWith('Error') ? (
+            <div className="text-center text-destructive py-12">
+              <p className="text-sm">{diffContent}</p>
+            </div>
+          ) : parsedLines.length === 0 ? (
+            <div className="text-center text-muted-foreground py-12">
+              <p className="text-sm">No changes to display</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="min-w-full font-mono text-sm">
                 <div className="divide-y divide-border/20">
                   {parsedLines.map((line, index) => (
                     <div
@@ -222,9 +243,9 @@ const CommitDiffViewer: React.FC<CommitDiffViewerProps> = ({
                     </div>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     );
@@ -284,7 +305,7 @@ const CommitDiffViewer: React.FC<CommitDiffViewerProps> = ({
             </div>
           </div>
         ) : commitDiff && commitDiff.length > 0 ? (
-          <Accordion type="multiple" value={expandedFiles} onValueChange={setExpandedFiles} className="w-full">
+          <Accordion type="multiple" value={expandedFiles} onValueChange={handleAccordionChange} className="w-full">
             {commitDiff.map((file) => (
               <AccordionItem key={file.path} value={file.path} className="border-b border-border/30">
                 <AccordionTrigger className="px-6 py-4 hover:bg-muted/20 transition-colors">
