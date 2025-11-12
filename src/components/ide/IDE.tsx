@@ -497,7 +497,7 @@ const IDE: React.FC = () => {
                           minSize={20}
                           collapsedSize={0}
                           collapsible
-                          className="min-h-[160px]"
+                          className="min-h-40"
                         >
                           {/* Panel unificado con Tabs - Siempre muestra ambos tabs */}
                           <Tabs
@@ -520,22 +520,12 @@ const IDE: React.FC = () => {
                               </TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value="terminal" className="flex-1 m-0 h-full" forceMount>
-                              <div
-                                style={{ display: activeBottomTab === 'terminal' ? 'flex' : 'none' }}
-                                className="flex flex-1 flex-col h-full"
-                              >
-                                <TerminalPanel />
-                              </div>
+                            <TabsContent value="terminal" className="flex-1 m-0 h-full">
+                              <TerminalPanel />
                             </TabsContent>
 
-                            <TabsContent value="problems" className="flex-1 m-0 h-full" forceMount>
-                              <div
-                                style={{ display: activeBottomTab === 'problems' ? 'flex' : 'none' }}
-                                className="flex flex-1 flex-col h-full"
-                              >
-                                <ProblemsPanel onClose={() => setIsBottomPanelOpen(false)} />
-                              </div>
+                            <TabsContent value="problems" className="flex-1 m-0 h-full">
+                              <ProblemsPanel onClose={() => setIsBottomPanelOpen(false)} />
                             </TabsContent>
                           </Tabs>
                         </ResizablePanel>

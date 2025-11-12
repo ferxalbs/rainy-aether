@@ -31,6 +31,10 @@ export default defineConfig(async () => ({
     },
   },
   build: {
+    target: "esnext",
+    worker: {
+      format: "es"
+    },
     rollupOptions: {
       external: ['vscode'], // Mark vscode as external (provided by extension host)
     },
