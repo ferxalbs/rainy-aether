@@ -534,3 +534,166 @@ pub fn git_unpushed_native(path: String) -> Result<Vec<String>, String> {
 
     Ok(unpushed)
 }
+
+// ============================================================================
+// OPTIMIZED DIFF OPERATIONS FOR COMMIT VIEWING
+// ============================================================================
+
+#[derive(Serialize, Debug, Clone)]
+pub struct FileDiff {
+    pub path: String,
+    pub old_path: Option<String>,
+    pub status: String, // A, M, D, R, C
+    pub additions: u32,
+    pub deletions: u32,
+    pub diff: String,
+}
+
+/// Get diff for all files in a commit (optimized for commit viewing)
+#[tauri::command]
+pub fn git_diff_commit_native(path: String, commit: String) -> Result<Vec<FileDiff>, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let oid = Oid::from_str(&commit).map_err(|e| GitError::from_git2_error(e))?;
+    let commit_obj = repo
+        .find_commit(oid)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    let tree = commit_obj
+        .tree()
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    let parent_tree = if commit_obj.parent_count() > 0 {
+        Some(
+            commit_obj
+                .parent(0)
+                .map_err(|e| GitError::from_git2_error(e))?
+                .tree()
+                .map_err(|e| GitError::from_git2_error(e))?,
+        )
+    } else {
+        None
+    };
+
+    let diff = repo
+        .diff_tree_to_tree(
+            parent_tree.as_ref(),
+            Some(&tree),
+            Some(&mut DiffOptions::new()),
+        )
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    let mut file_diffs = Vec::new();
+
+    // Iterate through deltas to get file information
+    for (idx, delta) in diff.deltas().enumerate() {
+        let old_file = delta.old_file();
+        let new_file = delta.new_file();
+
+        let path = new_file
+            .path()
+            .or_else(|| old_file.path())
+            .and_then(|p| p.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        let old_path = if delta.status() == git2::Delta::Renamed {
+            old_file.path().and_then(|p| p.to_str()).map(|s| s.to_string())
+        } else {
+            None
+        };
+
+        let status = match delta.status() {
+            git2::Delta::Added => "A",
+            git2::Delta::Deleted => "D",
+            git2::Delta::Modified => "M",
+            git2::Delta::Renamed => "R",
+            git2::Delta::Copied => "C",
+            git2::Delta::Typechange => "T",
+            _ => "M",
+        }
+        .to_string();
+
+        // Get patch (diff content) for this file
+        let patch = git2::Patch::from_diff(&diff, idx)
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        let (additions, deletions, diff_text) = if let Some(patch) = patch {
+            let stats = patch.line_stats().map_err(|e| GitError::from_git2_error(e))?;
+            let additions = stats.1 as u32; // additions
+            let deletions = stats.2 as u32; // deletions
+
+            // Convert patch to string
+            let diff_text = patch
+                .to_buf()
+                .map_err(|e| GitError::from_git2_error(e))?;
+            let diff_string = String::from_utf8_lossy(diff_text.as_ref()).to_string();
+
+            (additions, deletions, diff_string)
+        } else {
+            (0, 0, String::new())
+        };
+
+        file_diffs.push(FileDiff {
+            path,
+            old_path,
+            status,
+            additions,
+            deletions,
+            diff: diff_text,
+        });
+    }
+
+    Ok(file_diffs)
+}
+
+/// Get diff for a specific file (optimized)
+#[tauri::command]
+pub fn git_diff_file_native(
+    path: String,
+    file_path: String,
+    staged: Option<bool>,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let mut diff_opts = DiffOptions::new();
+    diff_opts.pathspec(&file_path);
+
+    let diff = if staged.unwrap_or(false) {
+        // Diff between HEAD and index (staged changes)
+        let head = repo
+            .head()
+            .map_err(|e| GitError::from_git2_error(e))?;
+        let head_tree = head
+            .peel_to_tree()
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        let index = repo
+            .index()
+            .map_err(|e| GitError::from_git2_error(e))?;
+        let index_tree_oid = index
+            .write_tree()
+            .map_err(|e| GitError::from_git2_error(e))?;
+        let index_tree = repo
+            .find_tree(index_tree_oid)
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        repo.diff_tree_to_tree(Some(&head_tree), Some(&index_tree), Some(&mut diff_opts))
+            .map_err(|e| GitError::from_git2_error(e))?
+    } else {
+        // Diff between index and working tree (unstaged changes)
+        repo.diff_index_to_workdir(None, Some(&mut diff_opts))
+            .map_err(|e| GitError::from_git2_error(e))?
+    };
+
+    // Convert diff to patch string
+    let mut diff_string = String::new();
+    diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
+        let content = String::from_utf8_lossy(line.content());
+        diff_string.push_str(&content);
+        true
+    })
+    .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(diff_string)
+}
