@@ -139,25 +139,25 @@ impl GitConfig {
 
 // Tauri commands for managing git configuration
 #[tauri::command]
-pub fn git_get_config() -> GitConfig {
+pub fn git_get_native_config() -> GitConfig {
     GitConfig::default()
 }
 
 #[tauri::command]
-pub fn git_set_use_native(use_native: bool) -> Result<(), String> {
+pub fn git_set_use_native(_use_native: bool) -> Result<(), String> {
     // In a real implementation, this would persist to settings
     // For now, just return success
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_enable_native_operation(operation: String) -> Result<(), String> {
+pub fn git_enable_native_operation(_operation: String) -> Result<(), String> {
     // In a real implementation, this would persist to settings
     Ok(())
 }
 
 #[tauri::command]
-pub fn git_disable_native_operation(operation: String) -> Result<(), String> {
+pub fn git_disable_native_operation(_operation: String) -> Result<(), String> {
     // In a real implementation, this would persist to settings
     Ok(())
 }

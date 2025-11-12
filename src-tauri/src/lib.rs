@@ -314,7 +314,7 @@ pub fn run() {
         git_native::git_diff_native,
         git_native::git_unpushed_native,
         // Git configuration and feature flags
-        git_config::git_get_config,
+        git_config::git_get_native_config,
         git_config::git_set_use_native,
         git_config::git_enable_native_operation,
         git_config::git_disable_native_operation,

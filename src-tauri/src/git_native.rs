@@ -11,11 +11,10 @@
 //! - Direct access to Git internals
 
 use git2::{
-    BranchType, Commit as Git2Commit, DiffOptions, Error, ErrorCode, Oid, Repository,
-    Revwalk, Signature, Status, StatusOptions, Time,
+    BranchType, DiffOptions, Error, ErrorCode, Oid, Repository,
+    Status, StatusOptions, Time,
 };
 use serde::Serialize;
-use std::path::Path;
 
 // ============================================================================
 // ERROR HANDLING
@@ -287,11 +286,10 @@ pub fn git_log_native(path: String, max_count: Option<u32>) -> Result<Vec<Commit
 
 /// Format git time to ISO 8601 format
 fn format_time(time: Time) -> String {
-    use chrono::{DateTime, NaiveDateTime, Utc};
+    use chrono::{DateTime, Utc};
 
-    let naive = NaiveDateTime::from_timestamp_opt(time.seconds(), 0)
+    let datetime = DateTime::from_timestamp(time.seconds(), 0)
         .unwrap_or_default();
-    let datetime = DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc);
 
     datetime.to_rfc3339()
 }
@@ -322,12 +320,16 @@ pub fn git_branches_native(path: String) -> Result<Vec<BranchInfo>, String> {
 
         let is_head = branch.is_head();
 
-        let upstream = branch
-            .upstream()
-            .ok()
-            .and_then(|u| u.name().ok())
-            .flatten()
-            .map(|s| s.to_string());
+        // Get upstream name and convert to owned String
+        let upstream = match branch.upstream() {
+            Ok(upstream_branch) => {
+                match upstream_branch.name() {
+                    Ok(Some(name)) => Some(name.to_string()),
+                    _ => None,
+                }
+            }
+            Err(_) => None,
+        };
 
         branch_list.push(BranchInfo {
             name,
@@ -412,7 +414,7 @@ pub fn git_show_files_native(path: String, commit_hash: String) -> Result<Vec<St
         None
     };
 
-    let mut diff = repo
+    let diff = repo
         .diff_tree_to_tree(
             parent_tree.as_ref(),
             Some(&tree),
