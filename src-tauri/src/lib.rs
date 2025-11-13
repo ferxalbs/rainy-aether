@@ -1,3 +1,4 @@
+mod configuration_manager;
 mod credential_manager;
 mod extension_manager;
 mod extension_registry;
@@ -353,6 +354,16 @@ pub fn run() {
         language_server_manager::lsp_send_message,
         language_server_manager::lsp_is_server_running,
         language_server_manager::lsp_get_running_servers,
+        // Configuration management
+        configuration_manager::load_user_configuration,
+        configuration_manager::load_workspace_configuration,
+        configuration_manager::save_user_configuration,
+        configuration_manager::save_workspace_configuration,
+        configuration_manager::get_configuration_value,
+        configuration_manager::set_configuration_value,
+        configuration_manager::delete_configuration_value,
+        configuration_manager::validate_configuration_value,
+        configuration_manager::list_configuration_keys,
     ]);
 
     builder
