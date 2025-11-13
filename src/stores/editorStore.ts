@@ -60,6 +60,9 @@ export const editorActions = {
       updateEditorState({ view: null, wrapEnabled: true, capabilities: null });
     }
   },
+  getCurrentEditor() {
+    return editorState.view;
+  },
   setWrapEnabled(enabled: boolean) {
     updateEditorState({ wrapEnabled: enabled });
   },

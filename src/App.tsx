@@ -6,6 +6,8 @@ import { initializeTheme } from "./stores/themeStore";
 import { initializeSettings } from "./stores/settingsStore";
 import { configurationActions } from "./stores/configurationStore";
 import { initializeConfigurationBridge } from "./services/configurationBridge";
+import { initializeEditorConfigurationService } from "./services/editorConfigurationService";
+import { initializeAutoSaveService } from "./services/autoSaveService";
 import LoadingScreen from "./components/ui/loading-screen";
 import ErrorBoundary from "./components/ui/error-boundary";
 import { useLoadingState, loadingActions } from "./stores/loadingStore";
@@ -51,6 +53,14 @@ const App: React.FC = () => {
           // Initialize configuration bridge (register schemas and sync)
           await initializeConfigurationBridge();
           console.log('[App] Configuration bridge initialized successfully');
+
+          // Initialize editor configuration service (apply config to Monaco)
+          initializeEditorConfigurationService();
+          console.log('[App] Editor configuration service initialized successfully');
+
+          // Initialize auto-save service
+          initializeAutoSaveService();
+          console.log('[App] Auto-save service initialized successfully');
         } catch (error) {
           console.error('[App] Failed to initialize configuration system:', error);
           // Non-fatal error - continue with initialization

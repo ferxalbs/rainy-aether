@@ -27,6 +27,8 @@ import {
   themeState,
   setUserPreference,
   switchBaseTheme,
+  setCurrentTheme,
+  findThemeByName,
   type ThemeMode
 } from '@/stores/themeStore';
 
@@ -44,7 +46,29 @@ export function registerIDEConfigurations(): void {
       properties: {
           'workbench.colorTheme': {
             type: 'string',
-            default: 'github-day',
+            enum: [
+              'navy-day', 'navy-night',
+              'dark-day', 'dark-night',
+              'light-day', 'light-night',
+              'monokai-day', 'monokai-night',
+              'aurora-day', 'aurora-night',
+              'ember-day', 'ember-night'
+            ],
+            enumDescriptions: [
+              'Navy Blue - Day theme',
+              'Navy Blue - Night theme',
+              'Dark - Day theme',
+              'Dark - Night theme',
+              'Light - Day theme',
+              'Light - Night theme',
+              'Monokai - Day theme',
+              'Monokai - Night theme',
+              'Aurora - Day theme',
+              'Aurora - Night theme',
+              'Ember - Day theme',
+              'Ember - Night theme'
+            ],
+            default: 'navy-day',
             description: 'Specifies the color theme used in the workbench.',
             scope: ConfigurationScope.Window,
             order: 0
@@ -64,8 +88,17 @@ export function registerIDEConfigurations(): void {
           },
           'workbench.preferredColorThemeBase': {
             type: 'string',
-            default: 'github',
-            description: 'Specifies the base theme family (e.g., "github", "monokai", "aurora"). The specific variant (day/night) is determined by colorThemePreference.',
+            enum: ['navy', 'dark', 'light', 'monokai', 'aurora', 'ember'],
+            enumDescriptions: [
+              'Navy Blue theme family',
+              'Dark theme family',
+              'Light theme family',
+              'Monokai theme family',
+              'Aurora theme family',
+              'Ember theme family'
+            ],
+            default: 'navy',
+            description: 'Specifies the base theme family. The specific variant (day/night) is determined by colorThemePreference.',
             scope: ConfigurationScope.Window,
             order: 2
           },
@@ -415,7 +448,15 @@ export async function initializeConfigurationBridge(): Promise<void> {
 
       try {
         // Theme settings
-        if (key === 'workbench.colorThemePreference') {
+        if (key === 'workbench.colorTheme') {
+          // Direct theme change by full theme name (e.g., "navy-day", "monokai-night")
+          const theme = findThemeByName(value);
+          if (theme) {
+            void setCurrentTheme(theme);
+          } else {
+            console.warn(`[ConfigurationBridge] Theme not found: ${value}`);
+          }
+        } else if (key === 'workbench.colorThemePreference') {
           void setUserPreference(value as ThemeMode);
         } else if (key === 'workbench.preferredColorThemeBase') {
           const mode = themeState.userPreference === 'system' ? themeState.systemTheme : themeState.userPreference;
