@@ -610,6 +610,17 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
       console.warn("Failed to initialize git state", error);
     }
 
+    // Reinitialize configuration system with workspace path
+    try {
+      console.log('[IDE] Reinitializing configuration system with workspace:', workspace.path);
+      const { configurationActions } = await import("./configurationStore");
+      await configurationActions.initialize(workspace.path);
+      console.log('[IDE] Configuration system reinitialized with workspace successfully');
+    } catch (error) {
+      console.warn("Failed to reinitialize configuration system with workspace:", error);
+      // Non-fatal error - continue
+    }
+
     // Small delay to ensure Monaco is ready
     await new Promise(resolve => setTimeout(resolve, 200));
     loadingActions.completeStage('monaco');
