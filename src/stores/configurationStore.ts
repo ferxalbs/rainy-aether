@@ -117,11 +117,21 @@ export async function initializeConfiguration(workspacePath?: string): Promise<v
   setState(prev => ({ ...prev, isLoading: true, error: null }));
 
   try {
+    console.log('[ConfigurationStore] Starting initialization...');
+
     // Initialize service
     await configurationService.initialize(workspacePath);
 
     // Load all properties
     const properties = configurationService.getAllProperties();
+
+    console.log('[ConfigurationStore] Loaded properties:', properties.length);
+    console.log('[ConfigurationStore] Sample properties:', properties.slice(0, 3).map(p => ({
+      key: p.key,
+      value: p.value,
+      default: p.default,
+      isModified: p.isModified
+    })));
 
     // Listen for configuration changes
     configurationService.onChange(handleConfigurationChange);
@@ -132,9 +142,9 @@ export async function initializeConfiguration(workspacePath?: string): Promise<v
       isLoading: false
     }));
 
-    console.log('[ConfigurationStore] Initialized with', properties.length, 'properties');
+    console.log('[ConfigurationStore] ✅ Initialized successfully with', properties.length, 'properties');
   } catch (error: any) {
-    console.error('[ConfigurationStore] Initialization failed:', error);
+    console.error('[ConfigurationStore] ❌ Initialization failed:', error);
     setState(prev => ({
       ...prev,
       isLoading: false,
@@ -147,10 +157,20 @@ export async function initializeConfiguration(workspacePath?: string): Promise<v
  * Handle configuration change event from service
  */
 function handleConfigurationChange(event: ConfigurationChangeEvent): void {
-  console.log('[ConfigurationStore] Configuration changed:', event);
+  console.log('[ConfigurationStore] 🔄 Configuration changed:', {
+    changedKeys: event.changedKeys,
+    scope: event.scope,
+    newValues: event.newValues
+  });
 
   // Reload all properties to reflect changes
   const properties = configurationService.getAllProperties();
+
+  console.log('[ConfigurationStore] Reloaded properties. Sample:',
+    properties
+      .filter(p => event.changedKeys.includes(p.key))
+      .map(p => ({ key: p.key, value: p.value, isModified: p.isModified }))
+  );
 
   // Update search results if filter is active
   let searchResults = configurationState.searchResults;
@@ -177,11 +197,14 @@ export function getConfigurationValue<T = any>(key: string, defaultValue?: T): T
  */
 export async function setConfigurationValue(request: ConfigurationUpdateRequest): Promise<void> {
   try {
+    console.log('[ConfigurationStore] 💾 Setting value:', { key: request.key, value: request.value, scope: request.scope });
+
     await configurationService.set(request);
 
+    console.log('[ConfigurationStore] ✅ Value set successfully');
     // State will be updated via change event
   } catch (error: any) {
-    console.error('[ConfigurationStore] Failed to set value:', error);
+    console.error('[ConfigurationStore] ❌ Failed to set value:', error);
     setState(prev => ({
       ...prev,
       error: error.message || 'Failed to set configuration value'

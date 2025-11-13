@@ -24,6 +24,7 @@ This document defines the contract for mapping VS Code configuration schema type
 ### 1. String Type
 
 **Schema:**
+
 ```json
 {
   "type": "string",
@@ -35,6 +36,7 @@ This document defines the contract for mapping VS Code configuration schema type
 **Component:** `Input` (shadcn/ui)
 
 **Props:**
+
 ```typescript
 interface StringSettingProps {
   value: string;
@@ -45,6 +47,7 @@ interface StringSettingProps {
 ```
 
 **Features:**
+
 - Single-line text input
 - Pattern validation (regex)
 - Min/max length constraints
@@ -52,10 +55,12 @@ interface StringSettingProps {
 - Clear button when not empty
 
 **Variations:**
+
 - **Multiline**: Use `Textarea` when `editPresentation: 'multilineText'`
 - **Enum**: Use `Select` when `enum` property is present
 
 **Accessibility:**
+
 - `aria-label`: Property description
 - `aria-invalid`: true when validation fails
 - `aria-describedby`: Error message ID
@@ -65,6 +70,7 @@ interface StringSettingProps {
 ### 2. Number / Integer Type
 
 **Schema:**
+
 ```json
 {
   "type": "number",
@@ -78,6 +84,7 @@ interface StringSettingProps {
 **Component:** `Input[type="number"]` (shadcn/ui)
 
 **Props:**
+
 ```typescript
 interface NumberSettingProps {
   value: number;
@@ -88,6 +95,7 @@ interface NumberSettingProps {
 ```
 
 **Features:**
+
 - Number input with spinner controls
 - Min/max validation
 - Step value support (`multipleOf`)
@@ -95,11 +103,13 @@ interface NumberSettingProps {
 - Unit display (optional)
 
 **Validation:**
+
 - Range constraints (min/max)
 - Integer validation (when type is 'integer')
 - Step validation
 
 **Accessibility:**
+
 - `aria-valuemin`, `aria-valuemax`, `aria-valuenow`
 - Keyboard: Arrow keys for increment/decrement
 - Clear feedback on validation errors
@@ -109,6 +119,7 @@ interface NumberSettingProps {
 ### 3. Boolean Type
 
 **Schema:**
+
 ```json
 {
   "type": "boolean",
@@ -120,6 +131,7 @@ interface NumberSettingProps {
 **Component:** `Switch` (shadcn/ui)
 
 **Props:**
+
 ```typescript
 interface BooleanSettingProps {
   value: boolean;
@@ -129,12 +141,14 @@ interface BooleanSettingProps {
 ```
 
 **Features:**
+
 - Toggle switch (primary)
 - Checkbox (alternative, for compact layouts)
 - Clear on/off states
 - Immediate visual feedback
 
 **Accessibility:**
+
 - `role="switch"`
 - `aria-checked`: true/false
 - `aria-label`: Property description
@@ -145,6 +159,7 @@ interface BooleanSettingProps {
 ### 4. Enum Type
 
 **Schema:**
+
 ```json
 {
   "type": "string",
@@ -158,6 +173,7 @@ interface BooleanSettingProps {
 **Component:** `Select` (shadcn/ui)
 
 **Props:**
+
 ```typescript
 interface EnumSettingProps {
   value: string | number;
@@ -167,16 +183,19 @@ interface EnumSettingProps {
 ```
 
 **Features:**
+
 - Dropdown selection
 - Descriptions for each option
 - Search/filter (for long lists)
 - Keyboard navigation
 
 **Variations:**
+
 - **Radio Group**: For 2-4 options, use `RadioGroup` for better UX
 - **Combobox**: For 10+ options, use `Combobox` with search
 
 **Accessibility:**
+
 - `role="combobox"` or `role="radiogroup"`
 - `aria-label`: Property description
 - Arrow keys for navigation
@@ -187,6 +206,7 @@ interface EnumSettingProps {
 ### 5. Array Type
 
 **Schema:**
+
 ```json
 {
   "type": "array",
@@ -199,6 +219,7 @@ interface EnumSettingProps {
 **Component:** `ArrayEditor` (custom component)
 
 **Props:**
+
 ```typescript
 interface ArraySettingProps {
   value: any[];
@@ -209,6 +230,7 @@ interface ArraySettingProps {
 ```
 
 **Features:**
+
 - Add/remove items
 - Reorder via drag-and-drop
 - Item validation (based on `items` schema)
@@ -216,6 +238,7 @@ interface ArraySettingProps {
 - Unique items enforcement
 
 **UI Structure:**
+
 ```
 [Item 1]         [× Remove]
 [Item 2]         [× Remove]
@@ -224,6 +247,7 @@ interface ArraySettingProps {
 ```
 
 **Accessibility:**
+
 - Each item has delete button
 - Add button clearly labeled
 - Drag handles for reordering (optional)
@@ -234,6 +258,7 @@ interface ArraySettingProps {
 ### 6. Object Type
 
 **Schema:**
+
 ```json
 {
   "type": "object",
@@ -249,6 +274,7 @@ interface ArraySettingProps {
 **Component:** `ObjectEditor` (custom component)
 
 **Props:**
+
 ```typescript
 interface ObjectSettingProps {
   value: Record<string, any>;
@@ -259,17 +285,20 @@ interface ObjectSettingProps {
 ```
 
 **Features:**
+
 - Nested property editors
 - Schema-based validation
 - Collapsible sections for nested objects
 - JSON view toggle (read-only)
 
 **UI Variations:**
+
 1. **Inline Editor**: For simple objects (2-3 properties)
 2. **Modal Editor**: For complex objects (4+ properties)
 3. **JSON Editor**: Fallback for arbitrary objects
 
 **Accessibility:**
+
 - Each nested property labeled
 - Clear hierarchy with indentation
 - Expand/collapse keyboard controls
@@ -281,25 +310,30 @@ interface ObjectSettingProps {
 All setting components support these states:
 
 ### 1. Default State
+
 - Clean, unmodified appearance
 - Shows default value
 
 ### 2. Modified State
+
 - Visual indicator (e.g., blue dot or border)
 - "Reset to Default" button visible
 - Tooltip shows default value
 
 ### 3. Error State
+
 - Red border or underline
 - Error message below input
 - `aria-invalid="true"`
 
 ### 4. Disabled State
+
 - Grayed out appearance
 - Not interactive
 - Tooltip explains why disabled
 
 ### 5. Deprecated State
+
 - Warning icon
 - Deprecation message displayed
 - Link to replacement setting (if any)
@@ -325,6 +359,7 @@ Each setting follows this layout structure:
 ```
 
 **Elements:**
+
 1. **Header Row**:
    - Icon (based on type)
    - Configuration key (e.g., "editor.fontSize")
@@ -355,6 +390,7 @@ Each setting follows this layout structure:
 ### Search Matching
 
 Settings can be found by searching:
+
 1. **Configuration key**: `editor.fontSize`
 2. **Title/Description**: "font size", "text size"
 3. **Tags**: `#editor`, `#appearance`
@@ -364,11 +400,13 @@ Settings can be found by searching:
 ### Highlighting
 
 Matched terms are highlighted in:
+
 - Configuration key
 - Description text
 - Tags
 
 **Example:**
+
 ```
 Search: "font"
 
@@ -386,17 +424,20 @@ Results:
 ### Client-Side Validation
 
 **Triggered on:**
+
 - Value change (debounced)
 - Blur event
 - Form submission
 
 **Validation Rules:**
+
 - Type checking
 - Range constraints (min/max)
 - Pattern matching (regex)
 - Custom validators (from schema)
 
 **Error Display:**
+
 ```typescript
 interface ValidationError {
   message: string;      // Human-readable error
@@ -409,6 +450,7 @@ interface ValidationError {
 ### Server-Side Validation
 
 Before persisting, the Rust backend validates:
+
 - Schema compliance
 - Cross-setting dependencies
 - Platform-specific constraints
@@ -418,20 +460,24 @@ Before persisting, the Rust backend validates:
 ## Performance Optimizations
 
 ### 1. Lazy Rendering
+
 - Only render visible settings (virtualized scrolling)
 - Render settings on-demand as user scrolls
 
 ### 2. Debouncing
+
 - Input changes debounced (300ms)
 - Validation triggered after debounce
 - Prevent excessive re-renders
 
 ### 3. Memoization
+
 - Component props memoized with `React.memo`
 - Callbacks wrapped in `useCallback`
 - Values cached with `useMemo`
 
 ### 4. Virtualization
+
 - Use `react-window` or `react-virtual` for large lists (100+ settings)
 - Only render 20-30 items at a time
 - Smooth scrolling performance
@@ -443,24 +489,28 @@ Before persisting, the Rust backend validates:
 ### WCAG 2.1 Level AA Compliance
 
 **Keyboard Navigation:**
+
 - ✅ Tab through all controls
 - ✅ Arrow keys for selections
 - ✅ Enter/Space for actions
 - ✅ Escape to close modals
 
 **Screen Reader Support:**
+
 - ✅ Proper ARIA labels
 - ✅ Live regions for validation errors
 - ✅ Descriptive role attributes
 - ✅ State announcements (checked, invalid, etc.)
 
 **Visual Accessibility:**
+
 - ✅ Minimum 4.5:1 contrast ratio
 - ✅ Focus indicators visible
 - ✅ No color-only indicators
 - ✅ Resizable text (up to 200%)
 
 **Motor Accessibility:**
+
 - ✅ Large click targets (44x44px minimum)
 - ✅ No time-dependent interactions
 - ✅ Undo/redo support
@@ -472,6 +522,7 @@ Before persisting, the Rust backend validates:
 ### Unit Tests
 
 **For each component type:**
+
 ```typescript
 describe('StringSetting', () => {
   it('renders with default value', () => { ... });
@@ -487,6 +538,7 @@ describe('StringSetting', () => {
 ### Integration Tests
 
 **Settings UI flow:**
+
 ```typescript
 describe('SettingsUI', () => {
   it('loads settings from backend', () => { ... });
