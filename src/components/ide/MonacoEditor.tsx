@@ -3,6 +3,7 @@ import * as monaco from 'monaco-editor';
 import { editorActions } from '../../stores/editorStore';
 import { getCurrentTheme, subscribeToThemeChanges } from '../../stores/themeStore';
 import { configureMonaco, getLanguageFromFilename } from '../../services/monacoConfig';
+import { configurationService } from '../../services/configurationService';
 
 // Helper: Monaco expects hex colors WITHOUT the '#' prefix
 const toMonacoColor = (color: string): string => {
@@ -198,17 +199,28 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       model = monaco.editor.createModel(value, detectedLanguage, modelUri);
     }
 
+    // Get editor configuration from configuration service
+    const fontSize = configurationService.get<number>('editor.fontSize', 14);
+    const fontFamily = configurationService.get<string>('editor.fontFamily', 'Consolas, "Courier New", monospace');
+    const tabSize = configurationService.get<number>('editor.tabSize', 4);
+    const insertSpaces = configurationService.get<boolean>('editor.insertSpaces', true);
+    const wordWrap = configurationService.get<string>('editor.wordWrap', 'off');
+    const lineNumbers = configurationService.get<string>('editor.lineNumbers', 'on');
+    const minimapEnabled = configurationService.get<boolean>('editor.minimap.enabled', true);
+
     const editor = monaco.editor.create(container, {
       model,
       theme: themeName,
       readOnly,
       automaticLayout: false, // Disable automatic layout, we'll handle it manually
-      fontSize: 14,
-      fontFamily: '"Fira Code", "JetBrains Mono", "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-      lineNumbers: 'on',
-      minimap: { enabled: true },
+      fontSize,
+      fontFamily,
+      tabSize,
+      insertSpaces,
+      lineNumbers: lineNumbers as 'on' | 'off' | 'relative' | 'interval',
+      minimap: { enabled: minimapEnabled },
       scrollBeyondLastLine: false,
-      wordWrap: 'on',
+      wordWrap: wordWrap as 'off' | 'on' | 'wordWrapColumn' | 'bounded',
       bracketPairColorization: { enabled: true },
       guides: {
         bracketPairs: true,
