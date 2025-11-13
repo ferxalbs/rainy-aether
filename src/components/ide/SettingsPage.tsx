@@ -14,6 +14,12 @@ import {
   switchBaseTheme
 } from "../../stores/themeStore";
 import { ConfigurationSettings } from "./ConfigurationSettings";
+import { StringSetting } from "@/components/configuration/StringSetting";
+import { BooleanSetting } from "@/components/configuration/BooleanSetting";
+import { EnumSetting } from "@/components/configuration/EnumSetting";
+import { ObjectSetting } from "@/components/configuration/ObjectSetting";
+import { useConfigurationState, configurationActions } from "@/stores/configurationStore";
+import type { ResolvedConfigurationProperty } from "@/types/configuration";
 
 const extOrder = ["ts", "tsx", "js", "jsx", "rs", "json", "md", "css", "scss", "html", "svg"];
 
@@ -21,6 +27,7 @@ const SettingsPage = () => {
   const { actions } = useIDEStore();
   const settingsState = useSettingsState();
   const theme = useThemeState();
+  const configState = useConfigurationState();
   const themeOptions = useMemo(() => getThemeBaseOptions(), []);
   const activeThemeOption = useMemo(
     () => themeOptions.find((option) => option.id === theme.currentTheme.name.split("-")[0]),
@@ -42,6 +49,110 @@ const SettingsPage = () => {
   );
 
   const currentBase = useMemo(() => theme.currentTheme.name.split("-")[0], [theme.currentTheme.name]);
+
+  // Filter configuration properties by category
+  const appearanceProperties = useMemo(
+    () => configState.properties.filter(p => p.key.startsWith('workbench.') || p.key.startsWith('editor.')),
+    [configState.properties]
+  );
+
+  const explorerProperties = useMemo(
+    () => configState.properties.filter(p => p.key.startsWith('explorer.') || p.key.startsWith('files.')),
+    [configState.properties]
+  );
+
+  // Handle configuration property changes
+  const handlePropertyChange = useCallback(async (property: ResolvedConfigurationProperty, newValue: any) => {
+    try {
+      await configurationActions.set({
+        key: property.key,
+        value: newValue,
+        scope: 'user'
+      });
+    } catch (error: any) {
+      console.error('Failed to update configuration:', error);
+    }
+  }, []);
+
+  const handlePropertyReset = useCallback(async (property: ResolvedConfigurationProperty) => {
+    try {
+      await configurationActions.reset({
+        key: property.key,
+        scope: 'user'
+      });
+    } catch (error: any) {
+      console.error('Failed to reset configuration:', error);
+    }
+  }, []);
+
+  // Render setting control based on type
+  const renderSettingControl = useCallback((property: ResolvedConfigurationProperty) => {
+    const value = property.value ?? property.default;
+
+    // Enum type (has enum values)
+    if (property.enum && property.enum.length > 0) {
+      return (
+        <EnumSetting
+          key={property.key}
+          property={property}
+          value={value}
+          onChange={(newValue) => handlePropertyChange(property, newValue)}
+          onReset={() => handlePropertyReset(property)}
+        />
+      );
+    }
+
+    // Type-based rendering
+    switch (property.type) {
+      case 'string':
+        return (
+          <StringSetting
+            key={property.key}
+            property={property}
+            value={value || ''}
+            onChange={(newValue) => handlePropertyChange(property, newValue)}
+            onReset={() => handlePropertyReset(property)}
+          />
+        );
+
+      case 'number':
+      case 'integer':
+        return (
+          <StringSetting
+            key={property.key}
+            property={property}
+            value={String(value || 0)}
+            onChange={(newValue) => handlePropertyChange(property, parseFloat(newValue))}
+            onReset={() => handlePropertyReset(property)}
+          />
+        );
+
+      case 'boolean':
+        return (
+          <BooleanSetting
+            key={property.key}
+            property={property}
+            value={value || false}
+            onChange={(newValue) => handlePropertyChange(property, newValue)}
+            onReset={() => handlePropertyReset(property)}
+          />
+        );
+
+      case 'object':
+        return (
+          <ObjectSetting
+            key={property.key}
+            property={property}
+            value={value || {}}
+            onChange={(newValue) => handlePropertyChange(property, newValue)}
+            onReset={() => handlePropertyReset(property)}
+          />
+        );
+
+      default:
+        return null;
+    }
+  }, [handlePropertyChange, handlePropertyReset]);
 
   // Render Advanced Settings view
   if (currentView === "advanced") {
@@ -287,61 +398,62 @@ const SettingsPage = () => {
 
         {/* Appearance Settings View */}
         {currentView === "appearance" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Appearance Configuration</CardTitle>
-              <CardDescription>
-                Detailed appearance settings. For advanced configuration, visit{" "}
-                <Button
-                  variant="link"
-                  className="p-0 h-auto font-normal text-primary"
-                  onClick={() => setCurrentView("advanced")}
-                >
-                  All Settings
-                </Button>
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Configure editor appearance, fonts, colors, and UI elements.
-                Quick theme and icon settings are available in the Quick Settings tab.
-              </p>
-              <div className="mt-4">
-                <Button onClick={() => setCurrentView("advanced")}>
-                  Open Advanced Settings
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Appearance Configuration</CardTitle>
+                <CardDescription>
+                  Configure workbench appearance, editor fonts, colors, and UI elements. For more options, visit{" "}
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto font-normal text-primary"
+                    onClick={() => setCurrentView("advanced")}
+                  >
+                    All Settings
+                  </Button>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {appearanceProperties.length > 0 ? (
+                  appearanceProperties.map(property => renderSettingControl(property))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No appearance settings available. Configure settings in the Advanced view.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* Explorer Settings View */}
         {currentView === "explorer" && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Explorer Configuration</CardTitle>
-              <CardDescription>
-                Configure file explorer behavior and display options. For advanced configuration, visit{" "}
-                <Button
-                  variant="link"
-                  className="p-0 h-auto font-normal text-primary"
-                  onClick={() => setCurrentView("advanced")}
-                >
-                  All Settings
-                </Button>
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Configure file sorting, filtering, icon display, and explorer tree behavior.
-              </p>
-              <div className="mt-4">
-                <Button onClick={() => setCurrentView("advanced")}>
-                  Open Advanced Settings
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Explorer Configuration</CardTitle>
+                <CardDescription>
+                  Configure file explorer behavior, sorting, filtering, and icon display. For more options, visit{" "}
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto font-normal text-primary"
+                    onClick={() => setCurrentView("advanced")}
+                  >
+                    All Settings
+                  </Button>
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {explorerProperties.length > 0 ? (
+                  explorerProperties.map(property => renderSettingControl(property))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No explorer settings available. Configure settings in the Advanced view.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

@@ -4,6 +4,8 @@ import IDE from "./components/ide/IDE";
 import { IDEProvider } from "./stores/ideStore";
 import { initializeTheme } from "./stores/themeStore";
 import { initializeSettings } from "./stores/settingsStore";
+import { configurationActions } from "./stores/configurationStore";
+import { initializeConfigurationBridge } from "./services/configurationBridge";
 import LoadingScreen from "./components/ui/loading-screen";
 import ErrorBoundary from "./components/ui/error-boundary";
 import { useLoadingState, loadingActions } from "./stores/loadingStore";
@@ -38,6 +40,21 @@ const App: React.FC = () => {
         loadingActions.startStage('settings');
         await initializeSettings();
         loadingActions.completeStage('settings');
+
+        // Stage 2.3: Configuration System
+        // Initialize VS Code-compatible configuration system
+        try {
+          console.log('[App] Initializing configuration system...');
+          await configurationActions.initialize();
+          console.log('[App] Configuration system initialized successfully');
+
+          // Initialize configuration bridge (register schemas and sync)
+          await initializeConfigurationBridge();
+          console.log('[App] Configuration bridge initialized successfully');
+        } catch (error) {
+          console.error('[App] Failed to initialize configuration system:', error);
+          // Non-fatal error - continue with initialization
+        }
 
         // Stage 2.5: Icon Themes
         // Register default icon theme (auto-activate only if no preference)
