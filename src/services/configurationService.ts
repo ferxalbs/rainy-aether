@@ -8,8 +8,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import type {
-  ConfigurationProperty,
-  ConfigurationContribution,
   ExtensionConfiguration,
   ResolvedConfigurationProperty,
   ConfigurationChangeEvent,
@@ -17,8 +15,7 @@ import type {
   ConfigurationSearchResult,
   ConfigurationFilterOptions,
   ConfigurationUpdateRequest,
-  ConfigurationResetRequest,
-  ScopedConfigurationValue
+  ConfigurationResetRequest
 } from '@/types/configuration';
 
 /**

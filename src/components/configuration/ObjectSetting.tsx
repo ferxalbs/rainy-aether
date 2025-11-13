@@ -60,7 +60,6 @@ export const ObjectSetting: React.FC<ObjectSettingProps> = ({
   return (
     <SettingControl
       property={property}
-      value={value}
       isModified={isModified}
       onReset={onReset}
       error={error || undefined}

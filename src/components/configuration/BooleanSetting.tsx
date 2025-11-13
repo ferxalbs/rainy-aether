@@ -35,7 +35,6 @@ export const BooleanSetting: React.FC<BooleanSettingProps> = ({
   return (
     <SettingControl
       property={property}
-      value={value}
       isModified={isModified}
       onReset={onReset}
     >

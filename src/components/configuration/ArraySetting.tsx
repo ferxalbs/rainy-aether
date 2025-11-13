@@ -72,7 +72,6 @@ export const ArraySetting: React.FC<ArraySettingProps> = ({
   return (
     <SettingControl
       property={property}
-      value={value}
       isModified={isModified}
       onReset={onReset}
       error={error || undefined}
