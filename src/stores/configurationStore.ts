@@ -316,7 +316,7 @@ export async function exportConfiguration(): Promise<string> {
 /**
  * Import configuration (from backup/sync)
  */
-export async function importConfiguration(json: string): Promise<void> {
+export async function importConfiguration(_json: string): Promise<void> {
   // TODO: Implement configuration import
   throw new Error('Not implemented');
 }

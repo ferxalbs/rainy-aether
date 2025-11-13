@@ -5,12 +5,11 @@
  * VS Code-compatible settings UI with search, filters, and categorization.
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Settings2, Filter, X } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { Search, Settings2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';

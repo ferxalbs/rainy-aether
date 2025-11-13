@@ -18,9 +18,6 @@ export interface SettingControlProps {
   /** Configuration property */
   property: ResolvedConfigurationProperty;
 
-  /** Current effective value */
-  value: any;
-
   /** Modified indicator */
   isModified: boolean;
 
@@ -39,7 +36,6 @@ export interface SettingControlProps {
 
 export const SettingControl: React.FC<SettingControlProps> = ({
   property,
-  value,
   isModified,
   children,
   onReset,

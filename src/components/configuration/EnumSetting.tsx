@@ -47,7 +47,6 @@ export const EnumSetting: React.FC<EnumSettingProps> = ({
   return (
     <SettingControl
       property={property}
-      value={value}
       isModified={isModified}
       onReset={onReset}
     >
