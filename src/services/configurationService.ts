@@ -65,15 +65,19 @@ class ConfigurationService {
    */
   private async initializeEventListener(): Promise<void> {
     try {
+      console.log('[ConfigurationService] 🎧 Setting up Tauri event listener for "configuration-changed"...');
+
       this.unlistenTauriEvent = await listen<ConfigurationChangeEvent>(
         'configuration-changed',
         (event) => {
-          console.log('[ConfigurationService] Configuration changed:', event.payload);
+          console.log('[ConfigurationService] 📨 Tauri event received:', event.payload);
           this.handleConfigurationChange(event.payload);
         }
       );
+
+      console.log('[ConfigurationService] ✅ Tauri event listener registered successfully');
     } catch (error) {
-      console.error('[ConfigurationService] Failed to initialize event listener:', error);
+      console.error('[ConfigurationService] ❌ Failed to initialize event listener:', error);
     }
   }
 
@@ -81,6 +85,13 @@ class ConfigurationService {
    * Handle configuration change event from Rust backend
    */
   private handleConfigurationChange(event: ConfigurationChangeEvent): void {
+    console.log('[ConfigurationService] 🔥 handleConfigurationChange called:', {
+      scope: event.scope,
+      scopeType: typeof event.scope,
+      changedKeys: event.changedKeys,
+      newValues: event.newValues
+    });
+
     // Update local cache
     if (event.scope === 'user') {
       event.changedKeys.forEach(key => {

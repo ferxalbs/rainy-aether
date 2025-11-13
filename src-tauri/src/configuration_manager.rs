@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -135,6 +135,7 @@ pub struct ResolvedConfiguration {
 
 /// Configuration change event
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ConfigurationChangeEvent {
     /// Changed keys
     pub changed_keys: Vec<String>,
