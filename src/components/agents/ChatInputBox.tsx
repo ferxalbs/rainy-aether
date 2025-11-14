@@ -67,13 +67,13 @@ export function ChatInputBox({
   const isMessageEmpty = !message.trim();
 
   return (
-    <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-secondary/50 to-secondary/30 backdrop-blur-sm p-1 shadow-sm hover:shadow-md transition-all duration-200">
-      <div className="rounded-xl border border-border/30 bg-background/80 backdrop-blur-sm">
+    <div className="rounded-xl border border-border bg-card shadow-lg backdrop-blur-xl supports-[backdrop-filter]:bg-card/80">
+      <div className="p-1">
         <Textarea
           placeholder={placeholder}
           value={message}
           onChange={(e) => onMessageChange(e.target.value)}
-          className="min-h-[100px] max-h-[200px] resize-none border-0 bg-transparent px-4 py-3 text-base placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:ring-offset-0 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
+          className="min-h-[100px] max-h-[200px] resize-none border-0 bg-transparent px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -82,7 +82,7 @@ export function ChatInputBox({
           }}
         />
 
-        <div className="flex items-center justify-between px-3 py-2.5 border-t border-border/30">
+        <div className="flex items-center justify-between px-3 py-2 border-t border-border">
           <div className="flex items-center gap-1">
             <TooltipProvider>
               <Tooltip>
@@ -90,9 +90,9 @@ export function ChatInputBox({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="size-8 rounded-lg hover:bg-accent/50 transition-colors"
+                    className="size-8 text-muted-foreground hover:text-foreground hover:bg-accent"
                   >
-                    <PaperclipIcon className="size-4 text-muted-foreground" />
+                    <PaperclipIcon className="size-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -105,13 +105,13 @@ export function ChatInputBox({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="size-8 rounded-lg hover:bg-accent/50 transition-colors"
+                    className="size-8 text-muted-foreground hover:text-foreground hover:bg-accent"
                   >
-                    <CodeIcon className="size-4 text-muted-foreground" />
+                    <CodeIcon className="size-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Attach code context</p>
+                  <p>Attach code</p>
                 </TooltipContent>
               </Tooltip>
 
@@ -120,9 +120,9 @@ export function ChatInputBox({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="size-8 rounded-lg hover:bg-accent/50 transition-colors"
+                    className="size-8 text-muted-foreground hover:text-foreground hover:bg-accent"
                   >
-                    <MicIcon className="size-4 text-muted-foreground" />
+                    <MicIcon className="size-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -130,48 +130,6 @@ export function ChatInputBox({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-
-            {showTools && (
-              <div className="flex items-center gap-1 ml-1">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1.5 h-7 rounded-lg hover:bg-accent/50 px-2.5 transition-colors"
-                      >
-                        <CircleDashedIcon className="size-3.5 text-muted-foreground" />
-                        <span className="hidden sm:inline text-xs text-muted-foreground font-medium">
-                          Search
-                        </span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Deep search mode</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1.5 h-7 rounded-lg hover:bg-accent/50 px-2.5 transition-colors"
-                      >
-                        <SparklesIcon className="size-3.5 text-muted-foreground" />
-                        <span className="hidden sm:inline text-xs text-muted-foreground font-medium">
-                          Think
-                        </span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Advanced reasoning</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -181,18 +139,18 @@ export function ChatInputBox({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-2 h-8 px-2 hover:bg-accent/50 rounded-lg transition-colors"
+                    className="gap-2 h-7 px-2 text-muted-foreground hover:text-foreground hover:bg-accent"
                   >
-                    <div className="size-5 rounded-md bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 flex items-center justify-center">
-                      <Logo className="size-3.5 text-white" />
+                    <div className="size-4 rounded bg-primary flex items-center justify-center">
+                      <Logo className="size-3 text-primary-foreground" />
                     </div>
-                    <span className="hidden sm:inline text-xs font-medium">
+                    <span className="hidden sm:inline text-xs">
                       {aiModels.find((m) => m.id === selectedModel)?.label}
                     </span>
-                    <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+                    <ChevronDownIcon className="size-3" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64 backdrop-blur-xl bg-background/95">
+                <DropdownMenuContent align="end" className="w-64">
                   {aiModels.map((model) => {
                     const ModelIcon = model.icon;
                     const isSelected = selectedModel === model.id;
@@ -200,16 +158,14 @@ export function ChatInputBox({
                       <DropdownMenuItem
                         key={model.id}
                         onClick={() => onModelChange(model.id)}
-                        className="gap-2 cursor-pointer py-2.5"
+                        className="gap-2 cursor-pointer"
                       >
-                        <div className="size-8 rounded-md bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 flex items-center justify-center">
-                          <ModelIcon className="size-4 text-white" />
-                        </div>
+                        <ModelIcon className="size-4" />
                         <div className="flex-1">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium">{model.label}</span>
+                            <span className="text-sm">{model.label}</span>
                             {model.pro && (
-                              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0">
                                 Pro
                               </Badge>
                             )}
@@ -220,11 +176,6 @@ export function ChatInputBox({
                       </DropdownMenuItem>
                     );
                   })}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer text-xs text-muted-foreground">
-                    <SparklesIcon className="size-3.5" />
-                    <span>Manage models</span>
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -233,10 +184,10 @@ export function ChatInputBox({
               size="sm"
               onClick={onSend}
               disabled={isMessageEmpty}
-              className="h-8 px-4 gap-1.5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-7 px-3 gap-1.5"
             >
-              <span className="text-sm font-medium">Send</span>
-              <SendIcon className="size-3.5" />
+              <span className="text-xs">Send</span>
+              <SendIcon className="size-3" />
             </Button>
           </div>
         </div>

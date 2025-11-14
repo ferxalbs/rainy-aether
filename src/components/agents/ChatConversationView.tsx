@@ -92,17 +92,17 @@ export function ChatConversationView({
       <div
         ref={scrollAreaRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50 px-4 md:px-8 py-6"
+        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent px-4 md:px-8 py-6 pb-32"
       >
-        <div className="max-w-[800px] mx-auto space-y-6">
+        <div className="max-w-[720px] mx-auto space-y-6">
           {/* Header with Reset Button */}
-          <div className="flex items-center justify-between sticky top-0 z-10 bg-background/80 backdrop-blur-md rounded-lg border border-border/50 px-4 py-3 mb-4 shadow-sm">
+          <div className="flex items-center justify-between sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg border border-border px-4 py-2.5 mb-4">
             <div className="flex items-center gap-3">
-              <div className="size-8 rounded-lg bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 flex items-center justify-center shadow-sm">
-                <SparklesIcon className="size-4 text-white" />
+              <div className="size-7 rounded-md bg-primary flex items-center justify-center">
+                <SparklesIcon className="size-4 text-primary-foreground" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold">Rainy AI</h3>
+                <h3 className="text-sm font-semibold text-foreground">Rainy AI</h3>
                 <p className="text-xs text-muted-foreground">
                   {messages.length} {messages.length === 1 ? 'message' : 'messages'}
                 </p>
@@ -115,10 +115,10 @@ export function ChatConversationView({
                     variant="ghost"
                     size="sm"
                     onClick={onReset}
-                    className="h-8 gap-2 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    className="h-7 gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   >
-                    <RotateCcwIcon className="size-4" />
-                    <span className="hidden sm:inline text-xs font-medium">New Chat</span>
+                    <RotateCcwIcon className="size-3.5" />
+                    <span className="hidden sm:inline text-xs">New Chat</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -129,39 +129,37 @@ export function ChatConversationView({
           </div>
 
           {/* Messages */}
-          <div className="space-y-6">
-            {messages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} />
-            ))}
-          </div>
+          {messages.map((msg) => (
+            <ChatMessage key={msg.id} message={msg} />
+          ))}
           <div ref={messagesEndRef} />
         </div>
       </div>
 
       {/* Scroll to bottom button */}
       {showScrollButton && (
-        <div className="absolute bottom-24 right-8 z-20 animate-in fade-in slide-in-from-bottom-2">
+        <div className="absolute bottom-28 right-8 z-20">
           <Button
             variant="secondary"
-            size="icon-sm"
+            size="icon"
             onClick={scrollToBottom}
-            className="size-10 rounded-full shadow-lg bg-background/95 backdrop-blur-sm border border-border/50 hover:bg-accent hover:shadow-xl transition-all duration-200"
+            className="size-10 rounded-full shadow-lg"
           >
             <ChevronDownIcon className="size-4" />
           </Button>
         </div>
       )}
 
-      {/* Input Area */}
-      <div className="border-t border-border/50 bg-gradient-to-t from-background via-background/95 to-background/80 backdrop-blur-xl px-4 md:px-8 py-4">
-        <div className="max-w-[800px] mx-auto">
-          <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-secondary/50 to-secondary/30 backdrop-blur-sm p-1 shadow-sm hover:shadow-md transition-all duration-200">
-            <div className="rounded-xl border border-border/30 bg-background/80 backdrop-blur-sm">
+      {/* Floating Input Area */}
+      <div className="absolute bottom-0 left-0 right-0 px-4 md:px-8 py-4 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
+        <div className="max-w-[720px] mx-auto pointer-events-auto">
+          <div className="rounded-xl border border-border bg-card shadow-xl backdrop-blur-xl supports-[backdrop-filter]:bg-card/80">
+            <div className="p-1">
               <Textarea
-                placeholder="Type your message... (Shift+Enter for new line)"
+                placeholder="Type your message..."
                 value={message}
                 onChange={(e) => onMessageChange(e.target.value)}
-                className="min-h-[80px] max-h-[200px] resize-none border-0 bg-transparent px-4 py-3 text-sm placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:ring-offset-0 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
+                className="min-h-[60px] max-h-[160px] resize-none border-0 bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -170,7 +168,7 @@ export function ChatConversationView({
                 }}
               />
 
-              <div className="flex items-center justify-between px-3 py-2.5 border-t border-border/30">
+              <div className="flex items-center justify-between px-3 py-2 border-t border-border">
                 <div className="flex items-center gap-1">
                   <TooltipProvider>
                     <Tooltip>
@@ -178,9 +176,9 @@ export function ChatConversationView({
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          className="size-8 rounded-lg hover:bg-accent/50 transition-colors"
+                          className="size-7 text-muted-foreground hover:text-foreground hover:bg-accent"
                         >
-                          <PaperclipIcon className="size-4 text-muted-foreground" />
+                          <PaperclipIcon className="size-3.5" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -193,28 +191,13 @@ export function ChatConversationView({
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          className="size-8 rounded-lg hover:bg-accent/50 transition-colors"
+                          className="size-7 text-muted-foreground hover:text-foreground hover:bg-accent"
                         >
-                          <CodeIcon className="size-4 text-muted-foreground" />
+                          <CodeIcon className="size-3.5" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Attach code context</p>
-                      </TooltipContent>
-                    </Tooltip>
-
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="size-8 rounded-lg hover:bg-accent/50 transition-colors"
-                        >
-                          <MicIcon className="size-4 text-muted-foreground" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Voice input</p>
+                        <p>Attach code</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -224,21 +207,14 @@ export function ChatConversationView({
                   size="sm"
                   onClick={handleSend}
                   disabled={isMessageEmpty}
-                  className={cn(
-                    'h-8 px-4 gap-1.5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-sm hover:shadow-md transition-all duration-200',
-                    isMessageEmpty && 'opacity-50 cursor-not-allowed'
-                  )}
+                  className="h-7 px-3 gap-1"
                 >
-                  <span className="text-sm font-medium">Send</span>
-                  <SendIcon className="size-3.5" />
+                  <span className="text-xs">Send</span>
+                  <SendIcon className="size-3" />
                 </Button>
               </div>
             </div>
           </div>
-          <p className="text-xs text-muted-foreground/60 mt-2 text-center">
-            Press <kbd className="px-1.5 py-0.5 text-[10px] font-semibold bg-muted/50 border border-border/50 rounded">Enter</kbd> to send,{' '}
-            <kbd className="px-1.5 py-0.5 text-[10px] font-semibold bg-muted/50 border border-border/50 rounded">Shift+Enter</kbd> for new line
-          </p>
         </div>
       </div>
     </div>

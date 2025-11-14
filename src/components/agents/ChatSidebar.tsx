@@ -64,25 +64,25 @@ export function ChatSidebar() {
   const archivedChats = chats.filter((chat) => chat.isArchived);
 
   return (
-    <div className="flex h-full w-full flex-col bg-sidebar border-r border-sidebar-border">
-      <div className="flex items-center justify-between p-3 border-b border-sidebar-border/50 bg-gradient-to-b from-sidebar/80 to-transparent backdrop-blur-sm">
+    <div className="flex h-full w-full flex-col bg-sidebar">
+      <div className="flex items-center justify-between p-3 border-b border-sidebar-border">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="w-full justify-start gap-2.5 px-2 h-10 hover:bg-sidebar-accent/50 transition-all duration-200"
+              className="w-full justify-start gap-2.5 px-2 h-10 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
-              <div className="size-6 rounded-md bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 flex items-center justify-center shadow-sm">
-                <Logo className="size-4 text-white" />
+              <div className="size-6 rounded-md bg-primary flex items-center justify-center">
+                <Logo className="size-4 text-primary-foreground" />
               </div>
               <span className="font-semibold text-sm">Rainy AI</span>
               <div className="ml-auto flex items-center gap-1.5">
-                <div className="size-5 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 shadow-sm border border-white/10" />
-                <ChevronDownIcon className="size-3 text-muted-foreground" />
+                <div className="size-5 rounded-full bg-primary" />
+                <ChevronDownIcon className="size-3.5" />
               </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-64 backdrop-blur-xl bg-background/95 border-border/50">
+          <DropdownMenuContent align="start" className="w-64">
             {teams.map((team) => {
               const TeamIcon = team.icon;
               const isSelected = selectedTeam === team.id;
@@ -90,7 +90,7 @@ export function ChatSidebar() {
                 <DropdownMenuItem
                   key={team.id}
                   onClick={() => setSelectedTeam(team.id)}
-                  className="gap-2 cursor-pointer transition-colors"
+                  className="gap-2 cursor-pointer"
                 >
                   <TeamIcon className="size-4" />
                   <span className="flex-1">{team.name}</span>
@@ -100,7 +100,7 @@ export function ChatSidebar() {
             })}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2 cursor-pointer">
-              <div className="size-4 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500" />
+              <div className="size-4 rounded-full bg-primary" />
               <span>Profile</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -110,35 +110,35 @@ export function ChatSidebar() {
       <div className="p-3 space-y-2">
         <Button
           onClick={createNewChat}
-          className="w-full justify-start gap-2 h-9 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-sm transition-all duration-200 hover:shadow-md"
+          className="w-full justify-start gap-2 h-9"
           variant="default"
         >
           <PlusIcon className="size-4" />
           <span className="text-sm font-medium">New Chat</span>
         </Button>
 
-        <div className="relative flex items-center group">
-          <SearchIcon className="absolute left-3 size-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+        <div className="relative flex items-center">
+          <SearchIcon className="absolute left-3 size-4 text-muted-foreground" />
           <Input
             placeholder="Search chats..."
-            className="pl-9 pr-10 h-8 bg-muted/20 backdrop-blur-sm border-border/30 focus-visible:border-primary/50 focus-visible:bg-background/50 text-sm transition-all duration-200"
+            className="pl-9 pr-10 h-8 bg-muted text-sm"
           />
-          <div className="absolute right-2 flex items-center justify-center size-5 rounded bg-muted/30 backdrop-blur-sm text-xs text-muted-foreground font-medium border border-border/30">
+          <div className="absolute right-2 flex items-center justify-center size-5 rounded bg-background text-xs text-muted-foreground font-medium border border-border">
             /
           </div>
         </div>
       </div>
 
       <div className="px-3 pb-2 space-y-0.5">
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground/90 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all duration-150">
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
           <HomeIcon className="size-4" />
           <span className="text-xs font-medium">Home</span>
         </Button>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground/90 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all duration-150">
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
           <SparklesIcon className="size-4" />
           <span className="text-xs font-medium">Ask AI</span>
         </Button>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground/90 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all duration-150">
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
           <FileStackIcon className="size-4" />
           <span className="text-xs font-medium">Prompts</span>
         </Button>
@@ -163,29 +163,29 @@ export function ChatSidebar() {
                 <div
                   key={chat.id}
                   className={cn(
-                    'group/item relative flex items-center rounded-lg overflow-hidden transition-all duration-150',
-                    isActive && 'bg-sidebar-accent/70 shadow-sm'
+                    'group/item relative flex items-center rounded-md overflow-hidden',
+                    isActive && 'bg-sidebar-accent'
                   )}
                 >
                   <Button
                     variant="ghost"
                     className={cn(
-                      'flex-1 justify-start gap-2 px-2 text-left h-auto py-1.5 min-w-0 pr-8 transition-all duration-150',
-                      isActive ? 'hover:bg-sidebar-accent/70' : 'hover:bg-accent/50'
+                      'flex-1 justify-start gap-2 px-2 text-left h-auto py-1.5 min-w-0 pr-8 text-sidebar-foreground',
+                      isActive && 'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent'
                     )}
                     onClick={() => selectChat(chat.id)}
                   >
-                    <Icon className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="text-sm truncate min-w-0 font-medium">
+                    <Icon className="size-4 shrink-0" />
+                    <span className="text-sm truncate min-w-0">
                       {chat.title}
                     </span>
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
-                        variant="secondary"
+                        variant="ghost"
                         size="icon-sm"
-                        className="absolute right-1 size-7 opacity-0 group-hover/item:opacity-100 data-[state=open]:opacity-100 transition-all duration-200 hover:bg-accent"
+                        className="absolute right-1 size-7 opacity-0 group-hover/item:opacity-100 data-[state=open]:opacity-100"
                       >
                         <MoreVerticalIcon className="size-4" />
                         <span className="sr-only">More</span>
@@ -238,29 +238,29 @@ export function ChatSidebar() {
                 <div
                   key={chat.id}
                   className={cn(
-                    'group/item relative flex items-center rounded-lg overflow-hidden transition-all duration-150',
-                    isActive && 'bg-sidebar-accent/70 shadow-sm'
+                    'group/item relative flex items-center rounded-md overflow-hidden',
+                    isActive && 'bg-sidebar-accent'
                   )}
                 >
                   <Button
                     variant="ghost"
                     className={cn(
-                      'flex-1 justify-start gap-2 px-2 text-left h-auto py-1.5 min-w-0 pr-8 transition-all duration-150',
-                      isActive ? 'hover:bg-sidebar-accent/70' : 'hover:bg-accent/50'
+                      'flex-1 justify-start gap-2 px-2 text-left h-auto py-1.5 min-w-0 pr-8 text-sidebar-foreground',
+                      isActive && 'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent'
                     )}
                     onClick={() => selectChat(chat.id)}
                   >
-                    <Icon className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="text-sm truncate min-w-0 font-medium">
+                    <Icon className="size-4 shrink-0" />
+                    <span className="text-sm truncate min-w-0">
                       {chat.title}
                     </span>
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
-                        variant="secondary"
+                        variant="ghost"
                         size="icon-sm"
-                        className="absolute right-1 size-7 opacity-0 group-hover/item:opacity-100 data-[state=open]:opacity-100 transition-all duration-200 hover:bg-accent"
+                        className="absolute right-1 size-7 opacity-0 group-hover/item:opacity-100 data-[state=open]:opacity-100"
                       >
                         <MoreVerticalIcon className="size-4" />
                         <span className="sr-only">More</span>
@@ -300,14 +300,12 @@ export function ChatSidebar() {
         </div>
       </div>
 
-      <div className="p-3 border-t border-sidebar-border/50 bg-gradient-to-t from-sidebar/50 to-transparent backdrop-blur-sm">
-        <div className="flex items-center justify-between text-xs text-muted-foreground/70">
-          <span className="flex items-center gap-1.5">
-            <div className="size-4 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-              <WandSparklesIcon className="size-2.5 text-white" />
-            </div>
-            <span className="font-medium">Powered by Rainy AI</span>
-          </span>
+      <div className="p-3 border-t border-sidebar-border">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="size-4 rounded-full bg-primary flex items-center justify-center">
+            <WandSparklesIcon className="size-2.5 text-primary-foreground" />
+          </div>
+          <span>Powered by Rainy AI</span>
         </div>
       </div>
     </div>

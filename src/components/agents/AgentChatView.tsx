@@ -3,124 +3,93 @@ import { ChatSidebar } from './ChatSidebar';
 import { ChatMain } from './ChatMain';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { GridPattern } from '@/components/ui/grid-pattern';
 import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from 'lucide-react';
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@/components/ui/resizable';
 import { cn } from '@/lib/cn';
 
 /**
- * Render the responsive chat interface for Rainy AI with a collapsible, resizable desktop sidebar and a mobile overlay sidebar.
+ * Render the responsive chat interface for Rainy AI with a collapsible desktop sidebar and a mobile overlay sidebar.
  *
- * Desktop layout presents a horizontal resizable panel group with a collapsible left sidebar and a main content area that includes a top bar with a collapse toggle. Mobile layout exposes the sidebar as a sheet overlay opened from the header. A subtle grid background pattern is applied and the main content composes ChatSidebar and ChatMain.
+ * Desktop layout presents a simple collapsible sidebar (w-0 when closed, w-64 when open) with smooth transitions and a main content area with a top bar containing a toggle button. Mobile layout exposes the sidebar as a sheet overlay. This is the main container for the Rainy AI chat interface - modern, simple, and perfectly optimized for IDE use.
  *
  * @returns The rendered chat interface element.
  */
 export function AgentChatView() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background relative">
-      {/* Subtle background pattern */}
-      <GridPattern className="pointer-events-none opacity-[0.02] absolute inset-0" />
-
+    <div className="flex h-full w-full overflow-hidden bg-background">
       {/* Mobile Sidebar - Sheet overlay */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent
           side="left"
-          className="w-72 p-0 border-none [&>button]:hidden backdrop-blur-xl bg-background/95"
+          className="w-72 p-0 border-none [&>button]:hidden"
         >
           <ChatSidebar />
         </SheetContent>
       </Sheet>
 
-      {/* Desktop Layout with Resizable Panels */}
-      <div className="hidden md:flex h-full w-full relative z-10">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Sidebar Panel */}
-          <ResizablePanel
-            defaultSize={20}
-            minSize={15}
-            maxSize={30}
-            collapsible
-            onCollapse={() => setIsCollapsed(true)}
-            onExpand={() => setIsCollapsed(false)}
-            className={cn(
-              'transition-all duration-300',
-              isCollapsed && 'min-w-0'
-            )}
-          >
-            <div className="h-full border-r border-border/50 bg-background/95 backdrop-blur-sm">
-              <ChatSidebar />
-            </div>
-          </ResizablePanel>
+      {/* Desktop Layout */}
+      <div className="hidden md:flex h-full w-full">
+        {/* Sidebar */}
+        <div
+          className={cn(
+            'h-full border-r border-border transition-all duration-300 ease-in-out',
+            sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'
+          )}
+        >
+          <ChatSidebar />
+        </div>
 
-          {/* Resizable Handle */}
-          <ResizableHandle
-            withHandle
-            className="w-1 bg-border/30 hover:bg-border/60 transition-colors relative group"
-          >
-            <div className="absolute inset-y-0 -left-3 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="h-12 w-1 rounded-full bg-primary/20" />
-            </div>
-          </ResizableHandle>
+        {/* Main Content */}
+        <div className="flex flex-1 flex-col h-full min-w-0">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between border-b border-border px-4 h-12 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent"
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpenIcon className="size-4" />
+              ) : (
+                <PanelLeftCloseIcon className="size-4" />
+              )}
+              <span className="sr-only">Toggle sidebar</span>
+            </Button>
+            <span className="text-sm font-semibold text-foreground">
+              Rainy AI
+            </span>
+            <div className="w-8" />
+          </div>
 
-          {/* Main Content Panel */}
-          <ResizablePanel defaultSize={80} minSize={50}>
-            <div className="flex flex-col h-full">
-              {/* Top Bar with Collapse Button */}
-              <div className="flex items-center justify-between border-b border-border/50 px-4 h-12 bg-background/80 backdrop-blur-md">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setIsCollapsed(!isCollapsed)}
-                  className="h-8 w-8 hover:bg-accent/50 transition-colors"
-                >
-                  {isCollapsed ? (
-                    <PanelLeftOpenIcon className="size-4" />
-                  ) : (
-                    <PanelLeftCloseIcon className="size-4" />
-                  )}
-                  <span className="sr-only">Toggle sidebar</span>
-                </Button>
-                <span className="text-sm font-medium text-muted-foreground">
-                  Rainy AI
-                </span>
-                <div className="w-8" />
-              </div>
-
-              {/* Chat Content */}
-              <div className="flex-1 overflow-hidden relative">
-                <ChatMain />
-              </div>
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+          {/* Chat Content */}
+          <div className="flex-1 overflow-hidden">
+            <ChatMain />
+          </div>
+        </div>
       </div>
 
       {/* Mobile Layout */}
       <div className="flex md:hidden flex-1 flex-col overflow-hidden">
         {/* Mobile Header */}
-        <div className="flex items-center justify-between border-b border-border/50 px-4 h-12 bg-background/95 backdrop-blur-md z-20">
+        <div className="flex items-center justify-between border-b border-border px-4 h-12 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={() => setSidebarOpen(true)}
-            className="h-8 w-8"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
           >
             <MenuIcon className="size-4" />
             <span className="sr-only">Open sidebar</span>
           </Button>
-          <span className="text-sm font-medium">Rainy AI</span>
+          <span className="text-sm font-semibold text-foreground">Rainy AI</span>
           <div className="w-8" />
         </div>
 
         {/* Chat Content */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-hidden">
           <ChatMain />
         </div>
       </div>
