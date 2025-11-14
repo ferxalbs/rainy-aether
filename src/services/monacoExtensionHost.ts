@@ -7,6 +7,7 @@ import {
   createActivationManager,
   ExtensionError,
   ExtensionSandboxConfig,
+  ActivationEventType,
 } from './extension';
 
 export class MonacoExtensionHost {
@@ -19,8 +20,11 @@ export class MonacoExtensionHost {
    * Load an extension into Monaco Editor
    */
   async loadExtension(extension: InstalledExtension): Promise<void> {
-    if (this.loadedExtensions.has(extension.id)) {
+    const existingExtension = this.loadedExtensions.get(extension.id);
+    if (existingExtension) {
       console.warn(`Extension ${extension.id} is already loaded`);
+      // ensure activation events are re-registered when reloading is requested to keep state fresh
+      await this.reloadExtension(extension.id, extension);
       return;
     }
 
@@ -48,6 +52,9 @@ export class MonacoExtensionHost {
       // Try to activate if extension has activation events
       if (extension.manifest.activationEvents) {
         await this.tryActivateExtension(extension.id);
+      } else if (!extension.manifest.main) {
+        // load extensions that only contribute static assets on startup to keep user experience consistent
+        await this.triggerActivationEvent(ActivationEventType.OnStartupFinished);
       }
     } catch (error) {
       console.error(`Failed to load extension ${extension.id}:`, error);
@@ -74,7 +81,7 @@ export class MonacoExtensionHost {
         this.sandboxes.delete(extensionId);
       }
 
-      // Unregister from activation manager
+      // Unregister from activation manager and reset state
       this.activationManager.unregisterExtension(extensionId);
 
       // Dispose all disposables
@@ -744,7 +751,7 @@ export class MonacoExtensionHost {
       this.sandboxes.set(extension.id, sandbox);
 
       // Register with activation manager
-      const activationEvents = extension.manifest.activationEvents || [];
+      const activationEvents = extension.manifest.activationEvents || [ActivationEventType.OnStartupFinished];
       this.activationManager.registerExtension(extension.id, activationEvents);
 
       console.log(`Sandbox initialized for extension ${extension.id}`);
@@ -822,6 +829,28 @@ export class MonacoExtensionHost {
    */
   getActivationManager(): ActivationManager {
     return this.activationManager;
+  }
+
+  /**
+   * Reload an extension in-place to refresh contributions and sandbox state
+   */
+  private async reloadExtension(extensionId: string, extension?: InstalledExtension): Promise<void> {
+    const existing = this.loadedExtensions.get(extensionId);
+
+    if (!existing) {
+      if (extension) {
+        await this.loadExtension(extension);
+      }
+      return;
+    }
+
+    try {
+      await this.unloadExtension(extensionId);
+      const extensionToLoad = extension ?? existing.extension;
+      await this.loadExtension(extensionToLoad);
+    } catch (error) {
+      console.error(`Failed to reload extension ${extensionId}:`, error);
+    }
   }
 }
 

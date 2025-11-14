@@ -373,15 +373,13 @@ export class ExtensionSandbox {
    * Handle API call from worker (extension calling VS Code API)
    */
   private async handleAPICall(message: ExtensionMessage): Promise<void> {
-    // Future: handle API calls from extension
-    // const { namespace, method, args } = message.data as APICallMessageData;
+    const { namespace, method, args } = message.data as APICallMessageData;
 
     try {
-      // API calls will be handled by VSCodeAPIShim
-      // For now, just acknowledge
+      const result = await this.dispatchAPICall(namespace, method, args || []);
       const response: APIResponseMessageData = {
         success: true,
-        result: undefined,
+        result,
       };
 
       this.sendMessage({
@@ -401,6 +399,36 @@ export class ExtensionSandbox {
         data: response,
       });
     }
+  }
+
+  private async dispatchAPICall(namespace: string, method: string, args: any[]): Promise<any> {
+    if (namespace === 'workspace' && method === 'readExtensionFile') {
+      const [path] = args;
+      return await this.readExtensionFileFromHost(path);
+    }
+
+    throw new Error(`Unsupported API call: ${namespace}.${method}`);
+  }
+
+  private async readExtensionFileFromHost(path: string): Promise<string> {
+    if (!path) {
+      throw new Error('Path is required for readExtensionFile');
+    }
+
+    return await this.invokeTauri<string>('read_extension_file', { path });
+  }
+
+  private async invokeTauri<T>(command: string, payload: Record<string, unknown>): Promise<T> {
+    if (!this.isTauriEnvironment()) {
+      throw new Error('Tauri APIs are unavailable in browser-only mode');
+    }
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<T>(command, payload);
+  }
+
+  private isTauriEnvironment(): boolean {
+    return typeof window !== 'undefined' && '__TAURI__' in window;
   }
 
   /**
