@@ -31,6 +31,31 @@ import {
   findThemeByName,
   type ThemeMode
 } from '@/stores/themeStore';
+import {
+  getExtensionConfig,
+  setStartupActivationMode,
+  setStartupActivationDelay,
+  setLoadingStrategy,
+  setSecurityLevel,
+  setDisableThirdParty,
+  setMaxActiveExtensions,
+  setEnablePerformanceMonitoring,
+  setAutoDisableSlowExtensions,
+  setPerformanceThreshold,
+  setErrorHandling,
+  setAutoCleanupErrorExtensions,
+  setShowDetailedErrors,
+  setVerboseLogging,
+  setEnableHotReload,
+  setAllowUnsignedExtensions,
+  setShowLoadingProgress,
+  setShowActivationNotifications,
+  setAutoUpdateExtensions,
+  type ExtensionStartupMode,
+  type ExtensionLoadingStrategy,
+  type ExtensionSecurityLevel,
+  type ExtensionErrorHandling
+} from '@/stores/extensionConfigStore';
 
 /**
  * Register IDE core settings as configuration schemas
@@ -543,6 +568,7 @@ export function registerIDEConfigurations(): void {
  */
 export function syncFromStores(): void {
   const settings = getSettingsState();
+  const extensionConfig = getExtensionConfig();
 
   // Sync theme settings
   configurationActions.set({
@@ -600,6 +626,115 @@ export function syncFromStores(): void {
     value: settings.problems.autoReveal,
     scope: 'user'
   }).catch(err => console.error('[ConfigurationBridge] Failed to sync autoReveal:', err));
+
+  // Sync extension configuration
+  configurationActions.set({
+    key: 'extensions.startupActivationMode',
+    value: extensionConfig.startupActivationMode,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync startupActivationMode:', err));
+
+  configurationActions.set({
+    key: 'extensions.startupActivationDelay',
+    value: extensionConfig.startupActivationDelay,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync startupActivationDelay:', err));
+
+  configurationActions.set({
+    key: 'extensions.loadingStrategy',
+    value: extensionConfig.loadingStrategy,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync loadingStrategy:', err));
+
+  configurationActions.set({
+    key: 'extensions.securityLevel',
+    value: extensionConfig.securityLevel,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync securityLevel:', err));
+
+  configurationActions.set({
+    key: 'extensions.disableThirdParty',
+    value: extensionConfig.disableThirdParty,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync disableThirdParty:', err));
+
+  configurationActions.set({
+    key: 'extensions.maxActiveExtensions',
+    value: extensionConfig.maxActiveExtensions,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync maxActiveExtensions:', err));
+
+  configurationActions.set({
+    key: 'extensions.enablePerformanceMonitoring',
+    value: extensionConfig.enablePerformanceMonitoring,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync enablePerformanceMonitoring:', err));
+
+  configurationActions.set({
+    key: 'extensions.autoDisableSlowExtensions',
+    value: extensionConfig.autoDisableSlowExtensions,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync autoDisableSlowExtensions:', err));
+
+  configurationActions.set({
+    key: 'extensions.performanceThreshold',
+    value: extensionConfig.performanceThreshold,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync performanceThreshold:', err));
+
+  configurationActions.set({
+    key: 'extensions.errorHandling',
+    value: extensionConfig.errorHandling,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync errorHandling:', err));
+
+  configurationActions.set({
+    key: 'extensions.autoCleanupErrorExtensions',
+    value: extensionConfig.autoCleanupErrorExtensions,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync autoCleanupErrorExtensions:', err));
+
+  configurationActions.set({
+    key: 'extensions.showDetailedErrors',
+    value: extensionConfig.showDetailedErrors,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync showDetailedErrors:', err));
+
+  configurationActions.set({
+    key: 'extensions.verboseLogging',
+    value: extensionConfig.verboseLogging,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync verboseLogging:', err));
+
+  configurationActions.set({
+    key: 'extensions.enableHotReload',
+    value: extensionConfig.enableHotReload,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync enableHotReload:', err));
+
+  configurationActions.set({
+    key: 'extensions.allowUnsignedExtensions',
+    value: extensionConfig.allowUnsignedExtensions,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync allowUnsignedExtensions:', err));
+
+  configurationActions.set({
+    key: 'extensions.showLoadingProgress',
+    value: extensionConfig.showLoadingProgress,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync showLoadingProgress:', err));
+
+  configurationActions.set({
+    key: 'extensions.showActivationNotifications',
+    value: extensionConfig.showActivationNotifications,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync showActivationNotifications:', err));
+
+  configurationActions.set({
+    key: 'extensions.autoUpdateExtensions',
+    value: extensionConfig.autoUpdateExtensions,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync autoUpdateExtensions:', err));
 
   console.log('[ConfigurationBridge] Synced values from existing stores to configuration system');
 }
@@ -661,6 +796,45 @@ export async function initializeConfigurationBridge(): Promise<void> {
           void setProblemsSortOrder(value as ProblemsSortOrder);
         } else if (key === 'problems.autoReveal') {
           void setProblemsAutoReveal(value as boolean);
+        }
+
+        // Extension configuration
+        else if (key === 'extensions.startupActivationMode') {
+          void setStartupActivationMode(value as ExtensionStartupMode);
+        } else if (key === 'extensions.startupActivationDelay') {
+          void setStartupActivationDelay(value as number);
+        } else if (key === 'extensions.loadingStrategy') {
+          void setLoadingStrategy(value as ExtensionLoadingStrategy);
+        } else if (key === 'extensions.securityLevel') {
+          void setSecurityLevel(value as ExtensionSecurityLevel);
+        } else if (key === 'extensions.disableThirdParty') {
+          void setDisableThirdParty(value as boolean);
+        } else if (key === 'extensions.maxActiveExtensions') {
+          void setMaxActiveExtensions(value as number);
+        } else if (key === 'extensions.enablePerformanceMonitoring') {
+          void setEnablePerformanceMonitoring(value as boolean);
+        } else if (key === 'extensions.autoDisableSlowExtensions') {
+          void setAutoDisableSlowExtensions(value as boolean);
+        } else if (key === 'extensions.performanceThreshold') {
+          void setPerformanceThreshold(value as number);
+        } else if (key === 'extensions.errorHandling') {
+          void setErrorHandling(value as ExtensionErrorHandling);
+        } else if (key === 'extensions.autoCleanupErrorExtensions') {
+          void setAutoCleanupErrorExtensions(value as boolean);
+        } else if (key === 'extensions.showDetailedErrors') {
+          void setShowDetailedErrors(value as boolean);
+        } else if (key === 'extensions.verboseLogging') {
+          void setVerboseLogging(value as boolean);
+        } else if (key === 'extensions.enableHotReload') {
+          void setEnableHotReload(value as boolean);
+        } else if (key === 'extensions.allowUnsignedExtensions') {
+          void setAllowUnsignedExtensions(value as boolean);
+        } else if (key === 'extensions.showLoadingProgress') {
+          void setShowLoadingProgress(value as boolean);
+        } else if (key === 'extensions.showActivationNotifications') {
+          void setShowActivationNotifications(value as boolean);
+        } else if (key === 'extensions.autoUpdateExtensions') {
+          void setAutoUpdateExtensions(value as boolean);
         }
       } catch (error) {
         console.error(`[ConfigurationBridge] Failed to sync configuration change for ${key}:`, error);

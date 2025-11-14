@@ -94,11 +94,19 @@ const App: React.FC = () => {
             showLoadingProgress
           } = extensionConfig;
 
+          // ALWAYS log startup mode for debugging
+          console.log('[App] 🔧 Extension Configuration Loaded:');
+          console.log(`[App]   - Startup Activation Mode: ${startupActivationMode}`);
+          console.log(`[App]   - Loading Strategy: ${loadingStrategy}`);
+          console.log(`[App]   - Security Level: ${securityLevel}`);
+          console.log(`[App]   - Verbose Logging: ${verboseLogging}`);
+
           if (verboseLogging) {
-            console.log('[App] Extension configuration:', extensionConfig);
+            console.log('[App] Full extension configuration:', extensionConfig);
           }
 
           const shouldAutoActivate = startupActivationMode === 'auto';
+          console.log(`[App] 🚀 Should auto-activate extensions: ${shouldAutoActivate}`);
 
           // Auto-cleanup error extensions if enabled
           if (autoCleanupErrorExtensions) {
@@ -121,21 +129,31 @@ const App: React.FC = () => {
           const installedExtensions = await extensionManager.getInstalledExtensions();
           let enabledExtensions = installedExtensions.filter(ext => ext.enabled);
 
+          console.log(`[App] 📦 Found ${installedExtensions.length} total extension(s)`);
+          console.log(`[App] ✅ Found ${enabledExtensions.length} enabled extension(s):`);
+          enabledExtensions.forEach(ext => {
+            console.log(`[App]    - ${ext.id} (${ext.displayName})`);
+          });
+
           // Apply security filters
           enabledExtensions = enabledExtensions.filter(ext => {
             // Check if extension is allowed based on security settings
             const allowed = isExtensionAllowed(ext.id, ext.publisher);
 
-            if (!allowed && verboseLogging) {
-              console.log(`[App] Extension ${ext.id} blocked by security settings (level: ${securityLevel})`);
+            if (!allowed) {
+              console.warn(`[App] ⛔ Extension ${ext.id} blocked by security settings (level: ${securityLevel})`);
             }
 
             return allowed;
           });
 
+          if (enabledExtensions.length !== installedExtensions.filter(ext => ext.enabled).length) {
+            console.log(`[App] 🔒 After security filter: ${enabledExtensions.length} extension(s) allowed`);
+          }
+
           // Apply max active extensions limit
           if (maxActiveExtensions > 0 && enabledExtensions.length > maxActiveExtensions) {
-            console.warn(`[App] Too many extensions enabled (${enabledExtensions.length}), limiting to ${maxActiveExtensions}`);
+            console.warn(`[App] ⚠️ Too many extensions enabled (${enabledExtensions.length}), limiting to ${maxActiveExtensions}`);
             enabledExtensions = enabledExtensions.slice(0, maxActiveExtensions);
           }
 
@@ -215,12 +233,13 @@ const App: React.FC = () => {
               }
             }
 
-            console.log('[App] Extension activation complete');
+            console.log('[App] ✅ Extension activation complete');
           } else if (!shouldAutoActivate) {
-            console.info('[App] Extension startup activation mode is set to manual; skipping auto-enable.');
-            console.info(`[App] Found ${enabledExtensions.length} enabled extension(s) that require manual activation.`);
+            console.warn('[App] ⚠️ Extension startup activation mode is set to MANUAL; skipping auto-enable.');
+            console.warn(`[App] ⚠️ Found ${enabledExtensions.length} enabled extension(s) that require manual activation.`);
+            console.warn('[App] ⚠️ To enable automatic activation, set extensions.startupActivationMode to "auto"');
           } else {
-            console.info('[App] No enabled extensions found to activate.');
+            console.info('[App] ℹ️ No enabled extensions found to activate.');
           }
 
           loadingActions.completeStage('extensions');

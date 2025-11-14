@@ -19,6 +19,7 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
   const [filter, setFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
   const [healthReport, setHealthReport] = useState(extensionManager.getHealthReport());
   const [showConfigPanel, setShowConfigPanel] = useState(false);
+  const [startupModeError, setStartupModeError] = useState<string | null>(null);
 
   const filteredExtensions = installedExtensions.filter(ext => {
     switch (filter) {
@@ -82,8 +83,17 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
   };
 
   const handleToggleStartupMode = async () => {
-    const newMode = extensionConfig.startupActivationMode === 'auto' ? 'manual' : 'auto';
-    await setStartupActivationMode(newMode);
+    try {
+      setStartupModeError(null);
+      const newMode = extensionConfig.startupActivationMode === 'auto' ? 'manual' : 'auto';
+      await setStartupActivationMode(newMode);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to change startup activation mode';
+      console.error('Failed to toggle startup mode:', error);
+      setStartupModeError(errorMessage);
+      // Auto-clear error after 5 seconds
+      setTimeout(() => setStartupModeError(null), 5000);
+    }
   };
 
   const handleCleanupAll = async () => {
@@ -245,6 +255,15 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
                       Manual mode: Extensions require activation via Enable/Disable buttons each session.
                       Switch to Automatic to restore extensions on startup.
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {startupModeError && (
+                <div className="pt-2 border-t border-border">
+                  <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 p-2 rounded">
+                    <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <p>{startupModeError}</p>
                   </div>
                 </div>
               )}
