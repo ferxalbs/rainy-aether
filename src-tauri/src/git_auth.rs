@@ -131,7 +131,7 @@ impl AuthCallbacks {
     /// Create callbacks with progress reporting
     pub fn create_callbacks_with_progress<F>(mut on_progress: F) -> RemoteCallbacks<'static>
     where
-        F: FnMut(&git2::Progress) -> bool + 'static,
+        F: FnMut(git2::Progress) -> bool + 'static,
     {
         let mut callbacks = Self::create_callbacks();
 
