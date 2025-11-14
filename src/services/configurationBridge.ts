@@ -357,6 +357,7 @@ export function registerIDEConfigurations(): void {
     configuration: {
       title: 'Extensions',
       properties: {
+        // === Startup Behavior ===
         'extensions.startupActivationMode': {
           type: 'string',
           enum: ['auto', 'manual'],
@@ -369,13 +370,6 @@ export function registerIDEConfigurations(): void {
           scope: ConfigurationScope.Window,
           order: 0
         },
-        'extensions.safeMode': {
-          type: 'boolean',
-          default: false,
-          description: 'When enabled, only built-in Rainy Aether extensions are allowed to run automatically on startup.',
-          scope: ConfigurationScope.Window,
-          order: 1
-        },
         'extensions.startupActivationDelay': {
           type: 'number',
           default: 0,
@@ -383,7 +377,151 @@ export function registerIDEConfigurations(): void {
           maximum: 10000,
           description: 'Optional delay (in milliseconds) inserted between loading each extension during startup to improve stability.',
           scope: ConfigurationScope.Window,
+          order: 1
+        },
+        'extensions.loadingStrategy': {
+          type: 'string',
+          enum: ['parallel', 'sequential', 'lazy'],
+          enumDescriptions: [
+            'Load all extensions in parallel (faster but higher memory)',
+            'Load extensions one by one (slower but safer)',
+            'Load extensions on-demand (most efficient)'
+          ],
+          default: 'parallel',
+          description: 'Controls how extensions are loaded during startup.',
+          scope: ConfigurationScope.Window,
           order: 2
+        },
+
+        // === Security & Safety ===
+        'extensions.securityLevel': {
+          type: 'string',
+          enum: ['unrestricted', 'safe', 'restricted'],
+          enumDescriptions: [
+            'All extensions can run without restrictions',
+            'Only built-in Rainy Aether extensions run automatically',
+            'Only explicitly whitelisted extensions can run'
+          ],
+          default: 'unrestricted',
+          description: 'Security level for extension execution.',
+          scope: ConfigurationScope.Window,
+          order: 3
+        },
+        'extensions.disableThirdParty': {
+          type: 'boolean',
+          default: false,
+          description: 'Disable all third-party extensions (only Rainy Aether built-in extensions will run).',
+          scope: ConfigurationScope.Window,
+          order: 4
+        },
+
+        // === Performance & Resources ===
+        'extensions.maxActiveExtensions': {
+          type: 'number',
+          default: 0,
+          minimum: 0,
+          maximum: 100,
+          description: 'Maximum number of extensions that can be active simultaneously (0 = unlimited).',
+          scope: ConfigurationScope.Window,
+          order: 5
+        },
+        'extensions.enablePerformanceMonitoring': {
+          type: 'boolean',
+          default: true,
+          description: 'Enable performance monitoring for extensions.',
+          scope: ConfigurationScope.Window,
+          order: 6
+        },
+        'extensions.autoDisableSlowExtensions': {
+          type: 'boolean',
+          default: false,
+          description: 'Automatically disable extensions that exceed performance thresholds.',
+          scope: ConfigurationScope.Window,
+          order: 7
+        },
+        'extensions.performanceThreshold': {
+          type: 'number',
+          default: 5000,
+          minimum: 1000,
+          maximum: 30000,
+          description: 'Performance threshold in milliseconds (extensions slower than this may be auto-disabled).',
+          scope: ConfigurationScope.Window,
+          order: 8
+        },
+
+        // === Error Handling ===
+        'extensions.errorHandling': {
+          type: 'string',
+          enum: ['continue', 'stop', 'isolate'],
+          enumDescriptions: [
+            'Continue loading other extensions on error',
+            'Stop loading all extensions on first error',
+            'Isolate failed extensions and continue'
+          ],
+          default: 'continue',
+          description: 'How to handle extension errors during loading.',
+          scope: ConfigurationScope.Window,
+          order: 9
+        },
+        'extensions.autoCleanupErrorExtensions': {
+          type: 'boolean',
+          default: false,
+          description: 'Automatically cleanup extensions in error state on startup.',
+          scope: ConfigurationScope.Window,
+          order: 10
+        },
+        'extensions.showDetailedErrors': {
+          type: 'boolean',
+          default: true,
+          description: 'Show detailed error notifications for extension failures.',
+          scope: ConfigurationScope.Window,
+          order: 11
+        },
+
+        // === Developer Options ===
+        'extensions.verboseLogging': {
+          type: 'boolean',
+          default: false,
+          description: 'Enable verbose logging for the extension system.',
+          scope: ConfigurationScope.Window,
+          order: 12
+        },
+        'extensions.enableHotReload': {
+          type: 'boolean',
+          default: false,
+          description: 'Enable hot reload for extensions (development mode).',
+          scope: ConfigurationScope.Window,
+          order: 13
+        },
+        'extensions.allowUnsignedExtensions': {
+          type: 'boolean',
+          default: true,
+          description: 'Allow unsigned/development extensions to run.',
+          scope: ConfigurationScope.Window,
+          order: 14
+        },
+
+        // === User Experience ===
+        'extensions.showLoadingProgress': {
+          type: 'boolean',
+          default: true,
+          description: 'Show extension loading progress during startup.',
+          scope: ConfigurationScope.Window,
+          order: 15
+        },
+        'extensions.showActivationNotifications': {
+          type: 'boolean',
+          default: false,
+          description: 'Notify user when extensions are activated or deactivated.',
+          scope: ConfigurationScope.Window,
+          order: 16
+        },
+        'extensions.autoUpdateExtensions': {
+          type: 'boolean',
+          default: true,
+          description: 'Automatically update extensions when updates are available.',
+          scope: ConfigurationScope.Window,
+          order: 17
         }
       }
     }

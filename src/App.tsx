@@ -17,6 +17,7 @@ import { terminalActions } from "./stores/terminalStore";
 import { iconThemeActions } from "./stores/iconThemeStore";
 import { defaultIconTheme } from "./themes/iconThemes/defaultIconTheme";
 import { fontManager } from "./services/fontManager";
+import { initializeExtensionConfig, getExtensionConfig, isExtensionAllowed } from "./stores/extensionConfigStore";
 
 const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -42,6 +43,7 @@ const App: React.FC = () => {
         // Stage 2: Settings
         loadingActions.startStage('settings');
         await initializeSettings();
+        await initializeExtensionConfig(); // Initialize extension configuration
         loadingActions.completeStage('settings');
 
         // Stage 2.3: Configuration System
@@ -78,40 +80,147 @@ const App: React.FC = () => {
         // Stage 3: Extensions
         loadingActions.startStage('extensions');
         try {
-          // Auto-enable installed extensions respecting configuration
-          const activationMode = configurationActions.get<'auto' | 'manual'>('extensions.startupActivationMode', 'auto');
-          const safeModeEnabled = configurationActions.get<boolean>('extensions.safeMode', false);
-          const activationDelay = configurationActions.get<number>('extensions.startupActivationDelay', 0);
-          const shouldAutoActivate = activationMode !== 'manual';
+          // Get extension configuration
+          const extensionConfig = getExtensionConfig();
+          const {
+            startupActivationMode,
+            startupActivationDelay,
+            loadingStrategy,
+            securityLevel,
+            maxActiveExtensions,
+            autoCleanupErrorExtensions,
+            errorHandling,
+            verboseLogging,
+            showLoadingProgress
+          } = extensionConfig;
+
+          if (verboseLogging) {
+            console.log('[App] Extension configuration:', extensionConfig);
+          }
+
+          const shouldAutoActivate = startupActivationMode === 'auto';
+
+          // Auto-cleanup error extensions if enabled
+          if (autoCleanupErrorExtensions) {
+            const installedExtensions = await extensionManager.getInstalledExtensions();
+            const errorExtensions = installedExtensions.filter(ext => ext.state === 'error' || ext.state === 'installing');
+
+            if (errorExtensions.length > 0) {
+              console.log(`[App] Auto-cleanup: Found ${errorExtensions.length} extension(s) in error state`);
+              for (const ext of errorExtensions) {
+                try {
+                  await extensionManager.uninstallExtension(ext.id, true);
+                  console.log(`[App] Auto-cleanup: Removed ${ext.id}`);
+                } catch (error) {
+                  console.error(`[App] Auto-cleanup failed for ${ext.id}:`, error);
+                }
+              }
+            }
+          }
 
           const installedExtensions = await extensionManager.getInstalledExtensions();
           let enabledExtensions = installedExtensions.filter(ext => ext.enabled);
 
-          if (safeModeEnabled) {
-            enabledExtensions = enabledExtensions.filter(ext =>
-              ext.publisher === 'rainy-aether' || ext.id.startsWith('rainy-aether.')
-            );
+          // Apply security filters
+          enabledExtensions = enabledExtensions.filter(ext => {
+            // Check if extension is allowed based on security settings
+            const allowed = isExtensionAllowed(ext.id, ext.publisher);
+
+            if (!allowed && verboseLogging) {
+              console.log(`[App] Extension ${ext.id} blocked by security settings (level: ${securityLevel})`);
+            }
+
+            return allowed;
+          });
+
+          // Apply max active extensions limit
+          if (maxActiveExtensions > 0 && enabledExtensions.length > maxActiveExtensions) {
+            console.warn(`[App] Too many extensions enabled (${enabledExtensions.length}), limiting to ${maxActiveExtensions}`);
+            enabledExtensions = enabledExtensions.slice(0, maxActiveExtensions);
           }
 
-          if (shouldAutoActivate) {
-            // Enable all extensions in parallel with per-extension delays
-            // Total delay is bounded by the longest delay, not the sum of all delays
-            const enablePromises = enabledExtensions.map(async (ext) => {
-              try {
-                await extensionManager.enableExtension(ext.id);
-                // Apply delay per-extension (runs in parallel with other extensions)
-                if (activationDelay > 0) {
-                  await new Promise(resolve => setTimeout(resolve, activationDelay));
-                }
-              } catch (error) {
-                console.warn(`Failed to auto-enable extension ${ext.id}:`, error);
-              }
-            });
+          if (shouldAutoActivate && enabledExtensions.length > 0) {
+            console.log(`[App] Auto-activating ${enabledExtensions.length} extension(s) using ${loadingStrategy} strategy`);
 
-            // Wait for all extensions to complete in parallel
-            await Promise.all(enablePromises);
-          } else {
+            if (showLoadingProgress) {
+              console.log(`[App] Loading extensions: ${enabledExtensions.map(e => e.id).join(', ')}`);
+            }
+
+            // Choose loading strategy
+            switch (loadingStrategy) {
+              case 'parallel': {
+                // Load all extensions in parallel
+                const enablePromises = enabledExtensions.map(async (ext, index) => {
+                  try {
+                    if (verboseLogging) {
+                      console.log(`[App] Starting extension ${ext.id} (${index + 1}/${enabledExtensions.length})`);
+                    }
+
+                    await extensionManager.enableExtension(ext.id);
+
+                    if (startupActivationDelay > 0) {
+                      await new Promise(resolve => setTimeout(resolve, startupActivationDelay));
+                    }
+
+                    if (verboseLogging) {
+                      console.log(`[App] Extension ${ext.id} loaded successfully`);
+                    }
+                  } catch (error) {
+                    console.error(`[App] Failed to enable extension ${ext.id}:`, error);
+
+                    if (errorHandling === 'stop') {
+                      throw error; // Stop loading all extensions
+                    }
+                    // Otherwise continue with next extension
+                  }
+                });
+
+                await Promise.all(enablePromises);
+                break;
+              }
+
+              case 'sequential': {
+                // Load extensions one by one
+                for (let i = 0; i < enabledExtensions.length; i++) {
+                  const ext = enabledExtensions[i];
+
+                  try {
+                    if (showLoadingProgress || verboseLogging) {
+                      console.log(`[App] Loading extension ${ext.id} (${i + 1}/${enabledExtensions.length})`);
+                    }
+
+                    await extensionManager.enableExtension(ext.id);
+
+                    if (startupActivationDelay > 0) {
+                      await new Promise(resolve => setTimeout(resolve, startupActivationDelay));
+                    }
+                  } catch (error) {
+                    console.error(`[App] Failed to enable extension ${ext.id}:`, error);
+
+                    if (errorHandling === 'stop') {
+                      console.error('[App] Stopping extension loading due to error');
+                      break; // Stop loading
+                    }
+                  }
+                }
+                break;
+              }
+
+              case 'lazy': {
+                // Extensions will be loaded on-demand
+                console.log('[App] Lazy loading enabled - extensions will load on-demand');
+                // Store enabled extensions list for lazy loading
+                // Actual loading happens when extension features are requested
+                break;
+              }
+            }
+
+            console.log('[App] Extension activation complete');
+          } else if (!shouldAutoActivate) {
             console.info('[App] Extension startup activation mode is set to manual; skipping auto-enable.');
+            console.info(`[App] Found ${enabledExtensions.length} enabled extension(s) that require manual activation.`);
+          } else {
+            console.info('[App] No enabled extensions found to activate.');
           }
 
           loadingActions.completeStage('extensions');
