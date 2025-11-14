@@ -4,8 +4,6 @@ import {
   HomeIcon,
   SparklesIcon,
   FileStackIcon,
-  Layers3Icon,
-  FolderClosedIcon,
   ZapIcon,
   MessageCircleDashedIcon,
   WandSparklesIcon,
@@ -21,6 +19,7 @@ import {
   ArchiveIcon,
   ArchiveRestoreIcon,
   Trash2Icon,
+  PlusIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,7 +50,7 @@ const teams = [
 
 export function ChatSidebar() {
   const { chats, selectedChatId } = useChatStore();
-  const { selectChat, archiveChat, unarchiveChat, deleteChat } = useChatActions();
+  const { selectChat, archiveChat, unarchiveChat, deleteChat, createNewChat } = useChatActions();
   const [selectedTeam, setSelectedTeam] = useState('personal');
 
   const recentChats = chats.filter((chat) => !chat.isArchived);
@@ -99,45 +98,46 @@ export function ChatSidebar() {
         </DropdownMenu>
       </div>
 
-      <div className="p-3">
+      <div className="p-3 space-y-2">
+        <Button
+          onClick={createNewChat}
+          className="w-full justify-start gap-2 h-9"
+          variant="default"
+        >
+          <PlusIcon className="size-4" />
+          <span className="text-sm font-medium">New Chat</span>
+        </Button>
+
         <div className="relative flex items-center">
           <SearchIcon className="absolute left-3 size-4 text-muted-foreground" />
           <Input
-            placeholder="Search anything"
-            className="pl-9 pr-10 h-[34px] bg-muted/50"
+            placeholder="Search chats..."
+            className="pl-9 pr-10 h-8 bg-muted/30 border-border/50 focus-visible:border-border text-sm"
           />
-          <div className="absolute right-2 flex items-center justify-center size-5 rounded bg-muted text-xs text-muted-foreground">
+          <div className="absolute right-2 flex items-center justify-center size-5 rounded bg-muted/50 text-xs text-muted-foreground font-medium">
             /
           </div>
         </div>
       </div>
 
-      <div className="p-3 space-y-1">
-        <Button variant="ghost" className="w-full justify-start gap-2 px-2">
+      <div className="px-3 pb-2 space-y-0.5">
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground/90 hover:text-sidebar-foreground">
           <HomeIcon className="size-4" />
-          <span className="text-sm">Home</span>
+          <span className="text-xs">Home</span>
         </Button>
-        <Button variant="ghost" className="w-full justify-start gap-2 px-2">
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground/90 hover:text-sidebar-foreground">
           <SparklesIcon className="size-4" />
-          <span className="text-sm">Ask AI</span>
+          <span className="text-xs">Ask AI</span>
         </Button>
-        <Button variant="ghost" className="w-full justify-start gap-2 px-2">
+        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground/90 hover:text-sidebar-foreground">
           <FileStackIcon className="size-4" />
-          <span className="text-sm">Prompt Library</span>
-        </Button>
-        <Button variant="ghost" className="w-full justify-start gap-2 px-2">
-          <Layers3Icon className="size-4" />
-          <span className="text-sm">Extension</span>
-        </Button>
-        <Button variant="ghost" className="w-full justify-start gap-2 px-2">
-          <FolderClosedIcon className="size-4" />
-          <span className="text-sm">Folders</span>
+          <span className="text-xs">Prompts</span>
         </Button>
       </div>
 
       <Separator />
 
-      <div className="flex-1 overflow-y-auto no-scrollbar">
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
         <div className="p-3 space-y-4">
           <div className="space-y-1">
             <div className="px-2 py-1.5">
@@ -291,21 +291,16 @@ export function ChatSidebar() {
         </div>
       </div>
 
-      <div className="p-5 border-t border-sidebar-border">
-        <div className="rounded-lg bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 p-3.5 space-y-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <WandSparklesIcon className="size-4" />
-              <span className="text-sm font-semibold">Square UI</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-tight">
-              Collection of beautifully crafted open-source layouts UI built
-              with shadcn/ui.
-            </p>
-          </div>
+      <div className="p-3 border-t border-sidebar-border/50 bg-sidebar/50">
+        <div className="flex items-center justify-between text-xs text-muted-foreground/70">
+          <span className="flex items-center gap-1.5">
+            <WandSparklesIcon className="size-3.5" />
+            <span>Powered by AI</span>
+          </span>
           <Button
+            variant="ghost"
             size="sm"
-            className="relative w-fit h-[30px] px-3 overflow-hidden bg-white text-black hover:bg-white/90 shadow-[0px_1px_2px_0px_rgba(8,8,8,0.2),0px_4px_4px_0px_rgba(8,8,8,0.08),inset_0px_1px_1px_0px_rgba(255,255,255,0.2),inset_0px_6px_12px_0px_rgba(255,255,255,0.12)]"
+            className="h-6 px-2 text-xs hover:bg-sidebar-accent"
             asChild
           >
             <a
@@ -313,10 +308,7 @@ export function ChatSidebar() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(205,175,250,1),transparent_50%),radial-gradient(ellipse_at_bottom_right,rgba(129,169,248,1),transparent_50%),radial-gradient(ellipse_at_top_left,rgba(247,203,191,1),transparent_50%),radial-gradient(ellipse_at_bottom_left,rgba(164,252,245,1),transparent_50%)]" />
-              <span className="relative z-10 font-medium text-xs">
-                square.lndev.me
-              </span>
+              Square UI
             </a>
           </Button>
         </div>

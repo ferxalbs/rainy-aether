@@ -1,24 +1,25 @@
 /**
- * Agents View - Version 1
+ * Agents View - AI Chat Interface
  *
- * Fully functional AI agent interface with tool integration.
+ * Fully integrated AI agent chat interface with modern UI/UX.
  * Features:
- * - Session management
- * - Real-time chat with streaming
- * - Tool execution visibility
- * - Agent Tools Panel integration
- * - Provider/model selection
+ * - Session management with chat history
+ * - Real-time chat with streaming support
+ * - Multiple chat modes (Fast, In-depth, Magic AI, Holistic)
+ * - Model selection and configuration
+ * - Responsive design optimized for IDE integration
+ * - Archive and delete functionality
  */
 
 import React from 'react';
+import { AgentChatView } from '@/components/agents';
 
 const AgentsView: React.FC = () => {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-background text-lg font-semibold text-muted-foreground">
-      In build coming soon.
+    <div className="flex h-full w-full overflow-hidden">
+      <AgentChatView />
     </div>
   );
 };
-
 
 export default AgentsView;
