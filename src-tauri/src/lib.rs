@@ -7,6 +7,7 @@ mod font_manager;
 mod git_manager;
 mod git_native;  // New: Native libgit2 implementation
 mod git_config;  // New: Feature flags for gradual migration
+mod git_auth;    // New: Authentication for remote operations
 mod language_server_manager;
 mod project_manager;
 mod terminal_manager;
@@ -318,6 +319,11 @@ pub fn run() {
         git_native::git_diff_commit_native,
         git_native::git_diff_commit_file_native,
         git_native::git_diff_file_native,
+        // Phase 4: Native Git remote operations
+        git_native::git_clone_native,
+        git_native::git_push_native,
+        git_native::git_pull_native,
+        git_native::git_fetch_native,
         // Git configuration and feature flags
         git_config::git_get_native_config,
         git_config::git_set_use_native,

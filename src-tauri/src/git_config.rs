@@ -45,13 +45,13 @@ impl Default for GitConfig {
             // Start with native enabled by default (since we're fixing crashes)
             use_native: true,
             native_operations: NativeOperations {
-                status: true,        // Phase 1 - Core operations
-                repo_info: true,     // Phase 2 - Simple info
-                log: true,           // Phase 2 - History operations (fixes crashes)
-                diff: true,          // Phase 2 - Diff operations (fixes crashes)
-                branch: true,        // Phase 2 - Branch operations
+                status: true,        // Phase 1 - Core operations ✅
+                repo_info: true,     // Phase 2 - Simple info ✅
+                log: true,           // Phase 2 - History operations (fixes crashes) ✅
+                diff: true,          // Phase 2 - Diff operations (fixes crashes) ✅
+                branch: true,        // Phase 2 - Branch operations ✅
                 commit: false,       // Phase 3 - Write operations (not yet implemented)
-                remote: false,       // Phase 4 - Remote operations (not yet implemented)
+                remote: true,        // Phase 4 - Remote operations ✅ ENABLED
             },
         }
     }
