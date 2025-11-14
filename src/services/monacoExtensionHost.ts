@@ -36,6 +36,7 @@ export class MonacoExtensionHost {
         disposables: [],
         activated: false,
         sandbox: null,
+        languageServices: new Map(),
       };
 
       // Load the extension's contributions (static)
@@ -89,8 +90,8 @@ export class MonacoExtensionHost {
         disposable.dispose();
       }
 
-      // Remove language services
-      this.unloadLanguageServices(extensionId);
+      // Remove language services for this specific LoadedExtension instance
+      this.unloadLanguageServices(loadedExtension);
 
       this.loadedExtensions.delete(extensionId);
       console.log(`Successfully unloaded extension ${extensionId}`);
@@ -204,11 +205,16 @@ export class MonacoExtensionHost {
           disposable: null
         };
 
+        // Store language service in LoadedExtension instance for per-instance tracking
+        loadedExtension.languageServices.set(language.id, languageService);
+        // Also keep in global map for quick lookup by language id
         this.languageServices.set(language.id, languageService);
         loadedExtension.disposables.push({
           dispose: () => {
             // Note: Monaco doesn't provide a way to unregister languages
             // They persist for the session
+            // Remove from both per-instance and global maps
+            loadedExtension.languageServices.delete(language.id);
             this.languageServices.delete(language.id);
           }
         });
@@ -690,14 +696,15 @@ export class MonacoExtensionHost {
     }
   }
 
-  private unloadLanguageServices(extensionId: string): void {
-    for (const [languageId, service] of this.languageServices.entries()) {
-      if (service.extensionId === extensionId) {
-        if (service.disposable) {
-          service.disposable.dispose();
-        }
-        this.languageServices.delete(languageId);
+  private unloadLanguageServices(loadedExtension: LoadedExtension): void {
+    // Dispose only the language services for this specific LoadedExtension instance
+    for (const [languageId, service] of loadedExtension.languageServices.entries()) {
+      if (service.disposable) {
+        service.disposable.dispose();
       }
+      // Remove from both instance and global map
+      loadedExtension.languageServices.delete(languageId);
+      this.languageServices.delete(languageId);
     }
   }
 
@@ -862,6 +869,7 @@ export class MonacoExtensionHost {
         disposables: [],
         activated: false,
         sandbox: null,
+        languageServices: new Map(),
       };
 
       await this.loadExtensionContributions(extensionToLoad, newLoadedExtension);
@@ -893,14 +901,16 @@ export class MonacoExtensionHost {
 
       // Phase 4: Activation succeeded - now safely dispose old instance
       try {
+        // Unload language services for old instance (prevents race where new services are deleted)
+        this.unloadLanguageServices(existing);
         if (existing.sandbox) {
           await existing.sandbox.dispose();
+          this.sandboxes.delete(extensionId);
         }
         this.activationManager.unregisterExtension(extensionId);
         for (const disposable of existing.disposables) {
           disposable.dispose();
         }
-        this.unloadLanguageServices(extensionId);
       } catch (disposeError) {
         console.error(`Error cleaning up old extension ${extensionId}:`, disposeError);
       }
@@ -939,6 +949,7 @@ interface LoadedExtension {
   disposables: monaco.IDisposable[];
   activated: boolean;
   sandbox: ExtensionSandbox | null;
+  languageServices: Map<string, LanguageService>;
 }
 
 interface LanguageService {

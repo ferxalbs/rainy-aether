@@ -350,12 +350,52 @@ export function registerIDEConfigurations(): void {
       }
   };
 
+  const extensionsConfig: ExtensionConfiguration = {
+    extensionId: 'rainy-aether.extensions',
+    extensionName: 'Rainy Aether Extensions',
+    isBuiltIn: true,
+    configuration: {
+      title: 'Extensions',
+      properties: {
+        'extensions.startupActivationMode': {
+          type: 'string',
+          enum: ['auto', 'manual'],
+          enumDescriptions: [
+            'Automatically activate all enabled extensions during startup',
+            'Require manual activation from the Extension Manager each session'
+          ],
+          default: 'auto',
+          description: 'Controls if Rainy Aether should eagerly activate enabled extensions on launch or wait for manual confirmation.',
+          scope: ConfigurationScope.Window,
+          order: 0
+        },
+        'extensions.safeMode': {
+          type: 'boolean',
+          default: false,
+          description: 'When enabled, only built-in Rainy Aether extensions are allowed to run automatically on startup.',
+          scope: ConfigurationScope.Window,
+          order: 1
+        },
+        'extensions.startupActivationDelay': {
+          type: 'number',
+          default: 0,
+          minimum: 0,
+          maximum: 10000,
+          description: 'Optional delay (in milliseconds) inserted between loading each extension during startup to improve stability.',
+          scope: ConfigurationScope.Window,
+          order: 2
+        }
+      }
+    }
+  };
+
   // Register all configurations
   configurationService.registerSchema(workbenchConfig);
   configurationService.registerSchema(explorerConfig);
   configurationService.registerSchema(problemsConfig);
   configurationService.registerSchema(editorConfig);
   configurationService.registerSchema(filesConfig);
+  configurationService.registerSchema(extensionsConfig);
 
   console.log('[ConfigurationBridge] Registered IDE configuration schemas');
 }

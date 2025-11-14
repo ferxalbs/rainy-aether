@@ -283,7 +283,7 @@ function normalizeExtensionFilePath(path: string): string {
 
   // Sanitize base path and check if already prefixed
   const sanitizedBase = extensionBasePath.replace(/\\/g, '/').replace(/^\/+/, '');
-  if (normalized.startsWith(sanitizedBase)) {
+  if (normalized === sanitizedBase || normalized.startsWith(sanitizedBase + '/')) {
     return normalized;
   }
 

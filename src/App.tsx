@@ -78,18 +78,42 @@ const App: React.FC = () => {
         // Stage 3: Extensions
         loadingActions.startStage('extensions');
         try {
-          // Auto-enable installed extensions
-          const installedExtensions = await extensionManager.getInstalledExtensions();
-          const enabledExtensions = installedExtensions.filter(ext => ext.enabled);
+          // Auto-enable installed extensions respecting configuration
+          const activationMode = configurationActions.get<'auto' | 'manual'>('extensions.startupActivationMode', 'auto');
+          const safeModeEnabled = configurationActions.get<boolean>('extensions.safeMode', false);
+          const activationDelay = configurationActions.get<number>('extensions.startupActivationDelay', 0);
+          const shouldAutoActivate = activationMode !== 'manual';
 
-          // Load enabled extensions
-          for (const ext of enabledExtensions) {
-            try {
-              await extensionManager.enableExtension(ext.id);
-            } catch (error) {
-              console.warn(`Failed to auto-enable extension ${ext.id}:`, error);
-            }
+          const installedExtensions = await extensionManager.getInstalledExtensions();
+          let enabledExtensions = installedExtensions.filter(ext => ext.enabled);
+
+          if (safeModeEnabled) {
+            enabledExtensions = enabledExtensions.filter(ext =>
+              ext.publisher === 'rainy-aether' || ext.id.startsWith('rainy-aether.')
+            );
           }
+
+          if (shouldAutoActivate) {
+            // Enable all extensions in parallel with per-extension delays
+            // Total delay is bounded by the longest delay, not the sum of all delays
+            const enablePromises = enabledExtensions.map(async (ext) => {
+              try {
+                await extensionManager.enableExtension(ext.id);
+                // Apply delay per-extension (runs in parallel with other extensions)
+                if (activationDelay > 0) {
+                  await new Promise(resolve => setTimeout(resolve, activationDelay));
+                }
+              } catch (error) {
+                console.warn(`Failed to auto-enable extension ${ext.id}:`, error);
+              }
+            });
+
+            // Wait for all extensions to complete in parallel
+            await Promise.all(enablePromises);
+          } else {
+            console.info('[App] Extension startup activation mode is set to manual; skipping auto-enable.');
+          }
+
           loadingActions.completeStage('extensions');
 
           // Stage 3.5: Activate preferred icon theme
