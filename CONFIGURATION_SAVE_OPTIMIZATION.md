@@ -190,7 +190,7 @@ async dispose(): Promise<void> {
 
 **Before (Direct Save):**
 
-```
+``` 
 User types "2" (142)
   → Validate
   → invoke('set_configuration_value', { key: 'editor.fontSize', value: 142 })

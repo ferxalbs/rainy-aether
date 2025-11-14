@@ -3,6 +3,7 @@ mod credential_manager;
 mod extension_manager;
 mod extension_registry;
 mod file_operations;
+mod font_manager;
 mod git_manager;
 mod git_native;  // New: Native libgit2 implementation
 mod git_config;  // New: Feature flags for gradual migration
@@ -364,6 +365,15 @@ pub fn run() {
         configuration_manager::delete_configuration_value,
         configuration_manager::validate_configuration_value,
         configuration_manager::list_configuration_keys,
+        // Font management
+        font_manager::load_font_manifest,
+        font_manager::save_font_manifest,
+        font_manager::download_font_file,
+        font_manager::read_font_file_base64,
+        font_manager::import_custom_font_file,
+        font_manager::delete_font_file,
+        font_manager::validate_font_file,
+        font_manager::get_font_file_info,
     ]);
 
     builder
