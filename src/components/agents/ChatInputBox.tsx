@@ -43,6 +43,18 @@ interface ChatInputBoxProps {
   placeholder?: string;
 }
 
+/**
+ * Renders a chat input area with tooling, a model selector, and a send control.
+ *
+ * @param message - Current input text shown in the textarea
+ * @param onMessageChange - Called with the updated text when the textarea value changes
+ * @param onSend - Called to submit the current message (also triggered by Enter without Shift)
+ * @param selectedModel - Currently selected model id for the model selector
+ * @param onModelChange - Called with a model id when a different model is selected
+ * @param showTools - When true, displays additional tool buttons and the model selector (defaults to `true`)
+ * @param placeholder - Placeholder text for the textarea (defaults to 'Ask anything...')
+ * @returns The chat input box React element with controls for attachments, search/think tools, model selection, and sending
+ */
 export function ChatInputBox({
   message,
   onMessageChange,

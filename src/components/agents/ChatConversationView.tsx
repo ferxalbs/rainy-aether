@@ -35,6 +35,18 @@ interface ChatConversationViewProps {
   onReset: () => void;
 }
 
+/**
+ * Renders the chat conversation UI including message list, sticky header, message input, and scroll controls.
+ *
+ * Renders messages and a header with conversation controls; auto-scrolls to the bottom when new messages arrive only if the user is already near the bottom, shows a "scroll to bottom" button when the user scrolls away, and provides an input area where Enter sends the message and Shift+Enter inserts a newline.
+ *
+ * @param messages - Array of chat messages to display; each message contains id, content, sender, and timestamp.
+ * @param message - Current text in the message input.
+ * @param onMessageChange - Called with the new input value when the message text changes.
+ * @param onSend - Called with the current message text when the user sends a message.
+ * @param onReset - Called to start a new conversation.
+ * @returns The chat conversation view as a React element.
+ */
 export function ChatConversationView({
   messages,
   message,

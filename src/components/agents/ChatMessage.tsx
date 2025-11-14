@@ -22,6 +22,14 @@ interface ChatMessageProps {
   message: Message;
 }
 
+/**
+ * Render a chat message with sender-specific styling and optional AI actions.
+ *
+ * Renders message content styled differently for 'user' and 'ai' senders; AI messages include an avatar, timestamp, and action buttons (copy, thumbs up, thumbs down, regenerate), while user messages show a user avatar and are aligned to the right.
+ *
+ * @param message - The message to render, including content, sender, id, and timestamp
+ * @returns The chat message React element
+ */
 export function ChatMessage({ message }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
 
