@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { XIcon, PaperclipIcon } from 'lucide-react';
+import { RotateCcwIcon, PaperclipIcon, SendIcon } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Message {
   id: string;
@@ -25,70 +27,114 @@ export function ChatConversationView({
   onSend,
   onReset,
 }: ChatConversationViewProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+
+  const handleSend = () => {
+    if (message.trim()) {
+      onSend(message);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-8">
-        <div className="max-w-[640px] mx-auto space-y-6">
-          <div className="flex justify-end mb-2">
-            <Button
-              variant="secondary"
-              size="icon-sm"
-              onClick={onReset}
-              className="size-8 rounded-full border"
-            >
-              <XIcon className="size-4" />
-            </Button>
+      {/* Messages Area */}
+      <div
+        ref={scrollAreaRef}
+        className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50 px-4 md:px-8 py-6"
+      >
+        <div className="max-w-[720px] mx-auto space-y-6">
+          {/* Reset Button */}
+          <div className="flex justify-end">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={onReset}
+                    className="size-8 rounded-md hover:bg-accent"
+                  >
+                    <RotateCcwIcon className="size-4" />
+                    <span className="sr-only">Reset conversation</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Start new conversation</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+
+          {/* Messages */}
           {messages.map((msg) => (
             <ChatMessage key={msg.id} message={msg} />
           ))}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
-      <div className="border-t border-border px-4 md:px-8 py-[17px]">
-        <div className="max-w-[640px] mx-auto">
-          <div className="rounded-2xl border border-border bg-secondary dark:bg-card p-1">
-            <div className="rounded-xl border border-border dark:border-transparent bg-card dark:bg-secondary">
+      {/* Input Area */}
+      <div className="border-t border-border/50 bg-background/95 backdrop-blur-sm px-4 md:px-8 py-4">
+        <div className="max-w-[720px] mx-auto">
+          <div className="rounded-xl border border-border bg-muted/30 p-1">
+            <div className="rounded-lg border border-transparent bg-background">
               <Textarea
-                placeholder="Continue the conversation..."
+                placeholder="Type your message... (Shift+Enter for new line)"
                 value={message}
                 onChange={(e) => onMessageChange(e.target.value)}
-                className="min-h-[80px] resize-none border-0 bg-transparent px-4 py-3 text-base placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="min-h-[80px] max-h-[200px] resize-none border-0 bg-transparent px-4 py-3 text-sm placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:ring-offset-0"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    if (message.trim()) {
-                      onSend(message);
-                    }
+                    handleSend();
                   }
                 }}
               />
 
-              <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="size-7 rounded-full border border-border dark:border-input bg-card dark:bg-secondary hover:bg-accent"
-                  >
-                    <PaperclipIcon className="size-4 text-muted-foreground" />
-                  </Button>
+              <div className="flex items-center justify-between px-3 py-2 border-t border-border/50">
+                <div className="flex items-center gap-1">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="size-7 hover:bg-accent"
+                        >
+                          <PaperclipIcon className="size-4 text-muted-foreground" />
+                          <span className="sr-only">Attach file</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Attach files (coming soon)</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
 
                 <Button
                   size="sm"
-                  onClick={() => {
-                    if (message.trim()) {
-                      onSend(message);
-                    }
-                  }}
-                  className="h-7 px-4"
+                  onClick={handleSend}
+                  disabled={!message.trim()}
+                  className="h-7 px-3 gap-1.5"
                 >
-                  Send
+                  <span>Send</span>
+                  <SendIcon className="size-3.5" />
                 </Button>
               </div>
             </div>
           </div>
+          <p className="text-xs text-muted-foreground/60 mt-2 text-center">
+            Press Enter to send, Shift+Enter for new line
+          </p>
         </div>
       </div>
     </div>
