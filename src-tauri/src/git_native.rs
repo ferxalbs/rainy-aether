@@ -12,7 +12,8 @@
 
 use git2::{
     BranchType, DiffOptions, Error, ErrorCode, Oid, Repository,
-    Status, StatusOptions, Time,
+    Status, StatusOptions, Time, build::RepoBuilder, FetchOptions,
+    PushOptions, RemoteCallbacks, Progress,
 };
 use serde::Serialize;
 
@@ -805,4 +806,484 @@ pub fn git_diff_file_native(
     .map_err(|e| GitError::from_git2_error(e))?;
 
     Ok(diff_string)
+}
+
+// ============================================================================
+// PHASE 4: REMOTE OPERATIONS (Clone, Push, Pull, Fetch)
+// ============================================================================
+
+use crate::git_auth::AuthCallbacks;
+
+#[derive(Serialize, Debug, Clone)]
+pub struct CloneProgress {
+    pub phase: String,
+    pub received_objects: u32,
+    pub total_objects: u32,
+    pub indexed_objects: u32,
+    pub received_bytes: u64,
+    pub percent: u32,
+}
+
+/// Clone a repository with progress reporting
+///
+/// # Arguments
+/// * `url` - Repository URL (HTTPS or SSH)
+/// * `destination` - Local path to clone into
+/// * `branch` - Optional specific branch to clone
+/// * `depth` - Optional depth for shallow clone (None = full clone)
+#[tauri::command]
+pub async fn git_clone_native(
+    window: tauri::Window,
+    url: String,
+    destination: String,
+    branch: Option<String>,
+    depth: Option<u32>,
+) -> Result<String, String> {
+    // Clone operation must run in a blocking task because libgit2 is synchronous
+    let result = tokio::task::spawn_blocking(move || {
+        let mut builder = RepoBuilder::new();
+
+        // Setup fetch options with authentication
+        let mut fetch_opts = FetchOptions::new();
+
+        // Create callbacks with progress reporting
+        let mut callbacks = RemoteCallbacks::new();
+
+        // Transfer progress callback
+        let window_clone = window.clone();
+        callbacks.transfer_progress(move |progress: &Progress| {
+            let received = progress.received_objects();
+            let total = progress.total_objects();
+            let indexed = progress.indexed_objects();
+            let bytes = progress.received_bytes();
+
+            let percent = if total > 0 {
+                ((received as f64 / total as f64) * 100.0) as u32
+            } else {
+                0
+            };
+
+            let phase = if received < total {
+                "Receiving objects"
+            } else if indexed < total {
+                "Resolving deltas"
+            } else {
+                "Checking out files"
+            };
+
+            let progress_data = CloneProgress {
+                phase: phase.to_string(),
+                received_objects: received as u32,
+                total_objects: total as u32,
+                indexed_objects: indexed as u32,
+                received_bytes: bytes as u64,
+                percent,
+            };
+
+            // Emit progress event to frontend
+            let _ = window_clone.emit("git-clone-progress", &progress_data);
+
+            true // Continue transfer
+        });
+
+        // Add credentials callback
+        callbacks.credentials(|url, username, allowed| {
+            eprintln!("Clone auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+
+            // Try SSH key
+            if allowed.contains(git2::CredentialType::SSH_KEY) {
+                let home = std::env::var("HOME")
+                    .or_else(|_| std::env::var("USERPROFILE"))
+                    .unwrap_or_else(|_| ".".to_string());
+
+                let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
+                if ssh_key.exists() {
+                    if let Ok(cred) = git2::Cred::ssh_key(
+                        username.unwrap_or("git"),
+                        None,
+                        &ssh_key,
+                        None,
+                    ) {
+                        return Ok(cred);
+                    }
+                }
+
+                // Try SSH agent
+                if let Ok(cred) = git2::Cred::ssh_key_from_agent(username.unwrap_or("git")) {
+                    return Ok(cred);
+                }
+            }
+
+            // Try default credentials
+            if allowed.contains(git2::CredentialType::DEFAULT) {
+                if let Ok(cred) = git2::Cred::default() {
+                    return Ok(cred);
+                }
+            }
+
+            // Try credential helper
+            if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+                if let Ok(config) = git2::Config::open_default() {
+                    if let Ok(cred) = git2::Cred::credential_helper(&config, url, username) {
+                        return Ok(cred);
+                    }
+                }
+            }
+
+            Err(git2::Error::from_str("No valid authentication method"))
+        });
+
+        fetch_opts.remote_callbacks(callbacks);
+        builder.fetch_options(fetch_opts);
+
+        // Set branch if specified
+        if let Some(ref b) = branch {
+            builder.branch(b);
+        }
+
+        // Set depth for shallow clone if specified
+        if let Some(d) = depth {
+            builder.clone_depth(d);
+        }
+
+        // Perform the clone
+        let repo = builder
+            .clone(&url, std::path::Path::new(&destination))
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        Ok(repo.path().to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| format!("Clone task failed: {}", e))??;
+
+    Ok(result)
+}
+
+/// Push to remote repository
+///
+/// # Arguments
+/// * `path` - Repository path
+/// * `remote_name` - Remote name (default: "origin")
+/// * `branch_name` - Branch to push (default: current branch)
+/// * `force` - Force push (default: false)
+#[tauri::command]
+pub fn git_push_native(
+    path: String,
+    remote_name: Option<String>,
+    branch_name: Option<String>,
+    force: Option<bool>,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let remote_name = remote_name.as_deref().unwrap_or("origin");
+    let mut remote = repo
+        .find_remote(remote_name)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Get current branch if not specified
+    let branch = if let Some(b) = branch_name {
+        b
+    } else {
+        repo.head()
+            .and_then(|h| {
+                h.shorthand()
+                    .map(|s| s.to_string())
+                    .ok_or_else(|| git2::Error::from_str("Invalid HEAD"))
+            })
+            .map_err(|e| GitError::from_git2_error(e))?
+    };
+
+    // Build refspec
+    let force_prefix = if force.unwrap_or(false) { "+" } else { "" };
+    let refspec = format!(
+        "{}refs/heads/{}:refs/heads/{}",
+        force_prefix, branch, branch
+    );
+
+    // Push with authentication
+    let mut push_opts = PushOptions::new();
+    let mut callbacks = RemoteCallbacks::new();
+
+    // Add credentials
+    callbacks.credentials(|url, username, allowed| {
+        eprintln!("Push auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+
+        // Try SSH key
+        if allowed.contains(git2::CredentialType::SSH_KEY) {
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_string());
+
+            let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
+            if ssh_key.exists() {
+                if let Ok(cred) = git2::Cred::ssh_key(
+                    username.unwrap_or("git"),
+                    None,
+                    &ssh_key,
+                    None,
+                ) {
+                    return Ok(cred);
+                }
+            }
+
+            // Try SSH agent
+            if let Ok(cred) = git2::Cred::ssh_key_from_agent(username.unwrap_or("git")) {
+                return Ok(cred);
+            }
+        }
+
+        // Try default credentials
+        if allowed.contains(git2::CredentialType::DEFAULT) {
+            if let Ok(cred) = git2::Cred::default() {
+                return Ok(cred);
+            }
+        }
+
+        // Try credential helper
+        if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+            if let Ok(config) = git2::Config::open_default() {
+                if let Ok(cred) = git2::Cred::credential_helper(&config, url, username) {
+                    return Ok(cred);
+                }
+            }
+        }
+
+        Err(git2::Error::from_str("No valid authentication method"))
+    });
+
+    push_opts.remote_callbacks(callbacks);
+
+    remote
+        .push(&[&refspec], Some(&mut push_opts))
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(format!("Pushed {} to {}", branch, remote_name))
+}
+
+/// Pull from remote repository (fetch + merge)
+///
+/// # Arguments
+/// * `path` - Repository path
+/// * `remote_name` - Remote name (default: "origin")
+/// * `branch_name` - Branch to pull (default: current branch)
+#[tauri::command]
+pub fn git_pull_native(
+    path: String,
+    remote_name: Option<String>,
+    branch_name: Option<String>,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let remote_name = remote_name.as_deref().unwrap_or("origin");
+    let mut remote = repo
+        .find_remote(remote_name)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Get current branch if not specified
+    let branch = if let Some(b) = branch_name {
+        b
+    } else {
+        repo.head()
+            .and_then(|h| {
+                h.shorthand()
+                    .map(|s| s.to_string())
+                    .ok_or_else(|| git2::Error::from_str("Invalid HEAD"))
+            })
+            .map_err(|e| GitError::from_git2_error(e))?
+    };
+
+    // Fetch with authentication
+    let mut fetch_opts = FetchOptions::new();
+    let mut callbacks = RemoteCallbacks::new();
+
+    callbacks.credentials(|url, username, allowed| {
+        eprintln!("Pull auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+
+        // Try SSH key
+        if allowed.contains(git2::CredentialType::SSH_KEY) {
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_string());
+
+            let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
+            if ssh_key.exists() {
+                if let Ok(cred) = git2::Cred::ssh_key(
+                    username.unwrap_or("git"),
+                    None,
+                    &ssh_key,
+                    None,
+                ) {
+                    return Ok(cred);
+                }
+            }
+
+            // Try SSH agent
+            if let Ok(cred) = git2::Cred::ssh_key_from_agent(username.unwrap_or("git")) {
+                return Ok(cred);
+            }
+        }
+
+        // Try default credentials
+        if allowed.contains(git2::CredentialType::DEFAULT) {
+            if let Ok(cred) = git2::Cred::default() {
+                return Ok(cred);
+            }
+        }
+
+        // Try credential helper
+        if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+            if let Ok(config) = git2::Config::open_default() {
+                if let Ok(cred) = git2::Cred::credential_helper(&config, url, username) {
+                    return Ok(cred);
+                }
+            }
+        }
+
+        Err(git2::Error::from_str("No valid authentication method"))
+    });
+
+    fetch_opts.remote_callbacks(callbacks);
+
+    // Fetch
+    remote
+        .fetch(&[&branch], Some(&mut fetch_opts), None)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Get fetch head
+    let fetch_head = repo
+        .find_reference("FETCH_HEAD")
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    let fetch_commit = repo
+        .reference_to_annotated_commit(&fetch_head)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Perform merge analysis
+    let (analysis, _) = repo
+        .merge_analysis(&[&fetch_commit])
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    if analysis.is_up_to_date() {
+        return Ok("Already up to date".to_string());
+    }
+
+    if analysis.is_fast_forward() {
+        // Fast-forward merge
+        let refname = format!("refs/heads/{}", branch);
+        let mut reference = repo
+            .find_reference(&refname)
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        reference
+            .set_target(fetch_commit.id(), "Fast-forward")
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        repo.set_head(&refname)
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        Ok("Fast-forward merge successful".to_string())
+    } else {
+        // Normal merge required
+        repo.merge(
+            &[&fetch_commit],
+            Some(&mut git2::MergeOptions::new()),
+            None,
+        )
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+        // Check for conflicts
+        let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+        if index.has_conflicts() {
+            return Err(GitError {
+                code: "CONFLICT".to_string(),
+                message: "Merge has conflicts. Please resolve them manually.".to_string(),
+                category: ErrorCategory::Conflict,
+                suggestion: Some("Use git status to see conflicted files.".to_string()),
+            }
+            .into());
+        }
+
+        Ok("Merge successful".to_string())
+    }
+}
+
+/// Fetch from remote repository
+///
+/// # Arguments
+/// * `path` - Repository path
+/// * `remote_name` - Remote name (default: "origin")
+#[tauri::command]
+pub fn git_fetch_native(
+    path: String,
+    remote_name: Option<String>,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let remote_name = remote_name.as_deref().unwrap_or("origin");
+    let mut remote = repo
+        .find_remote(remote_name)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Fetch with authentication
+    let mut fetch_opts = FetchOptions::new();
+    let mut callbacks = RemoteCallbacks::new();
+
+    callbacks.credentials(|url, username, allowed| {
+        eprintln!("Fetch auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+
+        // Try SSH key
+        if allowed.contains(git2::CredentialType::SSH_KEY) {
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_string());
+
+            let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
+            if ssh_key.exists() {
+                if let Ok(cred) = git2::Cred::ssh_key(
+                    username.unwrap_or("git"),
+                    None,
+                    &ssh_key,
+                    None,
+                ) {
+                    return Ok(cred);
+                }
+            }
+
+            // Try SSH agent
+            if let Ok(cred) = git2::Cred::ssh_key_from_agent(username.unwrap_or("git")) {
+                return Ok(cred);
+            }
+        }
+
+        // Try default credentials
+        if allowed.contains(git2::CredentialType::DEFAULT) {
+            if let Ok(cred) = git2::Cred::default() {
+                return Ok(cred);
+            }
+        }
+
+        // Try credential helper
+        if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+            if let Ok(config) = git2::Config::open_default() {
+                if let Ok(cred) = git2::Cred::credential_helper(&config, url, username) {
+                    return Ok(cred);
+                }
+            }
+        }
+
+        Err(git2::Error::from_str("No valid authentication method"))
+    });
+
+    fetch_opts.remote_callbacks(callbacks);
+
+    // Fetch all branches
+    remote
+        .fetch(&[] as &[&str], Some(&mut fetch_opts), None)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(format!("Fetched from {}", remote_name))
 }
