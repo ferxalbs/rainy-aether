@@ -4,6 +4,9 @@ import {
   SparklesIcon,
   ChevronDownIcon,
   CheckIcon,
+  SendIcon,
+  MicIcon,
+  CodeIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -13,13 +16,21 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 const aiModels = [
-  { id: 'square-3', label: 'Square AI 3.0', icon: SparklesIcon },
-  { id: 'square-turbo', label: 'Square AI Turbo', icon: SparklesIcon },
-  { id: 'square-pro', label: 'Square AI Pro', icon: SparklesIcon },
-  { id: 'square-ultra', label: 'Square AI Ultra', icon: SparklesIcon },
+  { id: 'rainy-3', label: 'Rainy AI 3.0', icon: SparklesIcon, description: 'Most capable' },
+  { id: 'rainy-turbo', label: 'Rainy Turbo', icon: SparklesIcon, description: 'Fastest responses' },
+  { id: 'rainy-pro', label: 'Rainy Pro', icon: SparklesIcon, description: 'Advanced reasoning', pro: true },
+  { id: 'rainy-ultra', label: 'Rainy Ultra', icon: SparklesIcon, description: 'Maximum intelligence', pro: true },
 ];
 
 interface ChatInputBoxProps {
@@ -32,6 +43,18 @@ interface ChatInputBoxProps {
   placeholder?: string;
 }
 
+/**
+ * Renders a chat input area with tooling, a model selector, and a send control.
+ *
+ * @param message - Current input text shown in the textarea
+ * @param onMessageChange - Called with the updated text when the textarea value changes
+ * @param onSend - Called to submit the current message (also triggered by Enter without Shift)
+ * @param selectedModel - Currently selected model id for the model selector
+ * @param onModelChange - Called with a model id when a different model is selected
+ * @param showTools - When true, displays additional tool buttons and the model selector (defaults to `true`)
+ * @param placeholder - Placeholder text for the textarea (defaults to 'Ask anything...')
+ * @returns The chat input box React element with controls for attachments, search/think tools, model selection, and sending
+ */
 export function ChatInputBox({
   message,
   onMessageChange,
@@ -41,14 +64,16 @@ export function ChatInputBox({
   showTools = true,
   placeholder = 'Ask anything...',
 }: ChatInputBoxProps) {
+  const isMessageEmpty = !message.trim();
+
   return (
-    <div className="rounded-2xl border border-border bg-secondary dark:bg-card p-1">
-      <div className="rounded-xl border border-border dark:border-transparent bg-card dark:bg-secondary">
+    <div className="rounded-2xl border border-border/50 bg-gradient-to-br from-secondary/50 to-secondary/30 backdrop-blur-sm p-1 shadow-sm hover:shadow-md transition-all duration-200">
+      <div className="rounded-xl border border-border/30 bg-background/80 backdrop-blur-sm">
         <Textarea
           placeholder={placeholder}
           value={message}
           onChange={(e) => onMessageChange(e.target.value)}
-          className="min-h-[120px] resize-none border-0 bg-transparent px-4 py-3 text-base placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:ring-offset-0"
+          className="min-h-[100px] max-h-[200px] resize-none border-0 bg-transparent px-4 py-3 text-base placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:ring-offset-0 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -57,79 +82,163 @@ export function ChatInputBox({
           }}
         />
 
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="size-7 rounded-full border border-border dark:border-input bg-card dark:bg-secondary hover:bg-accent"
-            >
-              <PaperclipIcon className="size-4 text-muted-foreground" />
-            </Button>
+        <div className="flex items-center justify-between px-3 py-2.5 border-t border-border/30">
+          <div className="flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-8 rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <PaperclipIcon className="size-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Attach files</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-8 rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <CodeIcon className="size-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Attach code context</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="size-8 rounded-lg hover:bg-accent/50 transition-colors"
+                  >
+                    <MicIcon className="size-4 text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Voice input</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
             {showTools && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 h-7 rounded-full border border-border dark:border-input bg-card dark:bg-secondary hover:bg-accent px-3"
-                >
-                  <CircleDashedIcon className="size-4 text-muted-foreground" />
-                  <span className="hidden sm:inline text-sm text-muted-foreground/70">
-                    Deep Search
-                  </span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1.5 h-7 rounded-full border border-border dark:border-input bg-card dark:bg-secondary hover:bg-accent px-3"
-                >
-                  <SparklesIcon className="size-4 text-muted-foreground" />
-                  <span className="hidden sm:inline text-sm text-muted-foreground/70">
-                    Think
-                  </span>
-                </Button>
-              </>
+              <div className="flex items-center gap-1 ml-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 h-7 rounded-lg hover:bg-accent/50 px-2.5 transition-colors"
+                      >
+                        <CircleDashedIcon className="size-3.5 text-muted-foreground" />
+                        <span className="hidden sm:inline text-xs text-muted-foreground font-medium">
+                          Search
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Deep search mode</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 h-7 rounded-lg hover:bg-accent/50 px-2.5 transition-colors"
+                      >
+                        <SparklesIcon className="size-3.5 text-muted-foreground" />
+                        <span className="hidden sm:inline text-xs text-muted-foreground font-medium">
+                          Think
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Advanced reasoning</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             )}
           </div>
 
-          {showTools ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2 h-5 px-0 hover:bg-transparent"
-                >
-                  <Logo className="size-6" />
-                  <span className="hidden sm:inline text-sm text-foreground dark:text-muted-foreground">
-                    {aiModels.find((m) => m.id === selectedModel)?.label}
-                  </span>
-                  <ChevronDownIcon className="size-4 text-foreground dark:text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {aiModels.map((model) => {
-                  const ModelIcon = model.icon;
-                  const isSelected = selectedModel === model.id;
-                  return (
-                    <DropdownMenuItem
-                      key={model.id}
-                      onClick={() => onModelChange(model.id)}
-                      className="gap-2"
-                    >
-                      <ModelIcon className="size-4" />
-                      <span className="flex-1">{model.label}</span>
-                      {isSelected && <CheckIcon className="size-4" />}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button size="sm" onClick={onSend} className="h-7 px-4">
-              Send
+          <div className="flex items-center gap-2">
+            {showTools && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 h-8 px-2 hover:bg-accent/50 rounded-lg transition-colors"
+                  >
+                    <div className="size-5 rounded-md bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 flex items-center justify-center">
+                      <Logo className="size-3.5 text-white" />
+                    </div>
+                    <span className="hidden sm:inline text-xs font-medium">
+                      {aiModels.find((m) => m.id === selectedModel)?.label}
+                    </span>
+                    <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 backdrop-blur-xl bg-background/95">
+                  {aiModels.map((model) => {
+                    const ModelIcon = model.icon;
+                    const isSelected = selectedModel === model.id;
+                    return (
+                      <DropdownMenuItem
+                        key={model.id}
+                        onClick={() => onModelChange(model.id)}
+                        className="gap-2 cursor-pointer py-2.5"
+                      >
+                        <div className="size-8 rounded-md bg-gradient-to-br from-blue-500 via-cyan-500 to-teal-500 flex items-center justify-center">
+                          <ModelIcon className="size-4 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-medium">{model.label}</span>
+                            {model.pro && (
+                              <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">
+                                Pro
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">{model.description}</p>
+                        </div>
+                        {isSelected && <CheckIcon className="size-4 text-primary" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="cursor-pointer text-xs text-muted-foreground">
+                    <SparklesIcon className="size-3.5" />
+                    <span>Manage models</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            <Button
+              size="sm"
+              onClick={onSend}
+              disabled={isMessageEmpty}
+              className="h-8 px-4 gap-1.5 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="text-sm font-medium">Send</span>
+              <SendIcon className="size-3.5" />
             </Button>
-          )}
+          </div>
         </div>
       </div>
     </div>
