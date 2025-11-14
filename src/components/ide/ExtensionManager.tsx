@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Trash2, Power, PowerOff, AlertTriangle, CheckCircle, XCircle, Package, Activity, RefreshCw, Settings, Shield, Zap, Clock } from 'lucide-react';
 import { useExtensionStore, useExtensionInstallation } from '../../stores/extensionStore';
 import { InstalledExtension } from '../../types/extension';
@@ -20,6 +20,16 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
   const [healthReport, setHealthReport] = useState(extensionManager.getHealthReport());
   const [showConfigPanel, setShowConfigPanel] = useState(false);
   const [startupModeError, setStartupModeError] = useState<string | null>(null);
+  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup pending timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const filteredExtensions = installedExtensions.filter(ext => {
     switch (filter) {
@@ -91,8 +101,15 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
       const errorMessage = error instanceof Error ? error.message : 'Failed to change startup activation mode';
       console.error('Failed to toggle startup mode:', error);
       setStartupModeError(errorMessage);
+      // Clear any existing timeout before setting a new one
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
       // Auto-clear error after 5 seconds
-      setTimeout(() => setStartupModeError(null), 5000);
+      errorTimeoutRef.current = setTimeout(() => {
+        setStartupModeError(null);
+        errorTimeoutRef.current = null;
+      }, 5000);
     }
   };
 

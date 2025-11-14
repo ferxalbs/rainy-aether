@@ -237,6 +237,13 @@ export class ExtensionManager extends EventEmitter {
     try {
       console.log(`[ExtensionManager] Ensuring ${extension.id} is loaded in Monaco...`);
 
+      // Guard: Check if Monaco extension host is available
+      if (!monacoExtensionHost) {
+        const error = new Error('Monaco extension host is not initialized');
+        console.error(`[ExtensionManager] ${error.message}`);
+        throw error;
+      }
+
       // Check if already loaded
       if (monacoExtensionHost.isExtensionLoaded(extension.id)) {
         console.log(`[ExtensionManager] Extension ${extension.id} already loaded in Monaco`);
