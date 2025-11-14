@@ -270,23 +270,25 @@ function normalizeExtensionFilePath(path: string): string {
     throw new Error('Path is required to read extension file');
   }
 
-  let normalized = path.replace(/\\/g, '/');
+  // Normalize backslashes to forward slashes, strip leading "./" and leading slashes
+  let normalized = path
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\/+/, '');
 
-  if (normalized.startsWith('./')) {
-    normalized = normalized.substring(2);
+  // If no base path, return normalized path as-is
+  if (!extensionBasePath) {
+    return normalized;
   }
 
-  normalized = normalized.replace(/^\/+/, '');
-
-  if (extensionBasePath) {
-    const sanitizedBase = extensionBasePath.replace(/\\/g, '/');
-    if (normalized.startsWith(sanitizedBase)) {
-      return normalized;
-    }
-    return `${sanitizedBase}/${normalized}`.replace(/\/+/g, '/');
+  // Sanitize base path and check if already prefixed
+  const sanitizedBase = extensionBasePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (normalized.startsWith(sanitizedBase)) {
+    return normalized;
   }
 
-  return normalized;
+  // Join base and path, collapse duplicate slashes
+  return `${sanitizedBase}/${normalized}`.replace(/\/+/g, '/');
 }
 
 /**

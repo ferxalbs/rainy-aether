@@ -832,7 +832,12 @@ export class MonacoExtensionHost {
   }
 
   /**
-   * Reload an extension in-place to refresh contributions and sandbox state
+   * Reload an extension in-place to refresh contributions and sandbox state.
+   * Uses pre-load + atomic-swap pattern to avoid UI flicker:
+   * 1. Pre-load new extension into temporary holder (old one stays in loadedExtensions)
+   * 2. On success, atomically swap: replace map entry and dispose old instance
+   * 3. On failure, keep old extension untouched and clean up resources
+   * 4. Track swap state to ensure rollback restores old instance if activation fails
    */
   private async reloadExtension(extensionId: string, extension?: InstalledExtension): Promise<void> {
     const existing = this.loadedExtensions.get(extensionId);
@@ -844,12 +849,86 @@ export class MonacoExtensionHost {
       return;
     }
 
+    const extensionToLoad = extension ?? existing.extension;
+    let newLoadedExtension: LoadedExtension | null = null;
+    let swapped = false;
+
     try {
-      await this.unloadExtension(extensionId);
-      const extensionToLoad = extension ?? existing.extension;
-      await this.loadExtension(extensionToLoad);
+      console.log(`Reloading extension ${extensionId} with pre-load + atomic-swap pattern`);
+
+      // Phase 1: Pre-load new extension into temporary holder without touching the old one
+      newLoadedExtension = {
+        extension: extensionToLoad,
+        disposables: [],
+        activated: false,
+        sandbox: null,
+      };
+
+      await this.loadExtensionContributions(extensionToLoad, newLoadedExtension);
+
+      if (extensionToLoad.manifest.main) {
+        await this.initializeExtensionSandbox(extensionToLoad, newLoadedExtension);
+      }
+
+      // Phase 2: Atomic swap - replace map entry
+      this.loadedExtensions.set(extensionId, newLoadedExtension);
+      swapped = true;
+      console.log(`Atomically swapped extension ${extensionId}`);
+
+      // Phase 3: Try to activate BEFORE disposing old instance
+      // This ensures old instance remains available if activation fails
+      try {
+        if (extensionToLoad.manifest.activationEvents) {
+          await this.tryActivateExtension(extensionId);
+        } else if (!extensionToLoad.manifest.main) {
+          await this.triggerActivationEvent(ActivationEventType.OnStartupFinished);
+        }
+      } catch (activationError) {
+        // Activation failed - restore old instance to map before rethrowing
+        console.error(`Activation failed after swap, restoring old extension ${extensionId}`);
+        this.loadedExtensions.set(extensionId, existing);
+        swapped = false;
+        throw activationError;
+      }
+
+      // Phase 4: Activation succeeded - now safely dispose old instance
+      try {
+        if (existing.sandbox) {
+          await existing.sandbox.dispose();
+        }
+        this.activationManager.unregisterExtension(extensionId);
+        for (const disposable of existing.disposables) {
+          disposable.dispose();
+        }
+        this.unloadLanguageServices(extensionId);
+      } catch (disposeError) {
+        console.error(`Error cleaning up old extension ${extensionId}:`, disposeError);
+      }
+
+      console.log(`Successfully reloaded extension ${extensionId}`);
     } catch (error) {
       console.error(`Failed to reload extension ${extensionId}:`, error);
+
+      // Phase 5: Rollback - restore old instance if swap occurred
+      if (swapped) {
+        console.log(`Rolling back extension ${extensionId} to previous state`);
+        this.loadedExtensions.set(extensionId, existing);
+      }
+
+      // Clean up resources from failed new load
+      if (newLoadedExtension) {
+        try {
+          console.log(`Cleaning up resources from failed reload of ${extensionId}`);
+          if (newLoadedExtension.sandbox) {
+            await newLoadedExtension.sandbox.dispose();
+          }
+          for (const disposable of newLoadedExtension.disposables) {
+            disposable.dispose();
+          }
+        } catch (cleanupError) {
+          console.error(`Error during resource cleanup for failed reload:`, cleanupError);
+        }
+      }
     }
   }
 }
