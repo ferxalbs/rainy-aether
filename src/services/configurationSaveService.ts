@@ -109,12 +109,16 @@ class ConfigurationSaveService {
     retries = 0
   ): Promise<void> {
     try {
+      // CRITICAL: Backend expects JSON string for value
+      const valueJson = JSON.stringify(value);
+
       await invoke('set_configuration_value', {
         key,
-        value,
-        scope
+        value: valueJson,  // ← MUST be JSON string
+        scope,             // ← Already capitalized ("User" or "Workspace")
+        workspacePath: null
       });
-      console.log('[ConfigurationSaveService] ✅ Saved:', { key, scope });
+      console.log('[ConfigurationSaveService] ✅ Saved:', { key, scope, value });
     } catch (error) {
       if (retries < this.MAX_RETRIES) {
         console.warn('[ConfigurationSaveService] ⚠️ Save failed, retrying...', { key, attempt: retries + 1 });

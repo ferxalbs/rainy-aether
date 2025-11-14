@@ -358,12 +358,32 @@ class ConfigurationService {
         }
       }
 
+      // Get old value for event
+      const oldValue = this.get(request.key);
+
       // Update local cache immediately for responsive UI
       if (request.scope === 'user') {
         this.userValues.set(request.key, request.value);
       } else {
         this.workspaceValues.set(request.key, request.value);
       }
+
+      // CRITICAL: Notify listeners IMMEDIATELY (don't wait for backend event)
+      const changeEvent: ConfigurationChangeEvent = {
+        changedKeys: [request.key],
+        scope: request.scope as any,
+        oldValues: { [request.key]: oldValue },
+        newValues: { [request.key]: request.value },
+        timestamp: Date.now()
+      };
+
+      this.changeListeners.forEach(listener => {
+        try {
+          listener(changeEvent);
+        } catch (error) {
+          console.error('[ConfigurationService] Error in change listener:', error);
+        }
+      });
 
       // Queue debounced save to backend
       configurationSaveService.queueSave(request.key, request.value, request.scope);
