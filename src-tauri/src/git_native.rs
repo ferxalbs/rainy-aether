@@ -951,7 +951,7 @@ pub async fn git_clone_native(
             .clone(&url, std::path::Path::new(&destination))
             .map_err(|e| GitError::from_git2_error(e))?;
 
-        Ok(repo.path().to_string_lossy().to_string())
+        Ok::<String, String>(repo.path().to_string_lossy().to_string())
     })
     .await
     .map_err(|e| format!("Clone task failed: {}", e))??;
@@ -1395,9 +1395,6 @@ pub fn git_unstage_all_native(path: String) -> Result<String, String> {
     let head_commit = head
         .peel_to_commit()
         .map_err(|e| GitError::from_git2_error(e))?;
-    let head_tree = head_commit
-        .tree()
-        .map_err(|e| GitError::from_git2_error(e))?;
 
     repo.reset(
         head_commit.as_object(),
@@ -1468,11 +1465,11 @@ pub fn git_commit_native(
 /// List stashes
 #[tauri::command]
 pub fn git_stash_list_native(path: String) -> Result<Vec<CommitInfo>, String> {
-    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+    let mut repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
     let mut stashes = Vec::new();
 
-    repo.stash_foreach(|index, name, oid| {
+    repo.stash_foreach(|_index, name, oid| {
         if let Ok(commit) = repo.find_commit(*oid) {
             stashes.push(CommitInfo {
                 hash: oid.to_string(),
@@ -1495,7 +1492,7 @@ pub fn git_stash_push_native(
     path: String,
     message: Option<String>,
 ) -> Result<String, String> {
-    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+    let mut repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
     let signature = repo
         .signature()
@@ -1513,7 +1510,7 @@ pub fn git_stash_push_native(
 /// Apply a stash
 #[tauri::command]
 pub fn git_stash_pop_native(path: String, index: usize) -> Result<String, String> {
-    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+    let mut repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
     repo.stash_pop(index, None)
         .map_err(|e| GitError::from_git2_error(e))?;
@@ -1657,6 +1654,33 @@ pub struct ConflictContent {
     pub theirs: Option<String>,
 }
 
+/// Helper function to find a conflict by file path
+fn find_conflict_by_path(
+    index: &git2::Index,
+    file_path: &str,
+) -> Result<git2::IndexConflict, String> {
+    for entry in index.conflicts().map_err(|e| GitError::from_git2_error(e))? {
+        let c = entry.map_err(|e| GitError::from_git2_error(e))?;
+
+        // Check if this conflict matches the file path
+        let path_matches = c.our.as_ref()
+            .map(|e| String::from_utf8_lossy(&e.path) == file_path)
+            .unwrap_or(false) ||
+            c.their.as_ref()
+            .map(|e| String::from_utf8_lossy(&e.path) == file_path)
+            .unwrap_or(false) ||
+            c.ancestor.as_ref()
+            .map(|e| String::from_utf8_lossy(&e.path) == file_path)
+            .unwrap_or(false);
+
+        if path_matches {
+            return Ok(c);
+        }
+    }
+
+    Err(GitError::not_found("Conflict not found for file").into())
+}
+
 /// Get conflict content for a file
 #[tauri::command]
 pub fn git_get_conflict_content_native(
@@ -1667,9 +1691,7 @@ pub fn git_get_conflict_content_native(
 
     let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
 
-    let conflict = index
-        .get_conflict(&file_path)
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let conflict = find_conflict_by_path(&index, &file_path)?;
 
     let mut content = ConflictContent {
         ancestor: None,
@@ -1735,9 +1757,7 @@ pub fn git_accept_ours_native(path: String, file_path: String) -> Result<String,
 
     let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
 
-    let conflict = index
-        .get_conflict(&file_path)
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let conflict = find_conflict_by_path(&index, &file_path)?;
 
     if let Some(our) = conflict.our {
         let blob = repo
@@ -1763,9 +1783,7 @@ pub fn git_accept_theirs_native(
 
     let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
 
-    let conflict = index
-        .get_conflict(&file_path)
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let conflict = find_conflict_by_path(&index, &file_path)?;
 
     if let Some(their) = conflict.their {
         let blob = repo
