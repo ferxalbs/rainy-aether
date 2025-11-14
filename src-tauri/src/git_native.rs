@@ -1467,21 +1467,28 @@ pub fn git_commit_native(
 pub fn git_stash_list_native(path: String) -> Result<Vec<CommitInfo>, String> {
     let mut repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
-    let mut stashes = Vec::new();
+    // First collect stash info (OID and name) without borrowing repo inside closure
+    let mut stash_data = Vec::new();
 
     repo.stash_foreach(|_index, name, oid| {
-        if let Ok(commit) = repo.find_commit(*oid) {
+        stash_data.push((*oid, name.to_string()));
+        true // Continue iteration
+    })
+    .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Now process the collected data
+    let mut stashes = Vec::new();
+    for (oid, name) in stash_data {
+        if let Ok(commit) = repo.find_commit(oid) {
             stashes.push(CommitInfo {
                 hash: oid.to_string(),
                 author: commit.author().name().unwrap_or("").to_string(),
                 email: commit.author().email().unwrap_or("").to_string(),
                 date: format_time(commit.time()),
-                message: name.to_string(),
+                message: name,
             });
         }
-        true // Continue iteration
-    })
-    .map_err(|e| GitError::from_git2_error(e))?;
+    }
 
     Ok(stashes)
 }
