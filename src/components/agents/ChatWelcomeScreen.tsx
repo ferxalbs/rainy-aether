@@ -35,6 +35,18 @@ interface ChatWelcomeScreenProps {
   onModelChange: (modelId: string) => void;
 }
 
+/**
+ * Render the chat welcome screen containing the app header, quick prompts, input box, mode selector, and footer note.
+ *
+ * @param message - Current text in the chat input
+ * @param onMessageChange - Called with a new message value when input changes
+ * @param onSend - Called to submit/send the current message
+ * @param selectedMode - Currently selected chat mode id
+ * @param onModeChange - Called with a mode id when the user selects a different mode
+ * @param selectedModel - Currently selected model id
+ * @param onModelChange - Called with a model id when the user selects a different model
+ * @returns The welcome screen JSX element containing interactive controls and informational UI
+ */
 export function ChatWelcomeScreen({
   message,
   onMessageChange,

@@ -48,6 +48,13 @@ const teams = [
   { id: 'education', name: 'Education', icon: GraduationCapIcon },
 ];
 
+/**
+ * Render the chat sidebar with a team selector, new chat button, search input, quick navigation, and lists of recent and archived chats.
+ *
+ * The sidebar displays non-archived chats under "Recent" and archived chats under "Archived", highlights the currently selected chat, and provides per-chat actions for share, rename, archive/unarchive, and delete. Team selection updates local UI state; clicking a chat selects it; dedicated controls trigger creating, archiving, unarchiving, and deleting chats.
+ *
+ * @returns The React element for the chat sidebar containing the header/team selector, top actions, searchable chat lists, and footer branding.
+ */
 export function ChatSidebar() {
   const { chats, selectedChatId } = useChatStore();
   const { selectChat, archiveChat, unarchiveChat, deleteChat, createNewChat } = useChatActions();

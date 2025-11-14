@@ -13,8 +13,11 @@ import {
 import { cn } from '@/lib/cn';
 
 /**
- * AgentChatView - Main chat interface component for Rainy AI
- * Optimized for IDE integration with resizable panels and glassmorphism design
+ * Render the responsive chat interface for Rainy AI with a collapsible, resizable desktop sidebar and a mobile overlay sidebar.
+ *
+ * Desktop layout presents a horizontal resizable panel group with a collapsible left sidebar and a main content area that includes a top bar with a collapse toggle. Mobile layout exposes the sidebar as a sheet overlay opened from the header. A subtle grid background pattern is applied and the main content composes ChatSidebar and ChatMain.
+ *
+ * @returns The rendered chat interface element.
  */
 export function AgentChatView() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
