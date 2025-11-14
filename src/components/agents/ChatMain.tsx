@@ -12,7 +12,7 @@ interface Message {
 export function ChatMain() {
   const [message, setMessage] = useState('');
   const [selectedMode, setSelectedMode] = useState('fast');
-  const [selectedModel, setSelectedModel] = useState('square-3');
+  const [selectedModel, setSelectedModel] = useState('rainy-3');
   const [isConversationStarted, setIsConversationStarted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -31,7 +31,7 @@ export function ChatMain() {
       {
         id: '2',
         content:
-          "Hello! I'm Square AI, your intelligent assistant. I'm here to help you with anything you need. How can I assist you today?",
+          "Hello! I'm Rainy AI, your intelligent coding assistant. I'm here to help you build amazing software. How can I assist you today?",
         sender: 'ai',
         timestamp: new Date(),
       },
