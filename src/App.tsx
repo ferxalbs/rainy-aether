@@ -16,6 +16,7 @@ import { initTerminalService } from "./services/terminalService";
 import { terminalActions } from "./stores/terminalStore";
 import { iconThemeActions } from "./stores/iconThemeStore";
 import { defaultIconTheme } from "./themes/iconThemes/defaultIconTheme";
+import { fontManager } from "./services/fontManager";
 
 const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -61,6 +62,10 @@ const App: React.FC = () => {
           // Initialize auto-save service
           initializeAutoSaveService();
           console.log('[App] Auto-save service initialized successfully');
+
+          // Initialize font manager
+          await fontManager.initialize();
+          console.log('[App] Font manager initialized successfully');
         } catch (error) {
           console.error('[App] Failed to initialize configuration system:', error);
           // Non-fatal error - continue with initialization

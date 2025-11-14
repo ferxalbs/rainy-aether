@@ -7,6 +7,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { configurationSaveService } from './configurationSaveService';
 import type {
   ExtensionConfiguration,
   ResolvedConfigurationProperty,
@@ -344,6 +345,7 @@ class ConfigurationService {
 
   /**
    * Set a configuration value at specified scope
+   * Uses debounced save service for optimized disk I/O
    */
   async set(request: ConfigurationUpdateRequest): Promise<void> {
     try {
@@ -356,13 +358,15 @@ class ConfigurationService {
         }
       }
 
-      // Invoke backend to persist
-      await invoke('set_configuration_value', {
-        key: request.key,
-        value: JSON.stringify(request.value),
-        scope: request.scope,
-        workspacePath: this.workspacePath
-      });
+      // Update local cache immediately for responsive UI
+      if (request.scope === 'user') {
+        this.userValues.set(request.key, request.value);
+      } else {
+        this.workspaceValues.set(request.key, request.value);
+      }
+
+      // Queue debounced save to backend
+      configurationSaveService.queueSave(request.key, request.value, request.scope);
 
       console.log(`[ConfigurationService] Set ${request.key} = ${request.value} (${request.scope})`);
     } catch (error) {
@@ -522,9 +526,19 @@ class ConfigurationService {
   }
 
   /**
+   * Flush pending saves immediately
+   */
+  async flush(): Promise<void> {
+    await configurationSaveService.flush();
+  }
+
+  /**
    * Cleanup resources
    */
-  dispose(): void {
+  async dispose(): Promise<void> {
+    // Flush any pending saves before cleanup
+    await this.flush();
+
     if (this.unlistenTauriEvent) {
       this.unlistenTauriEvent();
       this.unlistenTauriEvent = null;

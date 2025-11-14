@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Brush, Laptop2, MoonStar, SunMedium, Settings, FileText } from "lucide-react";
+import { Brush, Laptop2, MoonStar, SunMedium, Settings, FileText, Type } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../ui/card";
 import { Separator } from "../ui/separator";
@@ -18,6 +18,7 @@ import { StringSetting } from "@/components/configuration/StringSetting";
 import { BooleanSetting } from "@/components/configuration/BooleanSetting";
 import { EnumSetting } from "@/components/configuration/EnumSetting";
 import { ObjectSetting } from "@/components/configuration/ObjectSetting";
+import { FontSettings } from "@/components/configuration/FontSettings";
 import { useConfigurationState, configurationActions } from "@/stores/configurationStore";
 import type { ResolvedConfigurationProperty } from "@/types/configuration";
 
@@ -34,7 +35,7 @@ const SettingsPage = () => {
     [themeOptions, theme.currentTheme.name]
   );
 
-  const [currentView, setCurrentView] = useState<"quick" | "appearance" | "explorer" | "advanced">("quick");
+  const [currentView, setCurrentView] = useState<"quick" | "appearance" | "explorer" | "fonts" | "advanced">("quick");
 
   const setMode = useCallback(async (mode: ThemeMode) => {
     await setUserPreference(mode);
@@ -184,6 +185,36 @@ const SettingsPage = () => {
     );
   }
 
+  // Render Font Settings view
+  if (currentView === "fonts") {
+    return (
+      <div className="h-screen flex flex-col bg-background text-foreground">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => setCurrentView("quick")}>
+              ← Back
+            </Button>
+            <h1 className="text-xl font-semibold">Font Settings</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="default" onClick={() => actions.openFolderDialog()}>
+              Open Folder…
+            </Button>
+            <Button variant="outline" onClick={() => actions.closeSettings()}>
+              Back to Editor
+            </Button>
+          </div>
+        </div>
+
+        {/* Font Settings UI */}
+        <div className="flex-1 overflow-hidden">
+          <FontSettings />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex bg-background text-foreground">
       {/* Sidebar */}
@@ -217,6 +248,15 @@ const SettingsPage = () => {
           Explorer
         </Button>
 
+        <Button
+          variant={currentView === "fonts" ? "secondary" : "ghost"}
+          className="w-full justify-start"
+          onClick={() => setCurrentView("fonts")}
+        >
+          <Type className="mr-2 h-4 w-4" />
+          Fonts
+        </Button>
+
         <Separator className="my-4" />
 
         <Button
@@ -241,6 +281,7 @@ const SettingsPage = () => {
             {currentView === "quick" && "Quick Settings"}
             {currentView === "appearance" && "Appearance Settings"}
             {currentView === "explorer" && "Explorer Settings"}
+            {currentView === "fonts" && "Font Settings"}
           </h1>
           <div className="flex items-center gap-2">
             <Button variant="default" onClick={() => actions.openFolderDialog()}>
