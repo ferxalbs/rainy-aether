@@ -68,7 +68,7 @@ impl ToolExecutor {
     }
 
     /// Register a tool
-    pub fn register_tool(&self, tool: Box<dyn Tool>) {
+    pub fn register_tool(&self, tool: Arc<dyn Tool>) {
         self.registry.register(tool);
     }
 
@@ -241,7 +241,7 @@ pub struct ToolDefinition {
 
 /// Tool registry
 pub struct ToolRegistry {
-    tools: Mutex<Vec<Box<dyn Tool>>>,
+    tools: DashMap<String, Arc<dyn Tool>>,
     metrics: Arc<DashMap<String, ToolMetrics>>,
 }
 
@@ -249,57 +249,57 @@ impl ToolRegistry {
     /// Create a new tool registry
     pub fn new() -> Self {
         Self {
-            tools: Mutex::new(Vec::new()),
+            tools: DashMap::new(),
             metrics: Arc::new(DashMap::new()),
         }
     }
 
     /// Register a tool
-    pub fn register(&self, tool: Box<dyn Tool>) {
+    pub fn register(&self, tool: Arc<dyn Tool>) {
         let name = tool.name().to_string();
-        self.tools.lock().push(tool);
+        self.tools.insert(name.clone(), tool);
         tracing::info!("Registered tool: {}", name);
     }
 
     /// Get a tool by name
-    pub fn get(&self, name: &str) -> Option<&dyn Tool> {
-        self.tools.lock()
-            .iter()
-            .find(|t| t.name() == name)
-            .map(|t| &**t as &dyn Tool)
+    pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
+        self.tools.get(name).map(|entry| Arc::clone(entry.value()))
     }
 
     /// List all tool definitions
     pub fn list_tools(&self) -> Vec<ToolDefinition> {
-        self.tools.lock()
+        self.tools
             .iter()
-            .map(|tool| ToolDefinition {
-                name: tool.name().to_string(),
-                description: tool.description().to_string(),
-                parameters: tool.parameters(),
-                is_cacheable: tool.is_cacheable(),
-                cache_ttl_secs: tool.cache_ttl().as_secs(),
+            .map(|entry| {
+                let tool = entry.value();
+                ToolDefinition {
+                    name: tool.name().to_string(),
+                    description: tool.description().to_string(),
+                    parameters: tool.parameters(),
+                    is_cacheable: tool.is_cacheable(),
+                    cache_ttl_secs: tool.cache_ttl().as_secs(),
+                }
             })
             .collect()
     }
 
     /// Get tool definition by name
     pub fn get_definition(&self, name: &str) -> Option<ToolDefinition> {
-        self.tools.lock()
-            .iter()
-            .find(|t| t.name() == name)
-            .map(|tool| ToolDefinition {
+        self.tools.get(name).map(|entry| {
+            let tool = entry.value();
+            ToolDefinition {
                 name: tool.name().to_string(),
                 description: tool.description().to_string(),
                 parameters: tool.parameters(),
                 is_cacheable: tool.is_cacheable(),
                 cache_ttl_secs: tool.cache_ttl().as_secs(),
-            })
+            }
+        })
     }
 
     /// Get tool count
     pub fn count(&self) -> usize {
-        self.tools.lock().len()
+        self.tools.len()
     }
 
     /// Record tool execution
@@ -407,7 +407,7 @@ mod tests {
     #[tokio::test]
     async fn test_tool_execution() {
         let executor = ToolExecutor::new(5, Duration::from_secs(30));
-        executor.register_tool(Box::new(MockTool));
+        executor.register_tool(Arc::new(MockTool));
 
         let result = executor.execute(
             "mock_tool",
@@ -422,7 +422,7 @@ mod tests {
     #[tokio::test]
     async fn test_tool_caching() {
         let executor = ToolExecutor::new(5, Duration::from_secs(30));
-        executor.register_tool(Box::new(MockTool));
+        executor.register_tool(Arc::new(MockTool));
 
         let cache_key = "test-cache-key".to_string();
 
@@ -446,7 +446,7 @@ mod tests {
     #[test]
     fn test_tool_registry() {
         let registry = ToolRegistry::new();
-        registry.register(Box::new(MockTool));
+        registry.register(Arc::new(MockTool));
 
         assert_eq!(registry.count(), 1);
 
