@@ -69,6 +69,7 @@ async function loadSettings(): Promise<AgentSettings> {
         ...saved,
         agent1: { ...DEFAULT_AGENT_SETTINGS.agent1, ...saved.agent1 },
         agent2: { ...DEFAULT_AGENT_SETTINGS.agent2, ...saved.agent2 },
+        agent3: { ...DEFAULT_AGENT_SETTINGS.agent3, ...saved.agent3 },
         comparison: { ...DEFAULT_AGENT_SETTINGS.comparison, ...saved.comparison },
         telemetry: { ...DEFAULT_AGENT_SETTINGS.telemetry, ...saved.telemetry },
       };

@@ -20,6 +20,8 @@ import { canUseLangGraph, runLangGraphSession } from './langgraph/runner';
 import type { LangGraphToolUpdate } from './langgraph/types';
 import { AIMessage } from '@langchain/core/messages';
 import { agentConfigStore, agentConfigActions } from '@/stores/agentConfigStore';
+import { rustAgentOrchestrator } from './rust/orchestrator';
+import type { AgentConfig as RustAgentConfig } from '@/types/rustAgent';
 
 // ============================================================================
 // TYPES
@@ -133,38 +135,116 @@ export class AgentService {
       }
 
       // ==========================================================================
-      // DUAL-AGENT ROUTING LOGIC
+      // TRIPLE-AGENT ROUTING LOGIC
       // ==========================================================================
       // Determine which agent to use based on configuration
       const settings = agentConfigStore.getSettings();
       const selectedAgent = agentConfigStore.getSelectedAgent();
 
-      let useAgent2 = false;
-
       // Priority 1: Use explicitly selected agent if enabled
-      if (selectedAgent === 'agent2' && settings.agent2.enabled) {
-        useAgent2 = true;
-        console.log('[AgentService] Using Agent 2 (LangGraph) - explicitly selected');
-      } else if (selectedAgent === 'agent1' && settings.agent1.enabled) {
-        useAgent2 = false;
-        console.log('[AgentService] Using Agent 1 (Custom) - explicitly selected');
-      }
-      // Priority 2: Fallback if selected agent is disabled
-      else if (selectedAgent === 'agent1' && !settings.agent1.enabled && settings.agent2.enabled) {
-        useAgent2 = true;
-        console.log('[AgentService] Fallback to Agent 2 (LangGraph) - Agent 1 disabled');
-      } else if (selectedAgent === 'agent2' && !settings.agent2.enabled && settings.agent1.enabled) {
-        useAgent2 = false;
-        console.log('[AgentService] Fallback to Agent 1 (Custom) - Agent 2 disabled');
-      }
-      // Priority 3: Legacy feature flag support (backward compatibility)
-      else if (canUseLangGraph() && settings.agent2.enabled) {
-        useAgent2 = true;
-        console.log('[AgentService] Using Agent 2 (LangGraph) - feature flag enabled');
+      if (selectedAgent === 'agent3' && settings.agent3.enabled) {
+        console.log('[AgentService] ⚡ Using Agent 3 (Rust Core) - explicitly selected');
+        return await this.sendMessageWithAgent3({
+          sessionId,
+          content,
+          onToken,
+          onComplete,
+          onError,
+          onToolCall,
+          enableTools,
+          workspaceRoot,
+        });
       }
 
-      // Route to appropriate agent
-      if (useAgent2) {
+      if (selectedAgent === 'agent2' && settings.agent2.enabled) {
+        console.log('[AgentService] Using Agent 2 (LangGraph) - explicitly selected');
+        return await this.sendMessageWithAgent2({
+          sessionId,
+          content,
+          onToken,
+          onComplete,
+          onError,
+          onToolCall,
+          enableTools,
+          workspaceRoot,
+        });
+      }
+
+      if (selectedAgent === 'agent1' && settings.agent1.enabled) {
+        console.log('[AgentService] Using Agent 1 (Custom) - explicitly selected');
+        // Continue to Agent 1 path below
+      }
+
+      // Priority 2: Fallback logic if selected agent is disabled
+      if (selectedAgent === 'agent3' && !settings.agent3.enabled) {
+        if (settings.agent2.enabled) {
+          console.log('[AgentService] Fallback to Agent 2 (LangGraph) - Agent 3 disabled');
+          return await this.sendMessageWithAgent2({
+            sessionId,
+            content,
+            onToken,
+            onComplete,
+            onError,
+            onToolCall,
+            enableTools,
+            workspaceRoot,
+          });
+        } else if (settings.agent1.enabled) {
+          console.log('[AgentService] Fallback to Agent 1 (Custom) - Agent 3 disabled');
+          // Continue to Agent 1 path below
+        }
+      }
+
+      if (selectedAgent === 'agent2' && !settings.agent2.enabled) {
+        if (settings.agent3.enabled) {
+          console.log('[AgentService] Fallback to Agent 3 (Rust Core) - Agent 2 disabled');
+          return await this.sendMessageWithAgent3({
+            sessionId,
+            content,
+            onToken,
+            onComplete,
+            onError,
+            onToolCall,
+            enableTools,
+            workspaceRoot,
+          });
+        } else if (settings.agent1.enabled) {
+          console.log('[AgentService] Fallback to Agent 1 (Custom) - Agent 2 disabled');
+          // Continue to Agent 1 path below
+        }
+      }
+
+      if (selectedAgent === 'agent1' && !settings.agent1.enabled) {
+        if (settings.agent3.enabled) {
+          console.log('[AgentService] Fallback to Agent 3 (Rust Core) - Agent 1 disabled');
+          return await this.sendMessageWithAgent3({
+            sessionId,
+            content,
+            onToken,
+            onComplete,
+            onError,
+            onToolCall,
+            enableTools,
+            workspaceRoot,
+          });
+        } else if (settings.agent2.enabled) {
+          console.log('[AgentService] Fallback to Agent 2 (LangGraph) - Agent 1 disabled');
+          return await this.sendMessageWithAgent2({
+            sessionId,
+            content,
+            onToken,
+            onComplete,
+            onError,
+            onToolCall,
+            enableTools,
+            workspaceRoot,
+          });
+        }
+      }
+
+      // Priority 3: Legacy feature flag support (backward compatibility)
+      if (canUseLangGraph() && settings.agent2.enabled && selectedAgent !== 'agent1') {
+        console.log('[AgentService] Using Agent 2 (LangGraph) - feature flag enabled');
         return await this.sendMessageWithAgent2({
           sessionId,
           content,
@@ -714,6 +794,164 @@ export class AgentService {
         if (finalMessage) {
           onComplete?.(finalMessage);
         }
+      } catch (error) {
+        // Clear streaming state on error
+        agentActions.setStreaming(sessionId, false, null);
+
+        // Remove incomplete assistant message
+        await agentActions.deleteMessage(sessionId, assistantMessageId);
+
+        throw error;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      agentActions.setError(errorMessage);
+      onError?.(error instanceof Error ? error : new Error(errorMessage));
+      throw error;
+    }
+  }
+
+  /**
+   * Send message using Agent 3 (Rust Core)
+   *
+   * Uses the Rust-powered agent backend for maximum performance
+   */
+  private async sendMessageWithAgent3(options: SendMessageOptions): Promise<void> {
+    const {
+      sessionId,
+      content,
+      onToken,
+      onComplete,
+      onError,
+      enableTools = true,
+      workspaceRoot,
+    } = options;
+    const startTime = Date.now();
+
+    try {
+      const session = agentActions.getSession(sessionId);
+      if (!session) {
+        throw new Error('Session not found');
+      }
+
+      const apiKey = this.credentialService.getApiKey(session.providerId);
+      if (!apiKey) {
+        throw new Error(`No API key found for provider: ${session.providerId}`);
+      }
+
+      // Add user message
+      const userMessageId = agentActions.addMessage(sessionId, {
+        role: 'user',
+        content,
+      });
+
+      // Create assistant message placeholder
+      const assistantMessageId = agentActions.addMessage(sessionId, {
+        role: 'assistant',
+        content: '',
+      });
+
+      // Set streaming state
+      agentActions.setStreaming(sessionId, true, assistantMessageId);
+
+      let assistantContent = '';
+
+      try {
+        // Get Agent 3 settings
+        const settings = agentConfigStore.getSettings();
+        const agent3Config = settings.agent3.config;
+
+        // Create Rust agent config
+        const rustConfig: RustAgentConfig = {
+          provider: session.providerId,
+          model: session.modelId,
+          systemPrompt: session.config?.systemPrompt,
+          maxIterations: agent3Config.maxIterations,
+          toolTimeout: agent3Config.toolTimeout,
+          parallelTools: agent3Config.parallelTools,
+          temperature: agent3Config.temperature,
+          maxTokens: agent3Config.maxTokens,
+          extra: {
+            workspaceRoot: workspaceRoot || '',
+            maxConcurrentTools: agent3Config.maxConcurrentTools,
+            rateLimitEnabled: agent3Config.rateLimitEnabled,
+            maxRequestsPerMinute: agent3Config.maxRequestsPerMinute,
+            metricsEnabled: agent3Config.metricsEnabled,
+            debugLogging: agent3Config.debugLogging,
+          },
+        };
+
+        // Create Rust agent session
+        const rustSessionId = await rustAgentOrchestrator.createSession(
+          'rainy-agent', // agent type
+          rustConfig
+        );
+
+        console.log(`[Agent3] Created Rust session: ${rustSessionId}`);
+
+        // Send message to Rust backend
+        // Note: Currently Rust backend doesn't support streaming,
+        // so we'll get the complete response
+        const result = await rustAgentOrchestrator.sendMessage(
+          rustSessionId,
+          content,
+          enableTools
+        );
+
+        console.log(`[Agent3] Received result from Rust backend`);
+
+        // Simulate streaming by chunking the response
+        assistantContent = result.content;
+        const chunkSize = 50; // characters per chunk
+        for (let i = 0; i < assistantContent.length; i += chunkSize) {
+          const chunk = assistantContent.slice(i, Math.min(i + chunkSize, assistantContent.length));
+          onToken?.(chunk);
+          agentActions.updateMessageContent(sessionId, assistantMessageId, assistantContent.slice(0, i + chunk.length));
+          // Small delay to simulate streaming
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+
+        // Update final message content
+        agentActions.updateMessageContent(sessionId, assistantMessageId, assistantContent);
+
+        // Update message metadata
+        agentActions.updateMessageMetadata(sessionId, assistantMessageId, {
+          tokens: result.metadata.tokensUsed || 0,
+          cost: result.metadata.costUsd || 0,
+          metadata: {
+            usage: {
+              promptTokens: 0, // Rust backend doesn't provide prompt tokens separately
+              completionTokens: result.metadata.tokensUsed || 0,
+            },
+            executionTimeMs: result.metadata.executionTimeMs,
+            toolsExecuted: result.metadata.toolsExecuted,
+            rustCore: true,
+          },
+        });
+
+        // Update user message metadata
+        agentActions.updateMessageMetadata(sessionId, userMessageId, {
+          tokens: 0, // Rust doesn't provide separate prompt tokens
+        });
+
+        // Record response time
+        const responseTime = Date.now() - startTime;
+        this.recordResponseTime(responseTime);
+
+        // Clear streaming state
+        agentActions.setStreaming(sessionId, false, null);
+
+        // Get final message
+        const finalMessage = agentActions.getSession(sessionId)?.messages.find(
+          (m) => m.id === assistantMessageId
+        );
+
+        if (finalMessage) {
+          onComplete?.(finalMessage);
+        }
+
+        // Cleanup: destroy Rust session (optional, could keep for conversation history)
+        // await rustAgentOrchestrator.destroySession(rustSessionId);
       } catch (error) {
         // Clear streaming state on error
         agentActions.setStreaming(sessionId, false, null);

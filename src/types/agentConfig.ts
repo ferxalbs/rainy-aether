@@ -6,7 +6,7 @@
  * - Agent 2: LangGraph-based (ReAct agents)
  */
 
-export type AgentType = 'agent1' | 'agent2';
+export type AgentType = 'agent1' | 'agent2' | 'agent3';
 
 export interface AgentProfile {
   id: AgentType;
@@ -80,6 +80,38 @@ export interface AgentSettings {
       hierarchicalAgents: boolean;
       selfCorrection: boolean;
       planningDepth: number;
+    };
+  };
+
+  // Agent 3 (Rust Core) Settings
+  agent3: {
+    enabled: boolean;
+    config: {
+      // Core Rust settings
+      maxIterations: number;
+      toolTimeout: number;
+      parallelTools: boolean;
+      maxConcurrentTools: number;
+
+      // Temperature and token limits
+      temperature: number;
+      maxTokens: number;
+
+      // Rate limiting
+      rateLimitEnabled: boolean;
+      maxRequestsPerMinute: number;
+
+      // Memory management
+      maxMemoryTokens: number;
+      memoryPruningEnabled: boolean;
+
+      // Performance
+      inferenceTimeout: number;
+      cacheEnabled: boolean;
+
+      // Metrics and telemetry
+      metricsEnabled: boolean;
+      debugLogging: boolean;
     };
   };
 
@@ -244,6 +276,48 @@ export const AGENT_PROFILES: Record<AgentType, AgentProfile> = {
       'Multi-agent scenarios',
     ],
   },
+
+  agent3: {
+    id: 'agent3',
+    name: 'Agent 3 (Rust Core)',
+    description: 'High-performance Rust-powered agent core. Native execution, blazing fast inference, and robust tool orchestration.',
+    version: '1.0.0',
+    status: 'experimental',
+    features: {
+      streaming: true,
+      tools: true,
+      memory: true,
+      multiTurn: true,
+      parallelTools: true,
+      reasoning: false,
+      humanInLoop: false,
+    },
+    pros: [
+      'Blazing fast performance (Rust native)',
+      'Low memory footprint',
+      'Parallel tool execution',
+      'Rate limiting built-in',
+      'Metrics and telemetry',
+      'Conversation memory',
+      'Production-grade error handling',
+      'Cross-platform compatibility',
+    ],
+    cons: [
+      'Experimental status',
+      'Limited reasoning (no ReAct pattern)',
+      'No human-in-the-loop',
+      'Requires Tauri backend',
+      'Less flexible than TypeScript agents',
+    ],
+    bestFor: [
+      'Maximum performance requirements',
+      'Resource-constrained environments',
+      'Production workloads',
+      'High-throughput scenarios',
+      'Native desktop integration',
+      'When latency is critical (<200ms)',
+    ],
+  },
 };
 
 // Default settings
@@ -290,6 +364,31 @@ export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
       hierarchicalAgents: false,
       selfCorrection: false,
       planningDepth: 3,
+    },
+  },
+
+  agent3: {
+    enabled: true,
+    config: {
+      maxIterations: 10,
+      toolTimeout: 30000,
+      parallelTools: true,
+      maxConcurrentTools: 10,
+
+      temperature: 0.7,
+      maxTokens: 4096,
+
+      rateLimitEnabled: true,
+      maxRequestsPerMinute: 100,
+
+      maxMemoryTokens: 100000,
+      memoryPruningEnabled: true,
+
+      inferenceTimeout: 60000,
+      cacheEnabled: true,
+
+      metricsEnabled: true,
+      debugLogging: false,
     },
   },
 
