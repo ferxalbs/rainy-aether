@@ -26,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/ui/logo';
 import { useChatStore, useChatActions } from '@/stores/chatStore';
+import { useAgentNavigationState, useAgentNavigationActions } from '@/stores/agentNavigationStore';
 import { cn } from '@/lib/cn';
 import {
   DropdownMenu,
@@ -58,6 +59,8 @@ const teams = [
 export function ChatSidebar() {
   const { chats, selectedChatId } = useChatStore();
   const { selectChat, archiveChat, unarchiveChat, deleteChat, createNewChat } = useChatActions();
+  const { currentView } = useAgentNavigationState();
+  const { setView } = useAgentNavigationActions();
   const [selectedTeam, setSelectedTeam] = useState('personal');
 
   const recentChats = chats.filter((chat) => !chat.isArchived);
@@ -130,15 +133,39 @@ export function ChatSidebar() {
       </div>
 
       <div className="px-3 pb-2 space-y-0.5">
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            currentView === 'home' && "bg-sidebar-accent text-sidebar-accent-foreground"
+          )}
+          onClick={() => setView('home')}
+        >
           <HomeIcon className="size-4" />
           <span className="text-xs font-medium">Home</span>
         </Button>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            currentView === 'ask-ai' && "bg-sidebar-accent text-sidebar-accent-foreground"
+          )}
+          onClick={() => setView('ask-ai')}
+        >
           <SparklesIcon className="size-4" />
           <span className="text-xs font-medium">Ask AI</span>
         </Button>
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            currentView === 'prompts' && "bg-sidebar-accent text-sidebar-accent-foreground"
+          )}
+          onClick={() => setView('prompts')}
+        >
           <FileStackIcon className="size-4" />
           <span className="text-xs font-medium">Prompts</span>
         </Button>

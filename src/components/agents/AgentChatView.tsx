@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { ChatSidebar } from './ChatSidebar';
-import { ChatMain } from './ChatMain';
+import { HomeView } from './HomeView';
+import { AskAIView } from './AskAIView';
+import { PromptsView } from './PromptsView';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useAgentNavigationState } from '@/stores/agentNavigationStore';
 
 /**
  * Render the responsive chat interface for Rainy AI with a collapsible desktop sidebar and a mobile overlay sidebar.
@@ -16,6 +19,20 @@ import { cn } from '@/lib/cn';
 export function AgentChatView() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { currentView } = useAgentNavigationState();
+
+  const renderView = () => {
+    switch (currentView) {
+      case 'home':
+        return <HomeView />;
+      case 'ask-ai':
+        return <AskAIView />;
+      case 'prompts':
+        return <PromptsView />;
+      default:
+        return <HomeView />;
+    }
+  };
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-background">
@@ -64,9 +81,9 @@ export function AgentChatView() {
             <div className="w-8" />
           </div>
 
-          {/* Chat Content */}
+          {/* View Content */}
           <div className="flex-1 overflow-hidden">
-            <ChatMain />
+            {renderView()}
           </div>
         </div>
       </div>
@@ -88,9 +105,9 @@ export function AgentChatView() {
           <div className="w-8" />
         </div>
 
-        {/* Chat Content */}
+        {/* View Content */}
         <div className="flex-1 overflow-hidden">
-          <ChatMain />
+          {renderView()}
         </div>
       </div>
     </div>

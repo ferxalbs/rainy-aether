@@ -5,3 +5,6 @@ export { ChatConversationView } from './ChatConversationView';
 export { ChatWelcomeScreen } from './ChatWelcomeScreen';
 export { ChatMessage } from './ChatMessage';
 export { ChatInputBox } from './ChatInputBox';
+export { HomeView } from './HomeView';
+export { AskAIView } from './AskAIView';
+export { PromptsView } from './PromptsView';
