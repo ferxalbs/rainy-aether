@@ -49,33 +49,28 @@ pub mod providers;
 pub mod tools;
 pub mod commands;
 
-// Re-exports for convenience
+// Re-exports for convenience (used by commands.rs and external modules)
 pub use core::{
-    Agent, AgentConfig, AgentError, AgentInput, AgentMetadata, AgentResult,
-    Capability, Session, ToolCall, ToolResult,
+    AgentConfig, AgentError, AgentInput, AgentMetadata, AgentResult,
+    Session,
 };
 
 pub use memory::{
-    ConversationMemory, MemoryManager, MemoryStats, MemoryUsage,
-    Message, MessageRole,
+    MemoryManager, MemoryStats,
+    Message,
 };
 
 pub use metrics::{
-    AgentMetrics, AllMetrics, MetricsCollector, ProviderMetrics,
-    SystemMetrics, ToolMetrics,
+    AgentMetrics, AllMetrics, MetricsCollector,
 };
 
-pub use rate_limiter::{RateLimiter, RateLimiterStats};
+pub use executor::{ToolExecutor};
 
-pub use inference::{
-    FinishReason, InferenceConfig, InferenceEngine, InferenceError,
-    InferenceMessage, InferenceResponse, Provider, StreamChunk, TokenUsage,
-    ToolDefinition,
-};
+// Re-export for commands
+pub use executor::ToolDefinition;
 
-pub use executor::{Tool, ToolDefinition as ExecutorToolDefinition, ToolError, ToolExecutor};
-
-pub use providers::{GoogleProvider, GroqProvider, ModelProvider};
+// Internal use only
+use inference::InferenceEngine;
 
 use dashmap::DashMap;
 use parking_lot::RwLock;
@@ -99,7 +94,8 @@ pub struct AgentManager {
     /// Tool executor
     executor: Arc<ToolExecutor>,
 
-    /// Inference engines per provider
+    /// Inference engines per provider (reserved for future implementation)
+    #[allow(dead_code)]
     inference_engines: Arc<RwLock<std::collections::HashMap<String, InferenceEngine>>>,
 }
 

@@ -5,7 +5,6 @@
 
 use super::core::{ToolCall, ToolResult};
 use dashmap::DashMap;
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};

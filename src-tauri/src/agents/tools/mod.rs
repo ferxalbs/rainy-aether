@@ -8,5 +8,3 @@ pub mod filesystem;
 pub mod terminal;
 pub mod git;
 pub mod workspace;
-
-pub use registry::ToolRegistry;

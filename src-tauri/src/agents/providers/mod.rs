@@ -7,6 +7,10 @@ pub mod base;
 pub mod google;
 pub mod groq;
 
+// Reserved for future implementation (Phase 4+)
+#[allow(unused_imports)]
 pub use base::ModelProvider;
+#[allow(unused_imports)]
 pub use google::GoogleProvider;
+#[allow(unused_imports)]
 pub use groq::GroqProvider;

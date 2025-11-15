@@ -3,10 +3,9 @@
 //! This module exposes the agent system functionality to the frontend via Tauri commands
 
 use super::{
-    AgentConfig, AgentError, AgentManager, AgentMetrics, AgentResult,
-    AllMetrics, MemoryStats, Message, Session,
+    AgentConfig, AgentManager, AgentMetrics, AgentResult,
+    AllMetrics, MemoryStats, Message, Session, ToolDefinition,
 };
-use super::executor::ToolDefinition;
 use tauri::State;
 
 /// Create a new agent session

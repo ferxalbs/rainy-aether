@@ -3,7 +3,7 @@
 //! This module handles communication with AI model providers (Google Gemini, Groq)
 //! including request/response handling, streaming, and error management.
 
-use super::core::{AgentError, ToolCall, ToolResult};
+use super::core::ToolCall;
 use super::rate_limiter::RateLimiter;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};

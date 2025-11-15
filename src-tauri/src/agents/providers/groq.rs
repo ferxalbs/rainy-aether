@@ -40,7 +40,7 @@ impl ModelProvider for GroqProvider {
 
     async fn generate(
         &self,
-        request: GenerateRequest,
+        _request: GenerateRequest,
     ) -> Result<GenerateResponse, ProviderError> {
         // Implementation would use the inference engine
         // This is a placeholder
@@ -59,8 +59,8 @@ impl ModelProvider for GroqProvider {
 
     async fn stream<F>(
         &self,
-        request: GenerateRequest,
-        callback: F,
+        _request: GenerateRequest,
+        _callback: F,
     ) -> Result<(), ProviderError>
     where
         F: Fn(StreamChunk) + Send + 'static,

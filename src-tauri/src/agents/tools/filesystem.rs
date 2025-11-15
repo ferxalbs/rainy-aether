@@ -4,7 +4,7 @@
 
 use crate::agents::executor::Tool;
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::time::Duration;
 
 /// Read file tool

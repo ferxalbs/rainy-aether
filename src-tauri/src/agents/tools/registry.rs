@@ -41,7 +41,7 @@ impl ToolRegistry {
     }
 
     /// Get a tool by name
-    pub fn get(&self, name: &str) -> Option<Box<dyn Tool>> {
+    pub fn get(&self, _name: &str) -> Option<Box<dyn Tool>> {
         // Note: This is a simplified version
         // In production, we'd return a reference or use Arc
         None
