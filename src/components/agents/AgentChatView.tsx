@@ -61,7 +61,7 @@ export function AgentChatView() {
         {/* Main Content */}
         <div className="flex flex-1 flex-col h-full min-w-0 min-h-0">
           {/* Top Bar */}
-          <div className="flex items-center justify-between border-b border-border px-4 h-12 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+          <div className="flex items-center justify-between border-b border-border px-4 h-12 bg-background/25 backdrop-blur-sm supports-backdrop-filter:bg-background/60">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -76,7 +76,7 @@ export function AgentChatView() {
               <span className="sr-only">Toggle sidebar</span>
             </Button>
             <span className="text-sm font-semibold text-foreground">
-              Rainy AI
+              Rainy Agents v1
             </span>
             <div className="w-8" />
           </div>

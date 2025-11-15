@@ -1,6 +1,5 @@
 import {
   PaperclipIcon,
-  CircleDashedIcon,
   SparklesIcon,
   ChevronDownIcon,
   CheckIcon,
@@ -16,7 +15,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
@@ -67,7 +65,7 @@ export function ChatInputBox({
   const isMessageEmpty = !message.trim();
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-lg backdrop-blur-xl supports-[backdrop-filter]:bg-card/80">
+    <div className="rounded-xl border border-border bg-card shadow-lg backdrop-blur-xl supports-backdrop-filter:bg-card/80">
       <div className="p-1">
         <Textarea
           placeholder={placeholder}
