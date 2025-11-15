@@ -4,6 +4,7 @@ import IDE from "./components/ide/IDE";
 import { IDEProvider } from "./stores/ideStore";
 import { initializeTheme } from "./stores/themeStore";
 import { initializeSettings } from "./stores/settingsStore";
+import { initializePrompts } from "./stores/promptStore";
 import { configurationActions } from "./stores/configurationStore";
 import { initializeConfigurationBridge } from "./services/configurationBridge";
 import { initializeEditorConfigurationService } from "./services/editorConfigurationService";
@@ -42,6 +43,11 @@ const App: React.FC = () => {
         loadingActions.startStage('settings');
         await initializeSettings();
         loadingActions.completeStage('settings');
+
+        // Stage 2.2: Prompts
+        // Initialize AI prompt templates
+        await initializePrompts();
+        console.log('[App] Prompt store initialized successfully');
 
         // Stage 2.3: Configuration System
         // Initialize VS Code-compatible configuration system
