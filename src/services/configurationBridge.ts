@@ -31,6 +31,31 @@ import {
   findThemeByName,
   type ThemeMode
 } from '@/stores/themeStore';
+import {
+  getExtensionConfig,
+  setStartupActivationMode,
+  setStartupActivationDelay,
+  setLoadingStrategy,
+  setSecurityLevel,
+  setDisableThirdParty,
+  setMaxActiveExtensions,
+  setEnablePerformanceMonitoring,
+  setAutoDisableSlowExtensions,
+  setPerformanceThreshold,
+  setErrorHandling,
+  setAutoCleanupErrorExtensions,
+  setShowDetailedErrors,
+  setVerboseLogging,
+  setEnableHotReload,
+  setAllowUnsignedExtensions,
+  setShowLoadingProgress,
+  setShowActivationNotifications,
+  setAutoUpdateExtensions,
+  type ExtensionStartupMode,
+  type ExtensionLoadingStrategy,
+  type ExtensionSecurityLevel,
+  type ExtensionErrorHandling
+} from '@/stores/extensionConfigStore';
 
 /**
  * Register IDE core settings as configuration schemas
@@ -350,12 +375,190 @@ export function registerIDEConfigurations(): void {
       }
   };
 
+  const extensionsConfig: ExtensionConfiguration = {
+    extensionId: 'rainy-aether.extensions',
+    extensionName: 'Rainy Aether Extensions',
+    isBuiltIn: true,
+    configuration: {
+      title: 'Extensions',
+      properties: {
+        // === Startup Behavior ===
+        'extensions.startupActivationMode': {
+          type: 'string',
+          enum: ['auto', 'manual'],
+          enumDescriptions: [
+            'Automatically activate all enabled extensions during startup',
+            'Require manual activation from the Extension Manager each session'
+          ],
+          default: 'auto',
+          description: 'Controls if Rainy Aether should eagerly activate enabled extensions on launch or wait for manual confirmation.',
+          scope: ConfigurationScope.Window,
+          order: 0
+        },
+        'extensions.startupActivationDelay': {
+          type: 'number',
+          default: 0,
+          minimum: 0,
+          maximum: 10000,
+          description: 'Optional delay (in milliseconds) inserted between loading each extension during startup to improve stability.',
+          scope: ConfigurationScope.Window,
+          order: 1
+        },
+        'extensions.loadingStrategy': {
+          type: 'string',
+          enum: ['parallel', 'sequential', 'lazy'],
+          enumDescriptions: [
+            'Load all extensions in parallel (faster but higher memory)',
+            'Load extensions one by one (slower but safer)',
+            'Load extensions on-demand (most efficient)'
+          ],
+          default: 'parallel',
+          description: 'Controls how extensions are loaded during startup.',
+          scope: ConfigurationScope.Window,
+          order: 2
+        },
+
+        // === Security & Safety ===
+        'extensions.securityLevel': {
+          type: 'string',
+          enum: ['unrestricted', 'safe', 'restricted'],
+          enumDescriptions: [
+            'All extensions can run without restrictions',
+            'Only built-in Rainy Aether extensions run automatically',
+            'Only explicitly whitelisted extensions can run'
+          ],
+          default: 'unrestricted',
+          description: 'Security level for extension execution.',
+          scope: ConfigurationScope.Window,
+          order: 3
+        },
+        'extensions.disableThirdParty': {
+          type: 'boolean',
+          default: false,
+          description: 'Disable all third-party extensions (only Rainy Aether built-in extensions will run).',
+          scope: ConfigurationScope.Window,
+          order: 4
+        },
+
+        // === Performance & Resources ===
+        'extensions.maxActiveExtensions': {
+          type: 'number',
+          default: 0,
+          minimum: 0,
+          maximum: 100,
+          description: 'Maximum number of extensions that can be active simultaneously (0 = unlimited).',
+          scope: ConfigurationScope.Window,
+          order: 5
+        },
+        'extensions.enablePerformanceMonitoring': {
+          type: 'boolean',
+          default: true,
+          description: 'Enable performance monitoring for extensions.',
+          scope: ConfigurationScope.Window,
+          order: 6
+        },
+        'extensions.autoDisableSlowExtensions': {
+          type: 'boolean',
+          default: false,
+          description: 'Automatically disable extensions that exceed performance thresholds.',
+          scope: ConfigurationScope.Window,
+          order: 7
+        },
+        'extensions.performanceThreshold': {
+          type: 'number',
+          default: 5000,
+          minimum: 1000,
+          maximum: 30000,
+          description: 'Performance threshold in milliseconds (extensions slower than this may be auto-disabled).',
+          scope: ConfigurationScope.Window,
+          order: 8
+        },
+
+        // === Error Handling ===
+        'extensions.errorHandling': {
+          type: 'string',
+          enum: ['continue', 'stop', 'isolate'],
+          enumDescriptions: [
+            'Continue loading other extensions on error',
+            'Stop loading all extensions on first error',
+            'Isolate failed extensions and continue'
+          ],
+          default: 'continue',
+          description: 'How to handle extension errors during loading.',
+          scope: ConfigurationScope.Window,
+          order: 9
+        },
+        'extensions.autoCleanupErrorExtensions': {
+          type: 'boolean',
+          default: false,
+          description: 'Automatically cleanup extensions in error state on startup.',
+          scope: ConfigurationScope.Window,
+          order: 10
+        },
+        'extensions.showDetailedErrors': {
+          type: 'boolean',
+          default: true,
+          description: 'Show detailed error notifications for extension failures.',
+          scope: ConfigurationScope.Window,
+          order: 11
+        },
+
+        // === Developer Options ===
+        'extensions.verboseLogging': {
+          type: 'boolean',
+          default: false,
+          description: 'Enable verbose logging for the extension system.',
+          scope: ConfigurationScope.Window,
+          order: 12
+        },
+        'extensions.enableHotReload': {
+          type: 'boolean',
+          default: false,
+          description: 'Enable hot reload for extensions (development mode).',
+          scope: ConfigurationScope.Window,
+          order: 13
+        },
+        'extensions.allowUnsignedExtensions': {
+          type: 'boolean',
+          default: true,
+          description: 'Allow unsigned/development extensions to run.',
+          scope: ConfigurationScope.Window,
+          order: 14
+        },
+
+        // === User Experience ===
+        'extensions.showLoadingProgress': {
+          type: 'boolean',
+          default: true,
+          description: 'Show extension loading progress during startup.',
+          scope: ConfigurationScope.Window,
+          order: 15
+        },
+        'extensions.showActivationNotifications': {
+          type: 'boolean',
+          default: false,
+          description: 'Notify user when extensions are activated or deactivated.',
+          scope: ConfigurationScope.Window,
+          order: 16
+        },
+        'extensions.autoUpdateExtensions': {
+          type: 'boolean',
+          default: true,
+          description: 'Automatically update extensions when updates are available.',
+          scope: ConfigurationScope.Window,
+          order: 17
+        }
+      }
+    }
+  };
+
   // Register all configurations
   configurationService.registerSchema(workbenchConfig);
   configurationService.registerSchema(explorerConfig);
   configurationService.registerSchema(problemsConfig);
   configurationService.registerSchema(editorConfig);
   configurationService.registerSchema(filesConfig);
+  configurationService.registerSchema(extensionsConfig);
 
   console.log('[ConfigurationBridge] Registered IDE configuration schemas');
 }
@@ -365,6 +568,7 @@ export function registerIDEConfigurations(): void {
  */
 export function syncFromStores(): void {
   const settings = getSettingsState();
+  const extensionConfig = getExtensionConfig();
 
   // Sync theme settings
   configurationActions.set({
@@ -422,6 +626,115 @@ export function syncFromStores(): void {
     value: settings.problems.autoReveal,
     scope: 'user'
   }).catch(err => console.error('[ConfigurationBridge] Failed to sync autoReveal:', err));
+
+  // Sync extension configuration
+  configurationActions.set({
+    key: 'extensions.startupActivationMode',
+    value: extensionConfig.startupActivationMode,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync startupActivationMode:', err));
+
+  configurationActions.set({
+    key: 'extensions.startupActivationDelay',
+    value: extensionConfig.startupActivationDelay,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync startupActivationDelay:', err));
+
+  configurationActions.set({
+    key: 'extensions.loadingStrategy',
+    value: extensionConfig.loadingStrategy,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync loadingStrategy:', err));
+
+  configurationActions.set({
+    key: 'extensions.securityLevel',
+    value: extensionConfig.securityLevel,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync securityLevel:', err));
+
+  configurationActions.set({
+    key: 'extensions.disableThirdParty',
+    value: extensionConfig.disableThirdParty,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync disableThirdParty:', err));
+
+  configurationActions.set({
+    key: 'extensions.maxActiveExtensions',
+    value: extensionConfig.maxActiveExtensions,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync maxActiveExtensions:', err));
+
+  configurationActions.set({
+    key: 'extensions.enablePerformanceMonitoring',
+    value: extensionConfig.enablePerformanceMonitoring,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync enablePerformanceMonitoring:', err));
+
+  configurationActions.set({
+    key: 'extensions.autoDisableSlowExtensions',
+    value: extensionConfig.autoDisableSlowExtensions,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync autoDisableSlowExtensions:', err));
+
+  configurationActions.set({
+    key: 'extensions.performanceThreshold',
+    value: extensionConfig.performanceThreshold,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync performanceThreshold:', err));
+
+  configurationActions.set({
+    key: 'extensions.errorHandling',
+    value: extensionConfig.errorHandling,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync errorHandling:', err));
+
+  configurationActions.set({
+    key: 'extensions.autoCleanupErrorExtensions',
+    value: extensionConfig.autoCleanupErrorExtensions,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync autoCleanupErrorExtensions:', err));
+
+  configurationActions.set({
+    key: 'extensions.showDetailedErrors',
+    value: extensionConfig.showDetailedErrors,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync showDetailedErrors:', err));
+
+  configurationActions.set({
+    key: 'extensions.verboseLogging',
+    value: extensionConfig.verboseLogging,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync verboseLogging:', err));
+
+  configurationActions.set({
+    key: 'extensions.enableHotReload',
+    value: extensionConfig.enableHotReload,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync enableHotReload:', err));
+
+  configurationActions.set({
+    key: 'extensions.allowUnsignedExtensions',
+    value: extensionConfig.allowUnsignedExtensions,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync allowUnsignedExtensions:', err));
+
+  configurationActions.set({
+    key: 'extensions.showLoadingProgress',
+    value: extensionConfig.showLoadingProgress,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync showLoadingProgress:', err));
+
+  configurationActions.set({
+    key: 'extensions.showActivationNotifications',
+    value: extensionConfig.showActivationNotifications,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync showActivationNotifications:', err));
+
+  configurationActions.set({
+    key: 'extensions.autoUpdateExtensions',
+    value: extensionConfig.autoUpdateExtensions,
+    scope: 'user'
+  }).catch(err => console.error('[ConfigurationBridge] Failed to sync autoUpdateExtensions:', err));
 
   console.log('[ConfigurationBridge] Synced values from existing stores to configuration system');
 }
@@ -483,6 +796,45 @@ export async function initializeConfigurationBridge(): Promise<void> {
           void setProblemsSortOrder(value as ProblemsSortOrder);
         } else if (key === 'problems.autoReveal') {
           void setProblemsAutoReveal(value as boolean);
+        }
+
+        // Extension configuration
+        else if (key === 'extensions.startupActivationMode') {
+          void setStartupActivationMode(value as ExtensionStartupMode);
+        } else if (key === 'extensions.startupActivationDelay') {
+          void setStartupActivationDelay(value as number);
+        } else if (key === 'extensions.loadingStrategy') {
+          void setLoadingStrategy(value as ExtensionLoadingStrategy);
+        } else if (key === 'extensions.securityLevel') {
+          void setSecurityLevel(value as ExtensionSecurityLevel);
+        } else if (key === 'extensions.disableThirdParty') {
+          void setDisableThirdParty(value as boolean);
+        } else if (key === 'extensions.maxActiveExtensions') {
+          void setMaxActiveExtensions(value as number);
+        } else if (key === 'extensions.enablePerformanceMonitoring') {
+          void setEnablePerformanceMonitoring(value as boolean);
+        } else if (key === 'extensions.autoDisableSlowExtensions') {
+          void setAutoDisableSlowExtensions(value as boolean);
+        } else if (key === 'extensions.performanceThreshold') {
+          void setPerformanceThreshold(value as number);
+        } else if (key === 'extensions.errorHandling') {
+          void setErrorHandling(value as ExtensionErrorHandling);
+        } else if (key === 'extensions.autoCleanupErrorExtensions') {
+          void setAutoCleanupErrorExtensions(value as boolean);
+        } else if (key === 'extensions.showDetailedErrors') {
+          void setShowDetailedErrors(value as boolean);
+        } else if (key === 'extensions.verboseLogging') {
+          void setVerboseLogging(value as boolean);
+        } else if (key === 'extensions.enableHotReload') {
+          void setEnableHotReload(value as boolean);
+        } else if (key === 'extensions.allowUnsignedExtensions') {
+          void setAllowUnsignedExtensions(value as boolean);
+        } else if (key === 'extensions.showLoadingProgress') {
+          void setShowLoadingProgress(value as boolean);
+        } else if (key === 'extensions.showActivationNotifications') {
+          void setShowActivationNotifications(value as boolean);
+        } else if (key === 'extensions.autoUpdateExtensions') {
+          void setAutoUpdateExtensions(value as boolean);
         }
       } catch (error) {
         console.error(`[ConfigurationBridge] Failed to sync configuration change for ${key}:`, error);

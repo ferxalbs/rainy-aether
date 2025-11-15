@@ -4,6 +4,7 @@ import { editorActions } from '../../stores/editorStore';
 import { getCurrentTheme, subscribeToThemeChanges } from '../../stores/themeStore';
 import { configureMonaco, getLanguageFromFilename } from '../../services/monacoConfig';
 import { configurationService } from '../../services/configurationService';
+import { applyEditorConfiguration } from '../../services/editorConfigurationService';
 
 // Helper: Monaco expects hex colors WITHOUT the '#' prefix
 const toMonacoColor = (color: string): string => {
@@ -234,6 +235,9 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
     editorRef.current = editor;
     isMountedRef.current = true;
+
+    // Apply editor configuration (this will re-apply settings from configurationService)
+    applyEditorConfiguration(editor);
 
     // Set up ResizeObserver to handle container size changes
     const resizeObserver = new ResizeObserver(() => {

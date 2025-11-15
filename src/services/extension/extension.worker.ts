@@ -25,6 +25,8 @@ let extensionContext: ExtensionContext | null = null;
 let vscodeAPI: any = null;
 let activatedExtension: any = null;
 let isInitialized = false;
+let extensionBasePath: string | null = null;
+const fileContentCache = new Map<string, string>();
 
 /**
  * Message handler
@@ -70,6 +72,7 @@ async function handleInitialize(message: ExtensionMessage): Promise<void> {
 
   extensionId = data.extensionId;
   manifest = data.manifest;
+  extensionBasePath = data.extensionPath;
 
   log('info', `Initializing extension ${extensionId}`);
 
@@ -97,7 +100,6 @@ async function handleInitialize(message: ExtensionMessage): Promise<void> {
       mainModulePath: manifest.main || './extension.js',
     },
     async (path: string) => {
-      // Read file from host
       return await readExtensionFile(path);
     }
   );
@@ -171,6 +173,8 @@ async function handleDeactivate(message: ExtensionMessage): Promise<void> {
       moduleLoader.clearCache();
     }
 
+    fileContentCache.clear();
+
     activatedExtension = null;
 
     log('info', `Extension ${extensionId} deactivated successfully`);
@@ -240,9 +244,51 @@ async function callHostAPI(namespace: string, method: string, args: any[]): Prom
  * Read extension file from host
  */
 async function readExtensionFile(path: string): Promise<string> {
-  // For now, we'll throw an error as file reading needs to be implemented in the host
-  // In a full implementation, this would make an API call to the host
-  throw new Error(`File reading not yet implemented: ${path}`);
+  const normalizedPath = normalizeExtensionFilePath(path);
+
+  if (fileContentCache.has(normalizedPath)) {
+    return fileContentCache.get(normalizedPath)!;
+  }
+
+  try {
+    const content = await callHostAPI('workspace', 'readExtensionFile', [normalizedPath]);
+
+    if (typeof content !== 'string') {
+      throw new Error('Invalid file content received from host');
+    }
+
+    fileContentCache.set(normalizedPath, content);
+    return content;
+  } catch (error) {
+    log('error', `Failed to read extension file: ${normalizedPath}`, error);
+    throw error;
+  }
+}
+
+function normalizeExtensionFilePath(path: string): string {
+  if (!path) {
+    throw new Error('Path is required to read extension file');
+  }
+
+  // Normalize backslashes to forward slashes, strip leading "./" and leading slashes
+  let normalized = path
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\/+/, '');
+
+  // If no base path, return normalized path as-is
+  if (!extensionBasePath) {
+    return normalized;
+  }
+
+  // Sanitize base path and check if already prefixed
+  const sanitizedBase = extensionBasePath.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (normalized === sanitizedBase || normalized.startsWith(sanitizedBase + '/')) {
+    return normalized;
+  }
+
+  // Join base and path, collapse duplicate slashes
+  return `${sanitizedBase}/${normalized}`.replace(/\/+/g, '/');
 }
 
 /**

@@ -388,7 +388,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
         </div>
 
         {/* Right side items */}
-        <div className="flex items-stretch flex-shrink-0 ml-auto">
+        <div className="flex items-stretch shrink-0 ml-auto">
           {rightItems.map(item => (
             <StatusBarItem key={item.id} entry={item} />
           ))}

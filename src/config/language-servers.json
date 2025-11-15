@@ -1,5 +1,4 @@
 {
-  "$schema": "./language-servers-schema.json",
   "servers": [
     {
       "id": "typescript",

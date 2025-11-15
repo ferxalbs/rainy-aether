@@ -7,6 +7,7 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { configurationSaveService } from './configurationSaveService';
 import type {
   ExtensionConfiguration,
   ResolvedConfigurationProperty,
@@ -65,15 +66,19 @@ class ConfigurationService {
    */
   private async initializeEventListener(): Promise<void> {
     try {
+      console.log('[ConfigurationService] 🎧 Setting up Tauri event listener for "configuration-changed"...');
+
       this.unlistenTauriEvent = await listen<ConfigurationChangeEvent>(
         'configuration-changed',
         (event) => {
-          console.log('[ConfigurationService] Configuration changed:', event.payload);
+          console.log('[ConfigurationService] 📨 Tauri event received:', event.payload);
           this.handleConfigurationChange(event.payload);
         }
       );
+
+      console.log('[ConfigurationService] ✅ Tauri event listener registered successfully');
     } catch (error) {
-      console.error('[ConfigurationService] Failed to initialize event listener:', error);
+      console.error('[ConfigurationService] ❌ Failed to initialize event listener:', error);
     }
   }
 
@@ -81,6 +86,13 @@ class ConfigurationService {
    * Handle configuration change event from Rust backend
    */
   private handleConfigurationChange(event: ConfigurationChangeEvent): void {
+    console.log('[ConfigurationService] 🔥 handleConfigurationChange called:', {
+      scope: event.scope,
+      scopeType: typeof event.scope,
+      changedKeys: event.changedKeys,
+      newValues: event.newValues
+    });
+
     // Update local cache
     if (event.scope === 'user') {
       event.changedKeys.forEach(key => {
@@ -333,6 +345,7 @@ class ConfigurationService {
 
   /**
    * Set a configuration value at specified scope
+   * Uses debounced save service for optimized disk I/O
    */
   async set(request: ConfigurationUpdateRequest): Promise<void> {
     try {
@@ -345,13 +358,35 @@ class ConfigurationService {
         }
       }
 
-      // Invoke backend to persist
-      await invoke('set_configuration_value', {
-        key: request.key,
-        value: JSON.stringify(request.value),
-        scope: request.scope,
-        workspacePath: this.workspacePath
+      // Get old value for event
+      const oldValue = this.get(request.key);
+
+      // Update local cache immediately for responsive UI
+      if (request.scope === 'user') {
+        this.userValues.set(request.key, request.value);
+      } else {
+        this.workspaceValues.set(request.key, request.value);
+      }
+
+      // CRITICAL: Notify listeners IMMEDIATELY (don't wait for backend event)
+      const changeEvent: ConfigurationChangeEvent = {
+        changedKeys: [request.key],
+        scope: request.scope as any,
+        oldValues: { [request.key]: oldValue },
+        newValues: { [request.key]: request.value },
+        timestamp: Date.now()
+      };
+
+      this.changeListeners.forEach(listener => {
+        try {
+          listener(changeEvent);
+        } catch (error) {
+          console.error('[ConfigurationService] Error in change listener:', error);
+        }
       });
+
+      // Queue debounced save to backend
+      configurationSaveService.queueSave(request.key, request.value, request.scope);
 
       console.log(`[ConfigurationService] Set ${request.key} = ${request.value} (${request.scope})`);
     } catch (error) {
@@ -511,9 +546,19 @@ class ConfigurationService {
   }
 
   /**
+   * Flush pending saves immediately
+   */
+  async flush(): Promise<void> {
+    await configurationSaveService.flush();
+  }
+
+  /**
    * Cleanup resources
    */
-  dispose(): void {
+  async dispose(): Promise<void> {
+    // Flush any pending saves before cleanup
+    await this.flush();
+
     if (this.unlistenTauriEvent) {
       this.unlistenTauriEvent();
       this.unlistenTauriEvent = null;

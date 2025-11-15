@@ -103,11 +103,13 @@ docs/
 ### File Locations
 
 **User Settings** (global):
+
 ```
 ~/.rainy-aether/settings.json
 ```
 
 **Workspace Settings** (project-specific):
+
 ```
 <workspace>/.rainy/settings.json
 ```
@@ -510,6 +512,7 @@ function App() {
 ```
 
 **Features:**
+
 - Sidebar with category navigation
 - Search bar with real-time filtering
 - "Modified only" toggle
@@ -532,6 +535,7 @@ Each setting type has a dedicated component:
 ### Base Control
 
 All controls wrap `SettingControl` which provides:
+
 - Header with key, modified indicator, badges
 - Description text
 - Deprecation warnings
@@ -553,6 +557,7 @@ All controls wrap `SettingControl` which provides:
 ### Screen Reader Support
 
 All controls have proper ARIA attributes:
+
 - `aria-label` - Descriptive labels
 - `aria-invalid` - Validation state
 - `aria-describedby` - Error messages
@@ -622,10 +627,12 @@ describe('ConfigurationSystem', () => {
 **Symptoms:** UI shows "Loading..." indefinitely
 
 **Solutions:**
+
 1. Check console for errors
 2. Verify Tauri backend is running
 3. Check file permissions for `~/.rainy-aether/`
 4. Initialize configuration service:
+
    ```typescript
    await configurationActions.initialize();
    ```
@@ -635,6 +642,7 @@ describe('ConfigurationSystem', () => {
 **Symptoms:** Settings revert after restart
 
 **Solutions:**
+
 1. Check that `save_user_configuration` is being called
 2. Verify file write permissions
 3. Check console for save errors
@@ -645,9 +653,11 @@ describe('ConfigurationSystem', () => {
 **Symptoms:** Cannot save valid values
 
 **Solutions:**
+
 1. Check schema definition matches value type
 2. Verify pattern/range constraints
 3. Test validation separately:
+
    ```typescript
    const result = await validateConfigurationValue(key, value);
    console.log(result);
@@ -683,12 +693,14 @@ describe('ConfigurationSystem', () => {
 ### Key Files
 
 **TypeScript:**
+
 - `src/types/configuration.ts` - Type definitions
 - `src/services/configurationService.ts` - Service layer
 - `src/stores/configurationStore.ts` - State management
 - `src/components/ide/ConfigurationSettings.tsx` - Main UI
 
 **Rust:**
+
 - `src-tauri/src/configuration_manager.rs` - Backend implementation
 
 ---

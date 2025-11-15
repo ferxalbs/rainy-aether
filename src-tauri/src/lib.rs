@@ -3,9 +3,11 @@ mod credential_manager;
 mod extension_manager;
 mod extension_registry;
 mod file_operations;
+mod font_manager;
 mod git_manager;
 mod git_native;  // New: Native libgit2 implementation
 mod git_config;  // New: Feature flags for gradual migration
+mod git_auth;    // New: Authentication for remote operations
 mod language_server_manager;
 mod project_manager;
 mod terminal_manager;
@@ -317,6 +319,29 @@ pub fn run() {
         git_native::git_diff_commit_native,
         git_native::git_diff_commit_file_native,
         git_native::git_diff_file_native,
+        // Phase 3: Native Git write operations
+        git_native::git_stage_file_native,
+        git_native::git_stage_all_native,
+        git_native::git_unstage_file_native,
+        git_native::git_unstage_all_native,
+        git_native::git_commit_native,
+        git_native::git_stash_list_native,
+        git_native::git_stash_push_native,
+        git_native::git_stash_pop_native,
+        // Phase 4: Native Git remote operations
+        git_native::git_clone_native,
+        git_native::git_push_native,
+        git_native::git_pull_native,
+        git_native::git_fetch_native,
+        // Phase 5: Native Git advanced operations
+        git_native::git_merge_native,
+        git_native::git_merge_abort_native,
+        git_native::git_list_conflicts_native,
+        git_native::git_get_conflict_content_native,
+        git_native::git_resolve_conflict_native,
+        git_native::git_accept_ours_native,
+        git_native::git_accept_theirs_native,
+        git_native::git_delete_branch_native,
         // Git configuration and feature flags
         git_config::git_get_native_config,
         git_config::git_set_use_native,
@@ -364,6 +389,15 @@ pub fn run() {
         configuration_manager::delete_configuration_value,
         configuration_manager::validate_configuration_value,
         configuration_manager::list_configuration_keys,
+        // Font management
+        font_manager::load_font_manifest,
+        font_manager::save_font_manifest,
+        font_manager::download_font_file,
+        font_manager::read_font_file_base64,
+        font_manager::import_custom_font_file,
+        font_manager::delete_font_file,
+        font_manager::validate_font_file,
+        font_manager::get_font_file_info,
     ]);
 
     builder

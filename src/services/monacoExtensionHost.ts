@@ -7,6 +7,7 @@ import {
   createActivationManager,
   ExtensionError,
   ExtensionSandboxConfig,
+  ActivationEventType,
 } from './extension';
 
 export class MonacoExtensionHost {
@@ -19,8 +20,11 @@ export class MonacoExtensionHost {
    * Load an extension into Monaco Editor
    */
   async loadExtension(extension: InstalledExtension): Promise<void> {
-    if (this.loadedExtensions.has(extension.id)) {
+    const existingExtension = this.loadedExtensions.get(extension.id);
+    if (existingExtension) {
       console.warn(`Extension ${extension.id} is already loaded`);
+      // ensure activation events are re-registered when reloading is requested to keep state fresh
+      await this.reloadExtension(extension.id, extension);
       return;
     }
 
@@ -32,6 +36,7 @@ export class MonacoExtensionHost {
         disposables: [],
         activated: false,
         sandbox: null,
+        languageServices: new Map(),
       };
 
       // Load the extension's contributions (static)
@@ -48,6 +53,9 @@ export class MonacoExtensionHost {
       // Try to activate if extension has activation events
       if (extension.manifest.activationEvents) {
         await this.tryActivateExtension(extension.id);
+      } else if (!extension.manifest.main) {
+        // load extensions that only contribute static assets on startup to keep user experience consistent
+        await this.triggerActivationEvent(ActivationEventType.OnStartupFinished);
       }
     } catch (error) {
       console.error(`Failed to load extension ${extension.id}:`, error);
@@ -74,7 +82,7 @@ export class MonacoExtensionHost {
         this.sandboxes.delete(extensionId);
       }
 
-      // Unregister from activation manager
+      // Unregister from activation manager and reset state
       this.activationManager.unregisterExtension(extensionId);
 
       // Dispose all disposables
@@ -82,8 +90,8 @@ export class MonacoExtensionHost {
         disposable.dispose();
       }
 
-      // Remove language services
-      this.unloadLanguageServices(extensionId);
+      // Remove language services for this specific LoadedExtension instance
+      this.unloadLanguageServices(loadedExtension);
 
       this.loadedExtensions.delete(extensionId);
       console.log(`Successfully unloaded extension ${extensionId}`);
@@ -197,11 +205,16 @@ export class MonacoExtensionHost {
           disposable: null
         };
 
+        // Store language service in LoadedExtension instance for per-instance tracking
+        loadedExtension.languageServices.set(language.id, languageService);
+        // Also keep in global map for quick lookup by language id
         this.languageServices.set(language.id, languageService);
         loadedExtension.disposables.push({
           dispose: () => {
             // Note: Monaco doesn't provide a way to unregister languages
             // They persist for the session
+            // Remove from both per-instance and global maps
+            loadedExtension.languageServices.delete(language.id);
             this.languageServices.delete(language.id);
           }
         });
@@ -683,14 +696,15 @@ export class MonacoExtensionHost {
     }
   }
 
-  private unloadLanguageServices(extensionId: string): void {
-    for (const [languageId, service] of this.languageServices.entries()) {
-      if (service.extensionId === extensionId) {
-        if (service.disposable) {
-          service.disposable.dispose();
-        }
-        this.languageServices.delete(languageId);
+  private unloadLanguageServices(loadedExtension: LoadedExtension): void {
+    // Dispose only the language services for this specific LoadedExtension instance
+    for (const [languageId, service] of loadedExtension.languageServices.entries()) {
+      if (service.disposable) {
+        service.disposable.dispose();
       }
+      // Remove from both instance and global map
+      loadedExtension.languageServices.delete(languageId);
+      this.languageServices.delete(languageId);
     }
   }
 
@@ -744,7 +758,7 @@ export class MonacoExtensionHost {
       this.sandboxes.set(extension.id, sandbox);
 
       // Register with activation manager
-      const activationEvents = extension.manifest.activationEvents || [];
+      const activationEvents = extension.manifest.activationEvents || [ActivationEventType.OnStartupFinished];
       this.activationManager.registerExtension(extension.id, activationEvents);
 
       console.log(`Sandbox initialized for extension ${extension.id}`);
@@ -823,6 +837,110 @@ export class MonacoExtensionHost {
   getActivationManager(): ActivationManager {
     return this.activationManager;
   }
+
+  /**
+   * Reload an extension in-place to refresh contributions and sandbox state.
+   * Uses pre-load + atomic-swap pattern to avoid UI flicker:
+   * 1. Pre-load new extension into temporary holder (old one stays in loadedExtensions)
+   * 2. On success, atomically swap: replace map entry and dispose old instance
+   * 3. On failure, keep old extension untouched and clean up resources
+   * 4. Track swap state to ensure rollback restores old instance if activation fails
+   */
+  private async reloadExtension(extensionId: string, extension?: InstalledExtension): Promise<void> {
+    const existing = this.loadedExtensions.get(extensionId);
+
+    if (!existing) {
+      if (extension) {
+        await this.loadExtension(extension);
+      }
+      return;
+    }
+
+    const extensionToLoad = extension ?? existing.extension;
+    let newLoadedExtension: LoadedExtension | null = null;
+    let swapped = false;
+
+    try {
+      console.log(`Reloading extension ${extensionId} with pre-load + atomic-swap pattern`);
+
+      // Phase 1: Pre-load new extension into temporary holder without touching the old one
+      newLoadedExtension = {
+        extension: extensionToLoad,
+        disposables: [],
+        activated: false,
+        sandbox: null,
+        languageServices: new Map(),
+      };
+
+      await this.loadExtensionContributions(extensionToLoad, newLoadedExtension);
+
+      if (extensionToLoad.manifest.main) {
+        await this.initializeExtensionSandbox(extensionToLoad, newLoadedExtension);
+      }
+
+      // Phase 2: Atomic swap - replace map entry
+      this.loadedExtensions.set(extensionId, newLoadedExtension);
+      swapped = true;
+      console.log(`Atomically swapped extension ${extensionId}`);
+
+      // Phase 3: Try to activate BEFORE disposing old instance
+      // This ensures old instance remains available if activation fails
+      try {
+        if (extensionToLoad.manifest.activationEvents) {
+          await this.tryActivateExtension(extensionId);
+        } else if (!extensionToLoad.manifest.main) {
+          await this.triggerActivationEvent(ActivationEventType.OnStartupFinished);
+        }
+      } catch (activationError) {
+        // Activation failed - restore old instance to map before rethrowing
+        console.error(`Activation failed after swap, restoring old extension ${extensionId}`);
+        this.loadedExtensions.set(extensionId, existing);
+        swapped = false;
+        throw activationError;
+      }
+
+      // Phase 4: Activation succeeded - now safely dispose old instance
+      try {
+        // Unload language services for old instance (prevents race where new services are deleted)
+        this.unloadLanguageServices(existing);
+        if (existing.sandbox) {
+          await existing.sandbox.dispose();
+          this.sandboxes.delete(extensionId);
+        }
+        this.activationManager.unregisterExtension(extensionId);
+        for (const disposable of existing.disposables) {
+          disposable.dispose();
+        }
+      } catch (disposeError) {
+        console.error(`Error cleaning up old extension ${extensionId}:`, disposeError);
+      }
+
+      console.log(`Successfully reloaded extension ${extensionId}`);
+    } catch (error) {
+      console.error(`Failed to reload extension ${extensionId}:`, error);
+
+      // Phase 5: Rollback - restore old instance if swap occurred
+      if (swapped) {
+        console.log(`Rolling back extension ${extensionId} to previous state`);
+        this.loadedExtensions.set(extensionId, existing);
+      }
+
+      // Clean up resources from failed new load
+      if (newLoadedExtension) {
+        try {
+          console.log(`Cleaning up resources from failed reload of ${extensionId}`);
+          if (newLoadedExtension.sandbox) {
+            await newLoadedExtension.sandbox.dispose();
+          }
+          for (const disposable of newLoadedExtension.disposables) {
+            disposable.dispose();
+          }
+        } catch (cleanupError) {
+          console.error(`Error during resource cleanup for failed reload:`, cleanupError);
+        }
+      }
+    }
+  }
 }
 
 // Types
@@ -831,6 +949,7 @@ interface LoadedExtension {
   disposables: monaco.IDisposable[];
   activated: boolean;
   sandbox: ExtensionSandbox | null;
+  languageServices: Map<string, LanguageService>;
 }
 
 interface LanguageService {

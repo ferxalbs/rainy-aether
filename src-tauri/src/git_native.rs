@@ -12,9 +12,11 @@
 
 use git2::{
     BranchType, DiffOptions, Error, ErrorCode, Oid, Repository,
-    Status, StatusOptions, Time,
+    Status, StatusOptions, Time, build::RepoBuilder, FetchOptions,
+    PushOptions, RemoteCallbacks, Progress,
 };
 use serde::Serialize;
+use tauri::Emitter;
 
 // ============================================================================
 // ERROR HANDLING
@@ -805,4 +807,1054 @@ pub fn git_diff_file_native(
     .map_err(|e| GitError::from_git2_error(e))?;
 
     Ok(diff_string)
+}
+
+// ============================================================================
+// PHASE 4: REMOTE OPERATIONS (Clone, Push, Pull, Fetch)
+// ============================================================================
+
+#[derive(Serialize, Debug, Clone)]
+pub struct CloneProgress {
+    pub phase: String,
+    pub received_objects: u32,
+    pub total_objects: u32,
+    pub indexed_objects: u32,
+    pub received_bytes: u64,
+    pub percent: u32,
+}
+
+/// Clone a repository with progress reporting
+///
+/// # Arguments
+/// * `url` - Repository URL (HTTPS or SSH)
+/// * `destination` - Local path to clone into
+/// * `branch` - Optional specific branch to clone
+/// * `depth` - Optional depth for shallow clone (None = full clone)
+#[tauri::command]
+pub async fn git_clone_native(
+    window: tauri::Window,
+    url: String,
+    destination: String,
+    branch: Option<String>,
+    depth: Option<u32>,
+) -> Result<String, String> {
+    // Clone operation must run in a blocking task because libgit2 is synchronous
+    let result = tokio::task::spawn_blocking(move || {
+        let mut builder = RepoBuilder::new();
+
+        // Setup fetch options with authentication
+        let mut fetch_opts = FetchOptions::new();
+
+        // Create callbacks with progress reporting
+        let mut callbacks = RemoteCallbacks::new();
+
+        // Transfer progress callback
+        let window_clone = window.clone();
+        callbacks.transfer_progress(move |progress: Progress| {
+            let received = progress.received_objects();
+            let total = progress.total_objects();
+            let indexed = progress.indexed_objects();
+            let bytes = progress.received_bytes();
+
+            let percent = if total > 0 {
+                ((received as f64 / total as f64) * 100.0) as u32
+            } else {
+                0
+            };
+
+            let phase = if received < total {
+                "Receiving objects"
+            } else if indexed < total {
+                "Resolving deltas"
+            } else {
+                "Checking out files"
+            };
+
+            let progress_data = CloneProgress {
+                phase: phase.to_string(),
+                received_objects: received as u32,
+                total_objects: total as u32,
+                indexed_objects: indexed as u32,
+                received_bytes: bytes as u64,
+                percent,
+            };
+
+            // Emit progress event to frontend
+            let _ = window_clone.emit("git-clone-progress", &progress_data);
+
+            true // Continue transfer
+        });
+
+        // Add credentials callback
+        callbacks.credentials(|url, username, allowed| {
+            eprintln!("Clone auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+
+            // Try SSH key
+            if allowed.contains(git2::CredentialType::SSH_KEY) {
+                let home = std::env::var("HOME")
+                    .or_else(|_| std::env::var("USERPROFILE"))
+                    .unwrap_or_else(|_| ".".to_string());
+
+                let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
+                if ssh_key.exists() {
+                    if let Ok(cred) = git2::Cred::ssh_key(
+                        username.unwrap_or("git"),
+                        None,
+                        &ssh_key,
+                        None,
+                    ) {
+                        return Ok(cred);
+                    }
+                }
+
+                // Try SSH agent
+                if let Ok(cred) = git2::Cred::ssh_key_from_agent(username.unwrap_or("git")) {
+                    return Ok(cred);
+                }
+            }
+
+            // Try default credentials
+            if allowed.contains(git2::CredentialType::DEFAULT) {
+                if let Ok(cred) = git2::Cred::default() {
+                    return Ok(cred);
+                }
+            }
+
+            // Try credential helper
+            if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+                if let Ok(config) = git2::Config::open_default() {
+                    if let Ok(cred) = git2::Cred::credential_helper(&config, url, username) {
+                        return Ok(cred);
+                    }
+                }
+            }
+
+            Err(git2::Error::from_str("No valid authentication method"))
+        });
+
+        fetch_opts.remote_callbacks(callbacks);
+        builder.fetch_options(fetch_opts);
+
+        // Set branch if specified
+        if let Some(ref b) = branch {
+            builder.branch(b);
+        }
+
+        // Note: Shallow clone (depth parameter) is not supported in this version of git2
+        // The depth parameter is accepted but ignored for API compatibility
+        if depth.is_some() {
+            eprintln!("Warning: Shallow clone depth parameter is not supported in this version of git2");
+        }
+
+        // Perform the clone
+        let repo = builder
+            .clone(&url, std::path::Path::new(&destination))
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        Ok::<String, String>(repo.path().to_string_lossy().to_string())
+    })
+    .await
+    .map_err(|e| format!("Clone task failed: {}", e))??;
+
+    Ok(result)
+}
+
+/// Push to remote repository
+///
+/// # Arguments
+/// * `path` - Repository path
+/// * `remote_name` - Remote name (default: "origin")
+/// * `branch_name` - Branch to push (default: current branch)
+/// * `force` - Force push (default: false)
+#[tauri::command]
+pub fn git_push_native(
+    path: String,
+    remote_name: Option<String>,
+    branch_name: Option<String>,
+    force: Option<bool>,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let remote_name = remote_name.as_deref().unwrap_or("origin");
+    let mut remote = repo
+        .find_remote(remote_name)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Get current branch if not specified
+    let branch = if let Some(b) = branch_name {
+        b
+    } else {
+        repo.head()
+            .and_then(|h| {
+                h.shorthand()
+                    .map(|s| s.to_string())
+                    .ok_or_else(|| git2::Error::from_str("Invalid HEAD"))
+            })
+            .map_err(|e| GitError::from_git2_error(e))?
+    };
+
+    // Build refspec
+    let force_prefix = if force.unwrap_or(false) { "+" } else { "" };
+    let refspec = format!(
+        "{}refs/heads/{}:refs/heads/{}",
+        force_prefix, branch, branch
+    );
+
+    // Push with authentication
+    let mut push_opts = PushOptions::new();
+    let mut callbacks = RemoteCallbacks::new();
+
+    // Add credentials
+    callbacks.credentials(|url, username, allowed| {
+        eprintln!("Push auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+
+        // Try SSH key
+        if allowed.contains(git2::CredentialType::SSH_KEY) {
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_string());
+
+            let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
+            if ssh_key.exists() {
+                if let Ok(cred) = git2::Cred::ssh_key(
+                    username.unwrap_or("git"),
+                    None,
+                    &ssh_key,
+                    None,
+                ) {
+                    return Ok(cred);
+                }
+            }
+
+            // Try SSH agent
+            if let Ok(cred) = git2::Cred::ssh_key_from_agent(username.unwrap_or("git")) {
+                return Ok(cred);
+            }
+        }
+
+        // Try default credentials
+        if allowed.contains(git2::CredentialType::DEFAULT) {
+            if let Ok(cred) = git2::Cred::default() {
+                return Ok(cred);
+            }
+        }
+
+        // Try credential helper
+        if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+            if let Ok(config) = git2::Config::open_default() {
+                if let Ok(cred) = git2::Cred::credential_helper(&config, url, username) {
+                    return Ok(cred);
+                }
+            }
+        }
+
+        Err(git2::Error::from_str("No valid authentication method"))
+    });
+
+    push_opts.remote_callbacks(callbacks);
+
+    remote
+        .push(&[&refspec], Some(&mut push_opts))
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(format!("Pushed {} to {}", branch, remote_name))
+}
+
+/// Pull from remote repository (fetch + merge)
+///
+/// # Arguments
+/// * `path` - Repository path
+/// * `remote_name` - Remote name (default: "origin")
+/// * `branch_name` - Branch to pull (default: current branch)
+#[tauri::command]
+pub fn git_pull_native(
+    path: String,
+    remote_name: Option<String>,
+    branch_name: Option<String>,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let remote_name = remote_name.as_deref().unwrap_or("origin");
+    let mut remote = repo
+        .find_remote(remote_name)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Get current branch if not specified
+    let branch = if let Some(b) = branch_name {
+        b
+    } else {
+        repo.head()
+            .and_then(|h| {
+                h.shorthand()
+                    .map(|s| s.to_string())
+                    .ok_or_else(|| git2::Error::from_str("Invalid HEAD"))
+            })
+            .map_err(|e| GitError::from_git2_error(e))?
+    };
+
+    // Fetch with authentication
+    let mut fetch_opts = FetchOptions::new();
+    let mut callbacks = RemoteCallbacks::new();
+
+    callbacks.credentials(|url, username, allowed| {
+        eprintln!("Pull auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+
+        // Try SSH key
+        if allowed.contains(git2::CredentialType::SSH_KEY) {
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_string());
+
+            let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
+            if ssh_key.exists() {
+                if let Ok(cred) = git2::Cred::ssh_key(
+                    username.unwrap_or("git"),
+                    None,
+                    &ssh_key,
+                    None,
+                ) {
+                    return Ok(cred);
+                }
+            }
+
+            // Try SSH agent
+            if let Ok(cred) = git2::Cred::ssh_key_from_agent(username.unwrap_or("git")) {
+                return Ok(cred);
+            }
+        }
+
+        // Try default credentials
+        if allowed.contains(git2::CredentialType::DEFAULT) {
+            if let Ok(cred) = git2::Cred::default() {
+                return Ok(cred);
+            }
+        }
+
+        // Try credential helper
+        if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+            if let Ok(config) = git2::Config::open_default() {
+                if let Ok(cred) = git2::Cred::credential_helper(&config, url, username) {
+                    return Ok(cred);
+                }
+            }
+        }
+
+        Err(git2::Error::from_str("No valid authentication method"))
+    });
+
+    fetch_opts.remote_callbacks(callbacks);
+
+    // Fetch
+    remote
+        .fetch(&[&branch], Some(&mut fetch_opts), None)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Get fetch head
+    let fetch_head = repo
+        .find_reference("FETCH_HEAD")
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    let fetch_commit = repo
+        .reference_to_annotated_commit(&fetch_head)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Perform merge analysis
+    let (analysis, _) = repo
+        .merge_analysis(&[&fetch_commit])
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    if analysis.is_up_to_date() {
+        return Ok("Already up to date".to_string());
+    }
+
+    if analysis.is_fast_forward() {
+        // Fast-forward merge
+        let refname = format!("refs/heads/{}", branch);
+        let mut reference = repo
+            .find_reference(&refname)
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        reference
+            .set_target(fetch_commit.id(), "Fast-forward")
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        repo.set_head(&refname)
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        Ok("Fast-forward merge successful".to_string())
+    } else {
+        // Normal merge required
+        repo.merge(
+            &[&fetch_commit],
+            Some(&mut git2::MergeOptions::new()),
+            None,
+        )
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+        // Check for conflicts
+        let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+        if index.has_conflicts() {
+            return Err(GitError {
+                code: "CONFLICT".to_string(),
+                message: "Merge has conflicts. Please resolve them manually.".to_string(),
+                category: ErrorCategory::Conflict,
+                suggestion: Some("Use git status to see conflicted files.".to_string()),
+            }
+            .into());
+        }
+
+        Ok("Merge successful".to_string())
+    }
+}
+
+/// Fetch from remote repository
+///
+/// # Arguments
+/// * `path` - Repository path
+/// * `remote_name` - Remote name (default: "origin")
+#[tauri::command]
+pub fn git_fetch_native(
+    path: String,
+    remote_name: Option<String>,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let remote_name = remote_name.as_deref().unwrap_or("origin");
+    let mut remote = repo
+        .find_remote(remote_name)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Fetch with authentication
+    let mut fetch_opts = FetchOptions::new();
+    let mut callbacks = RemoteCallbacks::new();
+
+    callbacks.credentials(|url, username, allowed| {
+        eprintln!("Fetch auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+
+        // Try SSH key
+        if allowed.contains(git2::CredentialType::SSH_KEY) {
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_string());
+
+            let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
+            if ssh_key.exists() {
+                if let Ok(cred) = git2::Cred::ssh_key(
+                    username.unwrap_or("git"),
+                    None,
+                    &ssh_key,
+                    None,
+                ) {
+                    return Ok(cred);
+                }
+            }
+
+            // Try SSH agent
+            if let Ok(cred) = git2::Cred::ssh_key_from_agent(username.unwrap_or("git")) {
+                return Ok(cred);
+            }
+        }
+
+        // Try default credentials
+        if allowed.contains(git2::CredentialType::DEFAULT) {
+            if let Ok(cred) = git2::Cred::default() {
+                return Ok(cred);
+            }
+        }
+
+        // Try credential helper
+        if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+            if let Ok(config) = git2::Config::open_default() {
+                if let Ok(cred) = git2::Cred::credential_helper(&config, url, username) {
+                    return Ok(cred);
+                }
+            }
+        }
+
+        Err(git2::Error::from_str("No valid authentication method"))
+    });
+
+    fetch_opts.remote_callbacks(callbacks);
+
+    // Fetch all branches
+    remote
+        .fetch(&[] as &[&str], Some(&mut fetch_opts), None)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(format!("Fetched from {}", remote_name))
+}
+
+// ============================================================================
+// PHASE 3: WRITE OPERATIONS (Staging, Commit, Stash)
+// ============================================================================
+
+/// Stage a single file
+#[tauri::command]
+pub fn git_stage_file_native(path: String, file_path: String) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let mut index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+    // Add file to index
+    index
+        .add_path(std::path::Path::new(&file_path))
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Write index to disk
+    index.write().map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(format!("Staged: {}", file_path))
+}
+
+/// Stage all changes
+#[tauri::command]
+pub fn git_stage_all_native(path: String) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let mut index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+    // Add all files including untracked
+    index
+        .add_all(["."].iter(), git2::IndexAddOption::DEFAULT, None)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Write index to disk
+    index.write().map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok("Staged all changes".to_string())
+}
+
+/// Unstage a single file
+#[tauri::command]
+pub fn git_unstage_file_native(path: String, file_path: String) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    // Reset the file to HEAD
+    let head = repo
+        .head()
+        .map_err(|e| GitError::from_git2_error(e))?;
+    let head_commit = head
+        .peel_to_commit()
+        .map_err(|e| GitError::from_git2_error(e))?;
+    let head_tree = head_commit
+        .tree()
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    let mut index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+    // Get the entry from HEAD tree
+    let tree_entry = head_tree
+        .get_path(std::path::Path::new(&file_path))
+        .ok();
+
+    if let Some(entry) = tree_entry {
+        // File exists in HEAD, reset to that version
+        let index_entry = git2::IndexEntry {
+            ctime: git2::IndexTime::new(0, 0),
+            mtime: git2::IndexTime::new(0, 0),
+            dev: 0,
+            ino: 0,
+            mode: entry.filemode() as u32,
+            uid: 0,
+            gid: 0,
+            file_size: 0,
+            id: entry.id(),
+            flags: 0,
+            flags_extended: 0,
+            path: file_path.as_bytes().to_vec(),
+        };
+
+        index
+            .add(&index_entry)
+            .map_err(|e| GitError::from_git2_error(e))?;
+    } else {
+        // File doesn't exist in HEAD, remove from index
+        index
+            .remove_path(std::path::Path::new(&file_path))
+            .map_err(|e| GitError::from_git2_error(e))?;
+    }
+
+    index.write().map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(format!("Unstaged: {}", file_path))
+}
+
+/// Unstage all changes
+#[tauri::command]
+pub fn git_unstage_all_native(path: String) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    // Reset index to HEAD
+    let head = repo
+        .head()
+        .map_err(|e| GitError::from_git2_error(e))?;
+    let head_commit = head
+        .peel_to_commit()
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    repo.reset(
+        head_commit.as_object(),
+        git2::ResetType::Mixed,
+        None,
+    )
+    .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok("Unstaged all changes".to_string())
+}
+
+/// Create a commit
+#[tauri::command]
+pub fn git_commit_native(
+    path: String,
+    message: String,
+    author_name: String,
+    author_email: String,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    // Get the index
+    let mut index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+    // Write tree from index
+    let tree_oid = index
+        .write_tree()
+        .map_err(|e| GitError::from_git2_error(e))?;
+    let tree = repo
+        .find_tree(tree_oid)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Create signature
+    let signature = git2::Signature::now(&author_name, &author_email)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Get parent commit if exists
+    let parent_commit = match repo.head() {
+        Ok(head) => {
+            let target = head.target().ok_or_else(|| {
+                GitError::internal("HEAD has no target")
+            })?;
+            Some(
+                repo.find_commit(target)
+                    .map_err(|e| GitError::from_git2_error(e))?,
+            )
+        }
+        Err(_) => None, // First commit (no parent)
+    };
+
+    let parents: Vec<&git2::Commit> = parent_commit.as_ref().map(|c| vec![c]).unwrap_or_default();
+
+    // Create commit
+    let commit_oid = repo
+        .commit(
+            Some("HEAD"),       // Update HEAD
+            &signature,         // Author
+            &signature,         // Committer
+            &message,           // Message
+            &tree,              // Tree
+            &parents.as_slice(), // Parents
+        )
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(commit_oid.to_string())
+}
+
+/// List stashes
+#[tauri::command]
+pub fn git_stash_list_native(path: String) -> Result<Vec<CommitInfo>, String> {
+    let mut repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    // First collect stash info (OID and name) without borrowing repo inside closure
+    let mut stash_data = Vec::new();
+
+    repo.stash_foreach(|_index, name, oid| {
+        stash_data.push((*oid, name.to_string()));
+        true // Continue iteration
+    })
+    .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Now process the collected data
+    let mut stashes = Vec::new();
+    for (oid, name) in stash_data {
+        if let Ok(commit) = repo.find_commit(oid) {
+            stashes.push(CommitInfo {
+                hash: oid.to_string(),
+                author: commit.author().name().unwrap_or("").to_string(),
+                email: commit.author().email().unwrap_or("").to_string(),
+                date: format_time(commit.time()),
+                message: name,
+            });
+        }
+    }
+
+    Ok(stashes)
+}
+
+/// Create a stash
+#[tauri::command]
+pub fn git_stash_push_native(
+    path: String,
+    message: Option<String>,
+) -> Result<String, String> {
+    let mut repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let signature = repo
+        .signature()
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    let msg = message.as_deref().unwrap_or("WIP");
+
+    let stash_id = repo
+        .stash_save(&signature, msg, Some(git2::StashFlags::DEFAULT))
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(stash_id.to_string())
+}
+
+/// Apply a stash
+#[tauri::command]
+pub fn git_stash_pop_native(path: String, index: usize) -> Result<String, String> {
+    let mut repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    repo.stash_pop(index, None)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(format!("Applied stash@{{{}}}", index))
+}
+
+// ============================================================================
+// PHASE 5: ADVANCED OPERATIONS (Merge, Rebase, Conflicts)
+// ============================================================================
+
+/// Merge a branch into current branch
+#[tauri::command]
+pub fn git_merge_native(
+    path: String,
+    branch: String,
+    no_ff: Option<bool>,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    // Find branch to merge
+    let branch_ref = repo
+        .find_branch(&branch, BranchType::Local)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    let annotated_commit = repo
+        .reference_to_annotated_commit(branch_ref.get())
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Perform merge analysis
+    let (analysis, _) = repo
+        .merge_analysis(&[&annotated_commit])
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    if analysis.is_up_to_date() {
+        return Ok("Already up to date".to_string());
+    }
+
+    if analysis.is_fast_forward() && !no_ff.unwrap_or(false) {
+        // Fast-forward merge
+        let refname = format!(
+            "refs/heads/{}",
+            repo.head()
+                .unwrap()
+                .shorthand()
+                .unwrap_or("main")
+        );
+
+        let mut reference = repo
+            .find_reference(&refname)
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        reference
+            .set_target(annotated_commit.id(), "Fast-forward")
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        Ok("Fast-forward merge successful".to_string())
+    } else {
+        // Normal merge
+        repo.merge(
+            &[&annotated_commit],
+            Some(&mut git2::MergeOptions::new()),
+            None,
+        )
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+        // Check for conflicts
+        let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+        if index.has_conflicts() {
+            return Err(GitError {
+                code: "CONFLICT".to_string(),
+                message: "Merge has conflicts".to_string(),
+                category: ErrorCategory::Conflict,
+                suggestion: Some(
+                    "Resolve conflicts manually and commit the result".to_string(),
+                ),
+            }
+            .into());
+        }
+
+        Ok("Merge successful".to_string())
+    }
+}
+
+/// Abort a merge in progress
+#[tauri::command]
+pub fn git_merge_abort_native(path: String) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    repo.cleanup_state()
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Reset to HEAD
+    let head = repo
+        .head()
+        .map_err(|e| GitError::from_git2_error(e))?;
+    let commit = head
+        .peel_to_commit()
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    repo.reset(commit.as_object(), git2::ResetType::Hard, None)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok("Merge aborted".to_string())
+}
+
+/// List conflicted files
+#[tauri::command]
+pub fn git_list_conflicts_native(path: String) -> Result<Vec<String>, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+    let mut conflicts = Vec::new();
+
+    if index.has_conflicts() {
+        for entry in index
+            .conflicts()
+            .map_err(|e| GitError::from_git2_error(e))?
+        {
+            let conflict = entry.map_err(|e| GitError::from_git2_error(e))?;
+
+            if let Some(our) = conflict.our {
+                let path = String::from_utf8_lossy(&our.path).to_string();
+                conflicts.push(path);
+            }
+        }
+    }
+
+    Ok(conflicts)
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct ConflictContent {
+    pub ancestor: Option<String>,
+    pub ours: Option<String>,
+    pub theirs: Option<String>,
+}
+
+/// Helper function to find a conflict by file path
+fn find_conflict_by_path(
+    index: &git2::Index,
+    file_path: &str,
+) -> Result<git2::IndexConflict, String> {
+    for entry in index.conflicts().map_err(|e| GitError::from_git2_error(e))? {
+        let c = entry.map_err(|e| GitError::from_git2_error(e))?;
+
+        // Check if this conflict matches the file path
+        let path_matches = c.our.as_ref()
+            .map(|e| String::from_utf8_lossy(&e.path) == file_path)
+            .unwrap_or(false) ||
+            c.their.as_ref()
+            .map(|e| String::from_utf8_lossy(&e.path) == file_path)
+            .unwrap_or(false) ||
+            c.ancestor.as_ref()
+            .map(|e| String::from_utf8_lossy(&e.path) == file_path)
+            .unwrap_or(false);
+
+        if path_matches {
+            return Ok(c);
+        }
+    }
+
+    Err(GitError::not_found("Conflict not found for file").into())
+}
+
+/// Get conflict content for a file
+#[tauri::command]
+pub fn git_get_conflict_content_native(
+    path: String,
+    file_path: String,
+) -> Result<ConflictContent, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+    let conflict = find_conflict_by_path(&index, &file_path)?;
+
+    let mut content = ConflictContent {
+        ancestor: None,
+        ours: None,
+        theirs: None,
+    };
+
+    if let Some(ancestor) = conflict.ancestor {
+        let blob = repo
+            .find_blob(ancestor.id)
+            .map_err(|e| GitError::from_git2_error(e))?;
+        content.ancestor = Some(String::from_utf8_lossy(blob.content()).to_string());
+    }
+
+    if let Some(our) = conflict.our {
+        let blob = repo
+            .find_blob(our.id)
+            .map_err(|e| GitError::from_git2_error(e))?;
+        content.ours = Some(String::from_utf8_lossy(blob.content()).to_string());
+    }
+
+    if let Some(their) = conflict.their {
+        let blob = repo
+            .find_blob(their.id)
+            .map_err(|e| GitError::from_git2_error(e))?;
+        content.theirs = Some(String::from_utf8_lossy(blob.content()).to_string());
+    }
+
+    Ok(content)
+}
+
+/// Resolve conflict by choosing a version
+#[tauri::command]
+pub fn git_resolve_conflict_native(
+    path: String,
+    file_path: String,
+    resolution: String,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    // Write resolved content to file
+    let full_path = std::path::Path::new(&path).join(&file_path);
+    std::fs::write(&full_path, resolution).map_err(|e| {
+        GitError::internal(&format!("Failed to write file: {}", e))
+    })?;
+
+    // Stage the resolved file
+    let mut index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+    index
+        .add_path(std::path::Path::new(&file_path))
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    index.write().map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(format!("Resolved conflict in: {}", file_path))
+}
+
+/// Accept "ours" version for a conflict
+#[tauri::command]
+pub fn git_accept_ours_native(path: String, file_path: String) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+    let conflict = find_conflict_by_path(&index, &file_path)?;
+
+    if let Some(our) = conflict.our {
+        let blob = repo
+            .find_blob(our.id)
+            .map_err(|e| GitError::from_git2_error(e))?;
+        let content = String::from_utf8_lossy(blob.content()).to_string();
+
+        git_resolve_conflict_native(path, file_path.clone(), content)?;
+
+        Ok(format!("Accepted 'ours' for: {}", file_path))
+    } else {
+        Err(GitError::internal("'Our' version not found").into())
+    }
+}
+
+/// Accept "theirs" version for a conflict
+#[tauri::command]
+pub fn git_accept_theirs_native(
+    path: String,
+    file_path: String,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
+
+    let conflict = find_conflict_by_path(&index, &file_path)?;
+
+    if let Some(their) = conflict.their {
+        let blob = repo
+            .find_blob(their.id)
+            .map_err(|e| GitError::from_git2_error(e))?;
+        let content = String::from_utf8_lossy(blob.content()).to_string();
+
+        git_resolve_conflict_native(path, file_path.clone(), content)?;
+
+        Ok(format!("Accepted 'theirs' for: {}", file_path))
+    } else {
+        Err(GitError::internal("'Their' version not found").into())
+    }
+}
+
+/// Delete a branch
+#[tauri::command]
+pub fn git_delete_branch_native(
+    path: String,
+    branch_name: String,
+    force: Option<bool>,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
+
+    let mut branch = repo
+        .find_branch(&branch_name, BranchType::Local)
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    // Check if branch is merged (unless force is true)
+    if !force.unwrap_or(false) {
+        let head = repo
+            .head()
+            .map_err(|e| GitError::from_git2_error(e))?;
+        let head_commit = head
+            .peel_to_commit()
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        let branch_commit = branch
+            .get()
+            .peel_to_commit()
+            .map_err(|e| GitError::from_git2_error(e))?;
+
+        // Check if branch is merged into HEAD
+        let is_merged = repo
+            .graph_descendant_of(head_commit.id(), branch_commit.id())
+            .unwrap_or(false);
+
+        if !is_merged && !branch.is_head() {
+            return Err(GitError {
+                code: "UNMERGED_BRANCH".to_string(),
+                message: format!(
+                    "Branch '{}' is not fully merged. Use force=true to delete anyway.",
+                    branch_name
+                ),
+                category: ErrorCategory::Invalid,
+                suggestion: Some("Merge the branch first or use force delete".to_string()),
+            }
+            .into());
+        }
+    }
+
+    branch
+        .delete()
+        .map_err(|e| GitError::from_git2_error(e))?;
+
+    Ok(format!("Deleted branch: {}", branch_name))
 }

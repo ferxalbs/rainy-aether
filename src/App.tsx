@@ -17,6 +17,8 @@ import { initTerminalService } from "./services/terminalService";
 import { terminalActions } from "./stores/terminalStore";
 import { iconThemeActions } from "./stores/iconThemeStore";
 import { defaultIconTheme } from "./themes/iconThemes/defaultIconTheme";
+import { fontManager } from "./services/fontManager";
+import { initializeExtensionConfig, getExtensionConfig, isExtensionAllowed } from "./stores/extensionConfigStore";
 
 const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -42,6 +44,7 @@ const App: React.FC = () => {
         // Stage 2: Settings
         loadingActions.startStage('settings');
         await initializeSettings();
+        await initializeExtensionConfig(); // Initialize extension configuration
         loadingActions.completeStage('settings');
 
         // Stage 2.2: Prompts
@@ -67,6 +70,10 @@ const App: React.FC = () => {
           // Initialize auto-save service
           initializeAutoSaveService();
           console.log('[App] Auto-save service initialized successfully');
+
+          // Initialize font manager
+          await fontManager.initialize();
+          console.log('[App] Font manager initialized successfully');
         } catch (error) {
           console.error('[App] Failed to initialize configuration system:', error);
           // Non-fatal error - continue with initialization
@@ -79,18 +86,168 @@ const App: React.FC = () => {
         // Stage 3: Extensions
         loadingActions.startStage('extensions');
         try {
-          // Auto-enable installed extensions
-          const installedExtensions = await extensionManager.getInstalledExtensions();
-          const enabledExtensions = installedExtensions.filter(ext => ext.enabled);
+          // Get extension configuration
+          const extensionConfig = getExtensionConfig();
+          const {
+            startupActivationMode,
+            startupActivationDelay,
+            loadingStrategy,
+            securityLevel,
+            maxActiveExtensions,
+            autoCleanupErrorExtensions,
+            errorHandling,
+            verboseLogging,
+            showLoadingProgress
+          } = extensionConfig;
 
-          // Load enabled extensions
-          for (const ext of enabledExtensions) {
-            try {
-              await extensionManager.enableExtension(ext.id);
-            } catch (error) {
-              console.warn(`Failed to auto-enable extension ${ext.id}:`, error);
+          // ALWAYS log startup mode for debugging
+          console.log('[App] 🔧 Extension Configuration Loaded:');
+          console.log(`[App]   - Startup Activation Mode: ${startupActivationMode}`);
+          console.log(`[App]   - Loading Strategy: ${loadingStrategy}`);
+          console.log(`[App]   - Security Level: ${securityLevel}`);
+          console.log(`[App]   - Verbose Logging: ${verboseLogging}`);
+
+          if (verboseLogging) {
+            console.log('[App] Full extension configuration:', extensionConfig);
+          }
+
+          const shouldAutoActivate = startupActivationMode === 'auto';
+          console.log(`[App] 🚀 Should auto-activate extensions: ${shouldAutoActivate}`);
+
+          // Auto-cleanup error extensions if enabled
+          if (autoCleanupErrorExtensions) {
+            const installedExtensions = await extensionManager.getInstalledExtensions();
+            const errorExtensions = installedExtensions.filter(ext => ext.state === 'error' || ext.state === 'installing');
+
+            if (errorExtensions.length > 0) {
+              console.log(`[App] Auto-cleanup: Found ${errorExtensions.length} extension(s) in error state`);
+              for (const ext of errorExtensions) {
+                try {
+                  await extensionManager.uninstallExtension(ext.id, true);
+                  console.log(`[App] Auto-cleanup: Removed ${ext.id}`);
+                } catch (error) {
+                  console.error(`[App] Auto-cleanup failed for ${ext.id}:`, error);
+                }
+              }
             }
           }
+
+          const installedExtensions = await extensionManager.getInstalledExtensions();
+          let enabledExtensions = installedExtensions.filter(ext => ext.enabled);
+
+          console.log(`[App] 📦 Found ${installedExtensions.length} total extension(s)`);
+          console.log(`[App] ✅ Found ${enabledExtensions.length} enabled extension(s):`);
+          enabledExtensions.forEach(ext => {
+            console.log(`[App]    - ${ext.id} (${ext.displayName})`);
+          });
+
+          // Apply security filters
+          enabledExtensions = enabledExtensions.filter(ext => {
+            // Check if extension is allowed based on security settings
+            const allowed = isExtensionAllowed(ext.id, ext.publisher);
+
+            if (!allowed) {
+              console.warn(`[App] ⛔ Extension ${ext.id} blocked by security settings (level: ${securityLevel})`);
+            }
+
+            return allowed;
+          });
+
+          if (enabledExtensions.length !== installedExtensions.filter(ext => ext.enabled).length) {
+            console.log(`[App] 🔒 After security filter: ${enabledExtensions.length} extension(s) allowed`);
+          }
+
+          // Apply max active extensions limit
+          if (maxActiveExtensions > 0 && enabledExtensions.length > maxActiveExtensions) {
+            console.warn(`[App] ⚠️ Too many extensions enabled (${enabledExtensions.length}), limiting to ${maxActiveExtensions}`);
+            enabledExtensions = enabledExtensions.slice(0, maxActiveExtensions);
+          }
+
+          if (shouldAutoActivate && enabledExtensions.length > 0) {
+            console.log(`[App] Auto-activating ${enabledExtensions.length} extension(s) using ${loadingStrategy} strategy`);
+
+            if (showLoadingProgress) {
+              console.log(`[App] Loading extensions: ${enabledExtensions.map(e => e.id).join(', ')}`);
+            }
+
+            // Choose loading strategy
+            switch (loadingStrategy) {
+              case 'parallel': {
+                // Load all extensions in parallel
+                const enablePromises = enabledExtensions.map(async (ext, index) => {
+                  try {
+                    if (verboseLogging) {
+                      console.log(`[App] Starting extension ${ext.id} (${index + 1}/${enabledExtensions.length})`);
+                    }
+
+                    await extensionManager.enableExtension(ext.id);
+
+                    if (startupActivationDelay > 0) {
+                      await new Promise(resolve => setTimeout(resolve, startupActivationDelay));
+                    }
+
+                    if (verboseLogging) {
+                      console.log(`[App] Extension ${ext.id} loaded successfully`);
+                    }
+                  } catch (error) {
+                    console.error(`[App] Failed to enable extension ${ext.id}:`, error);
+
+                    if (errorHandling === 'stop') {
+                      throw error; // Stop loading all extensions
+                    }
+                    // Otherwise continue with next extension
+                  }
+                });
+
+                await Promise.all(enablePromises);
+                break;
+              }
+
+              case 'sequential': {
+                // Load extensions one by one
+                for (let i = 0; i < enabledExtensions.length; i++) {
+                  const ext = enabledExtensions[i];
+
+                  try {
+                    if (showLoadingProgress || verboseLogging) {
+                      console.log(`[App] Loading extension ${ext.id} (${i + 1}/${enabledExtensions.length})`);
+                    }
+
+                    await extensionManager.enableExtension(ext.id);
+
+                    if (startupActivationDelay > 0) {
+                      await new Promise(resolve => setTimeout(resolve, startupActivationDelay));
+                    }
+                  } catch (error) {
+                    console.error(`[App] Failed to enable extension ${ext.id}:`, error);
+
+                    if (errorHandling === 'stop') {
+                      console.error('[App] Stopping extension loading due to error');
+                      break; // Stop loading
+                    }
+                  }
+                }
+                break;
+              }
+
+              case 'lazy': {
+                // Extensions will be loaded on-demand
+                console.log('[App] Lazy loading enabled - extensions will load on-demand');
+                // Store enabled extensions list for lazy loading
+                // Actual loading happens when extension features are requested
+                break;
+              }
+            }
+
+            console.log('[App] ✅ Extension activation complete');
+          } else if (!shouldAutoActivate) {
+            console.warn('[App] ⚠️ Extension startup activation mode is set to MANUAL; skipping auto-enable.');
+            console.warn(`[App] ⚠️ Found ${enabledExtensions.length} enabled extension(s) that require manual activation.`);
+            console.warn('[App] ⚠️ To enable automatic activation, set extensions.startupActivationMode to "auto"');
+          } else {
+            console.info('[App] ℹ️ No enabled extensions found to activate.');
+          }
+
           loadingActions.completeStage('extensions');
 
           // Stage 3.5: Activate preferred icon theme

@@ -182,7 +182,10 @@ export class ExtensionManager extends EventEmitter {
     }
 
     if (extension.state === 'enabled') {
-      return; // Already enabled
+      console.log(`[ExtensionManager] Extension ${id} already enabled, ensuring it's loaded in Monaco...`);
+      // Force reload in Monaco to ensure it's actually loaded
+      await this.ensureExtensionLoadedInMonaco(extension);
+      return;
     }
 
     if (extension.state !== 'installed' && extension.state !== 'disabled') {
@@ -223,6 +226,37 @@ export class ExtensionManager extends EventEmitter {
       }
 
       throw new Error(`Failed to enable extension ${id}: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Ensure extension is loaded in Monaco (even if already enabled)
+   * This is used for auto-activation on startup
+   */
+  private async ensureExtensionLoadedInMonaco(extension: InstalledExtension): Promise<void> {
+    try {
+      console.log(`[ExtensionManager] Ensuring ${extension.id} is loaded in Monaco...`);
+
+      // Guard: Check if Monaco extension host is available
+      if (!monacoExtensionHost) {
+        const error = new Error('Monaco extension host is not initialized');
+        console.error(`[ExtensionManager] ${error.message}`);
+        throw error;
+      }
+
+      // Check if already loaded
+      if (monacoExtensionHost.isExtensionLoaded(extension.id)) {
+        console.log(`[ExtensionManager] Extension ${extension.id} already loaded in Monaco`);
+        return;
+      }
+
+      // Load it
+      console.log(`[ExtensionManager] Loading ${extension.id} into Monaco...`);
+      await monacoExtensionHost.loadExtension(extension);
+      console.log(`[ExtensionManager] Successfully loaded ${extension.id} into Monaco`);
+    } catch (error) {
+      console.error(`[ExtensionManager] Failed to ensure ${extension.id} is loaded:`, error);
+      throw error;
     }
   }
 

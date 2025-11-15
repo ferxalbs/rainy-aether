@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Trash2, Power, PowerOff, AlertTriangle, CheckCircle, XCircle, Package, Activity, RefreshCw } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Trash2, Power, PowerOff, AlertTriangle, CheckCircle, XCircle, Package, Activity, RefreshCw, Settings, Shield, Zap, Clock } from 'lucide-react';
 import { useExtensionStore, useExtensionInstallation } from '../../stores/extensionStore';
 import { InstalledExtension } from '../../types/extension';
 import { extensionManager } from '../../services/extensionManager';
 import { cn } from '../../lib/cn';
+import { useExtensionConfig, setStartupActivationMode } from '../../stores/extensionConfigStore';
 
 interface ExtensionManagerProps {
   isOpen: boolean;
@@ -13,9 +14,22 @@ interface ExtensionManagerProps {
 const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) => {
   const { installedExtensions, refreshExtensions } = useExtensionStore();
   const { enableExtension, disableExtension, uninstallExtension } = useExtensionInstallation();
+  const extensionConfig = useExtensionConfig();
 
   const [filter, setFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
   const [healthReport, setHealthReport] = useState(extensionManager.getHealthReport());
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
+  const [startupModeError, setStartupModeError] = useState<string | null>(null);
+  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup pending timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const filteredExtensions = installedExtensions.filter(ext => {
     switch (filter) {
@@ -76,6 +90,27 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
   const handleRefresh = () => {
     refreshExtensions();
     setHealthReport(extensionManager.getHealthReport());
+  };
+
+  const handleToggleStartupMode = async () => {
+    try {
+      setStartupModeError(null);
+      const newMode = extensionConfig.startupActivationMode === 'auto' ? 'manual' : 'auto';
+      await setStartupActivationMode(newMode);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to change startup activation mode';
+      console.error('Failed to toggle startup mode:', error);
+      setStartupModeError(errorMessage);
+      // Clear any existing timeout before setting a new one
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
+      // Auto-clear error after 5 seconds
+      errorTimeoutRef.current = setTimeout(() => {
+        setStartupModeError(null);
+        errorTimeoutRef.current = null;
+      }, 5000);
+    }
   };
 
   const handleCleanupAll = async () => {
@@ -163,6 +198,16 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
                 </button>
               )}
               <button
+                onClick={() => setShowConfigPanel(!showConfigPanel)}
+                className={cn(
+                  "p-1.5 rounded transition-colors",
+                  showConfigPanel ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                )}
+                title="Extension Configuration"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <button
                 onClick={handleRefresh}
                 className="p-1.5 hover:bg-muted rounded transition-colors"
                 title="Refresh"
@@ -178,9 +223,73 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
             </div>
           </div>
 
+          {/* Quick Config Panel */}
+          {showConfigPanel && (
+            <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" />
+                  <span className="font-medium">Startup Activation</span>
+                </div>
+                <button
+                  onClick={handleToggleStartupMode}
+                  className={cn(
+                    "px-3 py-1 text-xs rounded transition-colors",
+                    extensionConfig.startupActivationMode === 'auto'
+                      ? "bg-green-500/10 text-green-500 border border-green-500/20"
+                      : "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+                  )}
+                >
+                  {extensionConfig.startupActivationMode === 'auto' ? 'Automatic' : 'Manual'}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary" />
+                  <span className="font-medium">Security Level</span>
+                </div>
+                <span className="px-3 py-1 text-xs bg-background rounded capitalize">
+                  {extensionConfig.securityLevel}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <span className="font-medium">Loading Strategy</span>
+                </div>
+                <span className="px-3 py-1 text-xs bg-background rounded capitalize">
+                  {extensionConfig.loadingStrategy}
+                </span>
+              </div>
+
+              {extensionConfig.startupActivationMode === 'manual' && (
+                <div className="pt-2 border-t border-border">
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <p>
+                      Manual mode: Extensions require activation via Enable/Disable buttons each session.
+                      Switch to Automatic to restore extensions on startup.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {startupModeError && (
+                <div className="pt-2 border-t border-border">
+                  <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 p-2 rounded">
+                    <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <p>{startupModeError}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Health Report */}
-          {healthReport.total > 0 && (
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          {healthReport.total > 0 && !showConfigPanel && (
+            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-3">
               <div className="flex items-center gap-1.5">
                 <Activity className="w-3.5 h-3.5" />
                 <span>Health:</span>

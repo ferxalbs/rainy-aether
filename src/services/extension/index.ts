@@ -20,5 +20,9 @@ export { LanguageClient, State as LanguageClientState, vscodeLanguageClient } fr
 export { iconThemeAPI } from './iconThemeAPI';
 export type { IconThemeContribution } from './iconThemeAPI';
 
+// Configuration API
+export { configurationAPI } from './configurationAPI';
+export type { ConfigurationContribution } from './configurationAPI';
+
 // Types
 export * from './types';
