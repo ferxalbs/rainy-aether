@@ -12,7 +12,7 @@ This document describes the complete end-to-end flow of the Rust-powered Agent 3
 
 ## System Architecture
 
-```
+```table
 ┌─────────────────────────────────────────────────────────────────┐
 │                         TypeScript Layer                         │
 ├─────────────────────────────────────────────────────────────────┤
@@ -434,6 +434,7 @@ impl ModelProvider for GroqProvider {
 Tool executor with registry, caching, and timeout handling:
 
 **ToolExecutor**:
+
 ```rust
 pub async fn execute(
     &self,
@@ -493,6 +494,7 @@ pub async fn execute(
 ```
 
 **Example Tool** (ReadFileTool):
+
 ```rust
 #[async_trait]
 impl Tool for ReadFileTool {
@@ -539,22 +541,26 @@ impl Tool for ReadFileTool {
 ## Key Features
 
 ### ✅ Conversation Memory
+
 - Full conversation history maintained in MemoryManager
 - Messages converted from internal format to provider format
 - History passed to provider for context-aware responses
 
 ### ✅ Tool Execution Loop
+
 - ReAct-style loop: think → act → observe
 - Supports multiple tool calls per iteration
 - Automatic retry with tool results
 - Max iterations safety limit
 
 ### ✅ Multi-Provider Support
+
 - GroqProvider with Llama 3.3 70B
 - OpenAI-compatible API format
 - Easy to add more providers (Google, Anthropic, etc.)
 
 ### ✅ Tool Registry
+
 - Auto-registration of built-in tools
 - Filesystem tools: read_file, write_file, list_directory
 - Caching with TTL
@@ -562,6 +568,7 @@ impl Tool for ReadFileTool {
 - Metrics tracking per tool
 
 ### ✅ Performance Optimization
+
 - Arc-based shared ownership (zero-copy)
 - DashMap for lock-free concurrent access
 - Tokio async runtime
@@ -569,11 +576,13 @@ impl Tool for ReadFileTool {
 - Tool result caching
 
 ### ✅ Error Handling
+
 - Comprehensive error types (ProviderError, AgentError, ToolError)
 - Graceful degradation on tool failures
 - Timeout protection for long-running operations
 
 ### ✅ Metrics & Telemetry
+
 - Token usage tracking
 - Execution time measurement
 - Cost estimation
@@ -585,11 +594,13 @@ impl Tool for ReadFileTool {
 ## Configuration
 
 ### Environment Variables
+
 ```bash
 GROQ_API_KEY=your_groq_api_key_here
 ```
 
 ### Agent Configuration (TypeScript)
+
 ```typescript
 const rustConfig: RustAgentConfig = {
   provider: 'groq',
@@ -613,6 +624,7 @@ const rustConfig: RustAgentConfig = {
 ```
 
 ### Session Creation
+
 ```typescript
 const sessionId = await rustAgentOrchestrator.createSession(
   'rainy-agent',
@@ -621,6 +633,7 @@ const sessionId = await rustAgentOrchestrator.createSession(
 ```
 
 ### Sending Messages
+
 ```typescript
 const result = await rustAgentOrchestrator.sendMessage(
   sessionId,
@@ -638,12 +651,14 @@ console.log('Tokens:', result.metadata.tokens_used);
 ## API Endpoints
 
 ### Groq API
+
 - **Base URL**: `https://api.groq.com/openai/v1`
 - **Endpoint**: `POST /chat/completions`
 - **Auth**: Bearer token in Authorization header
 - **Format**: OpenAI-compatible
 
 **Request Body**:
+
 ```json
 {
   "model": "llama-3.3-70b-versatile",
@@ -666,6 +681,7 @@ console.log('Tokens:', result.metadata.tokens_used);
 ```
 
 **Response**:
+
 ```json
 {
   "id": "chatcmpl-...",
@@ -697,6 +713,7 @@ console.log('Tokens:', result.metadata.tokens_used);
 ## Testing
 
 ### Manual Testing
+
 1. **Start dev server**: `pnpm tauri dev`
 2. **Set API key**: Export `GROQ_API_KEY` or add to session config
 3. **Select Agent 3**: In agent configuration settings
@@ -709,6 +726,7 @@ console.log('Tokens:', result.metadata.tokens_used);
    - Memory persists across messages
 
 ### Automated Testing
+
 ```bash
 # Rust tests
 cd src-tauri
@@ -719,6 +737,7 @@ pnpm test agent
 ```
 
 ### Example Test Flow
+
 ```typescript
 // Create session
 const sessionId = await createSession('test-agent', {
@@ -746,17 +765,20 @@ expect(result.content).toContain('rainy-aether');
 ## Performance Metrics
 
 ### Typical Request
+
 - **Latency**: 500-2000ms (depends on model + tools)
 - **Token Usage**: 100-500 tokens per turn
 - **Memory**: ~10MB per session
 - **Throughput**: 20-60 requests/minute (Groq rate limits)
 
 ### Tool Execution
+
 - **read_file**: 1-10ms (cached: <1ms)
 - **write_file**: 5-20ms
 - **list_directory**: 5-50ms (depends on size)
 
 ### Optimizations
+
 - Connection pooling: Reuse HTTP clients
 - Tool caching: 30s TTL for read operations
 - Memory pruning: Keeps last 100k tokens
@@ -770,24 +792,31 @@ expect(result.content).toContain('rainy-aether');
 ### Common Issues
 
 #### 1. "No API key provided"
+
 **Solution**: Set `GROQ_API_KEY` environment variable or add to config.extra:
+
 ```typescript
 config.extra = { api_key: 'your-key-here' };
 ```
 
 #### 2. "Tool not found"
+
 **Solution**: Ensure tool is registered in ToolRegistry:
+
 ```rust
 self.registry.register(Arc::new(MyTool));
 ```
 
 #### 3. "Rate limit exceeded"
+
 **Solution**: Reduce `maxRequestsPerMinute` or add retry logic
 
 #### 4. "Timeout"
+
 **Solution**: Increase `toolTimeout` or `inferenceTimeout` in config
 
 #### 5. Compilation errors
+
 **Solution**: Run `cargo check` and fix all errors before testing
 
 ---
@@ -795,6 +824,7 @@ self.registry.register(Arc::new(MyTool));
 ## Future Enhancements
 
 ### Planned Features
+
 - [ ] **Google Gemini Provider** - Add GoogleProvider for Gemini models
 - [ ] **Streaming Support** - Real-time token streaming via server-sent events
 - [ ] **Multi-Agent Orchestration** - Multiple agents collaborating on tasks
@@ -805,6 +835,7 @@ self.registry.register(Arc::new(MyTool));
 - [ ] **Auto-Retry** - Exponential backoff for transient failures
 
 ### Potential Optimizations
+
 - [ ] Batch tool execution for parallel calls
 - [ ] Smart caching with dependency tracking
 - [ ] Request deduplication
