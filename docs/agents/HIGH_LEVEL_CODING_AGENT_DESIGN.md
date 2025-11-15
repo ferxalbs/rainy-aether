@@ -1,144 +1,119 @@
-# 🎨 HIGH-LEVEL CODING AGENT DESIGN
+# 🧠 MAESTRO - CORE ORCHESTRATION ENGINE DESIGN
 
-**Version**: 1.0
+**Version**: 2.0
 **Date**: November 15, 2025
-**Status**: Proposed
+**Status**: Strategic Pivot
 **Author**: Gemini
 
 ---
 
-## 1. OVERVIEW & GOAL
+## 1. REVISED OVERVIEW & STRATEGIC GOAL
 
-This document proposes the design for a **High-Level Coding Agent**, named **"Maestro"**. This agent acts as a sophisticated orchestrator within the existing "Rainy Agents" ecosystem defined in the `RAINY_AGENTS_MASTER_PLAN.md`.
+This document outlines a new strategic direction for the agent system in Rainy Code. In response to the competitive landscape defined by autonomous systems like **Traeflare SOLO** and **Cursor 2.0**, the agent named **"Maestro" is being repositioned as the central Core Orchestration Engine**.
 
-The primary goal of "Maestro" is to handle complex, multi-step software development tasks specified in natural language. Instead of executing simple commands, Maestro will decompose high-level requests (e.g., "implement feature X", "refactor the state management", "add tests for the user service") into a coherent plan and orchestrate lower-level agents and tools to execute it.
+Maestro will no longer be just one agent among many; it will be the primary entry point for all high-level development tasks. It will function as a fully autonomous AI developer, taking natural language goals from the user, creating a comprehensive execution plan, and orchestrating a team of specialized "faculty" agents to carry out the work from start to finish.
 
-This agent will leverage the **Supervisor pattern** from LangGraph, acting as the "manager" of a team of specialized agents.
+The goal is to create a "SOLO mode" for Rainy Code, where the user can delegate complex features, refactors, or bug fixes to Maestro and observe its progress, intervening only when necessary.
 
-## 2. RELATIONSHIP TO EXISTING ARCHITECTURE
+## 2. NEW SYSTEM ARCHITECTURE
 
-Maestro integrates seamlessly into the dual-core architecture:
-
-- **Orchestration Layer (TypeScript):** Maestro's main logic will reside here, implemented as a LangGraph graph. It will be registered in the `AgentRegistry`.
-- **Core Services (Rust):** Maestro will not interact directly with the Rust core. Instead, it will delegate tasks to other agents (like `Rainy Agents` or `Claude Code`) which, in turn, use the Rust-powered tools (`filesystem`, `terminal`, `git`, etc.).
+Maestro sits at the heart of the agent architecture. It receives user goals and delegates tasks to a set of specialized "Faculties" (the previously defined agents like `Rainy Agents` and `Claude Code`). This is a shift from a peer-to-peer agent model to a clear hierarchical/hub-and-spoke model.
 
 ```
 ┌──────────────────────────────────┐
-│          "Maestro" Agent         │
-│ (LangGraph Supervisor)           │
+│           USER GOAL              │
+│ (e.g., "Implement login page")   │
 └────────────────┬─────────────────┘
-                 │ (Delegates Tasks)
+                 │
+┌────────────────▼─────────────────┐
+│      MAESTRO CORE ENGINE         │
+│ (Plan, Delegate, Verify, Refine) │
+└────────────────┬─────────────────┘
+                 │ (Delegates Sub-tasks)
      ┌───────────┴───────────┐
      │                       │
 ┌────▼─────────┐      ┌──────▼───────┐
-│ Rainy Agents │      │ Claude Code  │
-│ (Execution)  │      │ (Analysis)   │
+│ Code Faculty │      │ Test Faculty │
+│ (Rainy Agent)│      │ (Rainy Agent)│
 └────┬─────────┘      └──────┬───────┘
      │                      │
-     └───────────┬──────────┘
-                 │ (Uses Tools)
-           ┌─────▼─────┐
-           │ Rust Core │
-           │ (Tools)   │
-           └───────────┘
+┌────▼─────────┐      ┌──────▼───────┐
+│Analyze Faculty|      │ Git Faculty  │
+│(Claude Code) │      │ (Rainy Agent)│
+└──────────────┘      └──────────────┘
 ```
+The "Faculties" are essentially the same specialized agents from the Master Plan, but now framed as capabilities that Maestro can invoke.
 
-## 3. CORE CAPABILITIES
+## 3. CORE CAPABILITIES (REVISED)
 
-- **Task Decomposition:** Break down a high-level user request into a sequence of logical sub-tasks (e.g., 1. Understand requirements -> 2. Analyze relevant code -> 3. Draft implementation -> 4. Write tests -> 5. Finalize).
-- **Agent Delegation:** Intelligently route each sub-task to the most appropriate specialized agent (e.g., send analysis tasks to `Claude Code`, send file modification tasks to `Rainy Agents`).
-- **State Management:** Maintain a comprehensive state for the entire task, including the overall plan, the status of each sub-task, relevant file paths, code snippets, and final results.
-- **Iterative Refinement:** Review the output from worker agents and decide if it meets the requirements, needs revision, or is complete.
-- **User Interaction:** Provide progress updates to the user and ask for clarification when the request is ambiguous.
+- **Autonomous End-to-End Workflow:** Given a high-level goal, Maestro manages the entire lifecycle: planning, coding, testing, and refinement.
+- **Transparent & Interactive Planning:** Maestro generates a detailed, step-by-step plan that is presented to the user for review and potential modification before execution begins.
+- **Codebase-Wide Context:** Maestro will build and maintain a deep semantic understanding of the entire project to inform its planning and execution.
+- **Autonomous Execution & Self-Correction:** Maestro executes each step of the plan by delegating to the appropriate faculty. If a step fails (e.g., a test breaks or a lint error occurs), Maestro will analyze the error and attempt to fix it, looping until the step is successful or requires user intervention.
+- **Live Diffing & Application:** All code modifications will be generated as diffs. The user can see these changes live and approve them for application.
 
-## 4. PROPOSED LANGGRAPH WORKFLOW
+## 4. AUTONOMOUS EXECUTION LOOP (LANGGRAPH)
 
-Maestro will be implemented as a `LangGraph` supervisor. The graph will consist of a central **Supervisor** node and several **Worker** nodes.
+Maestro's core logic will be a cyclical LangGraph graph representing the "Plan, Execute, Verify, Refine" loop.
 
-### State Object
+### Revised State Object
 
-The graph's state will be critical and will contain:
+The state needs to be more robust to handle autonomous operation:
 
 ```typescript
 interface MaestroState {
-  userInput: string;          // The initial high-level request
-  plan: string[];             // A list of steps to accomplish the task
-  currentStep: number;        // The index of the current step in the plan
-  relevantFiles: string[];    // List of files relevant to the task
-  codeDrafts: Map<string, string>; // Drafted code changes, keyed by file path
-  analysisResult: string;     // Output from code analysis
-  testResults: string;        // Output from the testing phase
-  finalOutput: string;        // The final summary or result for the user
-  history: BaseMessage[];     // Conversation history for context
+  userInput: string;
+  overallGoal: string;
+  executionPlan: { step: string; status: 'pending' | 'in_progress' | 'completed' | 'failed'; details: string; error?: string }[];
+  currentStepIndex: number;
+  codebaseAnalysis: string; // Summary of codebase structure and relevant files
+  proposedDiffs: Map<string, string>; // Keyed by file path, value is the diff
+  verificationResults: { tests: string; lint: string; };
+  requiresHumanInput: boolean; // Flag to pause the loop and ask the user
+  history: BaseMessage[];
 }
 ```
 
-### Graph Nodes & Edges
+### Graph Workflow
 
-1. **PLANNER (Entry Point):**
-    - **Action:** Receives the user input.
-    - **Process:** Analyzes the request and creates a step-by-step plan.
-    - **Next:** Routes to the first step in the plan.
+1.  **PLAN (Entry Point):**
+    - **Action:** Receives `userInput`.
+    - **Process:** Performs an initial analysis of the codebase and the user's goal. Generates a detailed `executionPlan` and presents it to the user.
+    - **Next:** Waits for user approval to start.
 
-2. **SUPERVISOR (Central Router):**
-    - **Action:** Examines the current state and the plan.
-    - **Process:** Based on the current step, decides which worker agent to call next (e.g., "analyze_code", "write_code").
-    - **Next:** A conditional edge routes to the selected worker.
+2.  **ORCHESTRATE (Central Hub):**
+    - **Action:** Reads the `executionPlan` and `currentStepIndex`.
+    - **Process:** Determines the next step. Based on the step's description (e.g., "write function X in file Y"), it selects the appropriate faculty (`Code Faculty`, `Test Faculty`, etc.).
+    - **Next:** A conditional edge routes to the chosen faculty's node.
 
-3. **WORKERS (Delegated Agents):**
-    - **`code_analyst`:**
-        - **Agent:** `Claude Code`
-        - **Action:** Analyzes the codebase to find relevant files, understand existing logic, and identify dependencies.
-        - **Updates State:** `relevantFiles`, `analysisResult`.
-    - **`code_writer`:**
-        - **Agent:** `Rainy Agents`
-        - **Action:** Writes or modifies code in the files identified by the analyst. Uses `read_file`, `write_file`, `edit_file`.
-        - **Updates State:** `codeDrafts`.
-    - **`tester`:**
-        - **Agent:** `Rainy Agents`
-        - **Action:** Creates or runs tests related to the code changes. Uses `execute_command` to run the project's test script (e.g., `pnpm test`).
-        - **Updates State:** `testResults`.
+3.  **EXECUTE (Faculty Nodes):**
+    - **`execute_coding_task`:** Calls the `Code Faculty` to read, write, or modify files. Generates a diff of the changes.
+    - **`execute_analysis_task`:** Calls the `Analyze Faculty` to answer questions about the code.
+    - **`execute_test_task`:** Calls the `Test Faculty` to run tests via the `terminal` tool.
+    - **Updates State:** Each node updates the state with its results (e.g., `proposedDiffs`, `verificationResults`). If an error occurs, it populates the `error` field for the current step.
 
-4. **FINALIZE (Exit Point):**
-    - **Action:** Once all steps are complete, this node compiles the results.
-    - **Process:** Generates a summary of the work done, including files changed and test outcomes.
-    - **Next:** Ends the execution, returning `finalOutput` to the user.
+4.  **VERIFY & REFINE (Decision Point):**
+    - **Action:** Examines the result of the `EXECUTE` step.
+    - **Process:**
+        - **If Error:** Analyzes the `error` message. Formulates a plan to fix it (e.g., "The test failed, I need to modify file Z to fix the logic"). It then re-routes to the `ORCHESTRATE` node to execute the fix. This is the **self-correction loop**.
+        - **If Success:** Marks the current step as `completed`. Increments `currentStepIndex`.
+    - **Next:**
+        - If there are more steps, it routes back to `ORCHESTRATE`.
+        - If all steps are complete, it routes to `FINALIZE`.
+        - If user input is needed, it sets `requiresHumanInput` to `true` and pauses.
 
-The flow is cyclical, always returning to the **Supervisor** after a worker completes its task.
+5.  **FINALIZE (Exit Point):**
+    - **Action:** Compiles a final summary of the completed work, including all changes made.
+    - **Next:** Ends the graph execution.
 
-## 5. TOOLING
+## 5. COMPETITIVE FEATURES INTEGRATION
 
-Maestro itself will not call tools directly. It will rely on the toolsets of the worker agents it delegates to, which are already defined in `RAINY_AGENTS_MASTER_PLAN.md` and powered by the Rust core. This promotes separation of concerns.
+To compete with Traeflare and Cursor, this design explicitly incorporates:
 
-## 6. EXAMPLE USE CASE
+- **Plan Mode:** The initial `PLAN` step *is* the plan mode. The UI must render the `executionPlan` interactively.
+- **Agent-First Workflow:** The entire user experience is driven by giving goals to Maestro, not by manually editing files.
+- **In-App Preview/Testing:** The `Test Faculty` and `Verification` steps will leverage the integrated terminal and eventually could be connected to a live preview browser within the IDE.
+- **Self-Correction:** The "Verify & Refine" loop is the core of the autonomous capability, allowing Maestro to recover from its own errors.
 
-**User Request:** "Add a 'Copy to Clipboard' button next to each code block in the chat view."
+This revised, ambitious design positions Maestro as a true autonomous coding assistant, directly aligned with the market's leading-edge products.
 
-1. **Maestro (PLANNER):** Decomposes the request:
-    1. "Identify the React component responsible for rendering chat messages and code blocks."
-    2. "Analyze the component to find the right place to add a button."
-    3. "Implement a 'Copy' button component with clipboard functionality."
-    4. "Integrate the new button into the chat message component."
-    5. "Verify the changes by running the application and testing the button." (Manual step for now)
-
-2. **Maestro (SUPERVISOR):** Sees step 1. Routes to `code_analyst`.
-
-3. **`code_analyst` (`Claude Code`):**
-    - Uses `workspace_structure` and `search_files` to identify `AgentChatView.tsx` and `react-markdown` components as relevant.
-    - **Updates State:** `relevantFiles: ['src/components/agents/AgentChatView.tsx']`, `analysisResult: "The code blocks are rendered using react-markdown. A custom renderer for the 'code' element is needed."`
-
-4. **Maestro (SUPERVISOR):** Sees step 2 is complete. Moves to step 3. Routes to `code_writer`.
-
-5. **`code_writer` (`Rainy Agents`):**
-    - Reads `AgentChatView.tsx`.
-    - Creates a new component `CopyButton.tsx` with `navigator.clipboard.writeText`.
-    - Modifies `AgentChatView.tsx` to import `CopyButton` and add it to the custom code renderer.
-    - **Updates State:** `codeDrafts` now contains the content for `CopyButton.tsx` and the modified `AgentChatView.tsx`.
-
-6. **Maestro (SUPERVISOR):** Sees all steps are done. Routes to **FINALIZE**.
-
-7. **Maestro (FINALIZE):**
-    - Generates a summary: "I have added a 'Copy to Clipboard' button. I created `src/components/ui/CopyButton.tsx` and updated `src/components/agents/AgentChatView.tsx` to include it."
-    - **Returns `finalOutput` to the user.**
-
-This design provides a clear path to building a powerful, high-level coding assistant that leverages the project's existing, robust architecture.
