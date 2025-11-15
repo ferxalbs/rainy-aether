@@ -1,20 +1,16 @@
 import { useState } from 'react';
 import {
   SearchIcon,
-  PlusIcon,
   CodeIcon,
   BugIcon,
   SparklesIcon,
   FileCodeIcon,
-  TerminalIcon,
   BookOpenIcon,
   TrendingUpIcon,
   ShieldCheckIcon,
-  PencilIcon,
-  Trash2Icon,
-  CopyIcon,
   StarIcon,
-  MoreVerticalIcon,
+  FilterIcon,
+  CheckIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,9 +19,10 @@ import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/cn';
 
@@ -46,20 +43,20 @@ const categoryIcons = {
   review: SparklesIcon,
   refactor: FileCodeIcon,
   documentation: BookOpenIcon,
-  testing: TerminalIcon,
+  testing: CodeIcon,
   optimization: TrendingUpIcon,
   security: ShieldCheckIcon,
 };
 
 const categoryColors = {
-  code: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  debug: 'bg-red-500/10 text-red-500 border-red-500/20',
-  review: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
-  refactor: 'bg-green-500/10 text-green-500 border-green-500/20',
-  documentation: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-  testing: 'bg-pink-500/10 text-pink-500 border-pink-500/20',
-  optimization: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
-  security: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20',
+  code: 'bg-blue-500/10 text-blue-500',
+  debug: 'bg-red-500/10 text-red-500',
+  review: 'bg-purple-500/10 text-purple-500',
+  refactor: 'bg-green-500/10 text-green-500',
+  documentation: 'bg-yellow-500/10 text-yellow-500',
+  testing: 'bg-pink-500/10 text-pink-500',
+  optimization: 'bg-orange-500/10 text-orange-500',
+  security: 'bg-cyan-500/10 text-cyan-500',
 };
 
 const defaultPrompts: Prompt[] = [
@@ -153,81 +150,31 @@ function PromptCard({ prompt, onUse }: { prompt: Prompt; onUse: (prompt: Prompt)
   const categoryColor = categoryColors[prompt.category];
 
   return (
-    <Card className="group hover:shadow-md transition-all hover:border-primary/50">
+    <Card
+      className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30 hover:-translate-y-0.5 bg-card/50 backdrop-blur-sm border-border/50 min-h-[120px]"
+      onClick={() => onUse(prompt)}
+    >
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={cn('size-10 rounded-lg flex items-center justify-center', categoryColor)}>
-              <Icon className="size-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-base truncate">{prompt.title}</CardTitle>
-              <CardDescription className="text-xs mt-1 truncate">
-                {prompt.description}
-              </CardDescription>
-            </div>
+        <div className="flex items-start gap-3">
+          <div className={cn('size-10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200 mt-0.5', categoryColor)}>
+            <Icon className="size-5" />
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {prompt.isFavorite && (
-              <StarIcon className="size-4 fill-yellow-500 text-yellow-500" />
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <MoreVerticalIcon className="size-4" />
-                  <span className="sr-only">More options</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem>
-                  <CopyIcon className="size-4 text-muted-foreground" />
-                  <span>Copy Prompt</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <PencilIcon className="size-4 text-muted-foreground" />
-                  <span>Edit</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <StarIcon className="size-4 text-muted-foreground" />
-                  <span>{prompt.isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive focus:text-destructive">
-                  <Trash2Icon className="size-4" />
-                  <span>Delete</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <CardTitle className="text-base leading-tight line-clamp-2 min-h-10 group-hover:text-primary transition-colors duration-200">
+                {prompt.title}
+              </CardTitle>
+              {prompt.isFavorite && (
+                <StarIcon className="size-4 fill-yellow-500 text-yellow-500 shrink-0 mt-0.5" />
+              )}
+            </div>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {prompt.content}
-        </p>
-        <div className="flex items-center gap-2 flex-wrap">
-          {prompt.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs">
-              {tag}
-            </Badge>
-          ))}
-          {prompt.tags.length > 3 && (
-            <Badge variant="secondary" className="text-xs">
-              +{prompt.tags.length - 3}
-            </Badge>
-          )}
-        </div>
-        <Button
-          onClick={() => onUse(prompt)}
-          className="w-full"
-          size="sm"
-        >
-          Use Prompt
-        </Button>
+      <CardContent className="pt-0">
+        <CardDescription className="text-sm leading-relaxed text-muted-foreground line-clamp-3">
+          {prompt.description}
+        </CardDescription>
       </CardContent>
     </Card>
   );
@@ -244,138 +191,184 @@ function PromptCard({ prompt, onUse }: { prompt: Prompt; onUse: (prompt: Prompt)
  */
 export function PromptsView() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [prompts] = useState<Prompt[]>(defaultPrompts);
 
   const filteredPrompts = prompts.filter((prompt) => {
-    const matchesSearch = prompt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch =
+      searchQuery === '' ||
+      prompt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       prompt.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       prompt.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesCategory = !selectedCategory || prompt.category === selectedCategory;
+    const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(prompt.category);
+    const matchesFavorite = !showFavoritesOnly || prompt.isFavorite;
 
-    return matchesSearch && matchesCategory;
+    return matchesSearch && matchesCategory && matchesFavorite;
   });
-
-  const favoritePrompts = filteredPrompts.filter(p => p.isFavorite);
-  const otherPrompts = filteredPrompts.filter(p => !p.isFavorite);
 
   const handleUsePrompt = (prompt: Prompt) => {
     console.log('Using prompt:', prompt.title);
     // TODO: Implement prompt usage - could copy to clipboard or load into chat
   };
 
+  const handleCategoryToggle = (category: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
   const categories = Object.keys(categoryIcons) as Array<keyof typeof categoryIcons>;
+  const favoriteCount = prompts.filter(p => p.isFavorite).length;
+  const activeFiltersCount = selectedCategories.length + (showFavoritesOnly ? 1 : 0);
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      {/* Header */}
-      <div className="shrink-0 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="p-6 space-y-4 min-w-0">
-          <div className="flex items-center justify-between">
+    <div className="flex h-full flex-col relative">
+      {/* Prompts content area with proper padding and overflow handling */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent px-4 md:px-8 py-6">
+        <div className="w-full max-w-7xl mx-auto space-y-6 lg:px-8 xl:px-12 2xl:px-16">
+        {/* Header */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <SparklesIcon className="size-6 text-primary" />
+            </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Prompt Library</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Pre-configured AI prompts for common tasks
-              </p>
+              <h1 className="text-3xl font-bold text-foreground">Prompt Library</h1>
+              <p className="text-muted-foreground">Pre-configured prompts for common coding tasks</p>
             </div>
-            <Button className="gap-2">
-              <PlusIcon className="size-4" />
-              New Prompt
-            </Button>
           </div>
 
-          {/* Search */}
-          <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Search prompts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          {/* Search and Filters */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search prompts by name, description, or tags..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
 
-          {/* Category Filter */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-            <Button
-              variant={selectedCategory === null ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedCategory(null)}
-            >
-              All
-            </Button>
-            {categories.map((category) => {
-              const Icon = categoryIcons[category];
-              return (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedCategory(category)}
-                  className="gap-2 whitespace-nowrap"
-                >
-                  <Icon className="size-4" />
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <FilterIcon className="size-4" />
+                  Filters
+                  {activeFiltersCount > 0 && (
+                    <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs h-5 min-w-5">
+                      {activeFiltersCount}
+                    </Badge>
+                  )}
                 </Button>
-              );
-            })}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Filter by</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                <DropdownMenuCheckboxItem
+                  checked={showFavoritesOnly}
+                  onCheckedChange={setShowFavoritesOnly}
+                >
+                  <StarIcon className="size-4 mr-2 fill-yellow-500 text-yellow-500" />
+                  Favorites ({favoriteCount})
+                </DropdownMenuCheckboxItem>
+
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Categories</DropdownMenuLabel>
+
+                {categories.map((category) => {
+                  const Icon = categoryIcons[category];
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={category}
+                      checked={selectedCategories.includes(category)}
+                      onCheckedChange={() => handleCategoryToggle(category)}
+                    >
+                      <Icon className="size-4 mr-2" />
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
-        <div className="p-6 space-y-8 min-w-0">
-          {/* Favorites */}
-          {favoritePrompts.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <StarIcon className="size-5 fill-yellow-500 text-yellow-500" />
-                <h2 className="text-lg font-semibold text-foreground">Favorites</h2>
-                <Badge variant="secondary">{favoritePrompts.length}</Badge>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {favoritePrompts.map((prompt) => (
-                  <PromptCard key={prompt.id} prompt={prompt} onUse={handleUsePrompt} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* All Prompts */}
-          {otherPrompts.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-foreground">
-                  {selectedCategory ? `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} Prompts` : 'All Prompts'}
-                </h2>
-                <Badge variant="secondary">{otherPrompts.length}</Badge>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {otherPrompts.map((prompt) => (
-                  <PromptCard key={prompt.id} prompt={prompt} onUse={handleUsePrompt} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {filteredPrompts.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="size-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <SearchIcon className="size-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">No prompts found</h3>
-              <p className="text-sm text-muted-foreground max-w-md">
-                Try adjusting your search or filters, or create a new prompt to get started.
-              </p>
-              <Button className="mt-6 gap-2">
-                <PlusIcon className="size-4" />
-                Create New Prompt
+          {/* Active filters summary */}
+          {activeFiltersCount > 0 && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckIcon className="size-4" />
+              <span>
+                Showing {filteredPrompts.length} of {prompts.length} prompts
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs ml-2"
+                onClick={() => {
+                  setSelectedCategories([]);
+                  setShowFavoritesOnly(false);
+                }}
+              >
+                Clear filters
               </Button>
             </div>
           )}
+        </div>
+
+        {/* Prompts Grid */}
+        {filteredPrompts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {filteredPrompts.map((prompt) => (
+              <PromptCard key={prompt.id} prompt={prompt} onUse={handleUsePrompt} />
+            ))}
+          </div>
+        ) : (
+          /* Empty State */
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="size-16 rounded-full bg-muted flex items-center justify-center mb-4">
+              <SearchIcon className="size-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">No prompts found</h3>
+            <p className="text-sm text-muted-foreground max-w-md mb-6">
+              {searchQuery || activeFiltersCount > 0
+                ? 'Try adjusting your search or filters to find what you need.'
+                : 'Get started by creating your first custom prompt.'}
+            </p>
+            {(searchQuery || activeFiltersCount > 0) && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCategories([]);
+                  setShowFavoritesOnly(false);
+                }}
+              >
+                Clear all filters
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Pro Tip */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <SparklesIcon className="size-5 text-primary" />
+              Pro Tip
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Click on any prompt card to use it immediately. Favorite prompts appear at the top for quick access.
+              Use filters to quickly find prompts by category or search for specific keywords.
+            </p>
+          </CardContent>
+        </Card>
         </div>
       </div>
     </div>
