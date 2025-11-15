@@ -471,7 +471,9 @@ const IDE: React.FC = () => {
 
           {/* Conditionally render based on view mode */}
           {viewMode === "agents" ? (
-            <AgentsView />
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+              <AgentsView />
+            </div>
           ) : (
             <>
               <div className="flex flex-1 overflow-hidden">

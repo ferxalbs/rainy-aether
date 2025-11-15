@@ -16,7 +16,7 @@ import { AgentChatView } from '@/components/agents';
 
 const AgentsView: React.FC = () => {
   return (
-    <div className="flex h-full w-full overflow-hidden">
+    <div className="flex h-full w-full min-h-0 overflow-hidden">
       <AgentChatView />
     </div>
   );

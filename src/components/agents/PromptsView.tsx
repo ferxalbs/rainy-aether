@@ -268,10 +268,10 @@ export function PromptsView() {
   const categories = Object.keys(categoryIcons) as Array<keyof typeof categoryIcons>;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="p-6 space-y-4">
+      <div className="shrink-0 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+        <div className="p-6 space-y-4 min-w-0">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-foreground">Prompt Library</h1>
@@ -325,8 +325,8 @@ export function PromptsView() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
-        <div className="p-6 space-y-8">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
+        <div className="p-6 space-y-8 min-w-0">
           {/* Favorites */}
           {favoritePrompts.length > 0 && (
             <div className="space-y-4">

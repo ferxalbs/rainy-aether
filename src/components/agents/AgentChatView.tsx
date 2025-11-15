@@ -35,7 +35,7 @@ export function AgentChatView() {
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background">
+    <div className="flex h-full w-full min-h-0 overflow-hidden bg-background">
       {/* Mobile Sidebar - Sheet overlay */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent
@@ -47,7 +47,7 @@ export function AgentChatView() {
       </Sheet>
 
       {/* Desktop Layout */}
-      <div className="hidden md:flex h-full w-full">
+      <div className="hidden md:flex h-full w-full min-h-0">
         {/* Sidebar */}
         <div
           className={cn(
@@ -59,9 +59,9 @@ export function AgentChatView() {
         </div>
 
         {/* Main Content */}
-        <div className="flex flex-1 flex-col h-full min-w-0">
+        <div className="flex flex-1 flex-col h-full min-w-0 min-h-0">
           {/* Top Bar */}
-          <div className="flex items-center justify-between border-b border-border px-4 h-12 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex items-center justify-between border-b border-border px-4 h-12 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -82,16 +82,16 @@ export function AgentChatView() {
           </div>
 
           {/* View Content */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex flex-1 flex-col overflow-hidden min-h-0">
             {renderView()}
           </div>
         </div>
       </div>
 
       {/* Mobile Layout */}
-      <div className="flex md:hidden flex-1 flex-col overflow-hidden">
+      <div className="flex md:hidden flex-1 flex-col overflow-hidden min-h-0">
         {/* Mobile Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 h-12 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center justify-between border-b border-border px-4 h-12 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
           <Button
             variant="ghost"
             size="icon-sm"
@@ -106,7 +106,7 @@ export function AgentChatView() {
         </div>
 
         {/* View Content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden min-h-0">
           {renderView()}
         </div>
       </div>
