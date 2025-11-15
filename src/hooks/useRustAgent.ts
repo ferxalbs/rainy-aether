@@ -13,7 +13,6 @@ import {
   type Session,
   type Message,
   type MemoryStats,
-  type AgentMetrics,
   type AllMetrics,
   type ToolDefinition,
   type AgentEvent,

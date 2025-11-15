@@ -307,6 +307,17 @@ pub enum MessageRole {
     Assistant,
 }
 
+impl MessageRole {
+    /// Convert to string representation
+    pub fn as_str(&self) -> &str {
+        match self {
+            MessageRole::System => "system",
+            MessageRole::User => "user",
+            MessageRole::Assistant => "assistant",
+        }
+    }
+}
+
 /// Memory statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryStats {
