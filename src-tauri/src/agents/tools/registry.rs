@@ -4,20 +4,36 @@
 //! discovery and execution capabilities.
 
 use crate::agents::executor::{Tool, ToolDefinition};
-use parking_lot::Mutex;
+use parking_lot::RwLock;
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
 
 /// Centralized tool registry
 pub struct ToolRegistry {
-    /// Map of tool name to tool instance
-    tools: Mutex<HashMap<String, Box<dyn Tool>>>,
+    /// Map of tool name to tool instance (using Arc for shared ownership)
+    tools: RwLock<HashMap<String, Arc<dyn Tool>>>,
+
+    /// Execution metrics per tool
+    metrics: RwLock<HashMap<String, ToolMetrics>>,
+}
+
+/// Metrics for individual tools
+#[derive(Debug, Clone, Default)]
+pub struct ToolMetrics {
+    pub total_executions: u64,
+    pub successful_executions: u64,
+    pub failed_executions: u64,
+    pub total_duration: Duration,
+    pub avg_duration: Duration,
 }
 
 impl ToolRegistry {
     /// Create a new tool registry
     pub fn new() -> Self {
-        let mut registry = Self {
-            tools: Mutex::new(HashMap::new()),
+        let registry = Self {
+            tools: RwLock::new(HashMap::new()),
+            metrics: RwLock::new(HashMap::new()),
         };
 
         // Register default tools
@@ -27,30 +43,34 @@ impl ToolRegistry {
     }
 
     /// Register default tools
-    fn register_default_tools(&mut self) {
-        // Tools will be registered here
-        // This method will be expanded as we implement each tool
-        tracing::info!("Tool registry initialized");
+    fn register_default_tools(&self) {
+        use super::filesystem::{ReadFileTool, WriteFileTool, ListDirectoryTool};
+
+        // Register filesystem tools
+        self.register(Arc::new(ReadFileTool));
+        self.register(Arc::new(WriteFileTool));
+        self.register(Arc::new(ListDirectoryTool));
+
+        tracing::info!("Tool registry initialized with {} tools", self.count());
     }
 
     /// Register a tool
-    pub fn register(&self, tool: Box<dyn Tool>) {
+    pub fn register(&self, tool: Arc<dyn Tool>) {
         let name = tool.name().to_string();
-        self.tools.lock().insert(name.clone(), tool);
+        self.tools.write().insert(name.clone(), tool);
+        self.metrics.write().insert(name.clone(), ToolMetrics::default());
         tracing::info!("Registered tool: {}", name);
     }
 
-    /// Get a tool by name
-    pub fn get(&self, _name: &str) -> Option<Box<dyn Tool>> {
-        // Note: This is a simplified version
-        // In production, we'd return a reference or use Arc
-        None
+    /// Get a tool by name (returns Arc for shared ownership)
+    pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
+        self.tools.read().get(name).cloned()
     }
 
     /// List all available tools
-    pub fn list(&self) -> Vec<ToolDefinition> {
+    pub fn list_tools(&self) -> Vec<ToolDefinition> {
         self.tools
-            .lock()
+            .read()
             .values()
             .map(|tool| ToolDefinition {
                 name: tool.name().to_string(),
@@ -62,14 +82,54 @@ impl ToolRegistry {
             .collect()
     }
 
+    /// Get tool definition by name
+    pub fn get_definition(&self, name: &str) -> Option<ToolDefinition> {
+        self.tools.read().get(name).map(|tool| ToolDefinition {
+            name: tool.name().to_string(),
+            description: tool.description().to_string(),
+            parameters: tool.parameters(),
+            is_cacheable: tool.is_cacheable(),
+            cache_ttl_secs: tool.cache_ttl().as_secs(),
+        })
+    }
+
     /// Get tool count
     pub fn count(&self) -> usize {
-        self.tools.lock().len()
+        self.tools.read().len()
     }
 
     /// Check if tool exists
     pub fn has(&self, name: &str) -> bool {
-        self.tools.lock().contains_key(name)
+        self.tools.read().contains_key(name)
+    }
+
+    /// Record tool execution
+    pub fn record_execution(&self, name: &str, duration: Duration, success: bool) {
+        let mut metrics_lock = self.metrics.write();
+        if let Some(metrics) = metrics_lock.get_mut(name) {
+            metrics.total_executions += 1;
+            if success {
+                metrics.successful_executions += 1;
+            } else {
+                metrics.failed_executions += 1;
+            }
+            metrics.total_duration += duration;
+
+            // Calculate average duration
+            if metrics.total_executions > 0 {
+                metrics.avg_duration = metrics.total_duration / metrics.total_executions as u32;
+            }
+        }
+    }
+
+    /// Get metrics for a specific tool
+    pub fn get_metrics(&self, name: &str) -> Option<ToolMetrics> {
+        self.metrics.read().get(name).cloned()
+    }
+
+    /// Get all tool metrics
+    pub fn get_all_metrics(&self) -> HashMap<String, ToolMetrics> {
+        self.metrics.read().clone()
     }
 }
 

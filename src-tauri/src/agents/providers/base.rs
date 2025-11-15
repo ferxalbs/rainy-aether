@@ -10,13 +10,16 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ProviderError {
     #[error("HTTP error: {0}")]
-    HttpError(#[from] reqwest::Error),
+    HttpError(String),
 
     #[error("Invalid response: {0}")]
     InvalidResponse(String),
 
     #[error("API error: {0}")]
     ApiError(String),
+
+    #[error("Parse error: {0}")]
+    ParseError(String),
 
     #[error("Rate limit exceeded")]
     RateLimitExceeded,
