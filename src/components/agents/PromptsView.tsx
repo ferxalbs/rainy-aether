@@ -11,6 +11,7 @@ import {
   StarIcon,
   FilterIcon,
   CheckIcon,
+  CheckCircleIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,7 +44,7 @@ const categoryIcons = {
   review: SparklesIcon,
   refactor: FileCodeIcon,
   documentation: BookOpenIcon,
-  testing: CodeIcon,
+  testing: CheckCircleIcon,
   optimization: TrendingUpIcon,
   security: ShieldCheckIcon,
 };
@@ -149,10 +150,22 @@ function PromptCard({ prompt, onUse }: { prompt: Prompt; onUse: (prompt: Prompt)
   const Icon = categoryIcons[prompt.category];
   const categoryColor = categoryColors[prompt.category];
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    // Trigger onUse when Enter or Space is pressed
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault(); // Prevent default Space scrolling behavior
+      onUse(prompt);
+    }
+  };
+
   return (
     <Card
       className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30 hover:-translate-y-0.5 bg-card/50 backdrop-blur-sm border-border/50 min-h-[120px]"
       onClick={() => onUse(prompt)}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`Use prompt: ${prompt.title}`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start gap-3">

@@ -8,7 +8,6 @@ import {
   ChevronDownIcon,
   SparklesIcon,
   CodeIcon,
-  MicIcon,
 } from 'lucide-react';
 import { ChatMessage } from './ChatMessage';
 import {
@@ -17,8 +16,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/cn';
 
 interface Message {
   id: string;
@@ -96,7 +93,7 @@ export function ChatConversationView({
       >
         <div className="max-w-[720px] mx-auto space-y-6">
           {/* Header with Reset Button */}
-          <div className="flex items-center justify-between sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg border border-border px-4 py-2.5 mb-4">
+          <div className="flex items-center justify-between sticky top-0 z-10 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 rounded-lg border border-border px-4 py-2.5 mb-4">
             <div className="flex items-center gap-3">
               <div className="size-7 rounded-md bg-primary flex items-center justify-center">
                 <SparklesIcon className="size-4 text-primary-foreground" />
@@ -151,15 +148,15 @@ export function ChatConversationView({
       )}
 
       {/* Floating Input Area */}
-      <div className="absolute bottom-0 left-0 right-0 px-4 md:px-8 py-4 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
+      <div className="absolute bottom-0 left-0 right-0 px-4 md:px-8 py-4 bg-linear-to-t from-background via-background to-transparent pointer-events-none">
         <div className="max-w-[720px] mx-auto pointer-events-auto">
-          <div className="rounded-xl border border-border bg-card shadow-xl backdrop-blur-xl supports-[backdrop-filter]:bg-card/80">
+          <div className="rounded-xl border border-border bg-card shadow-xl backdrop-blur-md supports-backdrop-filter:bg-card/10">
             <div className="p-1">
               <Textarea
                 placeholder="Type your message..."
                 value={message}
                 onChange={(e) => onMessageChange(e.target.value)}
-                className="min-h-[60px] max-h-[160px] resize-none border-0 bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
+                className="min-h-[60px] max-h-40 resize-none border-0 bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();

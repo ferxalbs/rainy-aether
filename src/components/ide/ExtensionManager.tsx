@@ -267,7 +267,7 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
               {extensionConfig.startupActivationMode === 'manual' && (
                 <div className="pt-2 border-t border-border">
                   <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <p>
                       Manual mode: Extensions require activation via Enable/Disable buttons each session.
                       Switch to Automatic to restore extensions on startup.
@@ -279,7 +279,7 @@ const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) 
               {startupModeError && (
                 <div className="pt-2 border-t border-border">
                   <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 p-2 rounded">
-                    <XCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <p>{startupModeError}</p>
                   </div>
                 </div>
@@ -420,7 +420,7 @@ const ExtensionItem: React.FC<ExtensionItemProps> = ({
     )}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             {statusIcon}
           </div>
 
