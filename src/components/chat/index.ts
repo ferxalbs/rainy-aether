@@ -5,7 +5,7 @@
  *
  * @example
  * ```typescript
- * import { StreamingMessage, MarkdownMessage, CodeBlock } from '@/components/chat';
+ * import { StreamingMessage, MarkdownMessage, CodeBlock, VirtualizedMessageList } from '@/components/chat';
  *
  * <StreamingMessage
  *   agentId="rainy"
@@ -16,6 +16,8 @@
  * <MarkdownMessage content="# Hello\nThis is **markdown**!" />
  *
  * <CodeBlock language="typescript" code="const x = 42;" />
+ *
+ * <VirtualizedMessageList messages={messages} isLoading={false} />
  * ```
  */
 
@@ -30,3 +32,9 @@ export type { CodeBlockProps } from './CodeBlock';
 
 export { SplitView } from './SplitView';
 export type { SplitViewProps } from './SplitView';
+
+export { VirtualizedMessageList } from './VirtualizedMessageList';
+export type { VirtualizedMessageListProps } from './VirtualizedMessageList';
+
+export { CodeBlockActions } from './CodeBlockActions';
+export type { CodeBlockActionsProps } from './CodeBlockActions';
