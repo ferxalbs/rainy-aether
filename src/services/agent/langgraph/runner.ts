@@ -23,7 +23,7 @@ export async function runLangGraphSession(input: LangGraphRunnerInput) {
   }
 
   const { session, apiKey, userMessage, config, onToolUpdate } = input;
-  const { agent, inputs, streamConfig } = buildLangGraphAgent({
+  const { agent, inputs, streamConfig } = await buildLangGraphAgent({
     session,
     newUserMessage: userMessage,
     apiKey,

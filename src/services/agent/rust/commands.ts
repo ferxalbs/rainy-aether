@@ -15,6 +15,7 @@ import type {
   AgentMetrics,
   AllMetrics,
   ToolDefinition,
+  ToolResult,
 } from '@/types/rustAgent';
 
 // ============================================================================
@@ -163,6 +164,41 @@ export async function getAllMetrics(): Promise<AllMetrics> {
  */
 export async function listTools(): Promise<ToolDefinition[]> {
   return invoke<ToolDefinition[]>('agent_list_tools');
+}
+
+/**
+ * Execute a tool directly
+ *
+ * This function allows direct execution of Rust tools from TypeScript,
+ * bypassing the agent inference layer. Primarily used for LangGraph integration
+ * where tools need to be called externally.
+ *
+ * @param toolName - Name of the tool to execute
+ * @param params - Tool parameters as a JSON object
+ * @returns Tool execution result
+ *
+ * @example
+ * ```typescript
+ * // Execute read_file tool
+ * const result = await executeTool('read_file', {
+ *   path: '/path/to/file.txt'
+ * });
+ *
+ * if (result.success) {
+ *   console.log('File contents:', result.output);
+ * } else {
+ *   console.error('Error:', result.error);
+ * }
+ * ```
+ */
+export async function executeTool(
+  toolName: string,
+  params: Record<string, unknown>
+): Promise<ToolResult> {
+  return invoke<ToolResult>('agent_execute_tool', {
+    toolName,
+    params,
+  });
 }
 
 // ============================================================================
