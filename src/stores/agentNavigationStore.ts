@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-export type AgentView = 'home' | 'ask-ai' | 'prompts';
+export type AgentView = 'home' | 'ask-ai' | 'prompts' | 'abby';
 
 export interface AgentNavigationState {
   currentView: AgentView;
