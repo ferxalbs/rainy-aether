@@ -16,10 +16,11 @@ Rainy Agents is a sophisticated multi-agent system that provides specialized AI 
 
 ### Available Agents
 
-Currently, Rainy Code includes **two specialized agents**:
+Currently, Rainy Code includes **three specialized agents**:
 
 1. **Rainy** - General-purpose coding assistant
 2. **Claude Code** - Code analysis and refactoring specialist
+3. **Abby Mode** - Autonomous development assistant
 
 ---
 
@@ -72,6 +73,39 @@ Currently, Rainy Code includes **two specialized agents**:
 - "Review this code for security issues"
 
 **Model**: Google Gemini 2.0 Flash (accurate, consistent)
+
+---
+
+### Abby Mode Agent
+
+**Best for**: Proactive workspace monitoring and autonomous suggestions
+
+**Capabilities**:
+- Autonomous coding assistance
+- Proactive suggestions based on patterns
+- Workflow automation recommendations
+- Pattern detection and refactoring
+- Code quality monitoring
+- Test coverage analysis
+- Dependency update notifications
+
+**Personality**: Helpful but non-intrusive, learns from your preferences
+
+**When to use**:
+- Enable monitoring for continuous workspace observation
+- Get automated suggestions during idle time
+- Identify refactoring opportunities you might miss
+- Track code quality trends over time
+
+**Model**: Groq Llama 3.3 70B (responsive, balanced)
+
+**Special Features**:
+- **Proactive Monitoring**: Watches workspace for patterns and opportunities
+- **Learning System**: Adapts to your coding style and preferences
+- **Suggestion Priority**: High-impact, low-effort improvements first
+- **Non-Intrusive**: Presents suggestions at appropriate times
+
+**See**: `docs/agents/ABBY_MODE_GUIDE.md` for comprehensive Abby Mode documentation
 
 ---
 

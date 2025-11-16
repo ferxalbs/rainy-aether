@@ -56,9 +56,8 @@ export type {
 
 export { RainyAgent, createRainyAgent } from './rainy/RainyAgent';
 export { ClaudeAgent, createClaudeAgent } from './claude/ClaudeAgent';
-
-// Future exports (when implemented):
-// export { AbbyAgent, createAbbyAgent } from './abby/AbbyAgent';
+export { AbbyAgent, createAbbyAgent } from './abby/AbbyAgent';
+export type { AbbySuggestion, MonitoringConfig } from './abby/AbbyAgent';
 
 // ============================================================================
 // TYPES (re-exported from rustAgent types)

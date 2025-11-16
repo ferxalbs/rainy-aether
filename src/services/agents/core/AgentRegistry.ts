@@ -128,10 +128,10 @@ export class AgentRegistry {
       const claude = new ClaudeAgent();
       this.register(claude);
 
-      // Future: Add more agents as they're implemented
-      // const { AbbyAgent } = await import('../abby/AbbyAgent');
-      // const abby = new AbbyAgent();
-      // this.register(abby);
+      // Dynamically import and register Abby Mode Agent
+      const { AbbyAgent } = await import('../abby/AbbyAgent');
+      const abby = new AbbyAgent();
+      this.register(abby);
 
       this.initialized = true;
       console.log(
