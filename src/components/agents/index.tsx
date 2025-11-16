@@ -9,6 +9,7 @@ export { HomeView } from './HomeView';
 export { AskAIView } from './AskAIView';
 export { PromptsView } from './PromptsView';
 export { AbbyView } from './AbbyView';
+export { SplitViewPage } from './SplitViewPage';
 export { AgentSelector } from './AgentSelector';
 export { ToolExecutionView } from './ToolExecutionView';
 export { SuggestionsPanel } from './SuggestionsPanel';

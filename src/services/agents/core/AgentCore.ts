@@ -50,6 +50,29 @@ export interface MessageOptions {
 }
 
 /**
+ * Stream chunk for real-time message streaming
+ */
+export interface StreamChunk {
+  /** New content since last chunk (delta) */
+  delta: string;
+
+  /** Full content accumulated so far */
+  content: string;
+
+  /** Tool calls in this chunk */
+  toolCalls: any[];
+
+  /** Metadata about execution */
+  metadata: AgentResult['metadata'];
+
+  /** Whether this is the final chunk */
+  done: boolean;
+
+  /** Error message if streaming failed */
+  error?: string;
+}
+
+/**
  * Options for initializing an agent
  */
 export interface InitializeOptions {
@@ -311,6 +334,171 @@ export abstract class AgentCore {
           iterations: 0,
         },
         success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Stream a message to the agent (real-time token-by-token delivery)
+   *
+   * This method provides real-time streaming of agent responses, yielding
+   * tokens as they are generated. Currently only supported in smart mode (LangGraph).
+   *
+   * @param message - User message
+   * @param options - Message options
+   * @yields Stream chunks with content and metadata
+   */
+  async *streamMessage(
+    message: string,
+    options?: MessageOptions
+  ): AsyncGenerator<StreamChunk, void, unknown> {
+    if (!this.rustSessionId) {
+      throw new Error(`${this.name} not initialized. Call initialize() first.`);
+    }
+
+    // Route based on mode
+    if (options?.fastMode) {
+      // Fast mode doesn't support streaming yet - yield complete result
+      const result = await this.sendViaRust(message, options);
+      yield {
+        delta: result.content,
+        content: result.content,
+        toolCalls: result.toolCalls,
+        metadata: result.metadata,
+        done: true,
+      };
+    } else {
+      // Stream via LangGraph
+      yield* this.streamViaLangGraph(message, options);
+    }
+  }
+
+  /**
+   * Stream message via LangGraph (smart mode)
+   *
+   * Provides real-time streaming of tokens as they are generated.
+   *
+   * @param message - User message
+   * @param options - Message options
+   * @yields Stream chunks
+   */
+  protected async *streamViaLangGraph(
+    message: string,
+    options?: MessageOptions
+  ): AsyncGenerator<StreamChunk, void, unknown> {
+    if (!this.langGraphAgent || !this.rustSessionId) {
+      throw new Error('LangGraph agent not initialized');
+    }
+
+    console.log(`🧠 Smart mode (streaming): Executing via LangGraph with Rust tools`);
+
+    let fullContent = '';
+    const toolCalls: any[] = [];
+    const startTime = Date.now();
+    let lastChunkTime = startTime;
+
+    try {
+      // Stream LangGraph execution
+      const stream = this.langGraphAgent.stream(
+        { messages: [new HumanMessage(message)] },
+        {
+          configurable: {
+            thread_id: this.rustSessionId,
+            sessionId: this.rustSessionId,
+            workspaceRoot: this.initOptions?.workspaceRoot,
+            userId: this.initOptions?.userId,
+          },
+        }
+      );
+
+      // Process stream chunks
+      for await (const chunk of stream) {
+        const currentTime = Date.now();
+        const messages = chunk.messages || [];
+        const lastMessage = messages[messages.length - 1];
+
+        if (lastMessage?.content) {
+          const newContent = lastMessage.content.toString();
+          const delta = newContent.slice(fullContent.length);
+          fullContent = newContent;
+
+          if (delta) {
+            yield {
+              delta,
+              content: fullContent,
+              toolCalls: [],
+              metadata: {
+                tokensUsed: 0,
+                executionTimeMs: currentTime - startTime,
+                toolsExecuted: [],
+                costUsd: 0,
+                iterations: 0,
+                streamLatencyMs: currentTime - lastChunkTime,
+              },
+              done: false,
+            };
+            lastChunkTime = currentTime;
+          }
+        }
+
+        if (lastMessage?.tool_calls) {
+          for (const tc of lastMessage.tool_calls) {
+            const toolCall = {
+              id: tc.id || '',
+              name: tc.name || '',
+              arguments: tc.args || {},
+              timestamp: new Date().toISOString(),
+            };
+            toolCalls.push(toolCall);
+
+            // Yield tool call event
+            yield {
+              delta: '',
+              content: fullContent,
+              toolCalls: [toolCall],
+              metadata: {
+                tokensUsed: 0,
+                executionTimeMs: currentTime - startTime,
+                toolsExecuted: [tc.name],
+                costUsd: 0,
+                iterations: toolCalls.length,
+              },
+              done: false,
+            };
+          }
+        }
+      }
+
+      // Final chunk with complete metadata
+      const executionTime = Date.now() - startTime;
+      yield {
+        delta: '',
+        content: fullContent,
+        toolCalls,
+        metadata: {
+          tokensUsed: 0,
+          executionTimeMs: executionTime,
+          toolsExecuted: toolCalls.map((tc) => tc.name),
+          costUsd: 0,
+          iterations: toolCalls.length,
+        },
+        done: true,
+      };
+    } catch (error) {
+      console.error(`❌ LangGraph streaming failed:`, error);
+      yield {
+        delta: '',
+        content: '',
+        toolCalls: [],
+        metadata: {
+          tokensUsed: 0,
+          executionTimeMs: Date.now() - startTime,
+          toolsExecuted: [],
+          costUsd: 0,
+          iterations: 0,
+        },
+        done: true,
         error: error instanceof Error ? error.message : String(error),
       };
     }

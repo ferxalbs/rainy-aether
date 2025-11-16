@@ -37,7 +37,7 @@
 // ============================================================================
 
 export { AgentCore } from './core/AgentCore';
-export type { MessageOptions, InitializeOptions } from './core/AgentCore';
+export type { MessageOptions, InitializeOptions, StreamChunk } from './core/AgentCore';
 
 export { AgentRegistry, agentRegistry } from './core/AgentRegistry';
 export type { AgentMetadata } from './core/AgentRegistry';
@@ -48,6 +48,7 @@ export type {
   RouteStrategy,
   RouterStats,
   RouteResult,
+  StreamRouteResult,
 } from './core/AgentRouter';
 
 // ============================================================================

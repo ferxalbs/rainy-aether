@@ -4,6 +4,7 @@ import { HomeView } from './HomeView';
 import { AskAIView } from './AskAIView';
 import { PromptsView } from './PromptsView';
 import { AbbyView } from './AbbyView';
+import { SplitViewPage } from './SplitViewPage';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from 'lucide-react';
@@ -32,6 +33,8 @@ export function AgentChatView() {
         return <PromptsView />;
       case 'abby':
         return <AbbyView />;
+      case 'split-view':
+        return <SplitViewPage />;
       default:
         return <HomeView />;
     }
