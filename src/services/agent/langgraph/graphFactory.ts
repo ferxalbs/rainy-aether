@@ -7,6 +7,7 @@ import type { AgentSession, Message } from '@/stores/agentStore';
 import type { LangGraphConfig } from './types';
 import { buildLangGraphTools, type LangGraphToolProgressHandler } from './tools';
 import { createLangGraphChatModel } from './modelFactory';
+import { rustBridge } from './rustBridge';
 
 export interface BuildLangGraphAgentOptions {
   session: AgentSession;
@@ -31,7 +32,14 @@ function toLangChainMessages(history: Message[]): (HumanMessage | AIMessage | Sy
 // Create a shared checkpointer instance for memory persistence
 const checkpointer = new MemorySaver();
 
-export function buildLangGraphAgent(options: BuildLangGraphAgentOptions) {
+/**
+ * Flag to control tool source
+ * - true: Use Rust-backed tools (RECOMMENDED for performance)
+ * - false: Use TypeScript tools (legacy)
+ */
+const USE_RUST_TOOLS = true;
+
+export async function buildLangGraphAgent(options: BuildLangGraphAgentOptions) {
   const { session, newUserMessage, apiKey, config } = options;
 
   const model = createLangGraphChatModel({
@@ -41,7 +49,20 @@ export function buildLangGraphAgent(options: BuildLangGraphAgentOptions) {
     config: session.config,
   });
 
-  const tools = buildLangGraphTools(options.onToolUpdate);
+  // Get tools based on configuration
+  let tools;
+  if (USE_RUST_TOOLS) {
+    // Initialize Rust bridge if not already done (idempotent)
+    await rustBridge.initialize();
+
+    // Get all Rust-backed tools
+    tools = rustBridge.getAllTools();
+    console.log(`🦀 Using ${tools.length} Rust-backed tools for agent`);
+  } else {
+    // Legacy: Use TypeScript tools
+    tools = buildLangGraphTools(options.onToolUpdate);
+    console.log(`📦 Using ${tools.length} TypeScript tools for agent (legacy mode)`);
+  }
 
   // Add system message if present
   const systemMessage = session.messages.find((m) => m.role === 'system');
