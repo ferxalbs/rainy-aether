@@ -27,3 +27,6 @@ export type { MarkdownMessageProps } from './MarkdownMessage';
 
 export { CodeBlock } from './CodeBlock';
 export type { CodeBlockProps } from './CodeBlock';
+
+export { SplitView } from './SplitView';
+export type { SplitViewProps } from './SplitView';

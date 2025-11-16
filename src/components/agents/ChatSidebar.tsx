@@ -21,6 +21,7 @@ import {
   Trash2Icon,
   PlusIcon,
   BotIcon,
+  Columns2Icon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -183,8 +184,20 @@ export function ChatSidebar() {
           )}
           onClick={() => setView('abby')}
         >
-          <Sparkles className="size-4" />
+          <SparklesIcon className="size-4" />
           <span className="text-xs font-medium">Abby Mode</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            currentView === 'split-view' && "bg-sidebar-accent text-sidebar-accent-foreground"
+          )}
+          onClick={() => setView('split-view')}
+        >
+          <Columns2Icon className="size-4" />
+          <span className="text-xs font-medium">Split View</span>
         </Button>
       </div>
 
