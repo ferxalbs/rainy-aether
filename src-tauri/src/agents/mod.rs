@@ -360,6 +360,19 @@ impl AgentManager {
         self.executor.list_tools()
     }
 
+    /// Execute a tool directly
+    ///
+    /// Allows direct tool execution from the frontend, bypassing agent inference.
+    /// Useful for LangGraph integration where tools are called externally.
+    pub async fn execute_tool(
+        &self,
+        tool_name: &str,
+        params: serde_json::Value,
+        cache_key: Option<String>,
+    ) -> Result<core::ToolResult, executor::ToolError> {
+        self.executor.execute(tool_name, params, cache_key).await
+    }
+
     /// Destroy a session
     pub fn destroy_session(&self, session_id: &str) -> Result<(), AgentError> {
         self.sessions.remove(session_id)

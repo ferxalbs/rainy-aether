@@ -44,14 +44,30 @@ impl ToolRegistry {
 
     /// Register default tools
     fn register_default_tools(&self) {
-        use super::filesystem::{ReadFileTool, WriteFileTool, ListDirectoryTool};
+        use super::{
+            filesystem::{ReadFileTool, WriteFileTool, ListDirectoryTool},
+            terminal::ExecuteCommandTool,
+            git::{GitStatusTool, GitLogTool},
+            workspace::{WorkspaceStructureTool, SearchFilesTool},
+        };
 
         // Register filesystem tools
         self.register(Arc::new(ReadFileTool));
         self.register(Arc::new(WriteFileTool));
         self.register(Arc::new(ListDirectoryTool));
 
-        tracing::info!("Tool registry initialized with {} tools", self.count());
+        // Register terminal tools
+        self.register(Arc::new(ExecuteCommandTool));
+
+        // Register git tools
+        self.register(Arc::new(GitStatusTool));
+        self.register(Arc::new(GitLogTool));
+
+        // Register workspace tools
+        self.register(Arc::new(WorkspaceStructureTool));
+        self.register(Arc::new(SearchFilesTool));
+
+        tracing::info!("✅ Tool registry initialized with {} tools", self.count());
     }
 
     /// Register a tool
