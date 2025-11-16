@@ -37,7 +37,7 @@
  */
 
 import type { AgentCore } from './AgentCore';
-import type { MessageOptions } from './AgentCore';
+import type { MessageOptions, StreamChunk } from './AgentCore';
 import { AgentRegistry } from './AgentRegistry';
 import type { AgentResult } from '@/types/rustAgent';
 
@@ -105,6 +105,17 @@ export interface RouteResult extends AgentResult {
 
   /** Time spent routing (ms) */
   routingTimeMs: number;
+}
+
+/**
+ * Stream route result with metadata
+ */
+export interface StreamRouteResult extends StreamChunk {
+  /** ID of agent that handled the request */
+  agentId: string;
+
+  /** Routing strategy used */
+  strategy: RouteStrategy;
 }
 
 /**
@@ -190,6 +201,66 @@ export class AgentRouter {
       }
     } catch (error) {
       console.error('❌ Routing failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stream a message to the appropriate agent (real-time streaming)
+   *
+   * Provides real-time token-by-token streaming of agent responses.
+   * Yields chunks as they are generated, allowing for immediate UI updates.
+   *
+   * @param request - Route request configuration
+   * @yields Stream chunks with agent ID and strategy metadata
+   */
+  async *streamRoute(
+    request: RouteRequest
+  ): AsyncGenerator<StreamRouteResult, void, unknown> {
+    const startTime = Date.now();
+
+    try {
+      // Ensure registry is initialized
+      if (!this.registry.isInitialized()) {
+        await this.registry.initialize();
+      }
+
+      // Select agent based on strategy
+      const agent = this.selectAgent(request);
+      const strategy = this.determineStrategy(request);
+
+      console.log(
+        `🚦 Streaming to ${agent.name} (${agent.id}) using ${strategy} strategy`
+      );
+
+      // Track active request
+      this.incrementActive(agent.id);
+
+      try {
+        // Stream via selected agent
+        for await (const chunk of agent.streamMessage(
+          request.message,
+          request.options
+        )) {
+          yield {
+            ...chunk,
+            agentId: agent.id,
+            strategy,
+          };
+
+          // If this is the final chunk, track completion
+          if (chunk.done) {
+            this.incrementTotal(agent.id);
+            this.routedCount++;
+            this.trackRoutingTime(Date.now() - startTime);
+          }
+        }
+      } finally {
+        // Always decrement active count
+        this.decrementActive(agent.id);
+      }
+    } catch (error) {
+      console.error('❌ Streaming failed:', error);
       throw error;
     }
   }

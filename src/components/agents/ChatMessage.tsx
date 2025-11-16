@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useState } from 'react';
+import { MarkdownMessage } from '@/components/chat';
 
 interface Message {
   id: string;
@@ -70,9 +71,17 @@ export function ChatMessage({ message }: ChatMessageProps) {
               : 'bg-muted text-foreground'
           )}
         >
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">
-            {message.content}
-          </p>
+          {message.sender === 'ai' ? (
+            <MarkdownMessage
+              content={message.content}
+              showCopyButtons={true}
+              enableCodeInsertion={false}
+            />
+          ) : (
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">
+              {message.content}
+            </p>
+          )}
         </div>
 
         {/* Message actions */}
