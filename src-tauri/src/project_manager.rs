@@ -297,3 +297,13 @@ pub async fn watch_project_changes(
 
     Ok(())
 }
+
+/// Get system temporary directory
+#[tauri::command]
+pub fn get_temp_dir() -> Result<String, String> {
+    let temp_dir = std::env::temp_dir();
+    temp_dir
+        .to_str()
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Failed to get temp directory".to_string())
+}

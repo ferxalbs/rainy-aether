@@ -4,7 +4,13 @@ import { ChatConversationView } from './ChatConversationView';
 import { useAgents, useAgentSession } from '@/hooks/useAgents';
 import { ToolExecutionView } from './ToolExecutionView';
 import type { ToolCall } from '@/types/rustAgent';
+import { roleToSender } from '@/types/chat';
 
+/**
+ * Local Message interface for UI display
+ * Uses 'sender' field for backward compatibility with existing components
+ * Maps from ChatMessage.role to this format
+ */
 interface Message {
   id: string;
   content: string;
@@ -36,11 +42,12 @@ export function ChatMain() {
   const [selectedModel, setSelectedModel] = useState(selectedAgentId);
   const [isConversationStarted, setIsConversationStarted] = useState(false);
 
-  // Convert agent messages to UI messages
+  // Convert agent messages (with 'role' field) to UI messages (with 'sender' field)
+  // Uses roleToSender helper for standardized conversion
   const messages: Message[] = agentMessages.map((msg, index) => ({
     id: `msg-${index}`,
     content: msg.content,
-    sender: msg.role === 'user' ? 'user' : 'ai',
+    sender: roleToSender(msg.role),
     timestamp: new Date(),
     toolCalls: msg.toolCalls,
   }));

@@ -5,9 +5,11 @@ This directory contains a complete chat interface for the Agents view, converted
 ## Components
 
 ### Main Component
+
 - **AgentChatView** - The main container component that integrates the entire chat interface
 
 ### Chat Components
+
 - **ChatMain** - Manages the main chat area with conversation state
 - **ChatSidebar** - Displays chat history, navigation, and settings
 - **ChatConversationView** - Shows active conversation with messages
@@ -37,6 +39,7 @@ Mock data is available in `src/data/mockChats.ts` for testing purposes.
 ## UI Components Added
 
 Two new UI components were added to support the chat interface:
+
 - **Logo** (`src/components/ui/logo.tsx`) - Square AI logo component
 - **GridPattern** (`src/components/ui/grid-pattern.tsx`) - Decorative background pattern
 

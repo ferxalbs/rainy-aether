@@ -116,21 +116,34 @@ export function saveSession(
   try {
     const key = `${STORAGE_CONFIG.prefix}${sessionId}`;
 
-    // Create persisted session object
+    // First, check if we need compression
+    const uncompressedJson = JSON.stringify(data);
+    const needsCompression = uncompressedJson.length > STORAGE_CONFIG.compressionThreshold;
+
+    // Create persisted session object with correct compression flag
     const persistedSession: PersistedSession = {
       version: STORAGE_CONFIG.version,
       data,
       expiresAt: Date.now() + ttl,
-      compressed: false,
+      compressed: needsCompression,
     };
 
-    // Serialize
-    let serialized = JSON.stringify(persistedSession);
+    let serialized: string;
 
-    // Compress if over threshold (simple base64 encoding for now)
-    if (serialized.length > STORAGE_CONFIG.compressionThreshold) {
-      serialized = btoa(serialized);
-      persistedSession.compressed = true;
+    if (needsCompression) {
+      // Serialize the persistedSession with compressed flag set
+      const outerJson = JSON.stringify(persistedSession);
+
+      // Encode to UTF-8 bytes using TextEncoder
+      const encoder = new TextEncoder();
+      const bytes = encoder.encode(outerJson);
+
+      // Convert bytes to base64 for storage
+      // Using Array.from to handle Uint8Array properly
+      serialized = btoa(String.fromCharCode(...Array.from(bytes)));
+    } else {
+      // No compression needed, just serialize normally
+      serialized = JSON.stringify(persistedSession);
     }
 
     // Save to localStorage
@@ -142,7 +155,7 @@ export function saveSession(
     // Cleanup old sessions if needed
     cleanupOldSessions();
 
-    console.log(`✅ Session saved: ${sessionId} (${(serialized.length / 1024).toFixed(2)}KB)`);
+    console.log(`✅ Session saved: ${sessionId} (${(serialized.length / 1024).toFixed(2)}KB${needsCompression ? ', compressed' : ''})`);
     return true;
   } catch (error) {
     console.error('❌ Failed to save session:', error);
@@ -173,16 +186,44 @@ export function restoreSession(sessionId: string): SessionData | null {
       return null;
     }
 
-    // Parse (handle compression)
+    // First parse to get the outer structure and check compression flag
     let persistedSession: PersistedSession;
 
     try {
-      // Try direct parse first
+      // Try direct parse first (uncompressed case)
       persistedSession = JSON.parse(stored);
-    } catch {
-      // If that fails, try decompressing
-      const decompressed = atob(stored);
-      persistedSession = JSON.parse(decompressed);
+    } catch (parseError) {
+      // If direct parse fails, it might be compressed
+      // Try to decode as base64 → UTF-8 → JSON
+      try {
+        // Convert base64 to binary string
+        const binaryString = atob(stored);
+
+        // Convert binary string to Uint8Array
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        // Decode UTF-8 bytes to string
+        const decoder = new TextDecoder();
+        const decompressed = decoder.decode(bytes);
+
+        // Parse the decompressed JSON
+        persistedSession = JSON.parse(decompressed);
+      } catch (decompressError) {
+        console.error('❌ Failed to decompress session:', decompressError);
+        throw parseError; // Re-throw original error
+      }
+    }
+
+    // If we have a compressed flag, use it to verify our parsing approach
+    if (persistedSession.compressed !== undefined && persistedSession.compressed) {
+      // Session was marked as compressed, ensure we decompressed it
+      // If we got here via direct parse, something is wrong
+      if (stored === JSON.stringify(persistedSession)) {
+        console.warn('⚠️ Session marked as compressed but was not actually compressed');
+      }
     }
 
     // Check expiry
@@ -206,7 +247,7 @@ export function restoreSession(sessionId: string): SessionData | null {
       data.metadata.updatedAt = new Date(data.metadata.updatedAt);
     }
 
-    console.log(`✅ Session restored: ${sessionId} (${data.messages.length} messages)`);
+    console.log(`✅ Session restored: ${sessionId} (${data.messages.length} messages${persistedSession.compressed ? ', was compressed' : ''})`);
     return data;
   } catch (error) {
     console.error('❌ Failed to restore session:', error);

@@ -24,28 +24,18 @@
 
 import { useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ChatMessage } from '@/components/agents/ChatMessage';
+import { ChatMessage as ChatMessageComponent } from '@/components/agents/ChatMessage';
 import { TypingIndicator } from '@/components/chat';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
-
-/**
- * Message interface
- */
-interface Message {
-  id: string;
-  content: string;
-  sender: 'user' | 'ai';
-  timestamp: Date;
-  toolCalls?: any[];
-}
+import { ChatMessage, roleToSender } from '@/types/chat';
 
 /**
  * Props for VirtualizedMessageList
  */
 export interface VirtualizedMessageListProps {
   /** Array of messages to display */
-  messages: Message[];
+  messages: ChatMessage[];
 
   /** Whether agent is currently responding */
   isLoading?: boolean;
@@ -92,6 +82,24 @@ export function VirtualizedMessageList({
 }: VirtualizedMessageListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const lastMessageCountRef = useRef(messages.length);
+  const isRequestInFlightRef = useRef(false);
+  const onLoadMoreRef = useRef(onLoadMore);
+  const hasMoreRef = useRef(hasMore);
+  const isLoadingMoreRef = useRef(isLoadingMore);
+
+  // Keep refs in sync with props to avoid stale closures
+  useEffect(() => {
+    onLoadMoreRef.current = onLoadMore;
+    hasMoreRef.current = hasMore;
+    isLoadingMoreRef.current = isLoadingMore;
+  }, [onLoadMore, hasMore, isLoadingMore]);
+
+  // Reset in-flight flag when loading completes
+  useEffect(() => {
+    if (!isLoadingMore && isRequestInFlightRef.current) {
+      isRequestInFlightRef.current = false;
+    }
+  }, [isLoadingMore]);
 
   // Create virtualizer
   const virtualizer = useVirtualizer({
@@ -118,22 +126,29 @@ export function VirtualizedMessageList({
 
   // Handle scroll to top (load more)
   useEffect(() => {
-    if (!parentRef.current || !onLoadMore || !hasMore || isLoadingMore) return;
+    if (!parentRef.current || !onLoadMoreRef.current || !hasMoreRef.current) return;
 
     const handleScroll = () => {
       if (!parentRef.current) return;
       const { scrollTop } = parentRef.current;
 
-      // If scrolled to top (with 100px threshold), load more
-      if (scrollTop < 100) {
-        onLoadMore();
+      // If scrolled to top (with 100px threshold) and no request in flight, load more
+      if (
+        scrollTop < 100 &&
+        !isRequestInFlightRef.current &&
+        !isLoadingMoreRef.current &&
+        hasMoreRef.current &&
+        onLoadMoreRef.current
+      ) {
+        isRequestInFlightRef.current = true;
+        onLoadMoreRef.current();
       }
     };
 
     const element = parentRef.current;
     element.addEventListener('scroll', handleScroll);
     return () => element.removeEventListener('scroll', handleScroll);
-  }, [onLoadMore, hasMore, isLoadingMore]);
+  }, []); // Empty deps - uses refs to avoid recreating listener
 
   const items = virtualizer.getVirtualItems();
 
@@ -186,7 +201,14 @@ export function VirtualizedMessageList({
               data-index={virtualItem.index}
             >
               <div className="px-4 py-2">
-                <ChatMessage message={message} />
+                <ChatMessageComponent
+                  message={{
+                    id: message.id,
+                    content: message.content,
+                    sender: roleToSender(message.role),
+                    timestamp: message.timestamp,
+                  }}
+                />
               </div>
             </div>
           );
@@ -215,6 +237,7 @@ export function VirtualizedMessageList({
 }
 
 /**
- * Export type for external use
+ * Re-export ChatMessage type for external use
+ * This maintains backward compatibility while using the shared type
  */
-export type { Message };
+export type { ChatMessage as Message } from '@/types/chat';

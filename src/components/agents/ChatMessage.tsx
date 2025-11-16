@@ -12,6 +12,10 @@ import {
 import { useState } from 'react';
 import { MarkdownMessage } from '@/components/chat';
 
+/**
+ * Local Message interface for ChatMessage component
+ * Uses 'sender' field for backward compatibility with existing UI
+ */
 interface Message {
   id: string;
   content: string;

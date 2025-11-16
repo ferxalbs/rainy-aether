@@ -221,7 +221,7 @@ export function EnhancedToolView({
           </div>
 
           {/* Result */}
-          {toolCall.result && toolCall.status === 'success' && (
+          {toolCall.status === 'success' && toolCall.result !== undefined && toolCall.result !== null && (
             <div>
               <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
                 Result

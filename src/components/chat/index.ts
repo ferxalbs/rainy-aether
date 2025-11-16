@@ -34,7 +34,7 @@ export { SplitView } from './SplitView';
 export type { SplitViewProps } from './SplitView';
 
 export { VirtualizedMessageList } from './VirtualizedMessageList';
-export type { VirtualizedMessageListProps } from './VirtualizedMessageList';
+export type { VirtualizedMessageListProps, Message } from './VirtualizedMessageList';
 
 export { CodeBlockActions } from './CodeBlockActions';
 export type { CodeBlockActionsProps } from './CodeBlockActions';

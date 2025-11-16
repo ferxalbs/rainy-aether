@@ -205,6 +205,7 @@ pub fn run() {
         project_manager::create_folder,
         project_manager::rename_path,
         project_manager::delete_path,
+        project_manager::get_temp_dir,
         terminal_manager::terminal_create,
         terminal_manager::terminal_write,
         terminal_manager::terminal_resize,

@@ -17,6 +17,10 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
+/**
+ * Local Message interface for ChatConversationView
+ * Uses 'sender' field for backward compatibility
+ */
 interface Message {
   id: string;
   content: string;

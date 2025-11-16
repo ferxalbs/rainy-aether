@@ -20,7 +20,7 @@
  * ```
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { invoke } from '@tauri-apps/api/core';
 import {
@@ -106,6 +106,8 @@ export function CodeBlockActions({
 }: CodeBlockActionsProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState<{ success: boolean; error?: string } | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showDiffDialog, setShowDiffDialog] = useState(false);
   const [filename, setFilename] = useState(getDefaultFilename(language));
@@ -114,21 +116,24 @@ export function CodeBlockActions({
    * Handle run code
    */
   const handleRun = async () => {
-    if (!onRun) {
-      // Default: Run via Tauri terminal
-      await runCodeInTerminal(code, language);
-      return;
-    }
-
     setIsRunning(true);
     setRunResult(null);
 
     try {
-      const output = await onRun(code, language);
-      setRunResult({
-        success: true,
-        output,
-      });
+      if (!onRun) {
+        // Default: Run via Tauri terminal
+        const output = await runCodeInTerminal(code, language);
+        setRunResult({
+          success: true,
+          output,
+        });
+      } else {
+        const output = await onRun(code, language);
+        setRunResult({
+          success: true,
+          output,
+        });
+      }
     } catch (error) {
       setRunResult({
         success: false,
@@ -153,16 +158,29 @@ export function CodeBlockActions({
    * Handle save to file
    */
   const handleSave = async () => {
-    if (!onSave) {
-      // Default: Download as file
-      downloadAsFile(code, filename);
-      setShowSaveDialog(false);
-      return;
-    }
+    setIsSaving(true);
+    setSaveResult(null);
 
-    const success = await onSave(code, filename);
-    if (success) {
-      setShowSaveDialog(false);
+    try {
+      if (!onSave) {
+        // Default: Download as file
+        downloadAsFile(code, filename);
+        setSaveResult({ success: true });
+        setShowSaveDialog(false);
+      } else {
+        const success = await onSave(code, filename);
+        setSaveResult({ success });
+        if (success) {
+          setShowSaveDialog(false);
+        }
+      }
+    } catch (error) {
+      setSaveResult({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -290,21 +308,32 @@ export function CodeBlockActions({
               Enter a filename to save this code snippet
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 space-y-4">
             <Input
               value={filename}
               onChange={(e) => setFilename(e.target.value)}
               placeholder="filename.ts"
               className="w-full"
             />
+            {saveResult && !saveResult.success && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                <div className="flex items-center gap-2 text-destructive text-sm">
+                  <X className="size-4" />
+                  <span className="font-medium">Save failed</span>
+                </div>
+                {saveResult.error && (
+                  <p className="text-xs text-destructive/90 mt-1">{saveResult.error}</p>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+            <Button variant="outline" onClick={() => setShowSaveDialog(false)} disabled={isSaving}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!filename.trim()}>
+            <Button onClick={handleSave} disabled={!filename.trim() || isSaving}>
               <Download className="size-4 mr-2" />
-              Save
+              {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -351,12 +380,29 @@ function DiffPreview({ code, currentFilePath }: { code: string; currentFilePath:
   const [loading, setLoading] = useState(true);
 
   // Load current file content
-  useState(() => {
-    loadFileContent(currentFilePath).then((content) => {
-      setCurrentContent(content);
-      setLoading(false);
-    });
-  });
+  useEffect(() => {
+    let isMounted = true;
+
+    setLoading(true);
+    loadFileContent(currentFilePath)
+      .then((content) => {
+        if (isMounted) {
+          setCurrentContent(content);
+          setLoading(false);
+        }
+      })
+      .catch((error) => {
+        if (isMounted) {
+          console.error('Failed to load file content:', error);
+          setCurrentContent('');
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentFilePath]);
 
   if (loading) {
     return (
@@ -430,18 +476,15 @@ function getDefaultFilename(language: string): string {
 
 /**
  * Utility: Check if language is runnable
+ * Only includes languages actually implemented in runCodeInTerminal
  */
 function isRunnableLanguage(language: string): boolean {
   const runnableLanguages = [
     'typescript',
     'javascript',
     'python',
-    'rust',
-    'go',
     'sh',
     'bash',
-    'ruby',
-    'php',
   ];
 
   return runnableLanguages.includes(language.toLowerCase());
@@ -449,32 +492,109 @@ function isRunnableLanguage(language: string): boolean {
 
 /**
  * Utility: Run code in terminal via Tauri
+ * Uses temp files to avoid shell interpolation vulnerabilities
  */
 async function runCodeInTerminal(code: string, language: string): Promise<string> {
   try {
-    // Determine command based on language
-    const commands: Record<string, string> = {
-      typescript: `deno run -`,
-      javascript: `node -e "${code.replace(/"/g, '\\"')}"`,
-      python: `python -c "${code.replace(/"/g, '\\"')}"`,
-      sh: code,
-      bash: code,
+    const lang = language.toLowerCase();
+
+    // For shell scripts, execute directly (already a shell command)
+    if (lang === 'sh' || lang === 'bash') {
+      const result = await invoke<{
+        stdout: string;
+        stderr: string;
+        exit_code: number;
+        success: boolean;
+      }>('execute_command', {
+        command: code,
+        cwd: '.',
+      });
+
+      if (!result.success) {
+        throw new Error(result.stderr || `Command failed with exit code ${result.exit_code}`);
+      }
+
+      return result.stdout;
+    }
+
+    // For other languages, write to temp file and execute
+    const tempDir = await invoke<string>('get_temp_dir');
+    const extensions: Record<string, string> = {
+      typescript: '.ts',
+      javascript: '.js',
+      python: '.py',
     };
 
-    const command = commands[language.toLowerCase()];
-    if (!command) {
+    const extension = extensions[lang];
+    if (!extension) {
       throw new Error(`Language ${language} is not supported for execution`);
     }
 
-    // Execute via Tauri
-    const result = await invoke<string>('execute_command', {
-      command,
-      cwd: '.',
+    // Create temp file with timestamp to avoid collisions
+    const timestamp = Date.now();
+    const tempFile = `${tempDir}/rainy_code_exec_${timestamp}${extension}`;
+
+    // Write code to temp file
+    await invoke('save_file_content', {
+      path: tempFile,
+      content: code,
     });
 
-    return result;
+    try {
+      // Build command based on language
+      let command: string;
+
+      switch (lang) {
+        case 'typescript':
+          // Use deno run with the temp file
+          command = `deno run "${tempFile}"`;
+          break;
+        case 'javascript':
+          // Use node with the temp file
+          command = `node "${tempFile}"`;
+          break;
+        case 'python':
+          // Use python with the temp file
+          command = `python "${tempFile}"`;
+          break;
+        default:
+          throw new Error(`Language ${language} is not supported for execution`);
+      }
+
+      // Execute the command
+      const result = await invoke<{
+        stdout: string;
+        stderr: string;
+        exit_code: number;
+        success: boolean;
+      }>('execute_command', {
+        command,
+        cwd: '.',
+      });
+
+      // Clean up temp file (best effort, don't fail if cleanup fails)
+      try {
+        await invoke('delete_path', { path: tempFile });
+      } catch (cleanupError) {
+        console.warn('Failed to clean up temp file:', cleanupError);
+      }
+
+      if (!result.success) {
+        throw new Error(result.stderr || `Command failed with exit code ${result.exit_code}`);
+      }
+
+      return result.stdout;
+    } catch (execError) {
+      // Ensure cleanup even on error
+      try {
+        await invoke('delete_path', { path: tempFile });
+      } catch (cleanupError) {
+        console.warn('Failed to clean up temp file:', cleanupError);
+      }
+      throw execError;
+    }
   } catch (error) {
-    throw new Error(`Failed to execute code: ${error}`);
+    throw new Error(`Failed to execute code: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

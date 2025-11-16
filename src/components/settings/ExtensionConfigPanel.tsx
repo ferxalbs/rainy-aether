@@ -9,12 +9,10 @@ import React from 'react';
 import {
   Shield,
   Zap,
-  Clock,
   AlertTriangle,
   Activity,
   Settings,
   Eye,
-  RefreshCw,
   Info
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -336,7 +334,7 @@ export const ExtensionConfigPanel: React.FC = () => {
       {/* Info Banner */}
       <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
         <div className="flex items-start gap-3">
-          <Info className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+          <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-foreground mb-1">Configuration Tips</p>
             <ul className="text-muted-foreground space-y-1 list-disc list-inside">
@@ -391,7 +389,7 @@ const ConfigRow: React.FC<ConfigRowProps> = ({ label, description, children }) =
         <p className="text-sm font-medium text-foreground">{label}</p>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         {children}
       </div>
     </div>
