@@ -20,6 +20,7 @@ import {
   ArchiveRestoreIcon,
   Trash2Icon,
   PlusIcon,
+  BotIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,8 @@ import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/ui/logo';
 import { useChatStore, useChatActions } from '@/stores/chatStore';
 import { useAgentNavigationState, useAgentNavigationActions } from '@/stores/agentNavigationStore';
+import { useAgents } from '@/hooks/useAgents';
+import { AgentSelector } from './AgentSelector';
 import { cn } from '@/lib/cn';
 import {
   DropdownMenu,
@@ -61,7 +64,9 @@ export function ChatSidebar() {
   const { selectChat, archiveChat, unarchiveChat, deleteChat, createNewChat } = useChatActions();
   const { currentView } = useAgentNavigationState();
   const { setView } = useAgentNavigationActions();
+  const { selectedAgentId, selectAgent } = useAgents();
   const [selectedTeam, setSelectedTeam] = useState('personal');
+  const [showAgentSelector, setShowAgentSelector] = useState(false);
 
   const recentChats = chats.filter((chat) => !chat.isArchived);
   const archivedChats = chats.filter((chat) => chat.isArchived);
@@ -169,7 +174,49 @@ export function ChatSidebar() {
           <FileStackIcon className="size-4" />
           <span className="text-xs font-medium">Prompts</span>
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            currentView === 'abby' && "bg-sidebar-accent text-sidebar-accent-foreground"
+          )}
+          onClick={() => setView('abby')}
+        >
+          <Sparkles className="size-4" />
+          <span className="text-xs font-medium">Abby Mode</span>
+        </Button>
       </div>
+
+      {/* Agents Section */}
+      <div className="px-3 pb-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "w-full justify-start gap-2 px-2 h-8 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+            showAgentSelector && "bg-sidebar-accent text-sidebar-accent-foreground"
+          )}
+          onClick={() => setShowAgentSelector(!showAgentSelector)}
+        >
+          <BotIcon className="size-4" />
+          <span className="text-xs font-medium">Agents</span>
+        </Button>
+      </div>
+
+      {/* Agent Selector Collapsible Section */}
+      {showAgentSelector && (
+        <>
+          <Separator />
+          <div className="px-1 py-2">
+            <AgentSelector
+              selectedAgentId={selectedAgentId}
+              onSelectAgent={selectAgent}
+              compact
+            />
+          </div>
+        </>
+      )}
 
       <Separator />
 

@@ -3,6 +3,7 @@ import { ChatSidebar } from './ChatSidebar';
 import { HomeView } from './HomeView';
 import { AskAIView } from './AskAIView';
 import { PromptsView } from './PromptsView';
+import { AbbyView } from './AbbyView';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from 'lucide-react';
@@ -29,6 +30,8 @@ export function AgentChatView() {
         return <AskAIView />;
       case 'prompts':
         return <PromptsView />;
+      case 'abby':
+        return <AbbyView />;
       default:
         return <HomeView />;
     }
