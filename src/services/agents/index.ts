@@ -55,9 +55,9 @@ export type {
 // ============================================================================
 
 export { RainyAgent, createRainyAgent } from './rainy/RainyAgent';
+export { ClaudeAgent, createClaudeAgent } from './claude/ClaudeAgent';
 
 // Future exports (when implemented):
-// export { ClaudeAgent, createClaudeAgent } from './claude/ClaudeAgent';
 // export { AbbyAgent, createAbbyAgent } from './abby/AbbyAgent';
 
 // ============================================================================

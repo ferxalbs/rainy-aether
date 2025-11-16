@@ -123,11 +123,12 @@ export class AgentRegistry {
       const rainy = new RainyAgent();
       this.register(rainy);
 
-      // Future: Add more agents as they're implemented
-      // const { ClaudeAgent } = await import('../claude/ClaudeAgent');
-      // const claude = new ClaudeAgent();
-      // this.register(claude);
+      // Dynamically import and register Claude Code Agent
+      const { ClaudeAgent } = await import('../claude/ClaudeAgent');
+      const claude = new ClaudeAgent();
+      this.register(claude);
 
+      // Future: Add more agents as they're implemented
       // const { AbbyAgent } = await import('../abby/AbbyAgent');
       // const abby = new AbbyAgent();
       // this.register(abby);
