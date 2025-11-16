@@ -1,89 +1,5 @@
-PS C:\Projects\rainy-aether-2\src-tauri>
->> cargo check
-warning: unused imports: `AgentError` and `ToolResult`
- --> src\agents\inference.rs:6:19
-  |
-6 | use super::core::{AgentError, ToolCall, ToolResult};
-  |                   ^^^^^^^^^^            ^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused import: `parking_lot::Mutex`
- --> src\agents\executor.rs:8:5
-  |
-8 | use parking_lot::Mutex;
-  |     ^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `Serialize`
- --> src\agents\tools\filesystem.rs:7:26
-  |
-7 | use serde::{Deserialize, Serialize};
-  |                          ^^^^^^^^^
-
-warning: unused import: `registry::ToolRegistry`
-  --> src\agents\tools\mod.rs:12:9
-   |
-12 | pub use registry::ToolRegistry;
-   |         ^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `AgentError`
- --> src\agents\commands.rs:6:18
-  |
-6 |     AgentConfig, AgentError, AgentManager, AgentMetrics, AgentResult,
-  |                  ^^^^^^^^^^
-
-warning: unused imports: `Agent`, `Capability`, `ToolCall`, and `ToolResult`
-  --> src\agents\mod.rs:54:5
-   |
-54 |     Agent, AgentConfig, AgentError, AgentInput, AgentMetadata, AgentResult,
-   |     ^^^^^
-55 |     Capability, Session, ToolCall, ToolResult,
-   |     ^^^^^^^^^^           ^^^^^^^^  ^^^^^^^^^^
-
-warning: unused imports: `ConversationMemory`, `MemoryUsage`, and `MessageRole`
-  --> src\agents\mod.rs:59:5
-   |
-59 |     ConversationMemory, MemoryManager, MemoryStats, MemoryUsage,
-   |     ^^^^^^^^^^^^^^^^^^                              ^^^^^^^^^^^
-60 |     Message, MessageRole,
-   |              ^^^^^^^^^^^
-
-warning: unused imports: `ProviderMetrics`, `SystemMetrics`, and `ToolMetrics`
-  --> src\agents\mod.rs:64:49
-   |
-64 |     AgentMetrics, AllMetrics, MetricsCollector, ProviderMetrics,
-   |                                                 ^^^^^^^^^^^^^^^
-65 |     SystemMetrics, ToolMetrics,
-   |     ^^^^^^^^^^^^^  ^^^^^^^^^^^
-
-warning: unused imports: `RateLimiterStats` and `RateLimiter`
-  --> src\agents\mod.rs:68:24
-   |
-68 | pub use rate_limiter::{RateLimiter, RateLimiterStats};
-   |                        ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
-
-warning: unused imports: `FinishReason`, `InferenceConfig`, `InferenceError`, `InferenceMessage`, `InferenceResponse`, `Provider`, `StreamChunk`, `TokenUsage`, and `ToolDefinition`
-  --> src\agents\mod.rs:71:5
-   |
-71 |     FinishReason, InferenceConfig, InferenceEngine, InferenceError,
-   |     ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^                   ^^^^^^^^^^^^^^
-72 |     InferenceMessage, InferenceResponse, Provider, StreamChunk, TokenUsage,
-   |     ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^  ^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^
-73 |     ToolDefinition,
-   |     ^^^^^^^^^^^^^^
-
-warning: unused imports: `ToolDefinition as ExecutorToolDefinition`, `ToolError`, and `Tool`
-  --> src\agents\mod.rs:76:20
-   |
-76 | pub use executor::{Tool, ToolDefinition as ExecutorToolDefinition, ToolError, ToolExecutor};
-   |                    ^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^
-
-warning: unused imports: `GoogleProvider`, `GroqProvider`, and `ModelProvider`
-  --> src\agents\mod.rs:78:21
-   |
-78 | pub use providers::{GoogleProvider, GroqProvider, ModelProvider};
-   |                     ^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^
-
+PS C:\Projects\rainy-aether-2\src-tauri> cargo check
+    Checking rainy-aether v0.1.0 (C:\Projects\rainy-aether-2\src-tauri)
 warning: variable does not need to be mutable
    --> src\agents\inference.rs:119:9
     |
@@ -94,71 +10,18 @@ warning: variable does not need to be mutable
     |
     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
 
-warning: unused variable: `request`
-  --> src\agents\providers\google.rs:43:9
-   |
-43 |         request: GenerateRequest,
-   |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_request`
-   |
-   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
-
-warning: unused variable: `request`
-  --> src\agents\providers\google.rs:62:9
-   |
-62 |         request: GenerateRequest,
-   |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_request`
-
-warning: unused variable: `callback`
-  --> src\agents\providers\google.rs:63:9
-   |
-63 |         callback: F,
-   |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_callback`
-
-warning: unused variable: `request`
-  --> src\agents\providers\groq.rs:43:9
-   |
-43 |         request: GenerateRequest,
-   |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_request`
-
-warning: unused variable: `request`
-  --> src\agents\providers\groq.rs:62:9
-   |
-62 |         request: GenerateRequest,
-   |         ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_request`
-
-warning: unused variable: `callback`
-  --> src\agents\providers\groq.rs:63:9
-   |
-63 |         callback: F,
-   |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_callback`
-
-warning: unused variable: `name`
-  --> src\agents\tools\registry.rs:44:23
-   |
-44 |     pub fn get(&self, name: &str) -> Option<Box<dyn Tool>> {
-   |                       ^^^^ help: if this is intentional, prefix it with an underscore: `_name`
-
-warning: field `inference_engines` is never read
-   --> src\agents\mod.rs:103:5
+warning: method `session_count` is never used
+   --> src\agents\mod.rs:376:12
     |
- 89 | pub struct AgentManager {
-    |            ------------ field in this struct
+103 | impl AgentManager {
+    | ----------------- method in this implementation
 ...
-103 |     inference_engines: Arc<RwLock<std::collections::HashMap<String, InferenceEngine>>>,
-    |     ^^^^^^^^^^^^^^^^^
+376 |     pub fn session_count(&self) -> usize {
+    |            ^^^^^^^^^^^^^
     |
     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
 
-warning: method `session_count` is never used
-   --> src\agents\mod.rs:239:12
-    |
-106 | impl AgentManager {
-    | ----------------- method in this implementation
-...
-239 |     pub fn session_count(&self) -> usize {
-    |            ^^^^^^^^^^^^^
-
-warning: multiple variants are never constructed
+warning: variants `NotInitialized`, `ToolExecutionFailed`, `MemoryLimitExceeded`, `RateLimitExceeded`, `InvalidConfiguration`, and `Other` are never constructed
   --> src\agents\core.rs:15:5
    |
 13 | pub enum AgentError {
@@ -169,9 +32,6 @@ warning: multiple variants are never constructed
 ...
 18 |     ToolExecutionFailed(String),
    |     ^^^^^^^^^^^^^^^^^^^
-...
-21 |     InferenceFailed(String),
-   |     ^^^^^^^^^^^^^^^
 ...
 24 |     MemoryLimitExceeded,
    |     ^^^^^^^^^^^^^^^^^^^
@@ -242,9 +102,9 @@ warning: associated function `system` is never used
     |            ^^^^^^
 
 warning: struct `MemoryUsage` is never constructed
-   --> src\agents\memory.rs:334:12
+   --> src\agents\memory.rs:345:12
     |
-334 | pub struct MemoryUsage {
+345 | pub struct MemoryUsage {
     |            ^^^^^^^^^^^
 
 warning: methods `record_tool_execution`, `record_provider_call`, `get_tool_metrics`, `get_provider_metrics`, and `reset` are never used
@@ -603,201 +463,122 @@ warning: struct `GroqDelta` is never constructed
 616 | struct GroqDelta {
     |        ^^^^^^^^^
 
-warning: enum `ToolError` is never used
-  --> src\agents\executor.rs:17:10
+warning: variant `InvalidArguments` is never constructed
+  --> src\agents\executor.rs:21:5
    |
-17 | pub enum ToolError {
-   |          ^^^^^^^^^
+16 | pub enum ToolError {
+   |          --------- variant in this enum
+...
+21 |     InvalidArguments(String),
+   |     ^^^^^^^^^^^^^^^^
+   |
+   = note: `ToolError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
 
-warning: methods `register_tool`, `execute`, `execute_parallel`, `get_tool_definition`, `clear_cache`, and `stats` are never used
-   --> src\agents\executor.rs:71:12
+warning: methods `register_tool`, `execute_parallel`, `get_tool_definition`, `clear_cache`, and `stats` are never used
+   --> src\agents\executor.rs:70:12
     |
- 58 | impl ToolExecutor {
+ 57 | impl ToolExecutor {
     | ----------------- methods in this implementation
 ...
- 71 |     pub fn register_tool(&self, tool: Arc<dyn Tool>) {
+ 70 |     pub fn register_tool(&self, tool: Arc<dyn Tool>) {
     |            ^^^^^^^^^^^^^
 ...
- 76 |     pub async fn execute(
-    |                  ^^^^^^^
-...
-138 |     pub async fn execute_parallel(
+137 |     pub async fn execute_parallel(
     |                  ^^^^^^^^^^^^^^^^
 ...
-168 |     pub fn get_tool_definition(&self, name: &str) -> Option<ToolDefinition> {
+167 |     pub fn get_tool_definition(&self, name: &str) -> Option<ToolDefinition> {
     |            ^^^^^^^^^^^^^^^^^^^
 ...
-173 |     pub fn clear_cache(&self) {
+172 |     pub fn clear_cache(&self) {
     |            ^^^^^^^^^^^
 ...
-179 |     pub fn stats(&self) -> ExecutorStats {
+178 |     pub fn stats(&self) -> ExecutorStats {
     |            ^^^^^
 
-warning: methods `execute` and `timeout` are never used
-   --> src\agents\executor.rs:214:14
+warning: methods `register`, `get_definition`, `count`, and `get_metrics` are never used
+   --> src\agents\executor.rs:257:12
     |
-203 | pub trait Tool: Send + Sync {
-    |           ---- methods in this trait
-...
-214 |     async fn execute(&self, params: serde_json::Value) -> Result<serde_json::Value, Box<dyn std::error::Error>>;
-    |              ^^^^^^^
-...
-227 |     fn timeout(&self) -> Option<Duration> {
-    |        ^^^^^^^
-
-warning: field `metrics` is never read
-   --> src\agents\executor.rs:245:5
-    |
-243 | pub struct ToolRegistry {
-    |            ------------ field in this struct
-244 |     tools: DashMap<String, Arc<dyn Tool>>,
-245 |     metrics: Arc<DashMap<String, ToolMetrics>>,
-    |     ^^^^^^^
-
-warning: methods `register`, `get`, `get_definition`, `count`, `record_execution`, and `get_metrics` are never used
-   --> src\agents\executor.rs:258:12
-    |
-248 | impl ToolRegistry {
+247 | impl ToolRegistry {
     | ----------------- methods in this implementation
 ...
-258 |     pub fn register(&self, tool: Arc<dyn Tool>) {
+257 |     pub fn register(&self, tool: Arc<dyn Tool>) {
     |            ^^^^^^^^
 ...
-265 |     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
-    |            ^^^
-...
-287 |     pub fn get_definition(&self, name: &str) -> Option<ToolDefinition> {
+286 |     pub fn get_definition(&self, name: &str) -> Option<ToolDefinition> {
     |            ^^^^^^^^^^^^^^
 ...
-301 |     pub fn count(&self) -> usize {
+300 |     pub fn count(&self) -> usize {
     |            ^^^^^
 ...
-306 |     pub fn record_execution(&self, tool_name: &str, duration: Duration, success: bool) {
-    |            ^^^^^^^^^^^^^^^^
-...
-325 |     pub fn get_metrics(&self, tool_name: &str) -> Option<ToolMetrics> {
+324 |     pub fn get_metrics(&self, tool_name: &str) -> Option<ToolMetrics> {
     |            ^^^^^^^^^^^
 
-warning: fields `result`, `timestamp`, and `ttl` are never read
-   --> src\agents\executor.rs:349:5
-    |
-348 | struct CachedToolResult {
-    |        ---------------- fields in this struct
-349 |     result: ToolResult,
-    |     ^^^^^^
-350 |     timestamp: SystemTime,
-    |     ^^^^^^^^^
-351 |     ttl: Duration,
-    |     ^^^
-
-warning: method `is_expired` is never used
-   --> src\agents\executor.rs:355:8
-    |
-354 | impl CachedToolResult {
-    | --------------------- method in this implementation
-355 |     fn is_expired(&self) -> bool {
-    |        ^^^^^^^^^^
-
 warning: struct `ExecutorStats` is never constructed
-   --> src\agents\executor.rs:362:12
+   --> src\agents\executor.rs:361:12
     |
-362 | pub struct ExecutorStats {
+361 | pub struct ExecutorStats {
     |            ^^^^^^^^^^^^^
 
-warning: enum `ProviderError` is never used
-  --> src\agents\providers\base.rs:11:10
+warning: variants `InvalidResponse`, `RateLimitExceeded`, `AuthenticationFailed`, `Timeout`, and `UnsupportedFeature` are never constructed
+  --> src\agents\providers\base.rs:16:5
    |
 11 | pub enum ProviderError {
-   |          ^^^^^^^^^^^^^
-
-warning: trait `ModelProvider` is never used
-  --> src\agents\providers\base.rs:39:11
+   |          ------------- variants in this enum
+...
+16 |     InvalidResponse(String),
+   |     ^^^^^^^^^^^^^^^
+...
+25 |     RateLimitExceeded,
+   |     ^^^^^^^^^^^^^^^^^
+...
+28 |     AuthenticationFailed(String),
+   |     ^^^^^^^^^^^^^^^^^^^^
+...
+34 |     Timeout,
+   |     ^^^^^^^
+...
+37 |     UnsupportedFeature(String),
+   |     ^^^^^^^^^^^^^^^^^^
    |
-39 | pub trait ModelProvider: Send + Sync {
-   |           ^^^^^^^^^^^^^
+   = note: `ProviderError` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
 
-warning: struct `GenerateRequest` is never constructed
-  --> src\agents\providers\base.rs:70:12
+warning: methods `id`, `name`, `stream`, `supports_feature`, and `list_models` are never used
+  --> src\agents\providers\base.rs:44:8
    |
-70 | pub struct GenerateRequest {
-   |            ^^^^^^^^^^^^^^^
-
-warning: struct `GenerationParameters` is never constructed
-  --> src\agents\providers\base.rs:88:12
-   |
-88 | pub struct GenerationParameters {
-   |            ^^^^^^^^^^^^^^^^^^^^
-
-warning: function `default_temperature` is never used
-   --> src\agents\providers\base.rs:118:4
-    |
-118 | fn default_temperature() -> f32 { 0.7 }
-    |    ^^^^^^^^^^^^^^^^^^^
-
-warning: function `default_max_tokens` is never used
-   --> src\agents\providers\base.rs:119:4
-    |
-119 | fn default_max_tokens() -> u32 { 4096 }
-    |    ^^^^^^^^^^^^^^^^^^
-
-warning: function `default_top_p` is never used
-   --> src\agents\providers\base.rs:120:4
-    |
-120 | fn default_top_p() -> f32 { 1.0 }
-    |    ^^^^^^^^^^^^^
-
-warning: struct `Message` is never constructed
-   --> src\agents\providers\base.rs:138:12
-    |
-138 | pub struct Message {
-    |            ^^^^^^^
-
-warning: struct `ToolCall` is never constructed
-   --> src\agents\providers\base.rs:156:12
-    |
-156 | pub struct ToolCall {
-    |            ^^^^^^^^
-
-warning: struct `ToolSchema` is never constructed
-   --> src\agents\providers\base.rs:169:12
-    |
-169 | pub struct ToolSchema {
-    |            ^^^^^^^^^^
-
-warning: struct `GenerateResponse` is never constructed
-   --> src\agents\providers\base.rs:182:12
-    |
-182 | pub struct GenerateResponse {
-    |            ^^^^^^^^^^^^^^^^
-
-warning: enum `FinishReason` is never used
-   --> src\agents\providers\base.rs:204:10
-    |
-204 | pub enum FinishReason {
-    |          ^^^^^^^^^^^^
-
-warning: struct `TokenUsage` is never constructed
-   --> src\agents\providers\base.rs:223:12
-    |
-223 | pub struct TokenUsage {
-    |            ^^^^^^^^^^
+42 | pub trait ModelProvider: Send + Sync {
+   |           ------------- methods in this trait
+43 |     /// Get provider identifier
+44 |     fn id(&self) -> &str;
+   |        ^^
+...
+47 |     fn name(&self) -> &str;
+   |        ^^^^
+...
+56 |     async fn stream<F>(
+   |              ^^^^^^
+...
+65 |     fn supports_feature(&self, feature: ProviderFeature) -> bool;
+   |        ^^^^^^^^^^^^^^^^
+...
+68 |     async fn list_models(&self) -> Result<Vec<ModelInfo>, ProviderError>;
+   |              ^^^^^^^^^^^
 
 warning: struct `StreamChunk` is never constructed
-   --> src\agents\providers\base.rs:236:12
+   --> src\agents\providers\base.rs:239:12
     |
-236 | pub struct StreamChunk {
+239 | pub struct StreamChunk {
     |            ^^^^^^^^^^^
 
 warning: enum `ProviderFeature` is never used
-   --> src\agents\providers\base.rs:252:10
+   --> src\agents\providers\base.rs:255:10
     |
-252 | pub enum ProviderFeature {
+255 | pub enum ProviderFeature {
     |          ^^^^^^^^^^^^^^^
 
 warning: struct `ModelInfo` is never constructed
-   --> src\agents\providers\base.rs:271:12
+   --> src\agents\providers\base.rs:274:12
     |
-271 | pub struct ModelInfo {
+274 | pub struct ModelInfo {
     |            ^^^^^^^^^
 
 warning: struct `GoogleProvider` is never constructed
@@ -818,56 +599,65 @@ warning: associated items `new` and `with_base_url` are never used
 25 |     pub fn with_base_url(mut self, base_url: String) -> Self {
    |            ^^^^^^^^^^^^^
 
-warning: struct `GroqProvider` is never constructed
- --> src\agents\providers\groq.rs:8:12
-  |
-8 | pub struct GroqProvider {
-  |            ^^^^^^^^^^^^
-
-warning: associated items `new` and `with_base_url` are never used
-  --> src\agents\providers\groq.rs:16:12
+warning: method `with_base_url` is never used
+  --> src\agents\providers\groq.rs:27:12
    |
-14 | impl GroqProvider {
-   | ----------------- associated items in this implementation
-15 |     /// Create a new Groq provider
-16 |     pub fn new(api_key: String) -> Self {
-   |            ^^^
+16 | impl GroqProvider {
+   | ----------------- method in this implementation
 ...
-25 |     pub fn with_base_url(mut self, base_url: String) -> Self {
+27 |     pub fn with_base_url(mut self, base_url: String) -> Self {
    |            ^^^^^^^^^^^^^
 
 warning: struct `ToolRegistry` is never constructed
-  --> src\agents\tools\registry.rs:11:12
+  --> src\agents\tools\registry.rs:13:12
    |
-11 | pub struct ToolRegistry {
+13 | pub struct ToolRegistry {
    |            ^^^^^^^^^^^^
 
-warning: multiple associated items are never used
-  --> src\agents\tools\registry.rs:18:12
+warning: struct `ToolMetrics` is never constructed
+  --> src\agents\tools\registry.rs:23:12
    |
-16 | impl ToolRegistry {
-   | ----------------- associated items in this implementation
-17 |     /// Create a new tool registry
-18 |     pub fn new() -> Self {
-   |            ^^^
+23 | pub struct ToolMetrics {
+   |            ^^^^^^^^^^^
+
+warning: multiple associated items are never used
+   --> src\agents\tools\registry.rs:33:12
+    |
+ 31 | impl ToolRegistry {
+    | ----------------- associated items in this implementation
+ 32 |     /// Create a new tool registry
+ 33 |     pub fn new() -> Self {
+    |            ^^^
 ...
-30 |     fn register_default_tools(&mut self) {
-   |        ^^^^^^^^^^^^^^^^^^^^^^
+ 46 |     fn register_default_tools(&self) {
+    |        ^^^^^^^^^^^^^^^^^^^^^^
 ...
-37 |     pub fn register(&self, tool: Box<dyn Tool>) {
-   |            ^^^^^^^^
+ 58 |     pub fn register(&self, tool: Arc<dyn Tool>) {
+    |            ^^^^^^^^
 ...
-44 |     pub fn get(&self, name: &str) -> Option<Box<dyn Tool>> {
-   |            ^^^
+ 66 |     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
+    |            ^^^
 ...
-51 |     pub fn list(&self) -> Vec<ToolDefinition> {
-   |            ^^^^
+ 71 |     pub fn list_tools(&self) -> Vec<ToolDefinition> {
+    |            ^^^^^^^^^^
 ...
-66 |     pub fn count(&self) -> usize {
-   |            ^^^^^
+ 86 |     pub fn get_definition(&self, name: &str) -> Option<ToolDefinition> {
+    |            ^^^^^^^^^^^^^^
 ...
-71 |     pub fn has(&self, name: &str) -> bool {
-   |            ^^^
+ 97 |     pub fn count(&self) -> usize {
+    |            ^^^^^
+...
+102 |     pub fn has(&self, name: &str) -> bool {
+    |            ^^^
+...
+107 |     pub fn record_execution(&self, name: &str, duration: Duration, success: bool) {
+    |            ^^^^^^^^^^^^^^^^
+...
+126 |     pub fn get_metrics(&self, name: &str) -> Option<ToolMetrics> {
+    |            ^^^^^^^^^^^
+...
+131 |     pub fn get_all_metrics(&self) -> HashMap<String, ToolMetrics> {
+    |            ^^^^^^^^^^^^^^^
 
 warning: struct `ReadFileTool` is never constructed
   --> src\agents\tools\filesystem.rs:11:12
@@ -1090,6 +880,6 @@ warning: method `stop_all_servers` is never used
 276 |     pub fn stop_all_servers(&self) {
     |            ^^^^^^^^^^^^^^^^
 
-warning: `rainy-aether` (lib) generated 128 warnings (run `cargo fix --lib -p rainy-aether` to apply 13 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.68s
-PS C:\Projects\rainy-aether-2\src-tauri>
+warning: `rainy-aether` (lib) generated 93 warnings (run `cargo fix --lib -p rainy-aether` to apply 1 suggestion)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.14s
+PS C:\Projects\rainy-aether-2\src-tauri> 
