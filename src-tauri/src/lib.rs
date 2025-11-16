@@ -409,6 +409,7 @@ pub fn run() {
         agents::commands::agent_get_metrics,
         agents::commands::agent_get_all_metrics,
         agents::commands::agent_list_tools,
+        agents::commands::agent_execute_tool,
         agents::commands::agent_destroy_session,
         agents::commands::agent_list_sessions,
     ]);

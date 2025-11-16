@@ -6,6 +6,7 @@ use super::{
     AgentConfig, AgentManager, AgentMetrics, AgentResult,
     AllMetrics, MemoryStats, Message, Session, ToolDefinition,
 };
+use super::core::ToolResult;
 use tauri::State;
 
 /// Create a new agent session
@@ -83,6 +84,21 @@ pub fn agent_list_tools(
     state: State<'_, AgentManager>,
 ) -> Result<Vec<ToolDefinition>, String> {
     Ok(state.list_tools())
+}
+
+/// Execute a tool directly
+///
+/// This command allows direct execution of tools from the frontend,
+/// bypassing the agent inference layer. Useful for LangGraph integration.
+#[tauri::command]
+pub async fn agent_execute_tool(
+    tool_name: String,
+    params: serde_json::Value,
+    state: State<'_, AgentManager>,
+) -> Result<ToolResult, String> {
+    state.execute_tool(&tool_name, params, None)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Destroy a session
