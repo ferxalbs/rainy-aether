@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChatWelcomeScreen } from './ChatWelcomeScreen';
 import { ChatConversationView } from './ChatConversationView';
 import { useAgents, useAgentSession } from '@/hooks/useAgents';
 import { ToolExecutionView } from './ToolExecutionView';
+import { ApiKeyDialog } from './ApiKeyDialog';
+import { useApiKeys, apiKeyActions } from '@/stores/apiKeyStore';
 import type { ToolCall } from '@/types/rustAgent';
 import { roleToSender } from '@/types/chat';
 
@@ -34,13 +36,36 @@ export function ChatMain() {
   const {
     messages: agentMessages,
     isLoading,
+    error: sessionError,
     sendMessage: sendToAgent,
   } = useAgentSession(selectedAgentId);
 
+  const apiKeys = useApiKeys();
   const [message, setMessage] = useState('');
   const [selectedMode, setSelectedMode] = useState('smart');
   const [selectedModel, setSelectedModel] = useState(selectedAgentId);
   const [isConversationStarted, setIsConversationStarted] = useState(false);
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+
+  // Initialize API key store on mount
+  useEffect(() => {
+    if (!apiKeys.initialized) {
+      apiKeyActions.initialize();
+    }
+  }, [apiKeys.initialized]);
+
+  // Check if API keys are needed when trying to send a message
+  const checkApiKeys = () => {
+    // Check if we have any API keys configured
+    const hasAnyKey = apiKeys.status.groq.configured || apiKeys.status.google.configured;
+
+    if (!hasAnyKey) {
+      setShowApiKeyDialog(true);
+      return false;
+    }
+
+    return true;
+  };
 
   // Convert agent messages (with 'role' field) to UI messages (with 'sender' field)
   // Uses roleToSender helper for standardized conversion
@@ -55,14 +80,27 @@ export function ChatMain() {
   const handleSend = async () => {
     if (!message.trim() || isLoading) return;
 
+    // Check if API keys are configured
+    if (!checkApiKeys()) {
+      return;
+    }
+
     setIsConversationStarted(true);
 
-    // Send message through agent system
-    await sendToAgent(message, {
-      fastMode: selectedMode === 'fast',
-    });
+    try {
+      // Send message through agent system
+      await sendToAgent(message, {
+        fastMode: selectedMode === 'fast',
+      });
 
-    setMessage('');
+      setMessage('');
+    } catch (error) {
+      // If error mentions API keys, show dialog
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('API key') || errorMessage.includes('configure')) {
+        setShowApiKeyDialog(true);
+      }
+    }
   };
 
   const handleReset = () => {
@@ -74,49 +112,85 @@ export function ChatMain() {
   const handleSendMessage = async (content: string) => {
     if (isLoading) return;
 
-    await sendToAgent(content, {
-      fastMode: selectedMode === 'fast',
-    });
+    // Check if API keys are configured
+    if (!checkApiKeys()) {
+      return;
+    }
 
-    setMessage('');
+    try {
+      await sendToAgent(content, {
+        fastMode: selectedMode === 'fast',
+      });
+
+      setMessage('');
+    } catch (error) {
+      // If error mentions API keys, show dialog
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('API key') || errorMessage.includes('configure')) {
+        setShowApiKeyDialog(true);
+      }
+    }
   };
 
   if (isConversationStarted) {
     return (
-      <div className="flex flex-col h-full">
-        <ChatConversationView
-          messages={messages}
-          message={message}
-          onMessageChange={setMessage}
-          onSend={handleSendMessage}
-          onReset={handleReset}
-        />
+      <>
+        <div className="flex flex-col h-full">
+          <ChatConversationView
+            messages={messages}
+            message={message}
+            onMessageChange={setMessage}
+            onSend={handleSendMessage}
+            onReset={handleReset}
+          />
 
-        {/* Show tool executions for last assistant message */}
-        {messages.length > 0 &&
-          messages[messages.length - 1].sender === 'ai' &&
-          messages[messages.length - 1].toolCalls &&
-          messages[messages.length - 1].toolCalls!.length > 0 && (
-            <div className="border-t border-border bg-muted/30 max-h-48 overflow-y-auto">
-              <ToolExecutionView
-                toolCalls={messages[messages.length - 1].toolCalls}
-                compact
-              />
-            </div>
-          )}
-      </div>
+          {/* Show tool executions for last assistant message */}
+          {messages.length > 0 &&
+            messages[messages.length - 1].sender === 'ai' &&
+            messages[messages.length - 1].toolCalls &&
+            messages[messages.length - 1].toolCalls!.length > 0 && (
+              <div className="border-t border-border bg-muted/30 max-h-48 overflow-y-auto">
+                <ToolExecutionView
+                  toolCalls={messages[messages.length - 1].toolCalls}
+                  compact
+                />
+              </div>
+            )}
+        </div>
+
+        {/* API Key Dialog */}
+        <ApiKeyDialog
+          open={showApiKeyDialog}
+          onOpenChange={setShowApiKeyDialog}
+          onComplete={() => {
+            setShowApiKeyDialog(false);
+            // Optionally retry the message after keys are configured
+          }}
+        />
+      </>
     );
   }
 
   return (
-    <ChatWelcomeScreen
-      message={message}
-      onMessageChange={setMessage}
-      onSend={handleSend}
-      selectedMode={selectedMode}
-      onModeChange={setSelectedMode}
-      selectedModel={selectedAgent?.name || selectedAgentId}
-      onModelChange={setSelectedModel}
-    />
+    <>
+      <ChatWelcomeScreen
+        message={message}
+        onMessageChange={setMessage}
+        onSend={handleSend}
+        selectedMode={selectedMode}
+        onModeChange={setSelectedMode}
+        selectedModel={selectedAgent?.name || selectedAgentId}
+        onModelChange={setSelectedModel}
+      />
+
+      {/* API Key Dialog */}
+      <ApiKeyDialog
+        open={showApiKeyDialog}
+        onOpenChange={setShowApiKeyDialog}
+        onComplete={() => {
+          setShowApiKeyDialog(false);
+        }}
+      />
+    </>
   );
 }
