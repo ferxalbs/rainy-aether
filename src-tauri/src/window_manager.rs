@@ -25,7 +25,8 @@ pub fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> Result
 /// Get list of all open windows
 #[tauri::command]
 pub fn window_get_all(app: AppHandle) -> Result<Vec<String>, String> {
-    let windows: Vec<String> = app.webview_windows()
+    let windows: Vec<String> = app
+        .webview_windows()
         .keys()
         .map(|s| s.to_string())
         .collect();
@@ -36,7 +37,8 @@ pub fn window_get_all(app: AppHandle) -> Result<Vec<String>, String> {
 #[tauri::command]
 pub fn window_focus(app: AppHandle, label: String) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(&label) {
-        window.set_focus()
+        window
+            .set_focus()
             .map_err(|e| format!("Failed to focus window: {}", e))?;
         Ok(())
     } else {
@@ -48,7 +50,8 @@ pub fn window_focus(app: AppHandle, label: String) -> Result<(), String> {
 #[tauri::command]
 pub fn window_close(app: AppHandle, label: String) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(&label) {
-        window.close()
+        window
+            .close()
             .map_err(|e| format!("Failed to close window: {}", e))?;
         Ok(())
     } else {
@@ -77,7 +80,8 @@ pub fn reveal_in_explorer(app: AppHandle, path: String) -> Result<(), String> {
             command = command.args(&[arg.as_str()]);
         }
 
-        command.spawn()
+        command
+            .spawn()
             .map_err(|e| format!("Failed to open Explorer: {}", e))?;
     }
 
@@ -91,7 +95,8 @@ pub fn reveal_in_explorer(app: AppHandle, path: String) -> Result<(), String> {
             command = command.args(&["-R", path.as_str()]);
         }
 
-        command.spawn()
+        command
+            .spawn()
             .map_err(|e| format!("Failed to open Finder: {}", e))?;
     }
 
@@ -105,9 +110,14 @@ pub fn reveal_in_explorer(app: AppHandle, path: String) -> Result<(), String> {
             ("nemo", vec![path.as_str()]),
             ("caja", vec![path.as_str()]),
             ("pcmanfm", vec![path.as_str()]),
-            ("xdg-open", vec![if p.is_dir() { path.as_str() } else {
-                p.parent().unwrap_or(&p).to_str().unwrap_or(&path)
-            }]),
+            (
+                "xdg-open",
+                vec![if p.is_dir() {
+                    path.as_str()
+                } else {
+                    p.parent().unwrap_or(&p).to_str().unwrap_or(&path)
+                }],
+            ),
         ];
 
         let mut success = false;
@@ -129,10 +139,12 @@ pub fn reveal_in_explorer(app: AppHandle, path: String) -> Result<(), String> {
 /// Open system terminal in specified directory (cross-platform)
 #[tauri::command]
 pub fn open_system_terminal(app: AppHandle, cwd: Option<String>) -> Result<(), String> {
-    let working_dir = cwd.unwrap_or_else(|| std::env::current_dir()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_string());
+    let working_dir = cwd.unwrap_or_else(|| {
+        std::env::current_dir()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string()
+    });
 
     #[cfg(target_os = "windows")]
     {
@@ -143,8 +155,10 @@ pub fn open_system_terminal(app: AppHandle, cwd: Option<String>) -> Result<(), S
         if wt_command.spawn().is_err() {
             // Fallback to cmd
             let mut cmd_command = app.shell().command("cmd.exe");
-            cmd_command = cmd_command.args(&["/c", "start", "cmd.exe", "/k", "cd", "/d", &working_dir]);
-            cmd_command.spawn()
+            cmd_command =
+                cmd_command.args(&["/c", "start", "cmd.exe", "/k", "cd", "/d", &working_dir]);
+            cmd_command
+                .spawn()
                 .map_err(|e| format!("Failed to open terminal: {}", e))?;
         }
     }
@@ -160,7 +174,8 @@ pub fn open_system_terminal(app: AppHandle, cwd: Option<String>) -> Result<(), S
             working_dir.replace("'", "'\\''")
         );
 
-        app.shell().command("osascript")
+        app.shell()
+            .command("osascript")
             .args(&["-e", &script])
             .spawn()
             .map_err(|e| format!("Failed to open Terminal: {}", e))?;
@@ -174,7 +189,10 @@ pub fn open_system_terminal(app: AppHandle, cwd: Option<String>) -> Result<(), S
             ("konsole", vec!["--workdir", &working_dir]),
             ("xfce4-terminal", vec!["--working-directory", &working_dir]),
             ("mate-terminal", vec!["--working-directory", &working_dir]),
-            ("xterm", vec!["-e", &format!("cd '{}' && $SHELL", working_dir)]),
+            (
+                "xterm",
+                vec!["-e", &format!("cd '{}' && $SHELL", working_dir)],
+            ),
         ];
 
         let mut success = false;
@@ -226,8 +244,8 @@ pub fn is_wsl() -> bool {
     #[cfg(target_os = "linux")]
     {
         if let Ok(content) = std::fs::read_to_string("/proc/version") {
-            return content.to_lowercase().contains("microsoft") ||
-                   content.to_lowercase().contains("wsl");
+            return content.to_lowercase().contains("microsoft")
+                || content.to_lowercase().contains("wsl");
         }
     }
     false
@@ -236,8 +254,271 @@ pub fn is_wsl() -> bool {
 /// Open URL in default browser
 #[tauri::command]
 pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
-    app.shell().open(&url, None)
+    app.shell()
+        .open(&url, None)
         .map_err(|e| format!("Failed to open URL: {}", e))
+}
+
+/// Maximize the current window
+#[tauri::command]
+pub fn window_maximize(app: AppHandle, label: Option<String>) -> Result<(), String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    window
+        .maximize()
+        .map_err(|e| format!("Failed to maximize window: {}", e))
+}
+
+/// Minimize the current window
+#[tauri::command]
+pub fn window_minimize(app: AppHandle, label: Option<String>) -> Result<(), String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    window
+        .minimize()
+        .map_err(|e| format!("Failed to minimize window: {}", e))
+}
+
+/// Restore the current window
+#[tauri::command]
+pub fn window_unmaximize(app: AppHandle, label: Option<String>) -> Result<(), String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    window
+        .unmaximize()
+        .map_err(|e| format!("Failed to restore window: {}", e))
+}
+
+/// Toggle fullscreen mode
+#[tauri::command]
+pub fn window_toggle_fullscreen(app: AppHandle, label: Option<String>) -> Result<(), String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    let is_fullscreen = window
+        .is_fullscreen()
+        .map_err(|e| format!("Failed to check fullscreen status: {}", e))?;
+
+    window
+        .set_fullscreen(!is_fullscreen)
+        .map_err(|e| format!("Failed to toggle fullscreen: {}", e))
+}
+
+/// Check if window is maximized
+#[tauri::command]
+pub fn window_is_maximized(app: AppHandle, label: Option<String>) -> Result<bool, String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    window
+        .is_maximized()
+        .map_err(|e| format!("Failed to check maximized status: {}", e))
+}
+
+/// Check if window is fullscreen
+#[tauri::command]
+pub fn window_is_fullscreen(app: AppHandle, label: Option<String>) -> Result<bool, String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    window
+        .is_fullscreen()
+        .map_err(|e| format!("Failed to check fullscreen status: {}", e))
+}
+
+/// Get window position and size
+#[tauri::command]
+pub fn window_get_position(
+    app: AppHandle,
+    label: Option<String>,
+) -> Result<WindowPosition, String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    let position = window
+        .outer_position()
+        .map_err(|e| format!("Failed to get window position: {}", e))?;
+    let size = window
+        .outer_size()
+        .map_err(|e| format!("Failed to get window size: {}", e))?;
+
+    Ok(WindowPosition {
+        x: position.x,
+        y: position.y,
+        width: size.width,
+        height: size.height,
+    })
+}
+
+/// Set window position
+#[tauri::command]
+pub fn window_set_position(
+    app: AppHandle,
+    label: Option<String>,
+    x: i32,
+    y: i32,
+) -> Result<(), String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    use tauri::Position;
+    window
+        .set_position(Position::Physical(tauri::PhysicalPosition { x, y }))
+        .map_err(|e| format!("Failed to set window position: {}", e))
+}
+
+/// Set window size
+#[tauri::command]
+pub fn window_set_size(
+    app: AppHandle,
+    label: Option<String>,
+    width: u32,
+    height: u32,
+) -> Result<(), String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    use tauri::Size;
+    window
+        .set_size(Size::Physical(tauri::PhysicalSize { width, height }))
+        .map_err(|e| format!("Failed to set window size: {}", e))
+}
+
+/// Center the window on screen
+#[tauri::command]
+pub fn window_center(app: AppHandle, label: Option<String>) -> Result<(), String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    window
+        .center()
+        .map_err(|e| format!("Failed to center window: {}", e))
+}
+
+/// Set window title
+#[tauri::command]
+pub fn window_set_title(
+    app: AppHandle,
+    label: Option<String>,
+    title: String,
+) -> Result<(), String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    window
+        .set_title(&title)
+        .map_err(|e| format!("Failed to set window title: {}", e))
+}
+
+/// Reload the current window
+#[tauri::command]
+pub fn window_reload(app: AppHandle, label: Option<String>) -> Result<(), String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    // Evaluate JavaScript to reload the page
+    window
+        .eval("window.location.reload()")
+        .map_err(|e| format!("Failed to reload window: {}", e))
 }
 
 // Helper types and functions
@@ -250,6 +531,14 @@ pub struct SystemInfo {
     pub hostname: String,
     pub cpu_count: usize,
     pub total_memory: u64,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct WindowPosition {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
 }
 
 fn get_os_version() -> String {
@@ -282,7 +571,8 @@ fn get_os_version() -> String {
         if let Ok(content) = std::fs::read_to_string("/etc/os-release") {
             for line in content.lines() {
                 if line.starts_with("PRETTY_NAME=") {
-                    return line.split('=')
+                    return line
+                        .split('=')
                         .nth(1)
                         .unwrap_or("")
                         .trim_matches('"')

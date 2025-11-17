@@ -341,6 +341,307 @@ export const editorActions = {
         console.error('Toggle comment failed:', error);
       }
     }
+  },
+
+  // Clipboard actions
+  cut() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.clipboardCutAction')?.run();
+      } catch (error) {
+        console.error('Cut failed:', error);
+      }
+    }
+  },
+
+  copy() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.clipboardCopyAction')?.run();
+      } catch (error) {
+        console.error('Copy failed:', error);
+      }
+    }
+  },
+
+  paste() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.clipboardPasteAction')?.run();
+      } catch (error) {
+        console.error('Paste failed:', error);
+      }
+    }
+  },
+
+  // Line manipulation
+  copyLineUp() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.copyLinesUpAction')?.run();
+      } catch (error) {
+        console.error('Copy line up failed:', error);
+      }
+    }
+  },
+
+  copyLineDown() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.copyLinesDownAction')?.run();
+      } catch (error) {
+        console.error('Copy line down failed:', error);
+      }
+    }
+  },
+
+  copyLinesUp() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.copyLinesUpAction')?.run();
+      } catch (error) {
+        console.error('Copy lines up failed:', error);
+      }
+    }
+  },
+
+  copyLinesDown() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.copyLinesDownAction')?.run();
+      } catch (error) {
+        console.error('Copy lines down failed:', error);
+      }
+    }
+  },
+
+  moveLinesUp() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.moveLinesUpAction')?.run();
+      } catch (error) {
+        console.error('Move lines up failed:', error);
+      }
+    }
+  },
+
+  moveLinesDown() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.moveLinesDownAction')?.run();
+      } catch (error) {
+        console.error('Move lines down failed:', error);
+      }
+    }
+  },
+
+  deleteLines() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.deleteLines')?.run();
+      } catch (error) {
+        console.error('Delete lines failed:', error);
+      }
+    }
+  },
+
+  selectLine() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('expandLineSelection')?.run();
+      } catch (error) {
+        console.error('Select line failed:', error);
+      }
+    }
+  },
+
+  // Search actions
+  findPrevious() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.previousMatchFindAction')?.run();
+      } catch (error) {
+        console.error('Find previous failed:', error);
+      }
+    }
+  },
+
+  // Comment actions
+  commentLine() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.commentLine')?.run();
+      } catch (error) {
+        console.error('Comment line failed:', error);
+      }
+    }
+  },
+
+  toggleBlockComment() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.blockComment')?.run();
+      } catch (error) {
+        console.error('Toggle block comment failed:', error);
+      }
+    }
+  },
+
+  // Selection actions
+  expandSelection() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.smartSelect.expand')?.run();
+      } catch (error) {
+        console.error('Expand selection failed:', error);
+      }
+    }
+  },
+
+  shrinkSelection() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.smartSelect.shrink')?.run();
+      } catch (error) {
+        console.error('Shrink selection failed:', error);
+      }
+    }
+  },
+
+  // Multi-cursor actions
+  addCursorAbove() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.insertCursorAbove')?.run();
+      } catch (error) {
+        console.error('Add cursor above failed:', error);
+      }
+    }
+  },
+
+  addCursorBelow() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.insertCursorBelow')?.run();
+      } catch (error) {
+        console.error('Add cursor below failed:', error);
+      }
+    }
+  },
+
+  addSelectionToNextFindMatch() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.addSelectionToNextFindMatch')?.run();
+      } catch (error) {
+        console.error('Add selection to next find match failed:', error);
+      }
+    }
+  },
+
+  selectAllMatches() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.selectHighlights')?.run();
+      } catch (error) {
+        console.error('Select all matches failed:', error);
+      }
+    }
+  },
+
+  // View actions
+  toggleMinimap() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        // Get current minimap state
+        const model = v.getModel();
+        if (!model) return;
+
+        // Toggle minimap by updating options
+        const currentOptions = v.getRawOptions();
+        const currentMinimapEnabled = currentOptions.minimap?.enabled ?? true;
+
+        v.updateOptions({
+          minimap: {
+            enabled: !currentMinimapEnabled
+          }
+        });
+      } catch (error) {
+        console.error('Toggle minimap failed:', error);
+      }
+    }
+  },
+
+  toggleBreadcrumbs() {
+    // Note: Breadcrumbs are typically handled at the IDE level, not Monaco
+    // This is a placeholder for IDE-level breadcrumb toggle
+    console.log('Toggle breadcrumbs action called');
+  },
+
+  // Navigation actions
+  goToSymbol() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.quickOutline')?.run();
+      } catch (error) {
+        console.error('Go to symbol failed:', error);
+      }
+    }
+  },
+
+  goToReferences() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.action.goToReferences')?.run();
+      } catch (error) {
+        console.error('Go to references failed:', error);
+      }
+    }
+  },
+
+  goBack() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('workbench.action.navigateBack')?.run();
+      } catch (error) {
+        console.error('Go back failed:', error);
+      }
+    }
+  },
+
+  goForward() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('workbench.action.navigateForward')?.run();
+      } catch (error) {
+        console.error('Go forward failed:', error);
+      }
+    }
   }
 };
 
