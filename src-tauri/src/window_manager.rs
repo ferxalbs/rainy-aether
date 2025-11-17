@@ -2,21 +2,20 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_shell::ShellExt;
 
-/// Open a new window with the current or specified workspace
+/// Open a new window with StartupPage
 ///
 /// CRITICAL: Following Fluxium's EXACT pattern
 /// - Load plain "index.html" (NO URL parameters)
 /// - Just build the window, Tauri shows it automatically
-/// - Use events for workspace communication AFTER window loads
 /// - MUST be async to prevent blocking during window creation
+/// - New windows always start on StartupPage
 #[tauri::command]
-pub async fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> Result<String, String> {
+pub async fn window_open_new(app: AppHandle) -> Result<String, String> {
     let label = format!("main-{}", chrono::Utc::now().timestamp_millis());
 
-    eprintln!("[window_manager] Creating new window '{}'", label);
+    eprintln!("[window_manager] Creating new window '{}' (StartupPage)", label);
 
     // Build window - EXACTLY like Fluxium (no visible, no show, just build)
-    eprintln!("[window_manager] Building window with label: {}", label);
     let _window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
         .title("Rainy Aether")
         .inner_size(1200.0, 800.0)
@@ -27,24 +26,6 @@ pub async fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> 
         .map_err(|e| format!("Failed to build window: {}", e))?;
 
     eprintln!("[window_manager] ✓ Window '{}' created successfully", label);
-
-    // If workspace provided, emit event AFTER delay (window needs to load first)
-    // Increased delay to 2000ms to ensure frontend is fully initialized and listener is registered
-    if let Some(path) = workspace_path {
-        let label_clone = label.clone();
-        let app_clone = app.clone();
-        tokio::spawn(async move {
-            eprintln!("[window_manager] Waiting 2s before sending workspace event to '{}'...", label_clone);
-            tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-            if let Err(e) = app_clone.emit_to(&label_clone, "rainy:load-workspace", path.clone()) {
-                eprintln!("[window_manager] ⚠️ Failed to emit workspace event: {}", e);
-            } else {
-                eprintln!("[window_manager] ✓ Workspace event sent to '{}': {}", label_clone, path);
-            }
-        });
-    } else {
-        eprintln!("[window_manager] No workspace provided - window will show StartupPage");
-    }
 
     Ok(label)
 }

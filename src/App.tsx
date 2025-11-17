@@ -312,39 +312,6 @@ const App: React.FC = () => {
     initialize();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Listen for workspace loading events from new windows
-  useEffect(() => {
-    let unlisten: (() => void) | null = null;
-
-    const setupWorkspaceListener = async () => {
-      try {
-        const { listen } = await import('@tauri-apps/api/event');
-        const { useIDEStore } = await import('./stores/ideStore');
-
-        unlisten = await listen<string>('rainy:load-workspace', (event) => {
-          const workspacePath = event.payload;
-          console.log('[App] Received workspace load event:', workspacePath);
-
-          // Load the workspace (this will trigger project structure loading)
-          const { actions } = useIDEStore.getState();
-          actions.openWorkspace(workspacePath);
-        });
-
-        console.log('[App] ✓ Workspace listener registered');
-      } catch (error) {
-        console.error('[App] Failed to setup workspace listener:', error);
-      }
-    };
-
-    setupWorkspaceListener();
-
-    return () => {
-      if (unlisten) {
-        unlisten();
-      }
-    };
-  }, []);
-
   // Show loading screen while initializing or while loading state is active
   // Only show for global context, not workspace context after app is initialized
   const shouldShowLoading = !isInitialized || (loadingState.isLoading && loadingState.loadingContext === 'global');

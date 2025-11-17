@@ -572,22 +572,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <MenubarItem
             onSelect={async () => {
               const { invoke } = await import('@tauri-apps/api/core');
-              // CRITICAL: Use snake_case (workspace_path) to match Rust parameter name
-              await invoke('window_open_new', { workspace_path: null });
+              await invoke('window_open_new');
             }}
           >
             New Window
             <MenubarShortcut>{cmdKey}+Shift+N</MenubarShortcut>
-          </MenubarItem>
-          <MenubarItem
-            disabled={!hasWorkspace}
-            onSelect={async () => {
-              const { invoke } = await import('@tauri-apps/api/core');
-              // CRITICAL: Use snake_case (workspace_path) to match Rust parameter name
-              await invoke('window_open_new', { workspace_path: state().workspace?.path });
-            }}
-          >
-            Duplicate Workspace in New Window
           </MenubarItem>
           <MenubarSeparator />
           <MenubarItem
