@@ -5,11 +5,15 @@ import { useIDEStore } from '../../stores/ideStore';
 import { getCurrentTheme } from '../../stores/themeStore';
 import { getGitService, GitStatus } from '../../services/gitService';
 import { getMarkerService, MarkerStatistics } from '../../services/markerService';
+import { useNotificationStats } from '../../stores/notificationStore';
 import { IStatusBarEntry } from '@/types/statusbar';
 import { StatusBarItem } from './StatusBarItem';
 import { useCurrentProblemStatusBarEntry } from './CurrentProblemIndicator';
 import { ProblemsPopover } from './ProblemsPopover';
+import { HelpMenu } from './HelpMenu';
+import { NotificationCenter } from './NotificationCenter';
 import { cn } from '@/lib/cn';
+import { invoke } from '@tauri-apps/api/core';
 import '../../styles/statusbar.css';
 
 // Problems interface (now using MarkerStatistics)
@@ -41,7 +45,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   });
   const [problems, setProblems] = useState<Problems>({ errors: 0, warnings: 0, infos: 0, hints: 0, total: 0, unknowns: 0 });
   const [isProblemsPopoverOpen, setIsProblemsPopoverOpen] = useState(false);
+  const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
+  const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const problemsButtonRef = useRef<HTMLDivElement>(null);
+  const helpButtonRef = useRef<HTMLDivElement>(null);
+  const notificationButtonRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
   const [editorInfo, setEditorInfo] = useState<EditorInfo>({
     language: 'Plain Text',
@@ -52,9 +60,41 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     spaces: 2,
     tabSize: 2
   });
+  const [platformName, setPlatformName] = useState<string>('');
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const notificationStats = useNotificationStats();
 
   // Get current problem at cursor (if enabled in settings)
   const currentProblemEntry = useCurrentProblemStatusBarEntry();
+
+  // Load platform name on mount
+  useEffect(() => {
+    const loadPlatformInfo = async () => {
+      try {
+        const platform = await invoke<string>('get_platform_name');
+        setPlatformName(platform);
+      } catch (error) {
+        console.debug('[StatusBar] Failed to get platform name:', error);
+        setPlatformName('Unknown');
+      }
+    };
+
+    loadPlatformInfo();
+  }, []);
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Cleanup hover timeout on unmount
   useEffect(() => {
@@ -280,6 +320,37 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     };
   };
 
+  // Handle opening help menu
+  const handleHelpClick = () => {
+    setIsHelpMenuOpen(!isHelpMenuOpen);
+  };
+
+  // Handle opening notification center
+  const handleNotificationClick = () => {
+    setIsNotificationCenterOpen(!isNotificationCenterOpen);
+  };
+
+  // Handle opening new window
+  const handleNewWindow = async () => {
+    try {
+      await invoke('window_open_new', { workspacePath: state().workspace?.path });
+    } catch (error) {
+      console.error('Failed to open new window:', error);
+    }
+  };
+
+  // Handle reveal in explorer
+  const handleRevealInExplorer = async () => {
+    const snapshot = state();
+    if (snapshot.workspace?.path) {
+      try {
+        await invoke('reveal_in_explorer', { path: snapshot.workspace.path });
+      } catch (error) {
+        console.error('Failed to reveal in explorer:', error);
+      }
+    }
+  };
+
   // Define status bar items
   const statusItems: Array<IStatusBarEntry | null> = [
     // Left side items
@@ -304,6 +375,28 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     },
 
     // Right side items
+    // Network status
+    !isOnline ? {
+      id: 'network',
+      name: 'Network Status',
+      text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg> Offline',
+      tooltip: 'No internet connection',
+      kind: 'warning',
+      order: 0,
+      position: 'right'
+    } : null,
+    // Notifications
+    notificationStats.unread > 0 ? {
+      id: 'notifications',
+      name: 'Notifications',
+      text: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> ${notificationStats.unread}`,
+      tooltip: `${notificationStats.unread} unread notification${notificationStats.unread !== 1 ? 's' : ''}`,
+      onClick: handleNotificationClick,
+      kind: notificationStats.errors > 0 ? 'error' : notificationStats.warnings > 0 ? 'warning' : 'prominent',
+      order: 0,
+      position: 'right'
+    } : null,
+    // Encoding
     {
       id: 'encoding',
       name: 'File Encoding',
@@ -312,6 +405,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       order: 1,
       position: 'right'
     },
+    // Language mode
     {
       id: 'language',
       name: 'Language Mode',
@@ -320,6 +414,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       order: 2,
       position: 'right'
     },
+    // Cursor position
     {
       id: 'position',
       name: 'Cursor Position',
@@ -328,6 +423,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       order: 3,
       position: 'right'
     },
+    // Indentation
     {
       id: 'indentation',
       name: 'Indentation',
@@ -336,6 +432,16 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       order: 4,
       position: 'right'
     },
+    // Platform/OS
+    platformName ? {
+      id: 'platform',
+      name: 'Platform',
+      text: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg> ${platformName}`,
+      tooltip: `Running on ${platformName}`,
+      order: 5,
+      position: 'right'
+    } : null,
+    // Theme
     {
       id: 'theme',
       name: 'Theme',
@@ -345,12 +451,23 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       order: 6,
       position: 'right'
     },
+    // Help menu
+    {
+      id: 'help',
+      name: 'Help',
+      text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+      tooltip: 'Help and Documentation',
+      onClick: handleHelpClick,
+      order: 7,
+      position: 'right'
+    },
+    // Brand
     {
       id: 'brand',
       name: 'Rainy Aether',
-      text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> Rainy Aether',
+      text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>',
       tooltip: 'Rainy Aether IDE',
-      order: 7,
+      order: 8,
       position: 'right'
     }
   ];
@@ -390,7 +507,18 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
         {/* Right side items */}
         <div className="flex items-stretch shrink-0 ml-auto">
           {rightItems.map(item => (
-            <StatusBarItem key={item.id} entry={item} />
+            <div
+              key={item.id}
+              ref={
+                item.id === 'help'
+                  ? helpButtonRef
+                  : item.id === 'notifications'
+                  ? notificationButtonRef
+                  : undefined
+              }
+            >
+              <StatusBarItem entry={item} />
+            </div>
           ))}
         </div>
       </div>
@@ -402,6 +530,20 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
         triggerRef={problemsButtonRef}
         onMouseEnter={handlePopoverMouseEnter}
         onMouseLeave={handlePopoverMouseLeave}
+      />
+
+      {/* Help Menu */}
+      <HelpMenu
+        isOpen={isHelpMenuOpen}
+        onClose={() => setIsHelpMenuOpen(false)}
+        triggerRef={helpButtonRef}
+      />
+
+      {/* Notification Center */}
+      <NotificationCenter
+        isOpen={isNotificationCenterOpen}
+        onClose={() => setIsNotificationCenterOpen(false)}
+        triggerRef={notificationButtonRef}
       />
     </>
   );
