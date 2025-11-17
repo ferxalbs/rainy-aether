@@ -2,22 +2,23 @@
 .statusbar-item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 6px;
+  gap: 3px;
+  padding: 0 5px;
   height: 100%;
-  font-size: 12px;
-  line-height: 1;
+  font-size: 11px;
+  line-height: 1.4;
   white-space: nowrap;
-  transition: background-color 150ms ease, color 150ms ease;
+  transition: background-color 120ms ease, color 120ms ease;
   cursor: pointer;
   vertical-align: middle;
+  border-right: 1px solid transparent;
 }
 
 .statusbar-item > span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  line-height: 1;
+  gap: 3px;
+  line-height: 1.4;
 }
 
 .statusbar-item:hover {
@@ -82,8 +83,8 @@
 /* Icon spacing - ensure SVGs render inline */
 .statusbar-item svg {
   display: inline-block;
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
   vertical-align: middle;
   flex-shrink: 0;
 }

@@ -58,13 +58,13 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const [isEncodingSelectorOpen, setIsEncodingSelectorOpen] = useState(false);
   const [isLanguageSelectorOpen, setIsLanguageSelectorOpen] = useState(false);
   const [isEOLSelectorOpen, setIsEOLSelectorOpen] = useState(false);
-  const problemsButtonRef = useRef<HTMLDivElement>(null);
-  const helpButtonRef = useRef<HTMLDivElement>(null);
-  const notificationButtonRef = useRef<HTMLDivElement>(null);
-  const themeButtonRef = useRef<HTMLDivElement>(null);
-  const encodingButtonRef = useRef<HTMLDivElement>(null);
-  const languageButtonRef = useRef<HTMLDivElement>(null);
-  const eolButtonRef = useRef<HTMLDivElement>(null);
+  const problemsButtonRef = useRef<HTMLElement>(null);
+  const helpButtonRef = useRef<HTMLElement>(null);
+  const notificationButtonRef = useRef<HTMLElement>(null);
+  const themeButtonRef = useRef<HTMLElement>(null);
+  const encodingButtonRef = useRef<HTMLElement>(null);
+  const languageButtonRef = useRef<HTMLElement>(null);
+  const eolButtonRef = useRef<HTMLElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
   const [editorInfo, setEditorInfo] = useState<EditorInfo>({
     language: 'Plain Text',
@@ -313,35 +313,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     };
   };
 
-  // Handle opening help menu
-  const handleHelpClick = () => {
-    setIsHelpMenuOpen(!isHelpMenuOpen);
-  };
-
   // Handle opening notification center
   const handleNotificationClick = () => {
     setIsNotificationCenterOpen(!isNotificationCenterOpen);
-  };
-
-  // Handle opening new window
-  const handleNewWindow = async () => {
-    try {
-      await invoke('window_open_new', { workspacePath: state().workspace?.path });
-    } catch (error) {
-      console.error('Failed to open new window:', error);
-    }
-  };
-
-  // Handle reveal in explorer
-  const handleRevealInExplorer = async () => {
-    const snapshot = state();
-    if (snapshot.workspace?.path) {
-      try {
-        await invoke('reveal_in_explorer', { path: snapshot.workspace.path });
-      } catch (error) {
-        console.error('Failed to reveal in explorer:', error);
-      }
-    }
   };
 
   // Handle encoding change
@@ -624,14 +598,14 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       <ThemeSelector
         isOpen={isThemeSelectorOpen}
         onClose={() => setIsThemeSelectorOpen(false)}
-        triggerRef={themeButtonRef}
+        triggerRef={themeButtonRef as React.RefObject<HTMLElement>}
       />
 
       {/* Encoding Selector */}
       <EncodingSelector
         isOpen={isEncodingSelectorOpen}
         onClose={() => setIsEncodingSelectorOpen(false)}
-        triggerRef={encodingButtonRef}
+        triggerRef={encodingButtonRef as React.RefObject<HTMLElement>}
         currentEncoding={editorInfo.encoding}
         onEncodingChange={handleEncodingChange}
       />
@@ -640,7 +614,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       <LanguageModeSelector
         isOpen={isLanguageSelectorOpen}
         onClose={() => setIsLanguageSelectorOpen(false)}
-        triggerRef={languageButtonRef}
+        triggerRef={languageButtonRef as React.RefObject<HTMLElement>}
         currentLanguage={editorInfo.language}
         onLanguageChange={handleLanguageChange}
       />
@@ -649,7 +623,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       <EOLSelector
         isOpen={isEOLSelectorOpen}
         onClose={() => setIsEOLSelectorOpen(false)}
-        triggerRef={eolButtonRef}
+        triggerRef={eolButtonRef as React.RefObject<HTMLElement>}
         currentEOL={eol}
         onEOLChange={handleEOLChange}
       />
