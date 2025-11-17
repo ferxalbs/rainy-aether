@@ -24,6 +24,8 @@
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "store:default",
+    "global-shortcut:default",
+    "updater:default",
     "opener:default",
     "dialog:default",
     "dialog:allow-open",

@@ -8,8 +8,9 @@ use tauri_plugin_shell::ShellExt;
 /// - Load plain "index.html" (NO URL parameters)
 /// - Just build the window, Tauri shows it automatically
 /// - Use events for workspace communication AFTER window loads
+/// - MUST be async to prevent blocking during window creation
 #[tauri::command]
-pub fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> Result<String, String> {
+pub async fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> Result<String, String> {
     let label = format!("main-{}", chrono::Utc::now().timestamp_millis());
 
     eprintln!("[window_manager] Creating new window '{}'", label);
@@ -23,7 +24,7 @@ pub fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> Result
         .decorations(true)
         .center()
         .build()
-        .unwrap(); // Use unwrap like Fluxium to see actual error
+        .map_err(|e| format!("Failed to build window: {}", e))?;
 
     eprintln!("[window_manager] ✓ Window '{}' created successfully", label);
 
@@ -31,8 +32,8 @@ pub fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> Result
     if let Some(path) = workspace_path {
         let label_clone = label.clone();
         let app_clone = app.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(1000));
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
             if let Err(e) = app_clone.emit_to(&label_clone, "rainy:load-workspace", path) {
                 eprintln!("[window_manager] ⚠️ Failed to emit workspace: {}", e);
             } else {
