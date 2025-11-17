@@ -14,3 +14,4 @@ export { AgentSelector } from './AgentSelector';
 export { ToolExecutionView } from './ToolExecutionView';
 export { EnhancedToolView } from './EnhancedToolView';
 export { SuggestionsPanel } from './SuggestionsPanel';
+export { ApiKeyDialog } from './ApiKeyDialog';

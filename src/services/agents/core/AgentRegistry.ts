@@ -118,6 +118,12 @@ export class AgentRegistry {
    */
   private async performInitialization(): Promise<void> {
     try {
+      // Import API key actions
+      const { apiKeyActions } = await import('@/stores/apiKeyStore');
+
+      // Initialize API key store to check for existing keys
+      await apiKeyActions.initialize();
+
       // Dynamically import and register Rainy Agent
       const { RainyAgent } = await import('../rainy/RainyAgent');
       const rainy = new RainyAgent();
@@ -141,6 +147,86 @@ export class AgentRegistry {
       console.error('❌ Failed to initialize AgentRegistry:', error);
       throw error;
     }
+  }
+
+  /**
+   * Initialize an agent with API keys
+   *
+   * This method initializes an agent by fetching its API key from secure storage.
+   * It should be called before using an agent for the first time.
+   *
+   * @param agentId - Agent ID to initialize
+   * @returns True if initialization succeeded
+   */
+  async initializeAgent(agentId: string): Promise<boolean> {
+    const metadata = this.agents.get(agentId);
+    if (!metadata) {
+      console.error(`❌ Agent not found: ${agentId}`);
+      return false;
+    }
+
+    // Skip if already initialized
+    if (metadata.initialized) {
+      console.log(`✅ Agent ${agentId} already initialized`);
+      return true;
+    }
+
+    try {
+      // Import API key actions
+      const { apiKeyActions } = await import('@/stores/apiKeyStore');
+
+      // Determine provider for this agent
+      const agent = metadata.agent;
+      const config = agent.getConfig();
+      const providerId = config.provider as 'groq' | 'google';
+
+      // Get API key for the provider
+      const apiKey = await apiKeyActions.getKey(providerId);
+
+      if (!apiKey) {
+        console.warn(
+          `⚠️ No API key found for ${providerId}. Agent ${agentId} not initialized.`
+        );
+        return false;
+      }
+
+      // Initialize the agent with the API key
+      await agent.initialize({
+        apiKey,
+        workspaceRoot: undefined, // Will be set by session
+        userId: undefined,
+      });
+
+      // Mark as initialized
+      metadata.initialized = true;
+      console.log(`✅ Agent ${agentId} initialized with ${providerId} provider`);
+
+      return true;
+    } catch (error) {
+      console.error(`❌ Failed to initialize agent ${agentId}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Initialize all agents with their API keys
+   *
+   * Attempts to initialize all registered agents by fetching their API keys.
+   *
+   * @returns Number of successfully initialized agents
+   */
+  async initializeAllAgents(): Promise<number> {
+    let initialized = 0;
+
+    for (const agentId of this.agents.keys()) {
+      const success = await this.initializeAgent(agentId);
+      if (success) {
+        initialized++;
+      }
+    }
+
+    console.log(`✅ Initialized ${initialized}/${this.agents.size} agents`);
+    return initialized;
   }
 
   /**

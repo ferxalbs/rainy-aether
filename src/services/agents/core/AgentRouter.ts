@@ -175,6 +175,19 @@ export class AgentRouter {
         `🚦 Routing to ${agent.name} (${agent.id}) using ${strategy} strategy`
       );
 
+      // Ensure agent is initialized with API key
+      const metadata = this.registry.getMetadata(agent.id);
+      if (!metadata?.initialized) {
+        console.log(`🔑 Initializing ${agent.id} with API key...`);
+        const success = await this.registry.initializeAgent(agent.id);
+
+        if (!success) {
+          throw new Error(
+            `Agent ${agent.id} could not be initialized. Please configure API keys in Settings.`
+          );
+        }
+      }
+
       // Track active request
       this.incrementActive(agent.id);
 
@@ -232,6 +245,19 @@ export class AgentRouter {
       console.log(
         `🚦 Streaming to ${agent.name} (${agent.id}) using ${strategy} strategy`
       );
+
+      // Ensure agent is initialized with API key
+      const metadata = this.registry.getMetadata(agent.id);
+      if (!metadata?.initialized) {
+        console.log(`🔑 Initializing ${agent.id} with API key...`);
+        const success = await this.registry.initializeAgent(agent.id);
+
+        if (!success) {
+          throw new Error(
+            `Agent ${agent.id} could not be initialized. Please configure API keys in Settings.`
+          );
+        }
+      }
 
       // Track active request
       this.incrementActive(agent.id);
