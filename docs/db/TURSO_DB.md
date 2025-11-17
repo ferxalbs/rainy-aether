@@ -1,3 +1,162 @@
+Con **turso 0.3.2** puedes usar el motor original reescrito en Rust como base de datos embebida para el IDE, abriendo un `.db` local y hablando con él vía una API async muy parecida a SQLite.[1][2][3]
+Ten en cuenta que este motor está marcado como beta y no se recomienda todavía para datos críticos en producción, pero encaja muy bien para storage interno del IDE.[3][1]
+
+### Dependencias en `Cargo.toml`
+
+Para fijar exactamente la versión que quieres:[2][1]
+
+```toml
+[dependencies]
+turso = "0.3.2"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+```
+
+`tokio` es necesario porque la API de Turso es async, y `anyhow` solo es por ergonomía en ejemplos.[1][3]
+
+Si más adelante te interesa usar macros auxiliares (por ejemplo, para parámetros), existe también `turso_macros = "0.3.2"`, aunque para un uso directo en el IDE no es obligatorio.[4][1]
+
+***
+
+### Ejemplo mínimo local con `ide.db`
+
+La forma recomendada de usar Turso en Rust es crear una base local con `Builder::new_local("archivo.db")`, construirla y luego abrir un `Connection`.[3][1]
+
+```rust
+use turso::Builder;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // Crea o abre ide.db en el directorio actual
+    let db = Builder::new_local("ide.db").build().await?;
+    let conn = db.connect()?;
+
+    // Crear tabla de settings del IDE
+    conn.execute(
+        r#"
+        CREATE TABLE IF NOT EXISTS settings (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        "#,
+        (),
+    ).await?;
+
+    // Insertar un setting
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?1, ?2)",
+        ("theme", "dark"),
+    ).await?;
+
+    // Leer settings
+    let res = conn.execute(
+        "SELECT key, value FROM settings",
+        (),
+    ).await?;
+
+    for row in res.rows {
+        let key = row.values[0].to_string();
+        let value = row.values[1].to_string();
+        println!("{key} = {value}");
+    }
+
+    Ok(())
+}
+```
+
+Este patrón (builder → `build().await` → `connect()` → `execute`) es el mismo que Turso muestra en su README y en su referencia de consultas simples.[5][3]
+
+***
+
+### Patrón de uso para el IDE
+
+Para el IDE, la idea sería tratar `ide.db` como tu “storage interno” para settings, proyectos, historiales y quizá índices ligeros.[6][3]
+
+- **Ubicación del archivo**: puedes poner `ide.db` en una carpeta de datos del usuario (por ejemplo, `~/.rainy-aether/ide.db` o equivalente por plataforma) en lugar del working dir.[7][3]
+- **Conexión compartida**: crea el `Database` al arrancar el proceso del IDE y comparte un `Connection` (o pool simple) mediante `Arc` hacia los subsistemas que necesiten leer/escribir.[5][3]
+- **Esquema típico**: tablas como `projects`, `files`, `settings`, `ai_sessions`, etc., usando siempre `conn.execute(...)` con parámetros posicionales `?1, ?2` para evitar SQL injection y mantener el código claro.[8][5]
+
+Ejemplo de creación de una tabla de proyectos y uso desde el core del IDE:[3][5]
+
+```rust
+pub async fn init_schema(conn: &turso::Connection) -> anyhow::Result<()> {
+    conn.execute(
+        r#"
+        CREATE TABLE IF NOT EXISTS projects (
+            id         TEXT PRIMARY KEY,
+            name       TEXT NOT NULL,
+            path       TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        );
+        "#,
+        (),
+    ).await?;
+    Ok(())
+}
+
+pub async fn add_project(
+    conn: &turso::Connection,
+    id: &str,
+    name: &str,
+    path: &str,
+    created_at: i64,
+) -> anyhow::Result<()> {
+    conn.execute(
+        "INSERT INTO projects (id, name, path, created_at) VALUES (?1, ?2, ?3, ?4)",
+        (id, name, path, created_at),
+    ).await?;
+    Ok(())
+}
+```
+
+***
+
+### Notas importantes para tu caso
+
+Turso Database (el crate `turso`) es un motor **embebido** en proceso, no es el servicio Turso cloud ni usa libsql; todo ocurre en un archivo SQLite compatible que vive dentro del proceso del IDE.[1][3]
+
+Eso significa que para features futuras de sync multi‑dispositivo necesitarías combinar este enfoque con otra capa (por ejemplo export/import con Turso cloud o usar libSQL para replicas embebidas), pero para almacenamiento local del IDE es muy adecuado.[9][6]
+
+La propia documentación aclara que la reescritura en Rust sigue en beta, por lo que conviene tratarla como “experimental pero perfecta para tooling” más que como base de datos de misión crítica.[10][3]
+
+Si quieres, el siguiente paso puede ser diseñar un módulo `storage` genérico (trait) y una implementación concreta sobre `turso::Connection` para que en el futuro puedas enchufar otra implementación (por ejemplo libSQL+embedded replica) sin tocar el resto del IDE.[11][5]
+
+[1](https://docs.rs/crate/turso/0.3.2)
+[2](https://crates.io/crates/turso)
+[3](https://github.com/tursodatabase/turso)
+[4](https://crates.io/crates/turso_macros)
+[5](https://docs.turso.tech/sdk/rust/reference)
+[6](https://turso.tech/blog/introducing-embedded-replicas-deploy-turso-anywhere-2085aa0dc242)
+[7](https://turso.tech/blog/turso-cli-is-now-open-source-66fd8130f5c9)
+[8](https://www.shuttle.dev/blog/2023/07/28/turso-shuttle-integration-cats-api)
+[9](https://turso-notrab-mar-241-update-rust-quickstart-and-reference-docs.mintlify.app/features/embedded-replicas)
+[10](https://www.npmjs.com/package/@tursodatabase/database)
+[11](https://codethoughts.io/posts/2024-10-01-improved-turso-ergonomics-in-rust/)
+[12](https://crates.io/crates/turso_core/0.3.2)
+[13](https://github.com/tursodatabase/turso/releases)
+[14](https://docs.turso.tech)
+[15](https://docs.rs/turso)
+[16](https://turso.tech/blog/leveraging-tursos-embedded-replicas-in-real-world-applications-3250e2e2)
+[17](https://avi.im/blag/2025/rickrolling-turso/)
+[18](https://turso.tech/blog/databases-for-all-your-ai-apps)
+[19](https://docs.turso.tech/features/embedded-replicas/introduction)
+[20](https://docs.turso.tech/sdk/php/reference)
+[21](https://docs.turso.tech/sdk/rust/quickstart)
+[22](https://turso.tech/blog/do-it-yourself-database-cdn-with-embedded-replicas)
+[23](https://docs.turso.tech/sdk/python/reference)
+[24](https://www.reddit.com/r/sqlite/comments/1n7degs/turso_a_complete_rewrite_of_sqlite_in_rust/)
+[25](https://docs.turso.tech/sdk/http/quickstart)
+[26](https://turso.tech/blog/local-first-cloud-connected-sqlite-with-turso-embedded-replicas)
+[27](https://turso.tech/blog/turso-offline-sync-public-beta)
+[28](https://turso.tech/blog/beyond-the-single-writer-limitation-with-tursos-concurrent-writes)
+[29](https://docs.turso.tech/sdk/python/quickstart)
+[30](https://docs.turso.tech/tursodb/quickstart)
+[31](https://turso.tech/blog/migrating-and-importing-sqlite-to-turso-just-got-easier)
+[32](https://docs.turso.tech/sdk/c/quickstart)
+[33](https://kitemetric.com/blogs/unlocking-the-power-of-offline-sync-with-turso)
+[34](https://turso.tech/blog/create-a-distributed-api-for-your-e-commerce-store-using-cloudflare-and-turso-fa449c932240)
+[35](https://www.reddit.com/r/learnprogramming/comments/1c43ev0/help_with_rust_integration_tests_sharing_a_common/)
+
 Tener el **historial del agente** en Turso local es un encaje natural: es SQLite‑compatible, embebido en el proceso del IDE y la API async en Rust es suficientemente simple para consultas frecuentes de “últimos N mensajes”.[^1][^2][^3]
 La idea es modelar sesiones y mensajes en tablas normales, con índices por sesión/tiempo para reconstruir rápido el contexto cuando el agente vuelve a actuar.[^4][^3]
 
