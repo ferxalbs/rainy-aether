@@ -29,17 +29,21 @@ pub async fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> 
     eprintln!("[window_manager] ✓ Window '{}' created successfully", label);
 
     // If workspace provided, emit event AFTER delay (window needs to load first)
+    // Increased delay to 2000ms to ensure frontend is fully initialized and listener is registered
     if let Some(path) = workspace_path {
         let label_clone = label.clone();
         let app_clone = app.clone();
         tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-            if let Err(e) = app_clone.emit_to(&label_clone, "rainy:load-workspace", path) {
-                eprintln!("[window_manager] ⚠️ Failed to emit workspace: {}", e);
+            eprintln!("[window_manager] Waiting 2s before sending workspace event to '{}'...", label_clone);
+            tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+            if let Err(e) = app_clone.emit_to(&label_clone, "rainy:load-workspace", path.clone()) {
+                eprintln!("[window_manager] ⚠️ Failed to emit workspace event: {}", e);
             } else {
-                eprintln!("[window_manager] ✓ Workspace event sent to '{}'", label_clone);
+                eprintln!("[window_manager] ✓ Workspace event sent to '{}': {}", label_clone, path);
             }
         });
+    } else {
+        eprintln!("[window_manager] No workspace provided - window will show StartupPage");
     }
 
     Ok(label)

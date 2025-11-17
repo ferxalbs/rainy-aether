@@ -1010,27 +1010,40 @@ const initializeFromStorage = async () => {
   const savedRecentWorkspaces = await loadFromStore<Workspace[]>("rainy-coder-recent-workspaces", []);
   console.log('[IDE] Loaded recent workspaces from storage:', savedRecentWorkspaces.length);
 
-  // Check if a workspace was provided via URL (for new windows)
-  const workspaceFromURL = getWorkspaceFromURL();
+  // IMPORTANT: New windows should NOT auto-load last workspace
+  // They will either:
+  // 1. Receive a 'rainy:load-workspace' event (for Duplicate Workspace)
+  // 2. Stay on StartupPage (for New Window)
+  //
+  // Only the MAIN window (first startup) should load last workspace
   let initialWorkspace: Workspace | null = null;
 
-  if (workspaceFromURL) {
-    // Use workspace from URL (new window with specific workspace)
-    const folderName = workspaceFromURL.replace(/\\/g, "/").split("/").pop() || "Unknown";
-    initialWorkspace = {
-      name: folderName,
-      path: workspaceFromURL,
-      type: "folder",
-    };
-    console.log('[IDE] ✓ Using workspace from URL:', initialWorkspace);
-  } else {
-    // Fall back to last workspace from storage (normal startup)
-    initialWorkspace = savedRecentWorkspaces[0] ?? null;
-    if (initialWorkspace) {
-      console.log('[IDE] Using last workspace from storage:', initialWorkspace);
+  // Check if this is the main window by checking the window label
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    const currentWindow = getCurrentWindow();
+    const label = currentWindow.label;
+
+    console.log('[IDE] Current window label:', label);
+
+    // Main window has label "main", new windows have "main-{timestamp}"
+    if (label === 'main') {
+      // Main window: load last workspace from storage
+      initialWorkspace = savedRecentWorkspaces[0] ?? null;
+      if (initialWorkspace) {
+        console.log('[IDE] Main window - loading last workspace from storage:', initialWorkspace);
+      } else {
+        console.log('[IDE] Main window - no workspace found, will show StartupPage');
+      }
     } else {
-      console.log('[IDE] No workspace found - will show StartupPage');
+      // New window: don't load workspace, wait for event or stay on startup
+      console.log('[IDE] New window - staying on StartupPage, waiting for workspace event');
+      initialWorkspace = null;
     }
+  } catch (error) {
+    console.error('[IDE] Failed to get window label, assuming main window:', error);
+    // Fallback: assume main window
+    initialWorkspace = savedRecentWorkspaces[0] ?? null;
   }
 
   const [sidebarOpen, autoSaveEnabled, zenModeEnabled, sidebarActive, viewMode] = await Promise.all([
