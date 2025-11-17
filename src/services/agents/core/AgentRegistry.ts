@@ -209,6 +209,9 @@ export class AgentRegistry {
         console.warn(
           `⚠️ No API key found for ${providerId}. Agent ${agentId} not initialized.`
         );
+        console.warn(
+          `💡 Please configure your ${providerId === 'groq' ? 'Groq' : 'Google AI'} API key in Settings to use the ${agentId} agent.`
+        );
         return false;
       }
 

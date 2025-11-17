@@ -182,8 +182,14 @@ export class AgentRouter {
         const success = await this.registry.initializeAgent(agent.id);
 
         if (!success) {
+          // Get the agent's provider for a more helpful error message
+          const config = agent.getConfig();
+          const provider = config.provider;
+          const providerName = provider === 'groq' ? 'Groq' : 'Google AI';
+
           throw new Error(
-            `Agent ${agent.id} could not be initialized. Please configure API keys in Settings.`
+            `Agent '${agent.name}' requires a ${providerName} API key. ` +
+            `Please configure your API key in Settings to continue.`
           );
         }
       }
@@ -253,8 +259,14 @@ export class AgentRouter {
         const success = await this.registry.initializeAgent(agent.id);
 
         if (!success) {
+          // Get the agent's provider for a more helpful error message
+          const config = agent.getConfig();
+          const provider = config.provider;
+          const providerName = provider === 'groq' ? 'Groq' : 'Google AI';
+
           throw new Error(
-            `Agent ${agent.id} could not be initialized. Please configure API keys in Settings.`
+            `Agent '${agent.name}' requires a ${providerName} API key. ` +
+            `Please configure your API key in Settings to continue.`
           );
         }
       }

@@ -7,6 +7,8 @@ import { ApiKeyDialog } from './ApiKeyDialog';
 import { useApiKeys, apiKeyActions } from '@/stores/apiKeyStore';
 import type { ToolCall } from '@/types/rustAgent';
 import { roleToSender } from '@/types/chat';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { AlertCircle } from 'lucide-react';
 
 /**
  * Local Message interface for UI display
@@ -46,6 +48,7 @@ export function ChatMain() {
   const [selectedModel, setSelectedModel] = useState(selectedAgentId);
   const [isConversationStarted, setIsConversationStarted] = useState(false);
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Initialize API key store on mount
   useEffect(() => {
@@ -126,10 +129,22 @@ export function ChatMain() {
       });
 
       setMessage('');
+      setErrorMessage(null); // Clear any previous errors
     } catch (error) {
       // If error mentions API keys, show dialog
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('API key') || errorMessage.includes('configure')) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('Failed to send message:', error);
+
+      // Set error message for display
+      setErrorMessage(errorMsg);
+
+      if (
+        errorMsg.includes('API key') ||
+        errorMsg.includes('configure') ||
+        errorMsg.includes('initialize') ||
+        errorMsg.includes('Credential not found')
+      ) {
+        console.log('Showing API key dialog due to credential error');
         setShowApiKeyDialog(true);
       }
     }
@@ -155,10 +170,22 @@ export function ChatMain() {
       });
 
       setMessage('');
+      setErrorMessage(null); // Clear any previous errors
     } catch (error) {
       // If error mentions API keys, show dialog
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('API key') || errorMessage.includes('configure')) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('Failed to send message:', error);
+
+      // Set error message for display
+      setErrorMessage(errorMsg);
+
+      if (
+        errorMsg.includes('API key') ||
+        errorMsg.includes('configure') ||
+        errorMsg.includes('initialize') ||
+        errorMsg.includes('Credential not found')
+      ) {
+        console.log('Showing API key dialog due to credential error');
         setShowApiKeyDialog(true);
       }
     }
@@ -168,6 +195,22 @@ export function ChatMain() {
     return (
       <>
         <div className="flex flex-col h-full">
+          {/* Error Alert */}
+          {errorMessage && (
+            <Alert variant="destructive" className="m-4 mb-0">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex items-start justify-between gap-2">
+                <span>{errorMessage}</span>
+                <button
+                  onClick={() => setErrorMessage(null)}
+                  className="text-sm underline hover:no-underline shrink-0"
+                >
+                  Dismiss
+                </button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <ChatConversationView
             messages={messages}
             message={message}
@@ -196,6 +239,7 @@ export function ChatMain() {
           onOpenChange={setShowApiKeyDialog}
           onComplete={() => {
             setShowApiKeyDialog(false);
+            setErrorMessage(null); // Clear error when dialog completes
             // Optionally retry the message after keys are configured
           }}
         />
@@ -205,15 +249,33 @@ export function ChatMain() {
 
   return (
     <>
-      <ChatWelcomeScreen
-        message={message}
-        onMessageChange={setMessage}
-        onSend={handleSend}
-        selectedMode={selectedMode}
-        onModeChange={setSelectedMode}
-        selectedModel={selectedAgent?.name || selectedAgentId}
-        onModelChange={setSelectedModel}
-      />
+      <div className="flex flex-col h-full">
+        {/* Error Alert */}
+        {errorMessage && (
+          <Alert variant="destructive" className="m-4 mb-0">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-start justify-between gap-2">
+              <span>{errorMessage}</span>
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="text-sm underline hover:no-underline shrink-0"
+              >
+                Dismiss
+              </button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <ChatWelcomeScreen
+          message={message}
+          onMessageChange={setMessage}
+          onSend={handleSend}
+          selectedMode={selectedMode}
+          onModeChange={setSelectedMode}
+          selectedModel={selectedAgent?.name || selectedAgentId}
+          onModelChange={setSelectedModel}
+        />
+      </div>
 
       {/* API Key Dialog */}
       <ApiKeyDialog
@@ -221,6 +283,7 @@ export function ChatMain() {
         onOpenChange={setShowApiKeyDialog}
         onComplete={() => {
           setShowApiKeyDialog(false);
+          setErrorMessage(null); // Clear error when dialog completes
         }}
       />
     </>

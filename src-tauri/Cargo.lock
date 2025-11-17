@@ -3805,6 +3805,7 @@ dependencies = [
  "git2",
  "keyring",
  "notify",
+ "once_cell",
  "parking_lot",
  "portable-pty",
  "regex",

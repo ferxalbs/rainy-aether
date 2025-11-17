@@ -1,5 +1,8 @@
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
 
 /// Represents a stored credential for an AI provider
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -9,9 +12,18 @@ pub struct ProviderCredential {
     pub updated_at: i64,
 }
 
+/// In-memory cache for credentials (fallback for Windows Credential Manager issues)
+///
+/// Windows Credential Manager sometimes has sync delays where credentials
+/// cannot be retrieved immediately after being stored. This cache provides
+/// a fallback mechanism.
+static CREDENTIAL_CACHE: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| {
+    Mutex::new(HashMap::new())
+});
+
 /// Manages secure storage of API credentials using OS keychain
 ///
-/// - **Windows**: Windows Credential Manager
+/// - **Windows**: Windows Credential Manager (with in-memory cache fallback)
 /// - **macOS**: Keychain Services
 /// - **Linux**: Secret Service API (via D-Bus)
 pub struct CredentialManager;
@@ -42,12 +54,30 @@ impl CredentialManager {
             return Err("API key cannot be empty".to_string());
         }
 
+        println!("🔐 Storing credential for provider: '{}' with service: '{}'", provider_id, Self::SERVICE_NAME);
+
+        // Create entry and store immediately
         let entry = Entry::new(Self::SERVICE_NAME, provider_id)
-            .map_err(|e| format!("Failed to create keychain entry: {}", e))?;
+            .map_err(|e| {
+                println!("❌ Failed to create entry for store: {}", e);
+                format!("Failed to create keychain entry: {}", e)
+            })?;
 
         entry
             .set_password(api_key)
-            .map_err(|e| format!("Failed to store credential in keychain: {}", e))?;
+            .map_err(|e| {
+                println!("❌ Failed to set password: {}", e);
+                format!("Failed to store credential in keychain: {}", e)
+            })?;
+
+        println!("✅ Successfully stored credential for provider: '{}'", provider_id);
+
+        // Cache the credential in memory for immediate access
+        // This works around Windows Credential Manager sync delays
+        if let Ok(mut cache) = CREDENTIAL_CACHE.lock() {
+            cache.insert(provider_id.to_string(), api_key.to_string());
+            println!("💾 Cached credential in memory for immediate access");
+        }
 
         Ok(())
     }
@@ -65,12 +95,38 @@ impl CredentialManager {
             return Err("Provider ID cannot be empty".to_string());
         }
 
-        let entry = Entry::new(Self::SERVICE_NAME, provider_id)
-            .map_err(|e| format!("Failed to create keychain entry: {}", e))?;
+        println!("🔍 Attempting to retrieve credential for provider: '{}' with service: '{}'", provider_id, Self::SERVICE_NAME);
 
-        entry
+        // Try cache first (for immediate access after storing)
+        if let Ok(cache) = CREDENTIAL_CACHE.lock() {
+            if let Some(cached_key) = cache.get(provider_id) {
+                println!("✅ Retrieved credential from cache for provider: '{}'", provider_id);
+                return Ok(cached_key.clone());
+            }
+        }
+
+        // Fall back to keychain
+        let entry = Entry::new(Self::SERVICE_NAME, provider_id)
+            .map_err(|e| {
+                println!("❌ Failed to create keychain entry: {}", e);
+                format!("Failed to create keychain entry: {}", e)
+            })?;
+
+        let password = entry
             .get_password()
-            .map_err(|e| format!("Credential not found or access denied: {}", e))
+            .map_err(|e| {
+                println!("❌ Failed to retrieve password from keychain: {}", e);
+                format!("Credential not found or access denied: {}", e)
+            })?;
+
+        println!("✅ Successfully retrieved credential from keychain for provider: '{}'", provider_id);
+
+        // Cache it for next time
+        if let Ok(mut cache) = CREDENTIAL_CACHE.lock() {
+            cache.insert(provider_id.to_string(), password.clone());
+        }
+
+        Ok(password)
     }
 
     /// Delete a credential from the OS keychain
@@ -86,6 +142,13 @@ impl CredentialManager {
             return Err("Provider ID cannot be empty".to_string());
         }
 
+        // Remove from cache
+        if let Ok(mut cache) = CREDENTIAL_CACHE.lock() {
+            cache.remove(provider_id);
+            println!("🗑️ Removed credential from cache for provider: '{}'", provider_id);
+        }
+
+        // Remove from keychain
         let entry = Entry::new(Self::SERVICE_NAME, provider_id)
             .map_err(|e| format!("Failed to create keychain entry: {}", e))?;
 

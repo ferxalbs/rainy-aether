@@ -199,12 +199,20 @@ export const apiKeyActions = {
    */
   async getKey(provider: ProviderId): Promise<string | null> {
     try {
+      console.log(`🔍 Attempting to get API key for provider: ${provider}`);
       const key = await invoke<string>('agent_get_credential', {
         providerId: provider,
       });
+      console.log(`✅ Successfully retrieved API key for ${provider} (length: ${key?.length || 0})`);
       return key;
     } catch (error) {
-      console.error(`Failed to get API key for ${provider}:`, error);
+      console.error(`❌ Failed to get API key for ${provider}:`, error);
+
+      // Check if we have it in local state (fallback)
+      if (state.status[provider]?.configured) {
+        console.warn(`⚠️ Key retrieval failed but state shows configured. This might be a timing issue.`);
+      }
+
       return null;
     }
   },
