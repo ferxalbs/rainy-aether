@@ -955,9 +955,54 @@ interface IDEContextValue {
 
 const IDEContext = createContext<IDEContextValue | undefined>(undefined);
 
+/**
+ * Parse workspace path from URL query parameters
+ * Used when a new window is opened with a specific workspace
+ */
+const getWorkspaceFromURL = (): string | null => {
+  try {
+    if (typeof window === 'undefined') return null;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const workspacePath = urlParams.get('workspace');
+
+    if (workspacePath) {
+      // Decode the workspace path
+      const decodedPath = decodeURIComponent(workspacePath);
+      console.log('[IDE] Found workspace in URL:', decodedPath);
+      return decodedPath;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[IDE] Failed to parse workspace from URL:', error);
+    return null;
+  }
+};
+
 const initializeFromStorage = async () => {
   const savedRecentWorkspaces = await loadFromStore<Workspace[]>("rainy-coder-recent-workspaces", []);
-  const lastWorkspace = savedRecentWorkspaces[0] ?? null;
+
+  // Check if a workspace was provided via URL (for new windows)
+  const workspaceFromURL = getWorkspaceFromURL();
+  let initialWorkspace: Workspace | null = null;
+
+  if (workspaceFromURL) {
+    // Use workspace from URL (new window with specific workspace)
+    const folderName = workspaceFromURL.replace(/\\/g, "/").split("/").pop() || "Unknown";
+    initialWorkspace = {
+      name: folderName,
+      path: workspaceFromURL,
+      type: "folder",
+    };
+    console.log('[IDE] Using workspace from URL:', initialWorkspace);
+  } else {
+    // Fall back to last workspace from storage (normal startup)
+    initialWorkspace = savedRecentWorkspaces[0] ?? null;
+    if (initialWorkspace) {
+      console.log('[IDE] Using last workspace from storage:', initialWorkspace);
+    }
+  }
 
   const [sidebarOpen, autoSaveEnabled, zenModeEnabled, sidebarActive, viewMode] = await Promise.all([
     loadFromStore<boolean>("rainy-coder-sidebar-open", true),
@@ -977,10 +1022,10 @@ const initializeFromStorage = async () => {
     viewMode,
   }));
 
-  // Open last workspace after setting other preferences
+  // Open workspace after setting other preferences
   // This ensures openWorkspace's state changes aren't overwritten
-  if (lastWorkspace) {
-    await openWorkspace(lastWorkspace, false);
+  if (initialWorkspace) {
+    await openWorkspace(initialWorkspace, false);
   }
 };
 
