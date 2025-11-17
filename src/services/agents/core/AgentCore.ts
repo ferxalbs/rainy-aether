@@ -275,8 +275,8 @@ export abstract class AgentCore {
     const startTime = Date.now();
 
     try {
-      // Stream LangGraph execution
-      const stream = this.langGraphAgent.stream(
+      // Invoke LangGraph execution
+      const result = await this.langGraphAgent.invoke(
         { messages: [new HumanMessage(message)] },
         {
           configurable: {
@@ -288,18 +288,30 @@ export abstract class AgentCore {
         }
       );
 
-      // Process stream
-      for await (const chunk of stream) {
-        const messages = chunk.messages || [];
-        const lastMessage = messages[messages.length - 1];
+      // Extract content from result
+      const messages = result.messages || [];
+      const lastMessage = messages[messages.length - 1];
 
-        if (lastMessage?.content) {
-          fullContent = lastMessage.content.toString();
-        }
+      if (lastMessage?.content) {
+        fullContent = lastMessage.content.toString();
+      }
 
-        if (lastMessage?.tool_calls) {
-          toolCalls.push(...lastMessage.tool_calls);
+      // Extract tool calls from intermediate steps
+      if (result.intermediate_steps) {
+        for (const step of result.intermediate_steps) {
+          if (step.action?.tool) {
+            toolCalls.push({
+              id: `tool-${toolCalls.length}`,
+              name: step.action.tool,
+              args: step.action.toolInput || {},
+            });
+          }
         }
+      }
+
+      // Also check for tool_calls in the last message
+      if (lastMessage?.tool_calls) {
+        toolCalls.push(...lastMessage.tool_calls);
       }
 
       const executionTime = Date.now() - startTime;

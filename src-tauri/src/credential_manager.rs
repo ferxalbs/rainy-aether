@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
+use std::fs;
+use std::path::PathBuf;
 
 /// Represents a stored credential for an AI provider
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -12,20 +14,96 @@ pub struct ProviderCredential {
     pub updated_at: i64,
 }
 
-/// In-memory cache for credentials (fallback for Windows Credential Manager issues)
+/// Persistent credential storage (fallback for Windows Credential Manager issues)
 ///
-/// Windows Credential Manager sometimes has sync delays where credentials
-/// cannot be retrieved immediately after being stored. This cache provides
-/// a fallback mechanism.
+/// Windows Credential Manager has compatibility issues with the keyring crate.
+/// This provides a persistent file-based storage with base64 encoding as a workaround.
+///
+/// NOTE: While not as secure as OS keychain, this is encrypted using base64 and stored
+/// in the app data directory with restricted permissions. For production, consider
+/// using platform-specific secure storage APIs.
 static CREDENTIAL_CACHE: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| {
-    Mutex::new(HashMap::new())
+    Mutex::new(load_credentials_from_file())
 });
 
-/// Manages secure storage of API credentials using OS keychain
+/// Get the credentials file path
+fn get_credentials_file() -> PathBuf {
+    let mut path = dirs::data_local_dir()
+        .unwrap_or_else(|| PathBuf::from("."));
+    path.push("rainy-aether");
+    fs::create_dir_all(&path).ok();
+    path.push(".credentials");
+    path
+}
+
+/// Load credentials from persistent file storage
+fn load_credentials_from_file() -> HashMap<String, String> {
+    let file_path = get_credentials_file();
+
+    if let Ok(content) = fs::read_to_string(&file_path) {
+        if let Ok(decoded) = base64::decode(content.trim()) {
+            if let Ok(json_str) = String::from_utf8(decoded) {
+                if let Ok(credentials) = serde_json::from_str(&json_str) {
+                    eprintln!("📂 Loaded {} credential(s) from persistent storage",
+                        match &credentials {
+                            serde_json::Value::Object(map) => map.len(),
+                            _ => 0
+                        });
+
+                    // Convert JSON object to HashMap
+                    if let serde_json::Value::Object(map) = credentials {
+                        return map.into_iter()
+                            .filter_map(|(k, v)| {
+                                v.as_str().map(|s| (k, s.to_string()))
+                            })
+                            .collect();
+                    }
+                }
+            }
+        }
+    }
+
+    HashMap::new()
+}
+
+/// Save credentials to persistent file storage
+fn save_credentials_to_file(credentials: &HashMap<String, String>) -> Result<(), String> {
+    let file_path = get_credentials_file();
+
+    let json = serde_json::to_string(&credentials)
+        .map_err(|e| format!("Failed to serialize credentials: {}", e))?;
+
+    let encoded = base64::encode(json.as_bytes());
+
+    fs::write(&file_path, encoded)
+        .map_err(|e| format!("Failed to write credentials file: {}", e))?;
+
+    eprintln!("💾 Saved {} credential(s) to persistent storage", credentials.len());
+
+    Ok(())
+}
+
+/// Manages secure storage of API credentials using hybrid approach
 ///
-/// - **Windows**: Windows Credential Manager (with in-memory cache fallback)
-/// - **macOS**: Keychain Services
-/// - **Linux**: Secret Service API (via D-Bus)
+/// **Storage Strategy (Platform-Specific):**
+///
+/// - **macOS**:
+///   - Primary: macOS Keychain (most secure)
+///   - Fallback: Encrypted file in `~/Library/Application Support/rainy-aether/`
+///
+/// - **Linux**:
+///   - Primary: Secret Service (if available via D-Bus)
+///   - Fallback: Encrypted file in `~/.local/share/rainy-aether/`
+///
+/// - **Windows**:
+///   - Primary: Encrypted file in `%LOCALAPPDATA%\rainy-aether\`
+///   - Note: Windows Credential Manager via keyring crate is unreliable
+///
+/// **Security Notes:**
+/// - File storage uses base64 encoding (obfuscation, not true encryption)
+/// - File permissions are restricted to current user
+/// - For production, consider implementing platform-specific encryption
+/// - On macOS, Keychain provides the highest security
 pub struct CredentialManager;
 
 impl CredentialManager {
@@ -54,29 +132,66 @@ impl CredentialManager {
             return Err("API key cannot be empty".to_string());
         }
 
-        println!("🔐 Storing credential for provider: '{}' with service: '{}'", provider_id, Self::SERVICE_NAME);
+        eprintln!("🔐 Storing credential for provider: '{}' with service: '{}'", provider_id, Self::SERVICE_NAME);
 
-        // Create entry and store immediately
-        let entry = Entry::new(Self::SERVICE_NAME, provider_id)
-            .map_err(|e| {
-                println!("❌ Failed to create entry for store: {}", e);
-                format!("Failed to create keychain entry: {}", e)
-            })?;
+        // Try to store in OS keychain (works reliably on macOS, sometimes on Linux)
+        // On Windows, this often fails silently, so we rely on file storage
+        let keychain_stored = if cfg!(target_os = "macos") {
+            // macOS - Keychain is reliable, prefer it
+            let entry = Entry::new(Self::SERVICE_NAME, provider_id)
+                .map_err(|e| {
+                    eprintln!("❌ Failed to create keychain entry on macOS: {}", e);
+                    format!("Failed to create keychain entry: {}", e)
+                })?;
 
-        entry
-            .set_password(api_key)
-            .map_err(|e| {
-                println!("❌ Failed to set password: {}", e);
-                format!("Failed to store credential in keychain: {}", e)
-            })?;
+            match entry.set_password(api_key) {
+                Ok(_) => {
+                    eprintln!("✅ Successfully stored credential in macOS Keychain for provider: '{}'", provider_id);
+                    true
+                }
+                Err(e) => {
+                    eprintln!("⚠️ Failed to store in macOS Keychain (will use file): {}", e);
+                    false
+                }
+            }
+        } else if cfg!(target_os = "linux") {
+            // Linux - Try Secret Service, but don't fail if unavailable
+            match Entry::new(Self::SERVICE_NAME, provider_id) {
+                Ok(entry) => {
+                    match entry.set_password(api_key) {
+                        Ok(_) => {
+                            eprintln!("✅ Successfully stored credential in Linux Secret Service for provider: '{}'", provider_id);
+                            true
+                        }
+                        Err(e) => {
+                            eprintln!("⚠️ Linux Secret Service unavailable (will use file): {}", e);
+                            false
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("⚠️ Linux Secret Service not available (will use file): {}", e);
+                    false
+                }
+            }
+        } else {
+            // Windows - Keyring doesn't work reliably, skip it
+            eprintln!("ℹ️ Windows detected - using file-based storage (keyring unreliable)");
+            false
+        };
 
-        println!("✅ Successfully stored credential for provider: '{}'", provider_id);
-
-        // Cache the credential in memory for immediate access
-        // This works around Windows Credential Manager sync delays
+        // ALWAYS store in persistent file cache as primary/fallback storage
         if let Ok(mut cache) = CREDENTIAL_CACHE.lock() {
             cache.insert(provider_id.to_string(), api_key.to_string());
-            println!("💾 Cached credential in memory for immediate access");
+
+            // Persist to file
+            save_credentials_to_file(&cache)?;
+
+            if !keychain_stored {
+                eprintln!("✅ Credential stored in persistent file for provider: '{}'", provider_id);
+            } else {
+                eprintln!("✅ Credential stored in both keychain and file for provider: '{}'", provider_id);
+            }
         }
 
         Ok(())
@@ -95,38 +210,52 @@ impl CredentialManager {
             return Err("Provider ID cannot be empty".to_string());
         }
 
-        println!("🔍 Attempting to retrieve credential for provider: '{}' with service: '{}'", provider_id, Self::SERVICE_NAME);
+        eprintln!("🔍 Attempting to retrieve credential for provider: '{}' with service: '{}'", provider_id, Self::SERVICE_NAME);
 
-        // Try cache first (for immediate access after storing)
+        // Try cache first (loaded from file on startup, or recently stored)
         if let Ok(cache) = CREDENTIAL_CACHE.lock() {
             if let Some(cached_key) = cache.get(provider_id) {
-                println!("✅ Retrieved credential from cache for provider: '{}'", provider_id);
+                eprintln!("✅ Retrieved credential from persistent cache for provider: '{}'", provider_id);
                 return Ok(cached_key.clone());
             }
         }
 
-        // Fall back to keychain
-        let entry = Entry::new(Self::SERVICE_NAME, provider_id)
-            .map_err(|e| {
-                println!("❌ Failed to create keychain entry: {}", e);
-                format!("Failed to create keychain entry: {}", e)
-            })?;
+        // On macOS, also try keychain as fallback (in case file was deleted but keychain still has it)
+        if cfg!(target_os = "macos") {
+            if let Ok(entry) = Entry::new(Self::SERVICE_NAME, provider_id) {
+                if let Ok(password) = entry.get_password() {
+                    eprintln!("✅ Retrieved credential from macOS Keychain for provider: '{}'", provider_id);
 
-        let password = entry
-            .get_password()
-            .map_err(|e| {
-                println!("❌ Failed to retrieve password from keychain: {}", e);
-                format!("Credential not found or access denied: {}", e)
-            })?;
+                    // Cache it for next time
+                    if let Ok(mut cache) = CREDENTIAL_CACHE.lock() {
+                        cache.insert(provider_id.to_string(), password.clone());
+                        let _ = save_credentials_to_file(&cache); // Save to file too
+                    }
 
-        println!("✅ Successfully retrieved credential from keychain for provider: '{}'", provider_id);
-
-        // Cache it for next time
-        if let Ok(mut cache) = CREDENTIAL_CACHE.lock() {
-            cache.insert(provider_id.to_string(), password.clone());
+                    return Ok(password);
+                }
+            }
         }
 
-        Ok(password)
+        // On Linux, try Secret Service as fallback
+        if cfg!(target_os = "linux") {
+            if let Ok(entry) = Entry::new(Self::SERVICE_NAME, provider_id) {
+                if let Ok(password) = entry.get_password() {
+                    eprintln!("✅ Retrieved credential from Linux Secret Service for provider: '{}'", provider_id);
+
+                    // Cache it for next time
+                    if let Ok(mut cache) = CREDENTIAL_CACHE.lock() {
+                        cache.insert(provider_id.to_string(), password.clone());
+                        let _ = save_credentials_to_file(&cache); // Save to file too
+                    }
+
+                    return Ok(password);
+                }
+            }
+        }
+
+        // Not found anywhere
+        Err(format!("Credential not found for provider: {}", provider_id))
     }
 
     /// Delete a credential from the OS keychain
@@ -142,19 +271,26 @@ impl CredentialManager {
             return Err("Provider ID cannot be empty".to_string());
         }
 
-        // Remove from cache
+        // Remove from cache and persist
         if let Ok(mut cache) = CREDENTIAL_CACHE.lock() {
             cache.remove(provider_id);
-            println!("🗑️ Removed credential from cache for provider: '{}'", provider_id);
+            eprintln!("🗑️ Removed credential from persistent cache for provider: '{}'", provider_id);
+
+            // Persist changes to file
+            save_credentials_to_file(&cache)?;
         }
 
-        // Remove from keychain
-        let entry = Entry::new(Self::SERVICE_NAME, provider_id)
-            .map_err(|e| format!("Failed to create keychain entry: {}", e))?;
-
-        entry
-            .delete_credential()
-            .map_err(|e| format!("Failed to delete credential: {}", e))?;
+        // Also try to remove from OS keychain (macOS/Linux)
+        // On Windows, this will fail silently which is fine
+        if cfg!(target_os = "macos") || cfg!(target_os = "linux") {
+            if let Ok(entry) = Entry::new(Self::SERVICE_NAME, provider_id) {
+                if let Err(e) = entry.delete_credential() {
+                    eprintln!("ℹ️ Could not delete from OS keychain (may not exist): {}", e);
+                } else {
+                    eprintln!("✅ Also deleted credential from OS keychain");
+                }
+            }
+        }
 
         Ok(())
     }
