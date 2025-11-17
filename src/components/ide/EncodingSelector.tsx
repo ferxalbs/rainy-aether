@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EncodingSelectorProps {
   isOpen: boolean;
@@ -110,7 +112,7 @@ export function EncodingSelector({
           <h3 className="text-sm font-semibold text-foreground">Select File Encoding</h3>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors rounded-sm hover:bg-muted p-1"
           >
             <svg
               width="16"
@@ -131,7 +133,7 @@ export function EncodingSelector({
         {/* Search */}
         <div className="relative">
           <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
             width="14"
             height="14"
             viewBox="0 0 24 24"
@@ -144,24 +146,19 @@ export function EncodingSelector({
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
           </svg>
-          <input
+          <Input
             type="text"
             placeholder="Search encodings..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={cn(
-              'w-full pl-9 pr-3 py-1.5 text-sm rounded border',
-              'bg-background border-border text-foreground',
-              'placeholder:text-muted-foreground',
-              'focus:outline-none focus:ring-1 focus:ring-primary'
-            )}
+            className="pl-9 h-8"
             autoFocus
           />
         </div>
       </div>
 
       {/* Encodings List */}
-      <div className="flex-1 overflow-y-auto">
+      <ScrollArea className="flex-1 h-[300px]">
         {filteredEncodings.length === 0 ? (
           <div className="px-4 py-8 text-center text-muted-foreground text-sm">
             No encodings found
@@ -173,9 +170,10 @@ export function EncodingSelector({
                 key={encoding.id}
                 onClick={() => handleSelect(encoding.id)}
                 className={cn(
-                  'w-full px-4 py-2 text-left transition-colors',
+                  'w-full px-4 py-2 text-left transition-all duration-150',
                   'hover:bg-accent hover:text-accent-foreground',
-                  'flex items-center justify-between',
+                  'flex items-center justify-between group',
+                  'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset',
                   currentEncoding === encoding.name && 'bg-accent text-accent-foreground'
                 )}
               >
@@ -192,7 +190,7 @@ export function EncodingSelector({
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="2"
+                      strokeWidth="2.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       className="text-primary"
@@ -205,7 +203,7 @@ export function EncodingSelector({
             ))}
           </div>
         )}
-      </div>
+      </ScrollArea>
 
       {/* Footer */}
       <div className="px-4 py-2 border-t border-border bg-muted/30 flex-shrink-0">

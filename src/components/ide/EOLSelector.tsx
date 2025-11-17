@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { cn } from '@/lib/cn';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EOLSelectorProps {
   isOpen: boolean;
@@ -145,7 +146,7 @@ export function EOLSelector({
           <h3 className="text-sm font-semibold text-foreground">Select End of Line Sequence</h3>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors rounded-sm hover:bg-muted p-1"
           >
             <svg
               width="16"
@@ -165,58 +166,61 @@ export function EOLSelector({
       </div>
 
       {/* EOL Options */}
-      <div className="py-1">
-        {EOL_OPTIONS.map((option) => {
-          const isActive = normalizeEOL(option.name) === currentEOLNormalized;
+      <ScrollArea className="h-[220px]">
+        <div className="py-1">
+          {EOL_OPTIONS.map((option) => {
+            const isActive = normalizeEOL(option.name) === currentEOLNormalized;
 
-          return (
-            <button
-              key={option.id}
-              onClick={() => handleSelect(option.name)}
-              className={cn(
-                'w-full px-4 py-3 text-left transition-colors',
-                'hover:bg-accent hover:text-accent-foreground',
-                'flex items-center gap-3',
-                isActive && 'bg-accent text-accent-foreground'
-              )}
-            >
-              {/* Icon */}
-              <div className="flex-shrink-0 text-primary">{option.icon}</div>
+            return (
+              <button
+                key={option.id}
+                onClick={() => handleSelect(option.name)}
+                className={cn(
+                  'w-full px-4 py-3 text-left transition-all duration-150',
+                  'hover:bg-accent hover:text-accent-foreground',
+                  'flex items-center gap-3 group',
+                  'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset',
+                  isActive && 'bg-accent text-accent-foreground'
+                )}
+              >
+                {/* Icon */}
+                <div className="flex-shrink-0 text-primary">{option.icon}</div>
 
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{option.name}</span>
-                  <span className="text-xs text-muted-foreground">({option.fullName})</span>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{option.name}</span>
+                    <span className="text-xs text-muted-foreground">({option.fullName})</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">{option.description}</div>
+                  <div className="text-xs font-mono text-muted-foreground/70 mt-0.5">
+                    {option.symbol}
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">{option.description}</div>
-                <div className="text-xs font-mono text-muted-foreground/70 mt-0.5">
-                  {option.symbol}
-                </div>
-              </div>
 
-              {/* Active Indicator */}
-              {isActive && (
-                <div className="flex-shrink-0">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="text-primary"
-                  >
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
+                {/* Active Indicator */}
+                {isActive && (
+                  <div className="flex-shrink-0">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="text-primary"
+                    >
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </ScrollArea>
 
       {/* Footer */}
       <div className="px-4 py-3 border-t border-border bg-muted/30">
