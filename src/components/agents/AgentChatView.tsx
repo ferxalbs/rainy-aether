@@ -1,119 +1,39 @@
-import { useState } from 'react';
-import { ChatSidebar } from './ChatSidebar';
-import { HomeView } from './HomeView';
-import { AskAIView } from './AskAIView';
-import { PromptsView } from './PromptsView';
-import { AbbyView } from './AbbyView';
-import { SplitViewPage } from './SplitViewPage';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { MenuIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { useAgentNavigationState } from '@/stores/agentNavigationStore';
+import { MessageCircle, Send } from 'lucide-react';
 
-/**
- * Render the responsive chat interface for Rainy AI with a collapsible desktop sidebar and a mobile overlay sidebar.
- *
- * Desktop layout presents a simple collapsible sidebar (w-0 when closed, w-64 when open) with smooth transitions and a main content area with a top bar containing a toggle button. Mobile layout exposes the sidebar as a sheet overlay. This is the main container for the Rainy AI chat interface - modern, simple, and perfectly optimized for IDE use.
- *
- * @returns The rendered chat interface element.
- */
 export function AgentChatView() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { currentView } = useAgentNavigationState();
-
-  const renderView = () => {
-    switch (currentView) {
-      case 'home':
-        return <HomeView />;
-      case 'ask-ai':
-        return <AskAIView />;
-      case 'prompts':
-        return <PromptsView />;
-      case 'abby':
-        return <AbbyView />;
-      case 'split-view':
-        return <SplitViewPage />;
-      default:
-        return <HomeView />;
-    }
-  };
-
   return (
-    <div className="flex h-full w-full min-h-0 overflow-hidden bg-background">
-      {/* Mobile Sidebar - Sheet overlay */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent
-          side="left"
-          className="w-72 p-0 border-none [&>button]:hidden"
-        >
-          <ChatSidebar />
-        </SheetContent>
-      </Sheet>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center gap-3">
+          <MessageCircle className="size-5" />
+          <h1 className="font-semibold">Agent Chat (Mockup)</h1>
+        </div>
+      </div>
 
-      {/* Desktop Layout */}
-      <div className="hidden md:flex h-full w-full min-h-0">
-        {/* Sidebar */}
-        <div
-          className={cn(
-            'h-full border-r border-border transition-all duration-300 ease-in-out',
-            sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'
-          )}
-        >
-          <ChatSidebar />
+      <div className="flex-1 p-4 space-y-4">
+        <div className="text-center text-muted-foreground">
+          <MessageCircle className="mx-auto size-12 mb-4 opacity-50" />
+          <p>Chat interface mockup - Agent functionality removed</p>
         </div>
 
-        {/* Main Content */}
-        <div className="flex flex-1 flex-col h-full min-w-0 min-h-0">
-          {/* Top Bar */}
-          <div className="flex items-center justify-between border-b border-border px-4 h-12 bg-background/25 backdrop-blur-sm supports-backdrop-filter:bg-background/60">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent"
-            >
-              {sidebarCollapsed ? (
-                <PanelLeftOpenIcon className="size-4" />
-              ) : (
-                <PanelLeftCloseIcon className="size-4" />
-              )}
-              <span className="sr-only">Toggle sidebar</span>
-            </Button>
-            <span className="text-sm font-semibold text-foreground">
-              Rainy Agents v1
-            </span>
-            <div className="w-8" />
-          </div>
-
-          {/* View Content */}
-          <div className="flex flex-1 flex-col overflow-hidden min-h-0">
-            {renderView()}
+        <div className="space-y-2">
+          <div className="p-3 rounded-lg bg-muted">
+            <p className="text-sm">Welcome to the agent chat interface! (Mockup)</p>
           </div>
         </div>
       </div>
 
-      {/* Mobile Layout */}
-      <div className="flex md:hidden flex-1 flex-col overflow-hidden min-h-0">
-        {/* Mobile Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 h-12 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setSidebarOpen(true)}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          >
-            <MenuIcon className="size-4" />
-            <span className="sr-only">Open sidebar</span>
+      <div className="p-4 border-t">
+        <div className="flex gap-2">
+          <input
+            className="flex-1 px-3 py-2 border rounded-md opacity-50"
+            placeholder="Type your message... (Mockup)"
+            disabled
+          />
+          <Button disabled className="opacity-50">
+            <Send className="size-4" />
           </Button>
-          <span className="text-sm font-semibold text-foreground">Rainy AI</span>
-          <div className="w-8" />
-        </div>
-
-        {/* View Content */}
-        <div className="flex flex-1 flex-col overflow-hidden min-h-0">
-          {renderView()}
         </div>
       </div>
     </div>

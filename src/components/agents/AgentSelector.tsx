@@ -28,9 +28,6 @@
  * ```
  */
 
-import { useEffect, useState } from 'react';
-import { agentRegistry } from '@/services/agents/core/AgentRegistry';
-import type { AgentCore } from '@/services/agents/core/AgentCore';
 import { cn } from '@/lib/cn';
 import { Bot, Sparkles, Cpu } from 'lucide-react';
 
@@ -52,6 +49,27 @@ export interface AgentSelectorProps {
 }
 
 /**
+ * Mock agent data for the selector
+ */
+const mockAgents = [
+  {
+    id: 'rainy',
+    name: 'Rainy Agent',
+    description: 'General-purpose AI assistant for coding tasks'
+  },
+  {
+    id: 'claude-code',
+    name: 'Claude Code',
+    description: 'Specialized agent for code analysis and generation'
+  },
+  {
+    id: 'abby',
+    name: 'Abby Agent',
+    description: 'Creative assistant for design and prototyping'
+  }
+];
+
+/**
  * Get icon for agent
  */
 function getAgentIcon(agentId: string) {
@@ -68,9 +86,9 @@ function getAgentIcon(agentId: string) {
 }
 
 /**
- * Agent Selector Component
+ * Agent Selector Component (Mockup)
  *
- * Allows users to choose which AI agent to interact with.
+ * Mockup version showing agent selection UI without real functionality.
  */
 export function AgentSelector({
   selectedAgentId = 'rainy',
@@ -78,61 +96,20 @@ export function AgentSelector({
   className,
   compact = false,
 }: AgentSelectorProps) {
-  const [agents, setAgents] = useState<AgentCore[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load agents from registry
-  useEffect(() => {
-    const loadAgents = async () => {
-      try {
-        // Ensure registry is initialized
-        if (!agentRegistry.isInitialized()) {
-          await agentRegistry.initialize();
-        }
-
-        // Get all agents
-        const allAgents = agentRegistry.getAll();
-        setAgents(allAgents);
-      } catch (error) {
-        console.error('Failed to load agents:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadAgents();
-  }, []);
-
   const handleSelect = (agentId: string) => {
     onSelectAgent?.(agentId);
   };
-
-  if (isLoading) {
-    return (
-      <div className={cn('space-y-2 p-4', className)}>
-        <div className="text-sm text-muted-foreground">Loading agents...</div>
-      </div>
-    );
-  }
-
-  if (agents.length === 0) {
-    return (
-      <div className={cn('space-y-2 p-4', className)}>
-        <div className="text-sm text-muted-foreground">No agents available</div>
-      </div>
-    );
-  }
 
   return (
     <div className={cn('space-y-2', compact ? 'p-2' : 'p-4', className)}>
       {!compact && (
         <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-          Select Agent
+          Select Agent (Mockup)
         </h3>
       )}
 
       <div className="space-y-1.5">
-        {agents.map((agent) => {
+        {mockAgents.map((agent) => {
           const Icon = getAgentIcon(agent.id);
           const isSelected = agent.id === selectedAgentId;
 
@@ -142,13 +119,14 @@ export function AgentSelector({
               onClick={() => handleSelect(agent.id)}
               className={cn(
                 'w-full text-left transition-all rounded-lg',
-                'hover:bg-accent border border-transparent',
+                'hover:bg-accent border border-transparent opacity-50',
                 'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
                 compact ? 'p-2' : 'p-3',
-                isSelected && 'bg-primary/10 border-primary shadow-sm'
+                isSelected && 'bg-primary/10 border-primary shadow-sm opacity-100'
               )}
               aria-pressed={isSelected}
-              aria-label={`Select ${agent.name}`}
+              aria-label={`Select ${agent.name} (Mockup)`}
+              disabled
             >
               <div className="flex items-start gap-3">
                 {/* Icon */}
@@ -177,7 +155,7 @@ export function AgentSelector({
 
                   {!compact && (
                     <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                      {agent.description}
+                      {agent.description} (Mockup)
                     </div>
                   )}
                 </div>
@@ -195,9 +173,9 @@ export function AgentSelector({
       </div>
 
       {/* Agent Count */}
-      {!compact && agents.length > 1 && (
+      {!compact && mockAgents.length > 1 && (
         <div className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
-          {agents.length} agent{agents.length !== 1 ? 's' : ''} available
+          {mockAgents.length} agent{mockAgents.length !== 1 ? 's' : ''} available (Mockup)
         </div>
       )}
     </div>

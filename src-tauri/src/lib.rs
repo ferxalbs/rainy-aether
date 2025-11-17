@@ -1,4 +1,3 @@
-mod agents;  // Agent system
 mod configuration_manager;
 mod credential_manager;
 mod extension_manager;
@@ -61,7 +60,7 @@ pub fn run() {
         })
         .manage(terminal_manager::TerminalState::default())
         .manage(language_server_manager::LanguageServerManager::new())
-        .manage(agents::AgentManager::new())
+
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -401,18 +400,6 @@ pub fn run() {
         font_manager::delete_font_file,
         font_manager::validate_font_file,
         font_manager::get_font_file_info,
-        // Agent system
-        agents::commands::agent_create_session,
-        agents::commands::agent_send_message,
-        agents::commands::agent_get_session,
-        agents::commands::agent_get_history,
-        agents::commands::agent_get_memory_stats,
-        agents::commands::agent_get_metrics,
-        agents::commands::agent_get_all_metrics,
-        agents::commands::agent_list_tools,
-        agents::commands::agent_execute_tool,
-        agents::commands::agent_destroy_session,
-        agents::commands::agent_list_sessions,
     ]);
 
     builder
