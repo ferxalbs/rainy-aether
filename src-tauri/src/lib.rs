@@ -4,10 +4,10 @@ mod extension_manager;
 mod extension_registry;
 mod file_operations;
 mod font_manager;
+mod git_auth; // New: Authentication for remote operations
+mod git_config; // New: Feature flags for gradual migration
 mod git_manager;
-mod git_native;  // New: Native libgit2 implementation
-mod git_config;  // New: Feature flags for gradual migration
-mod git_auth;    // New: Authentication for remote operations
+mod git_native; // New: Native libgit2 implementation
 mod help_manager;
 mod language_server_manager;
 mod project_manager;
@@ -62,7 +62,6 @@ pub fn run() {
         })
         .manage(terminal_manager::TerminalState::default())
         .manage(language_server_manager::LanguageServerManager::new())
-
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -200,6 +199,18 @@ pub fn run() {
         window_manager::window_get_all,
         window_manager::window_focus,
         window_manager::window_close,
+        window_manager::window_maximize,
+        window_manager::window_minimize,
+        window_manager::window_unmaximize,
+        window_manager::window_toggle_fullscreen,
+        window_manager::window_is_maximized,
+        window_manager::window_is_fullscreen,
+        window_manager::window_get_position,
+        window_manager::window_set_position,
+        window_manager::window_set_size,
+        window_manager::window_center,
+        window_manager::window_set_title,
+        window_manager::window_reload,
         window_manager::reveal_in_explorer,
         window_manager::open_system_terminal,
         window_manager::get_system_info,
