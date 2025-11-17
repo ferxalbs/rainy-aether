@@ -1,0 +1,345 @@
+use std::path::PathBuf;
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_shell::ShellExt;
+
+/// Open a new window with the current or specified workspace
+#[tauri::command]
+pub fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> Result<String, String> {
+    let label = format!("main-{}", chrono::Utc::now().timestamp_millis());
+
+    let mut url = "index.html".to_string();
+    if let Some(path) = workspace_path {
+        url = format!("index.html?workspace={}", urlencoding::encode(&path));
+    }
+
+    WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
+        .title("Rainy Aether")
+        .inner_size(1200.0, 800.0)
+        .min_inner_size(800.0, 600.0)
+        .build()
+        .map_err(|e| format!("Failed to create window: {}", e))?;
+
+    Ok(label)
+}
+
+/// Get list of all open windows
+#[tauri::command]
+pub fn window_get_all(app: AppHandle) -> Result<Vec<String>, String> {
+    let windows: Vec<String> = app.webview_windows()
+        .keys()
+        .map(|s| s.to_string())
+        .collect();
+    Ok(windows)
+}
+
+/// Focus a specific window by label
+#[tauri::command]
+pub fn window_focus(app: AppHandle, label: String) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(&label) {
+        window.set_focus()
+            .map_err(|e| format!("Failed to focus window: {}", e))?;
+        Ok(())
+    } else {
+        Err(format!("Window '{}' not found", label))
+    }
+}
+
+/// Close a specific window by label
+#[tauri::command]
+pub fn window_close(app: AppHandle, label: String) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(&label) {
+        window.close()
+            .map_err(|e| format!("Failed to close window: {}", e))?;
+        Ok(())
+    } else {
+        Err(format!("Window '{}' not found", label))
+    }
+}
+
+/// Reveal file or folder in the system file explorer (cross-platform)
+#[tauri::command]
+pub fn reveal_in_explorer(app: AppHandle, path: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+
+    // Validate path exists
+    if !p.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let mut command = app.shell().command("explorer.exe");
+
+        if p.is_dir() {
+            command = command.args(&[path.as_str()]);
+        } else {
+            let arg = format!("/select,{}", path);
+            command = command.args(&[arg.as_str()]);
+        }
+
+        command.spawn()
+            .map_err(|e| format!("Failed to open Explorer: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let mut command = app.shell().command("open");
+
+        if p.is_dir() {
+            command = command.args(&[path.as_str()]);
+        } else {
+            command = command.args(&["-R", path.as_str()]);
+        }
+
+        command.spawn()
+            .map_err(|e| format!("Failed to open Finder: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Try different file managers in order of preference
+        let file_managers = vec![
+            ("nautilus", vec!["--select", path.as_str()]),
+            ("dolphin", vec!["--select", path.as_str()]),
+            ("thunar", vec![path.as_str()]),
+            ("nemo", vec![path.as_str()]),
+            ("caja", vec![path.as_str()]),
+            ("pcmanfm", vec![path.as_str()]),
+            ("xdg-open", vec![if p.is_dir() { path.as_str() } else {
+                p.parent().unwrap_or(&p).to_str().unwrap_or(&path)
+            }]),
+        ];
+
+        let mut success = false;
+        for (fm, args) in file_managers {
+            if let Ok(_) = app.shell().command(fm).args(&args).spawn() {
+                success = true;
+                break;
+            }
+        }
+
+        if !success {
+            return Err("No suitable file manager found. Please install nautilus, dolphin, thunar, nemo, caja, or pcmanfm.".to_string());
+        }
+    }
+
+    Ok(())
+}
+
+/// Open system terminal in specified directory (cross-platform)
+#[tauri::command]
+pub fn open_system_terminal(app: AppHandle, cwd: Option<String>) -> Result<(), String> {
+    let working_dir = cwd.unwrap_or_else(|| std::env::current_dir()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string());
+
+    #[cfg(target_os = "windows")]
+    {
+        // Try Windows Terminal first, fallback to cmd
+        let mut wt_command = app.shell().command("wt.exe");
+        wt_command = wt_command.args(&["--window", "0", "-d", &working_dir]);
+
+        if wt_command.spawn().is_err() {
+            // Fallback to cmd
+            let mut cmd_command = app.shell().command("cmd.exe");
+            cmd_command = cmd_command.args(&["/c", "start", "cmd.exe", "/k", "cd", "/d", &working_dir]);
+            cmd_command.spawn()
+                .map_err(|e| format!("Failed to open terminal: {}", e))?;
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        // Use AppleScript to open Terminal.app in the specified directory
+        let script = format!(
+            r#"tell application "Terminal"
+                activate
+                do script "cd '{}'"
+            end tell"#,
+            working_dir.replace("'", "'\\''")
+        );
+
+        app.shell().command("osascript")
+            .args(&["-e", &script])
+            .spawn()
+            .map_err(|e| format!("Failed to open Terminal: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Try different terminals in order of preference
+        let terminals = vec![
+            ("gnome-terminal", vec!["--working-directory", &working_dir]),
+            ("konsole", vec!["--workdir", &working_dir]),
+            ("xfce4-terminal", vec!["--working-directory", &working_dir]),
+            ("mate-terminal", vec!["--working-directory", &working_dir]),
+            ("xterm", vec!["-e", &format!("cd '{}' && $SHELL", working_dir)]),
+        ];
+
+        let mut success = false;
+        for (term, args) in terminals {
+            if let Ok(_) = app.shell().command(term).args(&args).spawn() {
+                success = true;
+                break;
+            }
+        }
+
+        if !success {
+            return Err("No suitable terminal found. Please install gnome-terminal, konsole, xfce4-terminal, mate-terminal, or xterm.".to_string());
+        }
+    }
+
+    Ok(())
+}
+
+/// Get system information
+#[tauri::command]
+pub fn get_system_info() -> Result<SystemInfo, String> {
+    Ok(SystemInfo {
+        os: std::env::consts::OS.to_string(),
+        os_version: get_os_version(),
+        arch: std::env::consts::ARCH.to_string(),
+        hostname: hostname::get()
+            .ok()
+            .and_then(|h| h.into_string().ok())
+            .unwrap_or_else(|| "Unknown".to_string()),
+        cpu_count: num_cpus::get(),
+        total_memory: get_total_memory(),
+    })
+}
+
+/// Get platform display name
+#[tauri::command]
+pub fn get_platform_name() -> String {
+    match std::env::consts::OS {
+        "windows" => "Windows".to_string(),
+        "macos" => "macOS".to_string(),
+        "linux" => "Linux".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// Check if running in WSL
+#[tauri::command]
+pub fn is_wsl() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(content) = std::fs::read_to_string("/proc/version") {
+            return content.to_lowercase().contains("microsoft") ||
+                   content.to_lowercase().contains("wsl");
+        }
+    }
+    false
+}
+
+/// Open URL in default browser
+#[tauri::command]
+pub fn open_external_url(app: AppHandle, url: String) -> Result<(), String> {
+    app.shell().open(&url, None)
+        .map_err(|e| format!("Failed to open URL: {}", e))
+}
+
+// Helper types and functions
+
+#[derive(Debug, serde::Serialize)]
+pub struct SystemInfo {
+    pub os: String,
+    pub os_version: String,
+    pub arch: String,
+    pub hostname: String,
+    pub cpu_count: usize,
+    pub total_memory: u64,
+}
+
+fn get_os_version() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(output) = std::process::Command::new("cmd")
+            .args(&["/c", "ver"])
+            .output()
+        {
+            if let Ok(version) = String::from_utf8(output.stdout) {
+                return version.trim().to_string();
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(output) = std::process::Command::new("sw_vers")
+            .arg("-productVersion")
+            .output()
+        {
+            if let Ok(version) = String::from_utf8(output.stdout) {
+                return version.trim().to_string();
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(content) = std::fs::read_to_string("/etc/os-release") {
+            for line in content.lines() {
+                if line.starts_with("PRETTY_NAME=") {
+                    return line.split('=')
+                        .nth(1)
+                        .unwrap_or("")
+                        .trim_matches('"')
+                        .to_string();
+                }
+            }
+        }
+    }
+
+    "Unknown".to_string()
+}
+
+fn get_total_memory() -> u64 {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+
+        unsafe {
+            let mut mem_status = MEMORYSTATUSEX {
+                dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+                ..Default::default()
+            };
+
+            if GlobalMemoryStatusEx(&mut mem_status).is_ok() {
+                return mem_status.ullTotalPhys;
+            }
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if let Ok(output) = std::process::Command::new("sysctl")
+            .args(&["-n", "hw.memsize"])
+            .output()
+        {
+            if let Ok(mem_str) = String::from_utf8(output.stdout) {
+                if let Ok(mem) = mem_str.trim().parse::<u64>() {
+                    return mem;
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(content) = std::fs::read_to_string("/proc/meminfo") {
+            for line in content.lines() {
+                if line.starts_with("MemTotal:") {
+                    if let Some(kb_str) = line.split_whitespace().nth(1) {
+                        if let Ok(kb) = kb_str.parse::<u64>() {
+                            return kb * 1024; // Convert KB to bytes
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    0
+}

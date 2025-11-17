@@ -8,10 +8,12 @@ mod git_manager;
 mod git_native;  // New: Native libgit2 implementation
 mod git_config;  // New: Feature flags for gradual migration
 mod git_auth;    // New: Authentication for remote operations
+mod help_manager;
 mod language_server_manager;
 mod project_manager;
 mod terminal_manager;
 mod update_manager;
+mod window_manager;
 
 #[tauri::command]
 fn open_windows_terminal(app: tauri::AppHandle, cwd: Option<String>) -> Result<(), String> {
@@ -193,6 +195,22 @@ pub fn run() {
     builder = builder.invoke_handler(tauri::generate_handler![
         open_windows_terminal,
         open_in_directory,
+        // Window management
+        window_manager::window_open_new,
+        window_manager::window_get_all,
+        window_manager::window_focus,
+        window_manager::window_close,
+        window_manager::reveal_in_explorer,
+        window_manager::open_system_terminal,
+        window_manager::get_system_info,
+        window_manager::get_platform_name,
+        window_manager::is_wsl,
+        window_manager::open_external_url,
+        // Help and documentation
+        help_manager::get_keyboard_shortcuts,
+        help_manager::get_documentation_links,
+        help_manager::get_app_info,
+        help_manager::get_available_commands,
         project_manager::get_cwd,
         project_manager::open_project_dialog,
         project_manager::load_project_structure,
