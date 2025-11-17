@@ -150,6 +150,16 @@ export class AgentRegistry {
   }
 
   /**
+   * Type guard to validate provider ID
+   *
+   * @param provider - Provider string to validate
+   * @returns True if provider is valid
+   */
+  private isValidProvider(provider: string): provider is 'groq' | 'google' {
+    return provider === 'groq' || provider === 'google';
+  }
+
+  /**
    * Initialize an agent with API keys
    *
    * This method initializes an agent by fetching its API key from secure storage.
@@ -178,7 +188,19 @@ export class AgentRegistry {
       // Determine provider for this agent
       const agent = metadata.agent;
       const config = agent.getConfig();
-      const providerId = config.provider as 'groq' | 'google';
+      const rawProvider = config.provider;
+
+      // Validate provider ID at runtime
+      if (!this.isValidProvider(rawProvider)) {
+        console.error(
+          `❌ Invalid provider '${rawProvider}' for agent ${agentId}. ` +
+          `Expected 'groq' or 'google'.`
+        );
+        return false;
+      }
+
+      // Now providerId is safely typed as 'groq' | 'google'
+      const providerId = rawProvider;
 
       // Get API key for the provider
       const apiKey = await apiKeyActions.getKey(providerId);

@@ -106,21 +106,35 @@ export const apiKeyActions = {
           providerId: provider,
         });
 
+        // Initialize with basic status
         state.status[provider] = {
           provider,
-          configured: hasKey,
-          lastUpdated: hasKey ? Date.now() : undefined,
+          configured: false,
+          lastUpdated: undefined,
         };
 
-        // If key exists, get prefix for display
+        // If key exists, try to retrieve it
         if (hasKey) {
           try {
             const key = await invoke<string>('agent_get_credential', {
               providerId: provider,
             });
-            state.status[provider].keyPrefix = this.getKeyPrefix(key);
+
+            // Only mark as configured and set lastUpdated if retrieval succeeds
+            state.status[provider] = {
+              provider,
+              configured: true,
+              lastUpdated: Date.now(),
+              keyPrefix: this.getKeyPrefix(key),
+            };
           } catch (error) {
             console.error(`Failed to get key for ${provider}:`, error);
+            // Key exists but couldn't be retrieved - mark as not configured
+            state.status[provider] = {
+              provider,
+              configured: false,
+              lastUpdated: undefined,
+            };
           }
         }
       }
