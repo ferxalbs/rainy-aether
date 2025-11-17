@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/badge";
 import { useIDEStore } from "../../stores/ideStore";
 import { getAppVersion } from "../../utils/version";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
@@ -26,6 +27,14 @@ const StartupPage: React.FC = () => {
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
 
   const currentYear = useMemo(() => new Date().getFullYear(), []);
+
+  // Function to extract version badge from app version
+  const getVersionBadge = useCallback((_version: string): string => {
+    // For now, return "2025" as specified by user
+    // This can be updated with each major version to reflect release year
+    // TODO: Implement logic to extract release year from major version
+    return "2025";
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -76,7 +85,12 @@ const StartupPage: React.FC = () => {
       <div className="max-w-6xl mx-auto p-8 pt-12">
         {/* Header */}
         <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold mb-2 text-primary">Rainy Aether</h1>
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <h1 className="text-4xl font-bold text-primary">Rainy Aether</h1>
+            <Badge variant="secondary" className="text-sm font-medium">
+              {getVersionBadge(appVersion)}
+            </Badge>
+          </div>
           <p className="text-xl text-muted-foreground">Editing evolved</p>
         </div>
 
