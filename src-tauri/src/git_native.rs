@@ -11,9 +11,8 @@
 //! - Direct access to Git internals
 
 use git2::{
-    BranchType, DiffOptions, Error, ErrorCode, Oid, Repository,
-    Status, StatusOptions, Time, build::RepoBuilder, FetchOptions,
-    PushOptions, RemoteCallbacks, Progress,
+    build::RepoBuilder, BranchType, DiffOptions, Error, ErrorCode, FetchOptions, Oid, Progress,
+    PushOptions, RemoteCallbacks, Repository, Status, StatusOptions, Time,
 };
 use serde::Serialize;
 use tauri::Emitter;
@@ -226,9 +225,7 @@ fn status_to_porcelain_code(status: Status) -> String {
 pub fn git_get_current_branch_native(path: String) -> Result<String, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
-    let head = repo
-        .head()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let head = repo.head().map_err(|e| GitError::from_git2_error(e))?;
 
     if let Some(branch_name) = head.shorthand() {
         Ok(branch_name.to_string())
@@ -246,9 +243,7 @@ pub fn git_get_current_branch_native(path: String) -> Result<String, String> {
 pub fn git_log_native(path: String, max_count: Option<u32>) -> Result<Vec<CommitInfo>, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
-    let mut revwalk = repo
-        .revwalk()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let mut revwalk = repo.revwalk().map_err(|e| GitError::from_git2_error(e))?;
 
     revwalk
         .push_head()
@@ -265,21 +260,10 @@ pub fn git_log_native(path: String, max_count: Option<u32>) -> Result<Vec<Commit
 
         commits.push(CommitInfo {
             hash: oid.to_string(),
-            author: commit
-                .author()
-                .name()
-                .unwrap_or("Unknown")
-                .to_string(),
-            email: commit
-                .author()
-                .email()
-                .unwrap_or("")
-                .to_string(),
+            author: commit.author().name().unwrap_or("Unknown").to_string(),
+            email: commit.author().email().unwrap_or("").to_string(),
             date: format_time(commit.time()),
-            message: commit
-                .message()
-                .unwrap_or("")
-                .to_string(),
+            message: commit.message().unwrap_or("").to_string(),
         });
     }
 
@@ -290,8 +274,7 @@ pub fn git_log_native(path: String, max_count: Option<u32>) -> Result<Vec<Commit
 fn format_time(time: Time) -> String {
     use chrono::DateTime;
 
-    let datetime = DateTime::from_timestamp(time.seconds(), 0)
-        .unwrap_or_default();
+    let datetime = DateTime::from_timestamp(time.seconds(), 0).unwrap_or_default();
 
     datetime.to_rfc3339()
 }
@@ -324,12 +307,10 @@ pub fn git_branches_native(path: String) -> Result<Vec<BranchInfo>, String> {
 
         // Get upstream name and convert to owned String
         let upstream = match branch.upstream() {
-            Ok(upstream_branch) => {
-                match upstream_branch.name() {
-                    Ok(Some(name)) => Some(name.to_string()),
-                    _ => None,
-                }
-            }
+            Ok(upstream_branch) => match upstream_branch.name() {
+                Ok(Some(name)) => Some(name.to_string()),
+                _ => None,
+            },
             Err(_) => None,
         };
 
@@ -349,9 +330,7 @@ pub fn git_create_branch_native(path: String, branch_name: String) -> Result<Str
     let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
     // Get current HEAD commit
-    let head = repo
-        .head()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let head = repo.head().map_err(|e| GitError::from_git2_error(e))?;
     let commit = head
         .peel_to_commit()
         .map_err(|e| GitError::from_git2_error(e))?;
@@ -400,9 +379,7 @@ pub fn git_show_files_native(path: String, commit_hash: String) -> Result<Vec<St
         .find_commit(oid)
         .map_err(|e| GitError::from_git2_error(e))?;
 
-    let tree = commit
-        .tree()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let tree = commit.tree().map_err(|e| GitError::from_git2_error(e))?;
 
     let parent_tree = if commit.parent_count() > 0 {
         Some(
@@ -458,9 +435,7 @@ pub fn git_diff_native(
         .find_commit(oid)
         .map_err(|e| GitError::from_git2_error(e))?;
 
-    let tree = commit
-        .tree()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let tree = commit.tree().map_err(|e| GitError::from_git2_error(e))?;
 
     let parent_tree = if commit.parent_count() > 0 {
         Some(
@@ -510,16 +485,12 @@ pub fn git_unpushed_native(path: String) -> Result<Vec<String>, String> {
         .target()
         .ok_or_else(|| GitError::internal("Invalid upstream reference"))?;
 
-    let head = repo
-        .head()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let head = repo.head().map_err(|e| GitError::from_git2_error(e))?;
     let head_oid = head
         .target()
         .ok_or_else(|| GitError::internal("Invalid HEAD reference"))?;
 
-    let mut revwalk = repo
-        .revwalk()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let mut revwalk = repo.revwalk().map_err(|e| GitError::from_git2_error(e))?;
 
     revwalk
         .push(head_oid)
@@ -563,7 +534,7 @@ pub fn git_diff_commit_native(
     path: String,
     commit: String,
     metadata_only: Option<bool>,
-    max_lines_per_file: Option<usize>
+    max_lines_per_file: Option<usize>,
 ) -> Result<Vec<FileDiff>, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
     let metadata_only = metadata_only.unwrap_or(false);
@@ -613,7 +584,10 @@ pub fn git_diff_commit_native(
             .to_string();
 
         let old_path = if delta.status() == git2::Delta::Renamed {
-            old_file.path().and_then(|p| p.to_str()).map(|s| s.to_string())
+            old_file
+                .path()
+                .and_then(|p| p.to_str())
+                .map(|s| s.to_string())
         } else {
             None
         };
@@ -630,11 +604,12 @@ pub fn git_diff_commit_native(
         .to_string();
 
         // Get patch (diff content) for this file
-        let patch = git2::Patch::from_diff(&diff, idx)
-            .map_err(|e| GitError::from_git2_error(e))?;
+        let patch = git2::Patch::from_diff(&diff, idx).map_err(|e| GitError::from_git2_error(e))?;
 
         let (additions, deletions, diff_text) = if let Some(mut patch) = patch {
-            let stats = patch.line_stats().map_err(|e| GitError::from_git2_error(e))?;
+            let stats = patch
+                .line_stats()
+                .map_err(|e| GitError::from_git2_error(e))?;
             let additions = stats.1 as u32; // additions
             let deletions = stats.2 as u32; // deletions
 
@@ -643,20 +618,23 @@ pub fn git_diff_commit_native(
                 String::new()
             } else {
                 // Convert patch to string
-                let diff_text = patch
-                    .to_buf()
-                    .map_err(|e| GitError::from_git2_error(e))?;
+                let diff_text = patch.to_buf().map_err(|e| GitError::from_git2_error(e))?;
                 let mut full_diff = String::from_utf8_lossy(diff_text.as_ref()).to_string();
 
                 // Truncate if exceeds max lines
                 if max_lines < usize::MAX {
                     let line_count = full_diff.lines().count();
                     if line_count > max_lines {
-                        let truncated: String = full_diff.lines()
+                        let truncated: String = full_diff
+                            .lines()
                             .take(max_lines)
                             .collect::<Vec<_>>()
                             .join("\n");
-                        full_diff = format!("{}\n... (truncated {} lines)", truncated, line_count - max_lines);
+                        full_diff = format!(
+                            "{}\n... (truncated {} lines)",
+                            truncated,
+                            line_count - max_lines
+                        );
                     }
                 }
 
@@ -688,7 +666,7 @@ pub fn git_diff_commit_file_native(
     path: String,
     commit: String,
     file_path: String,
-    max_lines: Option<usize>
+    max_lines: Option<usize>,
 ) -> Result<String, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
     let max_lines = max_lines.unwrap_or(usize::MAX);
@@ -719,11 +697,7 @@ pub fn git_diff_commit_file_native(
     diff_opts.pathspec(&file_path);
 
     let diff = repo
-        .diff_tree_to_tree(
-            parent_tree.as_ref(),
-            Some(&tree),
-            Some(&mut diff_opts),
-        )
+        .diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), Some(&mut diff_opts))
         .map_err(|e| GitError::from_git2_error(e))?;
 
     // Get the first (and only) delta
@@ -731,24 +705,26 @@ pub fn git_diff_commit_file_native(
         return Ok(String::new());
     }
 
-    let patch = git2::Patch::from_diff(&diff, 0)
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let patch = git2::Patch::from_diff(&diff, 0).map_err(|e| GitError::from_git2_error(e))?;
 
     if let Some(mut patch) = patch {
-        let diff_text = patch
-            .to_buf()
-            .map_err(|e| GitError::from_git2_error(e))?;
+        let diff_text = patch.to_buf().map_err(|e| GitError::from_git2_error(e))?;
         let mut diff_string = String::from_utf8_lossy(diff_text.as_ref()).to_string();
 
         // Truncate if exceeds max lines
         if max_lines < usize::MAX {
             let line_count = diff_string.lines().count();
             if line_count > max_lines {
-                let truncated: String = diff_string.lines()
+                let truncated: String = diff_string
+                    .lines()
                     .take(max_lines)
                     .collect::<Vec<_>>()
                     .join("\n");
-                diff_string = format!("{}\n... (truncated {} lines)", truncated, line_count - max_lines);
+                diff_string = format!(
+                    "{}\n... (truncated {} lines)",
+                    truncated,
+                    line_count - max_lines
+                );
             }
         }
 
@@ -772,16 +748,12 @@ pub fn git_diff_file_native(
 
     let diff = if staged.unwrap_or(false) {
         // Diff between HEAD and index (staged changes)
-        let head = repo
-            .head()
-            .map_err(|e| GitError::from_git2_error(e))?;
+        let head = repo.head().map_err(|e| GitError::from_git2_error(e))?;
         let head_tree = head
             .peel_to_tree()
             .map_err(|e| GitError::from_git2_error(e))?;
 
-        let mut index = repo
-            .index()
-            .map_err(|e| GitError::from_git2_error(e))?;
+        let mut index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
         let index_tree_oid = index
             .write_tree()
             .map_err(|e| GitError::from_git2_error(e))?;
@@ -887,7 +859,10 @@ pub async fn git_clone_native(
 
         // Add credentials callback
         callbacks.credentials(|url, username, allowed| {
-            eprintln!("Clone auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+            eprintln!(
+                "Clone auth: url={}, username={:?}, allowed={:?}",
+                url, username, allowed
+            );
 
             // Try SSH key
             if allowed.contains(git2::CredentialType::SSH_KEY) {
@@ -897,12 +872,9 @@ pub async fn git_clone_native(
 
                 let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
                 if ssh_key.exists() {
-                    if let Ok(cred) = git2::Cred::ssh_key(
-                        username.unwrap_or("git"),
-                        None,
-                        &ssh_key,
-                        None,
-                    ) {
+                    if let Ok(cred) =
+                        git2::Cred::ssh_key(username.unwrap_or("git"), None, &ssh_key, None)
+                    {
                         return Ok(cred);
                     }
                 }
@@ -943,7 +915,9 @@ pub async fn git_clone_native(
         // Note: Shallow clone (depth parameter) is not supported in this version of git2
         // The depth parameter is accepted but ignored for API compatibility
         if depth.is_some() {
-            eprintln!("Warning: Shallow clone depth parameter is not supported in this version of git2");
+            eprintln!(
+                "Warning: Shallow clone depth parameter is not supported in this version of git2"
+            );
         }
 
         // Perform the clone
@@ -1006,7 +980,10 @@ pub fn git_push_native(
 
     // Add credentials
     callbacks.credentials(|url, username, allowed| {
-        eprintln!("Push auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+        eprintln!(
+            "Push auth: url={}, username={:?}, allowed={:?}",
+            url, username, allowed
+        );
 
         // Try SSH key
         if allowed.contains(git2::CredentialType::SSH_KEY) {
@@ -1016,12 +993,9 @@ pub fn git_push_native(
 
             let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
             if ssh_key.exists() {
-                if let Ok(cred) = git2::Cred::ssh_key(
-                    username.unwrap_or("git"),
-                    None,
-                    &ssh_key,
-                    None,
-                ) {
+                if let Ok(cred) =
+                    git2::Cred::ssh_key(username.unwrap_or("git"), None, &ssh_key, None)
+                {
                     return Ok(cred);
                 }
             }
@@ -1097,7 +1071,10 @@ pub fn git_pull_native(
     let mut callbacks = RemoteCallbacks::new();
 
     callbacks.credentials(|url, username, allowed| {
-        eprintln!("Pull auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+        eprintln!(
+            "Pull auth: url={}, username={:?}, allowed={:?}",
+            url, username, allowed
+        );
 
         // Try SSH key
         if allowed.contains(git2::CredentialType::SSH_KEY) {
@@ -1107,12 +1084,9 @@ pub fn git_pull_native(
 
             let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
             if ssh_key.exists() {
-                if let Ok(cred) = git2::Cred::ssh_key(
-                    username.unwrap_or("git"),
-                    None,
-                    &ssh_key,
-                    None,
-                ) {
+                if let Ok(cred) =
+                    git2::Cred::ssh_key(username.unwrap_or("git"), None, &ssh_key, None)
+                {
                     return Ok(cred);
                 }
             }
@@ -1187,12 +1161,8 @@ pub fn git_pull_native(
         Ok("Fast-forward merge successful".to_string())
     } else {
         // Normal merge required
-        repo.merge(
-            &[&fetch_commit],
-            Some(&mut git2::MergeOptions::new()),
-            None,
-        )
-        .map_err(|e| GitError::from_git2_error(e))?;
+        repo.merge(&[&fetch_commit], Some(&mut git2::MergeOptions::new()), None)
+            .map_err(|e| GitError::from_git2_error(e))?;
 
         // Check for conflicts
         let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
@@ -1217,10 +1187,7 @@ pub fn git_pull_native(
 /// * `path` - Repository path
 /// * `remote_name` - Remote name (default: "origin")
 #[tauri::command]
-pub fn git_fetch_native(
-    path: String,
-    remote_name: Option<String>,
-) -> Result<String, String> {
+pub fn git_fetch_native(path: String, remote_name: Option<String>) -> Result<String, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
     let remote_name = remote_name.as_deref().unwrap_or("origin");
@@ -1233,7 +1200,10 @@ pub fn git_fetch_native(
     let mut callbacks = RemoteCallbacks::new();
 
     callbacks.credentials(|url, username, allowed| {
-        eprintln!("Fetch auth: url={}, username={:?}, allowed={:?}", url, username, allowed);
+        eprintln!(
+            "Fetch auth: url={}, username={:?}, allowed={:?}",
+            url, username, allowed
+        );
 
         // Try SSH key
         if allowed.contains(git2::CredentialType::SSH_KEY) {
@@ -1243,12 +1213,9 @@ pub fn git_fetch_native(
 
             let ssh_key = std::path::Path::new(&home).join(".ssh").join("id_rsa");
             if ssh_key.exists() {
-                if let Ok(cred) = git2::Cred::ssh_key(
-                    username.unwrap_or("git"),
-                    None,
-                    &ssh_key,
-                    None,
-                ) {
+                if let Ok(cred) =
+                    git2::Cred::ssh_key(username.unwrap_or("git"), None, &ssh_key, None)
+                {
                     return Ok(cred);
                 }
             }
@@ -1334,9 +1301,7 @@ pub fn git_unstage_file_native(path: String, file_path: String) -> Result<String
     let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
     // Reset the file to HEAD
-    let head = repo
-        .head()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let head = repo.head().map_err(|e| GitError::from_git2_error(e))?;
     let head_commit = head
         .peel_to_commit()
         .map_err(|e| GitError::from_git2_error(e))?;
@@ -1347,9 +1312,7 @@ pub fn git_unstage_file_native(path: String, file_path: String) -> Result<String
     let mut index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
 
     // Get the entry from HEAD tree
-    let tree_entry = head_tree
-        .get_path(std::path::Path::new(&file_path))
-        .ok();
+    let tree_entry = head_tree.get_path(std::path::Path::new(&file_path)).ok();
 
     if let Some(entry) = tree_entry {
         // File exists in HEAD, reset to that version
@@ -1389,19 +1352,13 @@ pub fn git_unstage_all_native(path: String) -> Result<String, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
     // Reset index to HEAD
-    let head = repo
-        .head()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let head = repo.head().map_err(|e| GitError::from_git2_error(e))?;
     let head_commit = head
         .peel_to_commit()
         .map_err(|e| GitError::from_git2_error(e))?;
 
-    repo.reset(
-        head_commit.as_object(),
-        git2::ResetType::Mixed,
-        None,
-    )
-    .map_err(|e| GitError::from_git2_error(e))?;
+    repo.reset(head_commit.as_object(), git2::ResetType::Mixed, None)
+        .map_err(|e| GitError::from_git2_error(e))?;
 
     Ok("Unstaged all changes".to_string())
 }
@@ -1434,9 +1391,9 @@ pub fn git_commit_native(
     // Get parent commit if exists
     let parent_commit = match repo.head() {
         Ok(head) => {
-            let target = head.target().ok_or_else(|| {
-                GitError::internal("HEAD has no target")
-            })?;
+            let target = head
+                .target()
+                .ok_or_else(|| GitError::internal("HEAD has no target"))?;
             Some(
                 repo.find_commit(target)
                     .map_err(|e| GitError::from_git2_error(e))?,
@@ -1450,11 +1407,11 @@ pub fn git_commit_native(
     // Create commit
     let commit_oid = repo
         .commit(
-            Some("HEAD"),       // Update HEAD
-            &signature,         // Author
-            &signature,         // Committer
-            &message,           // Message
-            &tree,              // Tree
+            Some("HEAD"),        // Update HEAD
+            &signature,          // Author
+            &signature,          // Committer
+            &message,            // Message
+            &tree,               // Tree
             &parents.as_slice(), // Parents
         )
         .map_err(|e| GitError::from_git2_error(e))?;
@@ -1495,15 +1452,10 @@ pub fn git_stash_list_native(path: String) -> Result<Vec<CommitInfo>, String> {
 
 /// Create a stash
 #[tauri::command]
-pub fn git_stash_push_native(
-    path: String,
-    message: Option<String>,
-) -> Result<String, String> {
+pub fn git_stash_push_native(path: String, message: Option<String>) -> Result<String, String> {
     let mut repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
-    let signature = repo
-        .signature()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let signature = repo.signature().map_err(|e| GitError::from_git2_error(e))?;
 
     let msg = message.as_deref().unwrap_or("WIP");
 
@@ -1560,10 +1512,7 @@ pub fn git_merge_native(
         // Fast-forward merge
         let refname = format!(
             "refs/heads/{}",
-            repo.head()
-                .unwrap()
-                .shorthand()
-                .unwrap_or("main")
+            repo.head().unwrap().shorthand().unwrap_or("main")
         );
 
         let mut reference = repo
@@ -1595,9 +1544,7 @@ pub fn git_merge_native(
                 code: "CONFLICT".to_string(),
                 message: "Merge has conflicts".to_string(),
                 category: ErrorCategory::Conflict,
-                suggestion: Some(
-                    "Resolve conflicts manually and commit the result".to_string(),
-                ),
+                suggestion: Some("Resolve conflicts manually and commit the result".to_string()),
             }
             .into());
         }
@@ -1615,9 +1562,7 @@ pub fn git_merge_abort_native(path: String) -> Result<String, String> {
         .map_err(|e| GitError::from_git2_error(e))?;
 
     // Reset to HEAD
-    let head = repo
-        .head()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    let head = repo.head().map_err(|e| GitError::from_git2_error(e))?;
     let commit = head
         .peel_to_commit()
         .map_err(|e| GitError::from_git2_error(e))?;
@@ -1666,19 +1611,26 @@ fn find_conflict_by_path(
     index: &git2::Index,
     file_path: &str,
 ) -> Result<git2::IndexConflict, String> {
-    for entry in index.conflicts().map_err(|e| GitError::from_git2_error(e))? {
+    for entry in index
+        .conflicts()
+        .map_err(|e| GitError::from_git2_error(e))?
+    {
         let c = entry.map_err(|e| GitError::from_git2_error(e))?;
 
         // Check if this conflict matches the file path
-        let path_matches = c.our.as_ref()
+        let path_matches = c
+            .our
+            .as_ref()
             .map(|e| String::from_utf8_lossy(&e.path) == file_path)
-            .unwrap_or(false) ||
-            c.their.as_ref()
-            .map(|e| String::from_utf8_lossy(&e.path) == file_path)
-            .unwrap_or(false) ||
-            c.ancestor.as_ref()
-            .map(|e| String::from_utf8_lossy(&e.path) == file_path)
-            .unwrap_or(false);
+            .unwrap_or(false)
+            || c.their
+                .as_ref()
+                .map(|e| String::from_utf8_lossy(&e.path) == file_path)
+                .unwrap_or(false)
+            || c.ancestor
+                .as_ref()
+                .map(|e| String::from_utf8_lossy(&e.path) == file_path)
+                .unwrap_or(false);
 
         if path_matches {
             return Ok(c);
@@ -1741,9 +1693,8 @@ pub fn git_resolve_conflict_native(
 
     // Write resolved content to file
     let full_path = std::path::Path::new(&path).join(&file_path);
-    std::fs::write(&full_path, resolution).map_err(|e| {
-        GitError::internal(&format!("Failed to write file: {}", e))
-    })?;
+    std::fs::write(&full_path, resolution)
+        .map_err(|e| GitError::internal(&format!("Failed to write file: {}", e)))?;
 
     // Stage the resolved file
     let mut index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
@@ -1782,10 +1733,7 @@ pub fn git_accept_ours_native(path: String, file_path: String) -> Result<String,
 
 /// Accept "theirs" version for a conflict
 #[tauri::command]
-pub fn git_accept_theirs_native(
-    path: String,
-    file_path: String,
-) -> Result<String, String> {
+pub fn git_accept_theirs_native(path: String, file_path: String) -> Result<String, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from_git2_error(e))?;
 
     let index = repo.index().map_err(|e| GitError::from_git2_error(e))?;
@@ -1821,9 +1769,7 @@ pub fn git_delete_branch_native(
 
     // Check if branch is merged (unless force is true)
     if !force.unwrap_or(false) {
-        let head = repo
-            .head()
-            .map_err(|e| GitError::from_git2_error(e))?;
+        let head = repo.head().map_err(|e| GitError::from_git2_error(e))?;
         let head_commit = head
             .peel_to_commit()
             .map_err(|e| GitError::from_git2_error(e))?;
@@ -1852,9 +1798,7 @@ pub fn git_delete_branch_native(
         }
     }
 
-    branch
-        .delete()
-        .map_err(|e| GitError::from_git2_error(e))?;
+    branch.delete().map_err(|e| GitError::from_git2_error(e))?;
 
     Ok(format!("Deleted branch: {}", branch_name))
 }

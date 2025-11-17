@@ -156,7 +156,10 @@ pub async fn download_font_file(
         .map_err(|e| format!("Failed to download font: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("Download failed with status: {}", response.status()));
+        return Err(format!(
+            "Download failed with status: {}",
+            response.status()
+        ));
     }
 
     let bytes = response

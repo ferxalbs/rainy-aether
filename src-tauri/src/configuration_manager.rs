@@ -211,8 +211,8 @@ fn load_json_file(path: &PathBuf) -> Result<HashMap<String, Value>, String> {
         return Ok(HashMap::new());
     }
 
-    let content = fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read settings file: {}", e))?;
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("Failed to read settings file: {}", e))?;
 
     let parsed: HashMap<String, Value> = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse settings JSON: {}", e))?;
@@ -308,8 +308,7 @@ fn validate_value(
             let num_value = value.as_f64().unwrap();
 
             // Integer check
-            if matches!(property.property_type, PropertyType::Integer) && num_value.fract() != 0.0
-            {
+            if matches!(property.property_type, PropertyType::Integer) && num_value.fract() != 0.0 {
                 return Err(ValidationError {
                     key: key.to_string(),
                     message: "Expected integer value".to_string(),
@@ -479,8 +478,8 @@ pub fn set_configuration_value(
     scope: String,
     workspace_path: Option<String>,
 ) -> Result<(), String> {
-    let parsed_value: Value = serde_json::from_str(&value)
-        .map_err(|e| format!("Failed to parse value: {}", e))?;
+    let parsed_value: Value =
+        serde_json::from_str(&value).map_err(|e| format!("Failed to parse value: {}", e))?;
 
     let scope_enum = match scope.as_str() {
         "user" => ConfigurationScope::User,
