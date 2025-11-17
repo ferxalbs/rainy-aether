@@ -54,16 +54,27 @@ export function ChatMain() {
     }
   }, [apiKeys.initialized]);
 
-  // Determine which provider the selected agent needs
+  // Determine which provider the selected agent needs by looking up agent config
   const getAgentProvider = (agentId: string): 'groq' | 'google' | null => {
-    // Map agent IDs to their providers
-    const agentProviders: Record<string, 'groq' | 'google'> = {
-      'rainy': 'groq',           // Rainy uses Groq (Llama 3.3)
-      'claude-code': 'google',   // Claude Code uses Google (Gemini)
-      'abby': 'groq',            // Abby uses Groq (Llama 3.3)
-    };
+    // Get agent from registry
+    const agent = selectedAgent; // Already fetched by useAgents()
 
-    return agentProviders[agentId] || null;
+    if (!agent) {
+      console.warn(`Agent not found: ${agentId}`);
+      return null;
+    }
+
+    // Get provider from agent config (single source of truth)
+    const config = agent.getConfig();
+    const provider = config.provider;
+
+    // Validate provider type
+    if (provider === 'groq' || provider === 'google') {
+      return provider;
+    }
+
+    console.warn(`Unknown provider for agent ${agentId}: ${provider}`);
+    return null;
   };
 
   // Check if API keys are needed when trying to send a message
