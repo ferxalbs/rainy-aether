@@ -12,10 +12,19 @@ pub fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> Result
         url = format!("index.html?workspace={}", urlencoding::encode(&path));
     }
 
+    // Create window with full configuration to match tauri.conf.json
+    // This ensures new windows have all necessary features (close button, decorations, etc.)
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
         .title("Rainy Aether")
         .inner_size(1200.0, 800.0)
         .min_inner_size(800.0, 600.0)
+        .decorations(true) // CRITICAL: Window decorations (title bar, borders)
+        .visible(true) // CRITICAL: Make window visible
+        .center() // Center window on screen
+        .resizable(true) // Allow resizing
+        .maximizable(true) // Allow maximizing
+        .minimizable(true) // Allow minimizing
+        .closable(true) // CRITICAL: Allow closing the window
         .build()
         .map_err(|e| format!("Failed to create window: {}", e))?;
 
