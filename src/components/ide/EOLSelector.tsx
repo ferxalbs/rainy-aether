@@ -9,12 +9,12 @@ interface EOLSelectorProps {
   onEOLChange: (eol: string) => void;
 }
 
-// End of Line options
+// End of Line options with enhanced icons
 const EOL_OPTIONS: SelectOption[] = [
   {
     id: 'lf',
     name: 'LF',
-    description: 'Unix/Linux/macOS (\\n)',
+    description: 'Unix/Linux/macOS (\\n) - Recommended',
     icon: (
       <svg
         width="14"
@@ -25,10 +25,11 @@ const EOL_OPTIONS: SelectOption[] = [
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        className="text-green-500"
       >
-        <path d="M3 3h18v18H3z"></path>
-        <path d="M8 8v8"></path>
-        <path d="M16 8l-4 4 4 4"></path>
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M12 8v8" />
+        <path d="M8 12l4 4 4-4" />
       </svg>
     ),
   },
@@ -46,17 +47,18 @@ const EOL_OPTIONS: SelectOption[] = [
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        className="text-blue-500"
       >
-        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-        <path d="M8 8v8"></path>
-        <path d="M16 8l-4 4 4 4"></path>
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <path d="M9 12h6" />
+        <path d="M12 9l3 3-3 3" />
       </svg>
     ),
   },
   {
     id: 'cr',
     name: 'CR',
-    description: 'Classic Mac (\\r)',
+    description: 'Classic Mac (\\r) - Legacy',
     icon: (
       <svg
         width="14"
@@ -67,9 +69,11 @@ const EOL_OPTIONS: SelectOption[] = [
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
+        className="text-orange-500"
       >
-        <circle cx="12" cy="12" r="9"></circle>
-        <path d="M16 8l-4 4 4 4"></path>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M16 12H8" />
+        <path d="M12 8l-4 4 4 4" />
       </svg>
     ),
   },
@@ -113,7 +117,7 @@ export function EOLSelector({
       options={EOL_OPTIONS}
       selectedId={selectedId}
       onSelect={handleSelect}
-      title="End of Line Sequence"
+      title="Select End of Line Sequence"
       placeholder="Select EOL..."
       searchable={false}
       grouped={false}
