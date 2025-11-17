@@ -41,12 +41,7 @@ impl AuthCallbacks {
                 let ssh_dir = Path::new(&home).join(".ssh");
 
                 // Try common SSH key names
-                let key_names = vec![
-                    "id_rsa",
-                    "id_ed25519",
-                    "id_ecdsa",
-                    "id_dsa",
-                ];
+                let key_names = vec!["id_rsa", "id_ed25519", "id_ecdsa", "id_dsa"];
 
                 for key_name in key_names {
                     let private_key = ssh_dir.join(key_name);
@@ -108,7 +103,9 @@ impl AuthCallbacks {
 
             // All methods failed
             eprintln!("All authentication methods failed");
-            Err(git2::Error::from_str("No valid authentication method available"))
+            Err(git2::Error::from_str(
+                "No valid authentication method available",
+            ))
         });
 
         callbacks

@@ -76,7 +76,6 @@ pub fn get_keyboard_shortcuts() -> Result<Vec<KeyboardShortcut>, String> {
             category: "File".to_string(),
             when: None,
         },
-
         // Edit operations
         KeyboardShortcut {
             id: "edit.undo".to_string(),
@@ -118,7 +117,6 @@ pub fn get_keyboard_shortcuts() -> Result<Vec<KeyboardShortcut>, String> {
             category: "Edit".to_string(),
             when: None,
         },
-
         // Search operations
         KeyboardShortcut {
             id: "search.find".to_string(),
@@ -144,7 +142,6 @@ pub fn get_keyboard_shortcuts() -> Result<Vec<KeyboardShortcut>, String> {
             category: "Search".to_string(),
             when: None,
         },
-
         // Navigation
         KeyboardShortcut {
             id: "navigation.quick_open".to_string(),
@@ -186,7 +183,6 @@ pub fn get_keyboard_shortcuts() -> Result<Vec<KeyboardShortcut>, String> {
             category: "Navigation".to_string(),
             when: None,
         },
-
         // View operations
         KeyboardShortcut {
             id: "view.toggle_sidebar".to_string(),
@@ -212,7 +208,6 @@ pub fn get_keyboard_shortcuts() -> Result<Vec<KeyboardShortcut>, String> {
             category: "View".to_string(),
             when: None,
         },
-
         // Terminal operations
         KeyboardShortcut {
             id: "terminal.new".to_string(),
@@ -230,7 +225,6 @@ pub fn get_keyboard_shortcuts() -> Result<Vec<KeyboardShortcut>, String> {
             category: "Terminal".to_string(),
             when: None,
         },
-
         // Settings
         KeyboardShortcut {
             id: "settings.open".to_string(),
@@ -344,7 +338,6 @@ pub fn get_available_commands() -> Result<Vec<Command>, String> {
             category: "File".to_string(),
             keybinding: Some("Ctrl+S".to_string()),
         },
-
         // View commands
         Command {
             id: "view.toggleSidebar".to_string(),
@@ -367,7 +360,6 @@ pub fn get_available_commands() -> Result<Vec<Command>, String> {
             category: "View".to_string(),
             keybinding: Some("Ctrl+Shift+M".to_string()),
         },
-
         // Terminal commands
         Command {
             id: "terminal.new".to_string(),
@@ -383,7 +375,6 @@ pub fn get_available_commands() -> Result<Vec<Command>, String> {
             category: "Terminal".to_string(),
             keybinding: Some("Ctrl+Shift+W".to_string()),
         },
-
         // Window commands
         Command {
             id: "window.newWindow".to_string(),
@@ -399,7 +390,6 @@ pub fn get_available_commands() -> Result<Vec<Command>, String> {
             category: "Window".to_string(),
             keybinding: None,
         },
-
         // Help commands
         Command {
             id: "help.keyboardShortcuts".to_string(),
@@ -429,7 +419,6 @@ pub fn get_available_commands() -> Result<Vec<Command>, String> {
             category: "Help".to_string(),
             keybinding: None,
         },
-
         // Settings commands
         Command {
             id: "settings.open".to_string(),
