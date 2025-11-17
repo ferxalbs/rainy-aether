@@ -1,49 +1,71 @@
 use std::path::PathBuf;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_shell::ShellExt;
 
 /// Open a new window with the current or specified workspace
 ///
-/// This follows the same pattern as Fluxium editor - using WebviewUrl::App
-/// which works in both dev and production modes automatically
+/// CRITICAL: Following Fluxium's EXACT pattern
+/// - Load plain "index.html" (NO URL parameters)
+/// - Just build the window, Tauri shows it automatically
+/// - Use events for workspace communication AFTER window loads
 #[tauri::command]
 pub fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> Result<String, String> {
     let label = format!("main-{}", chrono::Utc::now().timestamp_millis());
 
-    // Build the URL with optional workspace parameter
-    // CRITICAL: Use WebviewUrl::App("index.html") - Tauri resolves this automatically:
-    // - Dev mode: http://localhost:1420/index.html
-    // - Production: tauri://localhost/index.html
-    let url = if let Some(path) = workspace_path {
-        let encoded_path = urlencoding::encode(&path);
-        format!("index.html?workspace={}", encoded_path)
-    } else {
-        "index.html".to_string()
-    };
+    eprintln!("[window_manager] Creating new window '{}'", label);
 
-    eprintln!("[window_manager] Creating new window '{}' with URL: '{}'", label, url);
-
-    // Create window with full configuration (following Fluxium pattern)
-    WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
+    // Build window - EXACTLY like Fluxium (no visible, no show, just build)
+    eprintln!("[window_manager] Building window with label: {}", label);
+    let _window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))
         .title("Rainy Aether")
         .inner_size(1200.0, 800.0)
         .min_inner_size(800.0, 600.0)
         .decorations(true)
-        .visible(true)
         .center()
-        .resizable(true)
-        .maximizable(true)
-        .minimizable(true)
-        .closable(true)
         .build()
-        .map_err(|e| {
-            eprintln!("[window_manager] ❌ Failed to create window '{}': {}", label, e);
-            format!("Failed to create window: {}", e)
-        })?;
+        .unwrap(); // Use unwrap like Fluxium to see actual error
 
     eprintln!("[window_manager] ✓ Window '{}' created successfully", label);
 
+    // If workspace provided, emit event AFTER delay (window needs to load first)
+    if let Some(path) = workspace_path {
+        let label_clone = label.clone();
+        let app_clone = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+            if let Err(e) = app_clone.emit_to(&label_clone, "rainy:load-workspace", path) {
+                eprintln!("[window_manager] ⚠️ Failed to emit workspace: {}", e);
+            } else {
+                eprintln!("[window_manager] ✓ Workspace event sent to '{}'", label_clone);
+            }
+        });
+    }
+
     Ok(label)
+}
+
+/// Show window when frontend is ready (called from frontend after initialization)
+/// This matches Fluxium's pattern - windows start hidden, frontend shows when ready
+#[tauri::command]
+pub fn window_show_ready(app: AppHandle, label: Option<String>) -> Result<(), String> {
+    let window = if let Some(l) = label {
+        app.get_webview_window(&l)
+            .ok_or_else(|| format!("Window '{}' not found", l))?
+    } else {
+        // Get current window from app handle
+        app.webview_windows()
+            .values()
+            .next()
+            .ok_or("No window found")?
+            .clone()
+    };
+
+    window
+        .show()
+        .map_err(|e| format!("Failed to show window: {}", e))?;
+
+    eprintln!("[window_manager] ✓ Window shown (frontend ready)");
+    Ok(())
 }
 
 /// Get list of all open windows
@@ -98,10 +120,10 @@ pub fn reveal_in_explorer(app: AppHandle, path: String) -> Result<(), String> {
         let mut command = app.shell().command("explorer.exe");
 
         if p.is_dir() {
-            command = command.args(&[path.as_str()]);
+            command = command.args([path.as_str()]);
         } else {
             let arg = format!("/select,{}", path);
-            command = command.args(&[arg.as_str()]);
+            command = command.args([arg.as_str()]);
         }
 
         command
@@ -174,13 +196,13 @@ pub fn open_system_terminal(app: AppHandle, cwd: Option<String>) -> Result<(), S
     {
         // Try Windows Terminal first, fallback to cmd
         let mut wt_command = app.shell().command("wt.exe");
-        wt_command = wt_command.args(&["--window", "0", "-d", &working_dir]);
+        wt_command = wt_command.args(["--window", "0", "-d", &working_dir]);
 
         if wt_command.spawn().is_err() {
             // Fallback to cmd
             let mut cmd_command = app.shell().command("cmd.exe");
             cmd_command =
-                cmd_command.args(&["/c", "start", "cmd.exe", "/k", "cd", "/d", &working_dir]);
+                cmd_command.args(["/c", "start", "cmd.exe", "/k", "cd", "/d", &working_dir]);
             cmd_command
                 .spawn()
                 .map_err(|e| format!("Failed to open terminal: {}", e))?;
@@ -569,7 +591,7 @@ fn get_os_version() -> String {
     #[cfg(target_os = "windows")]
     {
         if let Ok(output) = std::process::Command::new("cmd")
-            .args(&["/c", "ver"])
+            .args(["/c", "ver"])
             .output()
         {
             if let Ok(version) = String::from_utf8(output.stdout) {

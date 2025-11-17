@@ -131,8 +131,7 @@ pub async fn download_font_file(
     // Sanitize font family name for filename
     let sanitized_family = font_family
         .to_lowercase()
-        .replace(' ', "-")
-        .replace('_', "-");
+        .replace([' ', '_'], "-");
 
     // Determine file extension from URL
     let extension = if url.contains(".woff2") {
@@ -250,8 +249,7 @@ pub async fn import_custom_font_file(
     // Sanitize font family name
     let sanitized_family = font_family
         .to_lowercase()
-        .replace(' ', "-")
-        .replace('_', "-");
+        .replace([' ', '_'], "-");
 
     let filename = format!("{}.{}", sanitized_family, extension);
     let dest_path = fonts_dir.join(&filename);

@@ -245,7 +245,7 @@ pub async fn tool_edit_file(
                 content: insert_content,
             } => {
                 let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
-                let insert_idx = (line as usize).saturating_sub(1).min(lines.len());
+                let insert_idx = line.saturating_sub(1).min(lines.len());
                 lines.insert(insert_idx, insert_content);
                 content = lines.join("\n");
                 applied += 1;
@@ -255,8 +255,8 @@ pub async fn tool_edit_file(
                 end_line,
             } => {
                 let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
-                let start_idx = (start_line as usize).saturating_sub(1);
-                let end_idx = (end_line as usize).min(lines.len());
+                let start_idx = start_line.saturating_sub(1);
+                let end_idx = end_line.min(lines.len());
 
                 if start_idx < lines.len() {
                     lines.drain(start_idx..end_idx);

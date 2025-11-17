@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const loadingState = useLoadingState();
   const initializationStarted = useRef(false);
+  const windowShown = useRef(false);
 
   useEffect(() => {
     // Prevent multiple initialization attempts
@@ -286,6 +287,21 @@ const App: React.FC = () => {
 
         // Mark initialization as complete
         setIsInitialized(true);
+
+        // CRITICAL: Show window now that frontend is ready (matches Fluxium pattern)
+        // This prevents blank windows by ensuring window only shows after initialization
+        // NOTE: Main window starts visible, but new windows start hidden and need this call
+        if (!windowShown.current) {
+          windowShown.current = true;
+          try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('window_show_ready', { label: null });
+            console.log('[App] ✓ Window shown (frontend ready)');
+          } catch (error) {
+            // Non-fatal - main window is already visible, this is only for new windows
+            console.log('[App] Window show called (may already be visible)');
+          }
+        }
       } catch (error) {
         console.error("Failed to initialize app:", error);
         loadingActions.finishLoading();
@@ -295,6 +311,39 @@ const App: React.FC = () => {
 
     initialize();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Listen for workspace loading events from new windows
+  useEffect(() => {
+    let unlisten: (() => void) | null = null;
+
+    const setupWorkspaceListener = async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        const { useIDEStore } = await import('./stores/ideStore');
+
+        unlisten = await listen<string>('rainy:load-workspace', (event) => {
+          const workspacePath = event.payload;
+          console.log('[App] Received workspace load event:', workspacePath);
+
+          // Load the workspace (this will trigger project structure loading)
+          const { actions } = useIDEStore.getState();
+          actions.openWorkspace(workspacePath);
+        });
+
+        console.log('[App] ✓ Workspace listener registered');
+      } catch (error) {
+        console.error('[App] Failed to setup workspace listener:', error);
+      }
+    };
+
+    setupWorkspaceListener();
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, []);
 
   // Show loading screen while initializing or while loading state is active
   // Only show for global context, not workspace context after app is initialized

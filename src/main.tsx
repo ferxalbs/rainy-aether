@@ -6,7 +6,6 @@ import { configureMonacoForVite } from "./services/monacoWorkers";
 
 console.log('[main.tsx] Starting application initialization...');
 console.log('[main.tsx] Window location:', window.location.href);
-console.log('[main.tsx] Search params:', window.location.search);
 
 // Configure Monaco Editor Environment for web workers
 // This is required for Monaco to load language services like TypeScript

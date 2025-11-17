@@ -364,10 +364,7 @@ pub fn git_get_status(path: String) -> Result<GitStatus, String> {
     };
 
     // Get status
-    let status_entries = match git_status(path.clone()) {
-        Ok(entries) => entries,
-        Err(_) => vec![],
-    };
+    let status_entries = git_status(path.clone()).unwrap_or_default();
 
     // Count different types of changes
     let mut staged = 0;
@@ -399,7 +396,7 @@ pub fn git_get_status(path: String) -> Result<GitStatus, String> {
     ) {
         Ok(output) => {
             let parts: Vec<&str> = output.trim().split('\t').collect();
-            let behind_count = parts.get(0).and_then(|s| s.parse().ok()).unwrap_or(0);
+            let behind_count = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
             let ahead_count = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
             (Some(ahead_count), Some(behind_count))
         }

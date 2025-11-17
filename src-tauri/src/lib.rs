@@ -21,9 +21,9 @@ fn open_windows_terminal(app: tauri::AppHandle, cwd: Option<String>) -> Result<(
 
     // Construir argumentos dinámicamente para Windows Terminal
     let mut command = app.shell().command("wt.exe");
-    command = command.args(&["--window", "0"]);
+    command = command.args(["--window", "0"]);
     if let Some(dir) = cwd.as_deref() {
-        command = command.args(&["-d", dir]);
+        command = command.args(["-d", dir]);
     }
 
     match command.spawn() {
@@ -42,10 +42,10 @@ fn open_in_directory(app: tauri::AppHandle, path: String) -> Result<(), String> 
 
     // Si es un directorio, abrir directamente. Si es archivo, usar /select,
     if p.is_dir() {
-        command = command.args(&[p.to_string_lossy().to_string().as_str()]);
+        command = command.args([p.to_string_lossy().to_string().as_str()]);
     } else {
         let arg = format!("/select,{}", p.to_string_lossy());
-        command = command.args(&[arg.as_str()]);
+        command = command.args([arg.as_str()]);
     }
 
     match command.spawn() {
@@ -196,6 +196,7 @@ pub fn run() {
         open_in_directory,
         // Window management
         window_manager::window_open_new,
+        window_manager::window_show_ready, // NEW: Show window when frontend is ready
         window_manager::window_get_all,
         window_manager::window_focus,
         window_manager::window_close,

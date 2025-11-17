@@ -610,7 +610,7 @@ pub fn validate_configuration_value(
 
     match validate_value(&key, &parsed_value, &property) {
         Ok(_) => Ok(true),
-        Err(err) => Err(serde_json::to_string(&err).unwrap_or_else(|_| err.message)),
+        Err(err) => Err(serde_json::to_string(&err).unwrap_or(err.message)),
     }
 }
 

@@ -132,14 +132,14 @@ impl AuthCallbacks {
     {
         let mut callbacks = Self::create_callbacks();
 
-        callbacks.transfer_progress(move |progress| on_progress(progress));
+        callbacks.transfer_progress(on_progress);
 
         callbacks
     }
 }
 
 /// Create fetch options with authentication callbacks and progress reporting
-pub fn fetch_options_with_progress<F>(mut on_progress: F) -> FetchOptions<'static>
+pub fn fetch_options_with_progress<F>(on_progress: F) -> FetchOptions<'static>
 where
     F: FnMut(git2::Progress) -> bool + 'static,
 {
@@ -149,7 +149,7 @@ where
 }
 
 /// Create push options with authentication callbacks and progress reporting
-pub fn push_options_with_progress<F>(mut on_progress: F) -> PushOptions<'static>
+pub fn push_options_with_progress<F>(on_progress: F) -> PushOptions<'static>
 where
     F: FnMut(git2::Progress) -> bool + 'static,
 {
