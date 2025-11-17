@@ -9,6 +9,7 @@ interface HelpMenuProps {
   triggerRef: React.RefObject<HTMLElement>;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  onOpenKeyboardShortcuts?: () => void;
 }
 
 export function HelpMenu({
@@ -17,6 +18,7 @@ export function HelpMenu({
   triggerRef,
   onMouseEnter,
   onMouseLeave,
+  onOpenKeyboardShortcuts,
 }: HelpMenuProps) {
   const [links, setLinks] = useState<DocumentationLink[]>([]);
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
@@ -63,8 +65,8 @@ export function HelpMenu({
         console.error('Failed to open URL:', error);
       }
     } else if (link.url === 'keyboard-shortcuts://local') {
-      // TODO: Open keyboard shortcuts dialog
-      console.log('Open keyboard shortcuts');
+      // Open keyboard shortcuts dialog
+      onOpenKeyboardShortcuts?.();
     }
     onClose();
   };

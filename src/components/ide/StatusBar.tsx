@@ -12,6 +12,11 @@ import { useCurrentProblemStatusBarEntry } from './CurrentProblemIndicator';
 import { ProblemsPopover } from './ProblemsPopover';
 import { HelpMenu } from './HelpMenu';
 import { NotificationCenter } from './NotificationCenter';
+import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { ThemeSelector } from './ThemeSelector';
+import { EncodingSelector } from './EncodingSelector';
+import { LanguageModeSelector } from './LanguageModeSelector';
+import { EOLSelector } from './EOLSelector';
 import { cn } from '@/lib/cn';
 import { invoke } from '@tauri-apps/api/core';
 import '../../styles/statusbar.css';
@@ -47,9 +52,18 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const [isProblemsPopoverOpen, setIsProblemsPopoverOpen] = useState(false);
   const [isHelpMenuOpen, setIsHelpMenuOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
+  const [isKeyboardShortcutsOpen, setIsKeyboardShortcutsOpen] = useState(false);
+  const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
+  const [isEncodingSelectorOpen, setIsEncodingSelectorOpen] = useState(false);
+  const [isLanguageSelectorOpen, setIsLanguageSelectorOpen] = useState(false);
+  const [isEOLSelectorOpen, setIsEOLSelectorOpen] = useState(false);
   const problemsButtonRef = useRef<HTMLDivElement>(null);
   const helpButtonRef = useRef<HTMLDivElement>(null);
   const notificationButtonRef = useRef<HTMLDivElement>(null);
+  const themeButtonRef = useRef<HTMLDivElement>(null);
+  const encodingButtonRef = useRef<HTMLDivElement>(null);
+  const languageButtonRef = useRef<HTMLDivElement>(null);
+  const eolButtonRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
   const [editorInfo, setEditorInfo] = useState<EditorInfo>({
     language: 'Plain Text',
@@ -60,6 +74,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     spaces: 2,
     tabSize: 2
   });
+  const [eol, setEOL] = useState<string>('LF');
   const [platformName, setPlatformName] = useState<string>('');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const notificationStats = useNotificationStats();
@@ -351,6 +366,69 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     }
   };
 
+  // Handle encoding change
+  const handleEncodingChange = (encoding: string) => {
+    setEditorInfo((prev) => ({ ...prev, encoding }));
+    // TODO: Actually change the file encoding in Monaco
+    console.log('Encoding changed to:', encoding);
+  };
+
+  // Handle language mode change
+  const handleLanguageChange = (languageId: string) => {
+    const editor = editorState.view;
+    if (!editor) return;
+
+    const model = editor.getModel();
+    if (!model) return;
+
+    // Set language mode in Monaco
+    monaco.editor.setModelLanguage(model, languageId);
+
+    // Update state
+    const languageMap: Record<string, string> = {
+      typescript: 'TypeScript',
+      javascript: 'JavaScript',
+      html: 'HTML',
+      css: 'CSS',
+      markdown: 'Markdown',
+      rust: 'Rust',
+      json: 'JSON',
+      xml: 'XML',
+      yaml: 'YAML',
+      sql: 'SQL',
+      python: 'Python',
+      java: 'Java',
+      csharp: 'C#',
+      cpp: 'C++',
+      php: 'PHP',
+      go: 'Go',
+    };
+
+    setEditorInfo((prev) => ({
+      ...prev,
+      language: languageMap[languageId] || languageId.charAt(0).toUpperCase() + languageId.slice(1),
+    }));
+  };
+
+  // Handle EOL change
+  const handleEOLChange = (newEOL: string) => {
+    const editor = editorState.view;
+    if (!editor) return;
+
+    const model = editor.getModel();
+    if (!model) return;
+
+    // Set EOL in Monaco
+    const eolMap: Record<string, monaco.editor.EndOfLineSequence> = {
+      LF: monaco.editor.EndOfLineSequence.LF,
+      CRLF: monaco.editor.EndOfLineSequence.CRLF,
+      CR: monaco.editor.EndOfLineSequence.LF, // Monaco doesn't support CR, use LF
+    };
+
+    model.setEOL(eolMap[newEOL] || monaco.editor.EndOfLineSequence.LF);
+    setEOL(newEOL);
+  };
+
   // Define status bar items
   const statusItems: Array<IStatusBarEntry | null> = [
     // Left side items
@@ -401,8 +479,19 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       id: 'encoding',
       name: 'File Encoding',
       text: editorInfo.encoding,
-      tooltip: 'File encoding',
+      tooltip: 'Select Encoding',
+      onClick: () => setIsEncodingSelectorOpen(!isEncodingSelectorOpen),
       order: 1,
+      position: 'right'
+    },
+    // EOL
+    {
+      id: 'eol',
+      name: 'End of Line Sequence',
+      text: eol,
+      tooltip: 'Select End of Line Sequence',
+      onClick: () => setIsEOLSelectorOpen(!isEOLSelectorOpen),
+      order: 1.5,
       position: 'right'
     },
     // Language mode
@@ -410,7 +499,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       id: 'language',
       name: 'Language Mode',
       text: editorInfo.language,
-      tooltip: `Language: ${editorInfo.language}`,
+      tooltip: `Select Language Mode`,
+      onClick: () => setIsLanguageSelectorOpen(!isLanguageSelectorOpen),
       order: 2,
       position: 'right'
     },
@@ -446,8 +536,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       id: 'theme',
       name: 'Theme',
       text: getCurrentTheme().displayName,
-      tooltip: 'Current theme',
-      onClick: () => console.log('Theme clicked'),
+      tooltip: 'Select Color Theme',
+      onClick: () => setIsThemeSelectorOpen(!isThemeSelectorOpen),
       order: 6,
       position: 'right'
     },
@@ -456,8 +546,15 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       id: 'help',
       name: 'Help',
       text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
-      tooltip: 'Help and Documentation',
-      onClick: handleHelpClick,
+      tooltip: 'Help and Documentation (Click for menu, Ctrl+K Ctrl+S for shortcuts)',
+      onClick: (e?: React.MouseEvent) => {
+        // Check if Ctrl/Cmd key is pressed
+        if (e && (e.ctrlKey || e.metaKey)) {
+          setIsKeyboardShortcutsOpen(true);
+        } else {
+          setIsHelpMenuOpen(!isHelpMenuOpen);
+        }
+      },
       order: 7,
       position: 'right'
     },
@@ -514,6 +611,14 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
                   ? helpButtonRef
                   : item.id === 'notifications'
                   ? notificationButtonRef
+                  : item.id === 'theme'
+                  ? themeButtonRef
+                  : item.id === 'encoding'
+                  ? encodingButtonRef
+                  : item.id === 'language'
+                  ? languageButtonRef
+                  : item.id === 'eol'
+                  ? eolButtonRef
                   : undefined
               }
             >
@@ -537,6 +642,10 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
         isOpen={isHelpMenuOpen}
         onClose={() => setIsHelpMenuOpen(false)}
         triggerRef={helpButtonRef}
+        onOpenKeyboardShortcuts={() => {
+          setIsHelpMenuOpen(false);
+          setIsKeyboardShortcutsOpen(true);
+        }}
       />
 
       {/* Notification Center */}
@@ -544,6 +653,46 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
         isOpen={isNotificationCenterOpen}
         onClose={() => setIsNotificationCenterOpen(false)}
         triggerRef={notificationButtonRef}
+      />
+
+      {/* Keyboard Shortcuts Dialog */}
+      <KeyboardShortcutsDialog
+        isOpen={isKeyboardShortcutsOpen}
+        onClose={() => setIsKeyboardShortcutsOpen(false)}
+      />
+
+      {/* Theme Selector */}
+      <ThemeSelector
+        isOpen={isThemeSelectorOpen}
+        onClose={() => setIsThemeSelectorOpen(false)}
+        triggerRef={themeButtonRef}
+      />
+
+      {/* Encoding Selector */}
+      <EncodingSelector
+        isOpen={isEncodingSelectorOpen}
+        onClose={() => setIsEncodingSelectorOpen(false)}
+        triggerRef={encodingButtonRef}
+        currentEncoding={editorInfo.encoding}
+        onEncodingChange={handleEncodingChange}
+      />
+
+      {/* Language Mode Selector */}
+      <LanguageModeSelector
+        isOpen={isLanguageSelectorOpen}
+        onClose={() => setIsLanguageSelectorOpen(false)}
+        triggerRef={languageButtonRef}
+        currentLanguage={editorInfo.language}
+        onLanguageChange={handleLanguageChange}
+      />
+
+      {/* EOL Selector */}
+      <EOLSelector
+        isOpen={isEOLSelectorOpen}
+        onClose={() => setIsEOLSelectorOpen(false)}
+        triggerRef={eolButtonRef}
+        currentEOL={eol}
+        onEOLChange={handleEOLChange}
       />
     </>
   );
