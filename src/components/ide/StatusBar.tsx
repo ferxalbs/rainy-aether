@@ -19,6 +19,7 @@ import { LanguageModeSelector } from './LanguageModeSelector';
 import { EOLSelector } from './EOLSelector';
 import { cn } from '@/lib/cn';
 import { invoke } from '@tauri-apps/api/core';
+import { getLanguageDisplayName } from '@/utils/languageMap';
 import '../../styles/statusbar.css';
 
 // Problems interface (now using MarkerStatistics)
@@ -151,29 +152,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const handlePopoverMouseLeave = () => {
     // Close popover when mouse leaves
     setIsProblemsPopoverOpen(false);
-  };
-
-  // Get language display name
-  const getLanguageDisplayName = (languageId: string): string => {
-    const languageMap: Record<string, string> = {
-      'typescript': 'TypeScript',
-      'javascript': 'JavaScript',
-      'html': 'HTML',
-      'css': 'CSS',
-      'markdown': 'Markdown',
-      'rust': 'Rust',
-      'json': 'JSON',
-      'xml': 'XML',
-      'yaml': 'YAML',
-      'sql': 'SQL',
-      'python': 'Python',
-      'java': 'Java',
-      'csharp': 'C#',
-      'cpp': 'C++',
-      'php': 'PHP',
-      'go': 'Go'
-    };
-    return languageMap[languageId] || languageId.charAt(0).toUpperCase() + languageId.slice(1);
   };
 
   // Get selection info
@@ -384,29 +362,10 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     // Set language mode in Monaco
     monaco.editor.setModelLanguage(model, languageId);
 
-    // Update state
-    const languageMap: Record<string, string> = {
-      typescript: 'TypeScript',
-      javascript: 'JavaScript',
-      html: 'HTML',
-      css: 'CSS',
-      markdown: 'Markdown',
-      rust: 'Rust',
-      json: 'JSON',
-      xml: 'XML',
-      yaml: 'YAML',
-      sql: 'SQL',
-      python: 'Python',
-      java: 'Java',
-      csharp: 'C#',
-      cpp: 'C++',
-      php: 'PHP',
-      go: 'Go',
-    };
-
+    // Update state using imported function
     setEditorInfo((prev) => ({
       ...prev,
-      language: languageMap[languageId] || languageId.charAt(0).toUpperCase() + languageId.slice(1),
+      language: getLanguageDisplayName(languageId),
     }));
   };
 

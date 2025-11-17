@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { themes, getCurrentTheme, themeActions } from '@/stores/themeStore';
+import { getCurrentTheme, getAllThemes, setCurrentTheme } from '@/stores/themeStore';
 import { cn } from '@/lib/cn';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 
 interface ThemeSelectorProps {
   isOpen: boolean;
@@ -12,6 +15,7 @@ export function ThemeSelector({ isOpen, onClose, triggerRef }: ThemeSelectorProp
   const [position, setPosition] = useState({ top: 0, right: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const currentTheme = getCurrentTheme();
+  const allThemes = getAllThemes();
 
   // Calculate position relative to trigger
   useEffect(() => {
@@ -39,16 +43,16 @@ export function ThemeSelector({ isOpen, onClose, triggerRef }: ThemeSelectorProp
   if (!isOpen) return null;
 
   // Filter themes by search query
-  const filteredThemes = themes.filter((theme) =>
+  const filteredThemes = allThemes.filter((theme) =>
     theme.displayName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Group themes by type (Day/Night)
-  const dayThemes = filteredThemes.filter((t) => t.type === 'day');
-  const nightThemes = filteredThemes.filter((t) => t.type === 'night');
+  // Group themes by mode (day/night)
+  const dayThemes = filteredThemes.filter((t) => t.mode === 'day');
+  const nightThemes = filteredThemes.filter((t) => t.mode === 'night');
 
-  const handleThemeSelect = (themeName: string) => {
-    themeActions.setTheme(themeName);
+  const handleThemeSelect = async (theme: any) => {
+    await setCurrentTheme(theme);
     onClose();
   };
 
@@ -70,7 +74,7 @@ export function ThemeSelector({ isOpen, onClose, triggerRef }: ThemeSelectorProp
           <h3 className="text-sm font-semibold text-foreground">Select Color Theme</h3>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors rounded-sm hover:bg-muted p-1"
           >
             <svg
               width="16"
@@ -91,7 +95,7 @@ export function ThemeSelector({ isOpen, onClose, triggerRef }: ThemeSelectorProp
         {/* Search */}
         <div className="relative">
           <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
             width="14"
             height="14"
             viewBox="0 0 24 24"
@@ -104,24 +108,19 @@ export function ThemeSelector({ isOpen, onClose, triggerRef }: ThemeSelectorProp
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.35-4.35"></path>
           </svg>
-          <input
+          <Input
             type="text"
             placeholder="Search themes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={cn(
-              'w-full pl-9 pr-3 py-1.5 text-sm rounded border',
-              'bg-background border-border text-foreground',
-              'placeholder:text-muted-foreground',
-              'focus:outline-none focus:ring-1 focus:ring-primary'
-            )}
+            className="pl-9 h-8"
             autoFocus
           />
         </div>
       </div>
 
       {/* Themes List */}
-      <div className="flex-1 overflow-y-auto">
+      <ScrollArea className="flex-1 h-[300px]">
         {filteredThemes.length === 0 ? (
           <div className="px-4 py-8 text-center text-muted-foreground text-sm">
             No themes found
@@ -131,15 +130,18 @@ export function ThemeSelector({ isOpen, onClose, triggerRef }: ThemeSelectorProp
             {/* Day Themes */}
             {dayThemes.length > 0 && (
               <div className="py-2">
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                   Light Themes
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    {dayThemes.length}
+                  </Badge>
                 </div>
                 {dayThemes.map((theme) => (
                   <ThemeItem
                     key={theme.name}
                     theme={theme}
                     isActive={currentTheme.name === theme.name}
-                    onClick={() => handleThemeSelect(theme.name)}
+                    onClick={() => handleThemeSelect(theme)}
                   />
                 ))}
               </div>
@@ -148,28 +150,34 @@ export function ThemeSelector({ isOpen, onClose, triggerRef }: ThemeSelectorProp
             {/* Night Themes */}
             {nightThemes.length > 0 && (
               <div className="py-2">
-                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <div className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
                   Dark Themes
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    {nightThemes.length}
+                  </Badge>
                 </div>
                 {nightThemes.map((theme) => (
                   <ThemeItem
                     key={theme.name}
                     theme={theme}
                     isActive={currentTheme.name === theme.name}
-                    onClick={() => handleThemeSelect(theme.name)}
+                    onClick={() => handleThemeSelect(theme)}
                   />
                 ))}
               </div>
             )}
           </div>
         )}
-      </div>
+      </ScrollArea>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-border bg-muted/30 flex-shrink-0">
+      <div className="px-4 py-2 border-t border-border bg-muted/30 flex-shrink-0 flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          Press <kbd className="px-1 py-0.5 text-xs bg-muted border border-border rounded">↑↓</kbd>{' '}
-          to navigate
+          {filteredThemes.length} theme{filteredThemes.length !== 1 ? 's' : ''}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Press <kbd className="px-1 py-0.5 text-xs bg-muted border border-border rounded font-mono">Esc</kbd>{' '}
+          to close
         </p>
       </div>
     </div>
@@ -183,32 +191,45 @@ interface ThemeItemProps {
 }
 
 function ThemeItem({ theme, isActive, onClick }: ThemeItemProps) {
+  // Get color preview from theme variables
+  const bgColor = theme.variables?.['--bg-primary'] || theme.colors?.background || '#1e1e1e';
+  const primaryColor = theme.variables?.['--accent-primary'] || theme.colors?.primary || '#007acc';
+  const accentColor = theme.variables?.['--accent-secondary'] || theme.colors?.accent || '#094771';
+
   return (
     <button
       onClick={onClick}
       className={cn(
-        'w-full px-4 py-2 text-left transition-colors',
+        'w-full px-4 py-2 text-left transition-all duration-150',
         'hover:bg-accent hover:text-accent-foreground',
         'flex items-center justify-between group',
+        'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset',
         isActive && 'bg-accent text-accent-foreground'
       )}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {/* Color Preview */}
-        <div className="flex-shrink-0 w-6 h-6 rounded border border-border overflow-hidden shadow-sm">
-          <div className="w-full h-full grid grid-cols-2 grid-rows-2">
+        <div className="flex-shrink-0 w-7 h-7 rounded-md border border-border overflow-hidden shadow-sm ring-1 ring-black/5">
+          <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-[1px]">
             <div
               className="col-span-2"
-              style={{ backgroundColor: theme.colors.background }}
+              style={{ backgroundColor: bgColor }}
             ></div>
-            <div style={{ backgroundColor: theme.colors.primary }}></div>
-            <div style={{ backgroundColor: theme.colors.accent }}></div>
+            <div style={{ backgroundColor: primaryColor }}></div>
+            <div style={{ backgroundColor: accentColor }}></div>
           </div>
         </div>
 
         {/* Theme Name */}
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">{theme.displayName}</div>
+          <div className="text-sm font-medium truncate flex items-center gap-2">
+            {theme.displayName}
+            {theme.source === 'extension' && (
+              <Badge variant="outline" className="text-[10px] px-1 py-0">
+                Extension
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 
@@ -221,7 +242,7 @@ function ThemeItem({ theme, isActive, onClick }: ThemeItemProps) {
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
             className="text-primary"
