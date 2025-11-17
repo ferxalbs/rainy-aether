@@ -963,16 +963,41 @@ const getWorkspaceFromURL = (): string | null => {
   try {
     if (typeof window === 'undefined') return null;
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const workspacePath = urlParams.get('workspace');
+    // Debug: Log the current location
+    console.log('[IDE] Current URL:', window.location.href);
+    console.log('[IDE] Search params:', window.location.search);
 
-    if (workspacePath) {
-      // Decode the workspace path
-      const decodedPath = decodeURIComponent(workspacePath);
-      console.log('[IDE] Found workspace in URL:', decodedPath);
-      return decodedPath;
+    // Method 1: Try URLSearchParams (standard approach)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const workspacePath = urlParams.get('workspace');
+
+      if (workspacePath) {
+        // Decode the workspace path
+        const decodedPath = decodeURIComponent(workspacePath);
+        console.log('[IDE] ✓ Found workspace in URL via URLSearchParams:', decodedPath);
+        return decodedPath;
+      }
+    } catch (e) {
+      console.warn('[IDE] URLSearchParams method failed:', e);
     }
 
+    // Method 2: Manual parsing as fallback
+    if (window.location.search) {
+      const searchString = window.location.search.substring(1); // Remove leading '?'
+      const params = searchString.split('&');
+
+      for (const param of params) {
+        const [key, value] = param.split('=');
+        if (key === 'workspace' && value) {
+          const decodedPath = decodeURIComponent(value);
+          console.log('[IDE] ✓ Found workspace in URL via manual parsing:', decodedPath);
+          return decodedPath;
+        }
+      }
+    }
+
+    console.log('[IDE] No workspace parameter found in URL');
     return null;
   } catch (error) {
     console.error('[IDE] Failed to parse workspace from URL:', error);
@@ -981,7 +1006,9 @@ const getWorkspaceFromURL = (): string | null => {
 };
 
 const initializeFromStorage = async () => {
+  console.log('[IDE] Initializing IDE from storage...');
   const savedRecentWorkspaces = await loadFromStore<Workspace[]>("rainy-coder-recent-workspaces", []);
+  console.log('[IDE] Loaded recent workspaces from storage:', savedRecentWorkspaces.length);
 
   // Check if a workspace was provided via URL (for new windows)
   const workspaceFromURL = getWorkspaceFromURL();
@@ -995,12 +1022,14 @@ const initializeFromStorage = async () => {
       path: workspaceFromURL,
       type: "folder",
     };
-    console.log('[IDE] Using workspace from URL:', initialWorkspace);
+    console.log('[IDE] ✓ Using workspace from URL:', initialWorkspace);
   } else {
     // Fall back to last workspace from storage (normal startup)
     initialWorkspace = savedRecentWorkspaces[0] ?? null;
     if (initialWorkspace) {
       console.log('[IDE] Using last workspace from storage:', initialWorkspace);
+    } else {
+      console.log('[IDE] No workspace found - will show StartupPage');
     }
   }
 
@@ -1012,20 +1041,33 @@ const initializeFromStorage = async () => {
     loadFromStore<ViewMode>("rainy-coder-view-mode", "ide"),
   ]);
 
-  setState((prev) => ({
-    ...prev,
-    recentWorkspaces: savedRecentWorkspaces,
-    isSidebarOpen: sidebarOpen,
-    autoSave: autoSaveEnabled,
-    isZenMode: zenModeEnabled,
-    sidebarActive,
-    viewMode,
-  }));
+  // Set initial state with preferences
+  setState((prev) => {
+    const nextState = {
+      ...prev,
+      recentWorkspaces: savedRecentWorkspaces,
+      isSidebarOpen: sidebarOpen,
+      autoSave: autoSaveEnabled,
+      isZenMode: zenModeEnabled,
+      sidebarActive,
+      viewMode,
+      // If no workspace, stay on startup; otherwise, we'll open the workspace which sets currentView to editor
+      currentView: initialWorkspace ? prev.currentView : "startup",
+    };
+    console.log('[IDE] State after loading preferences:', {
+      currentView: nextState.currentView,
+      hasWorkspace: !!initialWorkspace,
+    });
+    return nextState;
+  });
 
   // Open workspace after setting other preferences
   // This ensures openWorkspace's state changes aren't overwritten
   if (initialWorkspace) {
+    console.log('[IDE] Opening workspace...');
     await openWorkspace(initialWorkspace, false);
+  } else {
+    console.log('[IDE] No workspace to open - staying on StartupPage');
   }
 };
 

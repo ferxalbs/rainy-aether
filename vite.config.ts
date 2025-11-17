@@ -58,13 +58,17 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     host: host || false,
+    cors: true, // Enable CORS for multiple windows
     hmr: host
       ? {
           protocol: "ws",
           host,
           port: 1421,
         }
-      : undefined,
+      : {
+          // Allow multiple clients (windows) to connect to HMR
+          clientPort: 1421,
+        },
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],

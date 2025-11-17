@@ -3,30 +3,45 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_shell::ShellExt;
 
 /// Open a new window with the current or specified workspace
+///
+/// This follows the same pattern as Fluxium editor - using WebviewUrl::App
+/// which works in both dev and production modes automatically
 #[tauri::command]
 pub fn window_open_new(app: AppHandle, workspace_path: Option<String>) -> Result<String, String> {
     let label = format!("main-{}", chrono::Utc::now().timestamp_millis());
 
-    let mut url = "index.html".to_string();
-    if let Some(path) = workspace_path {
-        url = format!("index.html?workspace={}", urlencoding::encode(&path));
-    }
+    // Build the URL with optional workspace parameter
+    // CRITICAL: Use WebviewUrl::App("index.html") - Tauri resolves this automatically:
+    // - Dev mode: http://localhost:1420/index.html
+    // - Production: tauri://localhost/index.html
+    let url = if let Some(path) = workspace_path {
+        let encoded_path = urlencoding::encode(&path);
+        format!("index.html?workspace={}", encoded_path)
+    } else {
+        "index.html".to_string()
+    };
 
-    // Create window with full configuration to match tauri.conf.json
-    // This ensures new windows have all necessary features (close button, decorations, etc.)
+    eprintln!("[window_manager] Creating new window '{}' with URL: '{}'", label, url);
+
+    // Create window with full configuration (following Fluxium pattern)
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
         .title("Rainy Aether")
         .inner_size(1200.0, 800.0)
         .min_inner_size(800.0, 600.0)
-        .decorations(true) // CRITICAL: Window decorations (title bar, borders)
-        .visible(true) // CRITICAL: Make window visible
-        .center() // Center window on screen
-        .resizable(true) // Allow resizing
-        .maximizable(true) // Allow maximizing
-        .minimizable(true) // Allow minimizing
-        .closable(true) // CRITICAL: Allow closing the window
+        .decorations(true)
+        .visible(true)
+        .center()
+        .resizable(true)
+        .maximizable(true)
+        .minimizable(true)
+        .closable(true)
         .build()
-        .map_err(|e| format!("Failed to create window: {}", e))?;
+        .map_err(|e| {
+            eprintln!("[window_manager] ❌ Failed to create window '{}': {}", label, e);
+            format!("Failed to create window: {}", e)
+        })?;
+
+    eprintln!("[window_manager] ✓ Window '{}' created successfully", label);
 
     Ok(label)
 }

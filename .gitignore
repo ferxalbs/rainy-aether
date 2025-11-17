@@ -32,3 +32,6 @@ target
 
 # Docs for codes completetions, and other AI features.
 MDs
+
+#external reference to avoid ignoring this file
+fluxium/*

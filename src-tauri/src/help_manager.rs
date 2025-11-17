@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use tauri::AppHandle;
 
 /// Keyboard shortcut definition
@@ -246,7 +245,7 @@ pub fn get_documentation_links() -> Result<Vec<DocumentationLink>, String> {
         DocumentationLink {
             id: "getting_started".to_string(),
             title: "Getting Started".to_string(),
-            url: "https://github.com/rainy-aether/rainy-aether#readme".to_string(),
+            url: "https://github.com/enosislabs/rainy-aether#readme".to_string(),
             description: Some("Learn the basics of Rainy Aether".to_string()),
             icon: Some("book-open".to_string()),
         },
@@ -260,28 +259,28 @@ pub fn get_documentation_links() -> Result<Vec<DocumentationLink>, String> {
         DocumentationLink {
             id: "report_issue".to_string(),
             title: "Report Issue".to_string(),
-            url: "https://github.com/rainy-aether/rainy-aether/issues/new".to_string(),
+            url: "https://github.com/enosislabs/rainy-aether/issues/new".to_string(),
             description: Some("Report a bug or request a feature".to_string()),
             icon: Some("bug".to_string()),
         },
         DocumentationLink {
             id: "release_notes".to_string(),
             title: "Release Notes".to_string(),
-            url: "https://github.com/rainy-aether/rainy-aether/releases".to_string(),
+            url: "https://github.com/enosislabs/rainy-aether/releases".to_string(),
             description: Some("See what's new in Rainy Aether".to_string()),
             icon: Some("sparkles".to_string()),
         },
         DocumentationLink {
             id: "github".to_string(),
             title: "GitHub Repository".to_string(),
-            url: "https://github.com/rainy-aether/rainy-aether".to_string(),
+            url: "https://github.com/enosislabs/rainy-aether".to_string(),
             description: Some("View the source code".to_string()),
             icon: Some("github".to_string()),
         },
         DocumentationLink {
             id: "website".to_string(),
             title: "Official Website".to_string(),
-            url: "https://rainyaether.com".to_string(),
+            url: "https://docs.enosislabs.com".to_string(),
             description: Some("Visit our website".to_string()),
             icon: Some("globe".to_string()),
         },
@@ -301,8 +300,8 @@ pub fn get_app_info(app: AppHandle) -> Result<AppInfo, String> {
         description: "Next-Generation AI-Native Code Editor".to_string(),
         author: "Enosis Labs, Inc.".to_string(),
         license: "MIT".to_string(),
-        repository: "https://github.com/rainy-aether/rainy-aether".to_string(),
-        homepage: "https://rainyaether.com".to_string(),
+        repository: "https://github.com/enosislabs/rainy-aether".to_string(),
+        homepage: "https://docs.enosislabs.com".to_string(),
         electron_version: None, // Not using Electron
         chrome_version: None,   // Using system WebView
         node_version: None,     // Not using Node.js

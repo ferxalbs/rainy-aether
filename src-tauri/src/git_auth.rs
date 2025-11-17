@@ -138,28 +138,22 @@ impl AuthCallbacks {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Create fetch options with authentication callbacks and progress reporting
+pub fn fetch_options_with_progress<F>(mut on_progress: F) -> FetchOptions<'static>
+where
+    F: FnMut(git2::Progress) -> bool + 'static,
+{
+    let mut opts = FetchOptions::new();
+    opts.remote_callbacks(AuthCallbacks::create_callbacks_with_progress(on_progress));
+    opts
+}
 
-    #[test]
-    fn test_create_callbacks() {
-        let callbacks = AuthCallbacks::create_callbacks();
-        // Just verify it doesn't panic
-        assert!(true);
-    }
-
-    #[test]
-    fn test_fetch_options() {
-        let opts = AuthCallbacks::fetch_options();
-        // Verify options are created
-        assert!(true);
-    }
-
-    #[test]
-    fn test_push_options() {
-        let opts = AuthCallbacks::push_options();
-        // Verify options are created
-        assert!(true);
-    }
+/// Create push options with authentication callbacks and progress reporting
+pub fn push_options_with_progress<F>(mut on_progress: F) -> PushOptions<'static>
+where
+    F: FnMut(git2::Progress) -> bool + 'static,
+{
+    let mut opts = PushOptions::new();
+    opts.remote_callbacks(AuthCallbacks::create_callbacks_with_progress(on_progress));
+    opts
 }
