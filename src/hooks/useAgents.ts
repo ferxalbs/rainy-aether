@@ -129,8 +129,27 @@ export function useAgentSession(agentId: string = 'rainy') {
       setMessages(prev => [...prev, { role: 'user', content }]);
 
       try {
+        // Check if session still exists in the bridge (handles HMR/reload cases)
+        let currentSessionId = sessionId;
+        const sessionExists = sessionBridge.getSession(sessionId);
+
+        if (!sessionExists) {
+          console.warn(`Session ${sessionId} not found in bridge. Recreating...`);
+
+          // Recreate the session
+          currentSessionId = await sessionBridge.createSession({
+            name: `${agentId} Session`,
+            agentId,
+            providerId: agentId === 'claude-code' ? 'google' : 'groq',
+            modelId: agentId === 'claude-code' ? 'gemini-2.0-flash-exp' : 'llama-3.3-70b-versatile',
+          });
+
+          setSessionId(currentSessionId);
+          console.log(`✅ Session recreated: ${currentSessionId}`);
+        }
+
         const result: AgentResult = await sessionBridge.sendMessage({
-          sessionId,
+          sessionId: currentSessionId,
           message: content,
           options,
         });
@@ -155,7 +174,7 @@ export function useAgentSession(agentId: string = 'rainy') {
         setIsLoading(false);
       }
     },
-    [sessionId]
+    [sessionId, agentId]
   );
 
   const clearMessages = useCallback(() => {
