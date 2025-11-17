@@ -219,16 +219,18 @@ export class AgentSessionBridge {
     // Determine agent to use
     const agentId = params.agentId || metadata.agentId;
 
-    // Build route request
+    // Build route request with workspace context from session
     const routeRequest: RouteRequest = {
       message,
       agentId,
       capabilities,
       options,
+      workspaceRoot: metadata.workspaceRoot,
+      userId: metadata.userId,
     };
 
     console.log(
-      `📨 Sending message via session ${sessionId} (agent: ${agentId})`
+      `📨 Sending message via session ${sessionId} (agent: ${agentId}, workspace: ${metadata.workspaceRoot || 'none'})`
     );
 
     try {

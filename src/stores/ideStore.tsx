@@ -112,6 +112,9 @@ const subscribe = (listener: IDEStateListener) => {
   };
 };
 
+// Export getState for non-React contexts (e.g., agent initialization)
+export const getIDEState = getState;
+
 // Hook to subscribe to IDE state changes
 export const useIDEState = () => useSyncExternalStore(subscribe, getState, getState);
 

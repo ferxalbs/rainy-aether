@@ -112,9 +112,19 @@ export class LangGraphRustBridge {
       }),
 
       // Execute via Rust backend
-      func: async (input: string | Record<string, unknown>) => {
+      func: async (input: string | Record<string, unknown>, config?: any) => {
         try {
           console.log(`🔧 Executing Rust tool: ${toolDef.name}`);
+
+          // Extract workspace context from LangGraph config
+          const workspaceRoot = config?.configurable?.workspaceRoot;
+          const sessionId = config?.configurable?.sessionId;
+
+          if (workspaceRoot) {
+            console.log(`📂 Tool has workspace context: ${workspaceRoot}`);
+          } else {
+            console.warn(`⚠️ Tool executing without workspace context`);
+          }
 
           // Parse input if it's a string
           let params: Record<string, unknown>;
@@ -127,6 +137,14 @@ export class LangGraphRustBridge {
             }
           } else {
             params = input;
+          }
+
+          // Inject workspace context into tool params
+          if (workspaceRoot) {
+            params._workspaceRoot = workspaceRoot;
+          }
+          if (sessionId) {
+            params._sessionId = sessionId;
           }
 
           // Execute via Rust backend

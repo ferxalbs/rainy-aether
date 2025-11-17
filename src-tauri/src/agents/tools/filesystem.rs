@@ -35,10 +35,26 @@ impl Tool for ReadFileTool {
 
     async fn execute(&self, params: serde_json::Value) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
         let args: ReadFileArgs = serde_json::from_value(params)?;
-        let content = tokio::fs::read_to_string(&args.path).await?;
+
+        // Resolve path: if relative and workspace_root exists, join them
+        let final_path = if args.path.starts_with('/') || args.path.starts_with('\\') || args.path.contains(":\\") {
+            // Absolute path - use as is
+            args.path.clone()
+        } else if let Some(workspace) = &args.workspace_root {
+            // Relative path with workspace root - join them
+            eprintln!("📂 Using workspace root: {} for relative path: {}", workspace, args.path);
+            format!("{}/{}", workspace.trim_end_matches('/').trim_end_matches('\\'), args.path)
+        } else {
+            // Relative path without workspace root - use as is (might fail)
+            eprintln!("⚠️ Reading file with relative path '{}' but no workspace root provided", args.path);
+            args.path.clone()
+        };
+
+        eprintln!("📖 Reading file: {}", final_path);
+        let content = tokio::fs::read_to_string(&final_path).await?;
 
         Ok(serde_json::json!({
-            "path": args.path,
+            "path": final_path,
             "content": content,
             "size": content.len()
         }))
@@ -60,6 +76,8 @@ impl Tool for ReadFileTool {
 #[derive(Deserialize)]
 struct ReadFileArgs {
     path: String,
+    #[serde(rename = "_workspaceRoot")]
+    workspace_root: Option<String>,
 }
 
 /// Write file tool

@@ -59,6 +59,12 @@ export interface RouteRequest {
 
   /** Routing strategy to use */
   strategy?: RouteStrategy;
+
+  /** Workspace root directory for context */
+  workspaceRoot?: string;
+
+  /** User ID for tracking */
+  userId?: string;
 }
 
 /**
@@ -198,8 +204,15 @@ export class AgentRouter {
       this.incrementActive(agent.id);
 
       try {
+        // Merge workspace context into options
+        const messageOptions = {
+          ...request.options,
+          workspaceRoot: request.workspaceRoot,
+          userId: request.userId,
+        };
+
         // Execute via selected agent
-        const result = await agent.sendMessage(request.message, request.options);
+        const result = await agent.sendMessage(request.message, messageOptions);
 
         // Track completed request
         this.incrementTotal(agent.id);
@@ -275,10 +288,17 @@ export class AgentRouter {
       this.incrementActive(agent.id);
 
       try {
+        // Merge workspace context into options
+        const messageOptions = {
+          ...request.options,
+          workspaceRoot: request.workspaceRoot,
+          userId: request.userId,
+        };
+
         // Stream via selected agent
         for await (const chunk of agent.streamMessage(
           request.message,
-          request.options
+          messageOptions
         )) {
           yield {
             ...chunk,

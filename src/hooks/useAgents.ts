@@ -98,11 +98,23 @@ export function useAgentSession(agentId: string = 'rainy') {
       try {
         await sessionBridge.initialize();
 
+        // Get workspace root from IDE store (non-React context)
+        const { getIDEState } = await import('@/stores/ideStore');
+        const ideState = getIDEState();
+        const workspaceRoot = ideState?.workspace?.path;
+
+        if (workspaceRoot) {
+          console.log(`📂 Using workspace root for agent session: ${workspaceRoot}`);
+        } else {
+          console.warn('⚠️ No workspace loaded - agent will have limited context');
+        }
+
         const newSessionId = await sessionBridge.createSession({
           name: `${agentId} Session`,
           agentId,
           providerId: agentId === 'claude-code' ? 'google' : 'groq',
           modelId: agentId === 'claude-code' ? 'gemini-2.0-flash-exp' : 'llama-3.3-70b-versatile',
+          workspaceRoot, // Pass workspace root to session
         });
 
         setSessionId(newSessionId);

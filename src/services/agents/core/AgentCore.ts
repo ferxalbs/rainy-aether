@@ -47,6 +47,12 @@ export interface MessageOptions {
 
   /** Maximum iterations for tool calling */
   maxIterations?: number;
+
+  /** Workspace root directory for context */
+  workspaceRoot?: string;
+
+  /** User ID for tracking */
+  userId?: string;
 }
 
 /**
@@ -275,6 +281,16 @@ export abstract class AgentCore {
     const startTime = Date.now();
 
     try {
+      // Use workspace context from options (per-message) or initialization (global)
+      const workspaceRoot = options?.workspaceRoot || this.initOptions?.workspaceRoot;
+      const userId = options?.userId || this.initOptions?.userId;
+
+      if (workspaceRoot) {
+        console.log(`📂 Agent has workspace context: ${workspaceRoot}`);
+      } else {
+        console.warn(`⚠️ Agent has no workspace context - tools may have limited functionality`);
+      }
+
       // Invoke LangGraph execution
       const result = await this.langGraphAgent.invoke(
         { messages: [new HumanMessage(message)] },
@@ -282,8 +298,8 @@ export abstract class AgentCore {
           configurable: {
             thread_id: this.rustSessionId,
             sessionId: this.rustSessionId,
-            workspaceRoot: this.initOptions?.workspaceRoot,
-            userId: this.initOptions?.userId,
+            workspaceRoot,
+            userId,
           },
         }
       );
@@ -301,7 +317,7 @@ export abstract class AgentCore {
         for (const step of result.intermediate_steps) {
           if (step.action?.tool) {
             toolCalls.push({
-              id: `tool-${toolCalls.length}`,
+              id: `intermediate-${toolCalls.length}`,
               name: step.action.tool,
               args: step.action.toolInput || {},
             });
@@ -309,9 +325,19 @@ export abstract class AgentCore {
         }
       }
 
-      // Also check for tool_calls in the last message
+      // Also check for tool_calls in the last message (deduplicate)
       if (lastMessage?.tool_calls) {
-        toolCalls.push(...lastMessage.tool_calls);
+        for (const tc of lastMessage.tool_calls) {
+          // Check if this tool call already exists by matching name and args
+          const isDuplicate = toolCalls.some(
+            existing =>
+              existing.name === tc.name &&
+              JSON.stringify(existing.args) === JSON.stringify(tc.args || {})
+          );
+          if (!isDuplicate) {
+            toolCalls.push(tc);
+          }
+        }
       }
 
       const executionTime = Date.now() - startTime;
@@ -408,9 +434,18 @@ export abstract class AgentCore {
     let fullContent = '';
     const toolCalls: any[] = [];
     const startTime = Date.now();
-    let lastChunkTime = startTime;
 
     try {
+      // Use workspace context from options (per-message) or initialization (global)
+      const workspaceRoot = options?.workspaceRoot || this.initOptions?.workspaceRoot;
+      const userId = options?.userId || this.initOptions?.userId;
+
+      if (workspaceRoot) {
+        console.log(`📂 Agent has workspace context: ${workspaceRoot}`);
+      } else {
+        console.warn(`⚠️ Agent has no workspace context - tools may have limited functionality`);
+      }
+
       // Stream LangGraph execution
       const stream = this.langGraphAgent.stream(
         { messages: [new HumanMessage(message)] },
@@ -418,8 +453,8 @@ export abstract class AgentCore {
           configurable: {
             thread_id: this.rustSessionId,
             sessionId: this.rustSessionId,
-            workspaceRoot: this.initOptions?.workspaceRoot,
-            userId: this.initOptions?.userId,
+            workspaceRoot,
+            userId,
           },
         }
       );
@@ -446,38 +481,44 @@ export abstract class AgentCore {
                 toolsExecuted: [],
                 costUsd: 0,
                 iterations: 0,
-                streamLatencyMs: currentTime - lastChunkTime,
               },
               done: false,
             };
-            lastChunkTime = currentTime;
           }
         }
 
         if (lastMessage?.tool_calls) {
           for (const tc of lastMessage.tool_calls) {
-            const toolCall = {
-              id: tc.id || '',
-              name: tc.name || '',
-              arguments: tc.args || {},
-              timestamp: new Date().toISOString(),
-            };
-            toolCalls.push(toolCall);
+            // Check if this tool call already exists by matching name and args
+            const isDuplicate = toolCalls.some(
+              existing =>
+                existing.name === tc.name &&
+                JSON.stringify(existing.arguments) === JSON.stringify(tc.args || {})
+            );
+            if (!isDuplicate) {
+              const toolCall = {
+                id: tc.id || '',
+                name: tc.name || '',
+                arguments: tc.args || {},
+                timestamp: new Date().toISOString(),
+              };
+              toolCalls.push(toolCall);
 
-            // Yield tool call event
-            yield {
-              delta: '',
-              content: fullContent,
-              toolCalls: [toolCall],
-              metadata: {
-                tokensUsed: 0,
-                executionTimeMs: currentTime - startTime,
-                toolsExecuted: [tc.name],
-                costUsd: 0,
-                iterations: toolCalls.length,
-              },
-              done: false,
-            };
+              // Yield tool call event
+              yield {
+                delta: '',
+                content: fullContent,
+                toolCalls: [toolCall],
+                metadata: {
+                  tokensUsed: 0,
+                  executionTimeMs: currentTime - startTime,
+                  toolsExecuted: [tc.name],
+                  costUsd: 0,
+                  iterations: toolCalls.length,
+                },
+                done: false,
+              };
+            }
           }
         }
       }
@@ -563,7 +604,7 @@ export abstract class AgentCore {
    * @param capability - Capability to check
    * @returns True if capability is supported
    */
-  hasCapability(capability: string): boolean {
+  hasCapability(_capability: string): boolean {
     // Default implementation - subclasses can override
     return true;
   }
