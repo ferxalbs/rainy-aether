@@ -247,7 +247,12 @@ fn validate_value(
                 });
             }
 
-            let str_value = value.as_str().unwrap();
+            let str_value = value.as_str().ok_or_else(|| ValidationError {
+                key: key.to_string(),
+                message: "Failed to convert value to string".to_string(),
+                expected: Some("string".to_string()),
+                actual: Some(value.clone()),
+            })?;
 
             // Min length validation
             if let Some(min_len) = property.min_length {
@@ -305,7 +310,12 @@ fn validate_value(
                 });
             }
 
-            let num_value = value.as_f64().unwrap();
+            let num_value = value.as_f64().ok_or_else(|| ValidationError {
+                key: key.to_string(),
+                message: "Failed to convert value to number".to_string(),
+                expected: Some("number".to_string()),
+                actual: Some(value.clone()),
+            })?;
 
             // Integer check
             if matches!(property.property_type, PropertyType::Integer) && num_value.fract() != 0.0 {
