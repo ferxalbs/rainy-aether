@@ -250,9 +250,16 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     if (!editor) return;
 
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false; // Cancellation flag to prevent updates after unmount
+
     const debouncedUpdate = () => {
+      if (cancelled) return;
       if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(updateEditorInfo, 50);
+      timeoutId = setTimeout(() => {
+        if (!cancelled) { // Check again before updating
+          updateEditorInfo();
+        }
+      }, 50);
     };
 
     const cursorDisposable = editor.onDidChangeCursorPosition(debouncedUpdate);
@@ -262,6 +269,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     updateEditorInfo();
 
     return () => {
+      cancelled = true; // Set cancellation flag first
       if (timeoutId) clearTimeout(timeoutId);
       cursorDisposable.dispose();
       selectionDisposable.dispose();
@@ -271,15 +279,21 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
 
   // Update git status periodically
   useEffect(() => {
+    let cancelled = false;
+
     const updateStatus = async () => {
+      if (cancelled) return;
       await updateGitStatus();
     };
 
     updateStatus();
-    const timer = setInterval(updateStatus, 10000); // Update every 10 seconds (reduced frequency to avoid performance issues)
+    const timer = setInterval(updateStatus, 30000); // Update every 30 seconds (reduced from 10s to improve performance)
 
-    return () => clearInterval(timer);
-  }, [state().workspace]);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []); // Remove workspace dependency - updateGitStatus() reads current workspace
 
   /**
    * Create problems status bar entry (VS Code style)

@@ -295,17 +295,22 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
 
     return () => {
       isMountedRef.current = false;
-      editorActions.unregisterView(editor as any);
-      disposable.dispose();
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleWindowResize);
 
-      // Dispose editor but keep the model alive for reuse
-      editor.dispose();
+      // Small delay to ensure observer callbacks complete before disposal
+      // This prevents race conditions where layout() is called on a disposed editor
+      setTimeout(() => {
+        editorActions.unregisterView(editor as any);
+        disposable.dispose();
 
-      if (editorRef.current === editor) {
-        editorRef.current = null;
-      }
+        // Dispose editor but keep the model alive for reuse
+        editor.dispose();
+
+        if (editorRef.current === editor) {
+          editorRef.current = null;
+        }
+      }, 0);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [container, filename]);

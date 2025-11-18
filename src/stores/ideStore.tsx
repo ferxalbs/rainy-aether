@@ -125,6 +125,16 @@ const normalizePath = (path: string) => path.replace(/\\/g, "/");
 
 const pathsEqual = (a: string, b: string) => normalizePath(a) === normalizePath(b);
 
+// Helper to handle saveToStore with proper error handling
+const safeSaveToStore = async <T,>(key: string, value: T): Promise<void> => {
+  try {
+    await saveToStore(key, value);
+  } catch (error) {
+    console.error(`[IDE Store] Failed to save ${key}:`, error);
+    // Non-fatal - continue execution but log the error
+  }
+};
+
 const isGitInternalPath = (path: string, workspacePath: string) => {
   const normalizedPath = normalizePath(path);
   const normalizedWorkspace = normalizePath(workspacePath);
@@ -158,12 +168,12 @@ const refreshWorkspaceContents = async (workspace: Workspace) => {
 
 const setCurrentView = (view: IDEView) => {
   setState((prev) => ({ ...prev, currentView: view }));
-  void saveToStore("rainy-coder-current-view", view);
+  safeSaveToStore("rainy-coder-current-view", view);
 };
 
 const setViewMode = (mode: ViewMode) => {
   setState((prev) => ({ ...prev, viewMode: mode }));
-  void saveToStore("rainy-coder-view-mode", mode);
+  safeSaveToStore("rainy-coder-view-mode", mode);
 };
 
 const createFileAt = async (dirPath: string, name: string) => {
@@ -358,7 +368,7 @@ const setProjectTree = (tree: FileNode | null) => {
 const toggleSidebar = () => {
   setState((prev) => {
     const next = !prev.isSidebarOpen;
-    void saveToStore("rainy-coder-sidebar-open", next);
+    safeSaveToStore("rainy-coder-sidebar-open", next);
     
     // Trigger Monaco editor layout after sidebar toggle
     setTimeout(() => {
@@ -376,7 +386,7 @@ const toggleSidebar = () => {
 
 const setSidebarOpen = (open: boolean) => {
   setState((prev) => {
-    void saveToStore("rainy-coder-sidebar-open", open);
+    safeSaveToStore("rainy-coder-sidebar-open", open);
     return { ...prev, isSidebarOpen: open };
   });
 };
@@ -385,25 +395,25 @@ const setSidebarActive = (tab: SidebarTab) => {
   setState((prev) => {
     // If clicking the same tab and sidebar is open, collapse it
     if (prev.sidebarActive === tab && prev.isSidebarOpen) {
-      void saveToStore("rainy-coder-sidebar-open", false);
+      safeSaveToStore("rainy-coder-sidebar-open", false);
       return { ...prev, isSidebarOpen: false };
     }
     // If clicking a different tab or sidebar is collapsed, expand and switch
-    void saveToStore("rainy-coder-sidebar-active", tab);
-    void saveToStore("rainy-coder-sidebar-open", true);
+    safeSaveToStore("rainy-coder-sidebar-active", tab);
+    safeSaveToStore("rainy-coder-sidebar-open", true);
     return { ...prev, sidebarActive: tab, isSidebarOpen: true };
   });
 };
 
 const setAutoSave = (enabled: boolean) => {
   setState((prev) => ({ ...prev, autoSave: enabled }));
-  void saveToStore("rainy-coder-auto-save", enabled);
+  safeSaveToStore("rainy-coder-auto-save", enabled);
 };
 
 const toggleZenMode = () => {
   setState((prev) => {
     const next = !prev.isZenMode;
-    void saveToStore("rainy-coder-zen-mode", next);
+    safeSaveToStore("rainy-coder-zen-mode", next);
     
     // Trigger Monaco editor layout after zen mode toggle
     setTimeout(() => {
@@ -586,7 +596,7 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
         : prev.recentWorkspaces;
 
       if (saveToRecents) {
-        void saveToStore("rainy-coder-recent-workspaces", recentWorkspaces);
+        safeSaveToStore("rainy-coder-recent-workspaces", recentWorkspaces);
       }
 
       return {
@@ -597,7 +607,7 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
       };
     });
 
-    void saveToStore("rainy-coder-current-view", "editor");
+    safeSaveToStore("rainy-coder-current-view", "editor");
 
     try {
       const { setWorkspacePath, refreshHistory, refreshStatus, refreshRepoDetection, refreshBranches, refreshStashes } = await import("./gitStore");
@@ -655,7 +665,7 @@ const openRecentWorkspace = async (workspace: Workspace) => {
 };
 
 const clearRecentWorkspaces = () => {
-  void saveToStore("rainy-coder-recent-workspaces", []);
+  safeSaveToStore("rainy-coder-recent-workspaces", []);
   setState((prev) => ({ ...prev, recentWorkspaces: [] }));
 };
 
@@ -665,20 +675,20 @@ const cloneRepository = () => {
 
 const openTerminal = async () => {
   setState((prev) => ({ ...prev, currentView: "editor" }));
-  void saveToStore("rainy-coder-current-view", "editor");
+  safeSaveToStore("rainy-coder-current-view", "editor");
   const { terminalActions } = await import("./terminalStore");
   await terminalActions.createSession({ cwd: getState().workspace?.path });
 };
 
 const openSettings = () => {
   setState((prev) => ({ ...prev, currentView: "settings" }));
-  void saveToStore("rainy-coder-current-view", "settings");
+  safeSaveToStore("rainy-coder-current-view", "settings");
 };
 
 const closeSettings = () => {
   const hasWorkspace = Boolean(getState().workspace);
   setState((prev) => ({ ...prev, currentView: hasWorkspace ? "editor" : "startup" }));
-  void saveToStore("rainy-coder-current-view", hasWorkspace ? "editor" : "startup");
+  safeSaveToStore("rainy-coder-current-view", hasWorkspace ? "editor" : "startup");
 };
 
 const closeFile = (fileId: string) => {
@@ -693,7 +703,7 @@ const closeFile = (fileId: string) => {
     const openFiles = prev.openFiles.filter((file) => file.id !== fileId);
     const activeFileId = prev.activeFileId === fileId ? openFiles[0]?.id ?? null : prev.activeFileId;
     const currentView = openFiles.length === 0 && !prev.workspace ? "startup" : "editor";
-    void saveToStore("rainy-coder-current-view", currentView);
+    safeSaveToStore("rainy-coder-current-view", currentView);
     return {
       ...prev,
       openFiles,
@@ -838,7 +848,7 @@ const closeProject = async () => {
   if (workspace) {
     // Ensure workspace is in recent workspaces when closing
     recentWorkspaces = ensureWorkspaceInRecents(workspace, recentWorkspaces);
-    void saveToStore("rainy-coder-recent-workspaces", recentWorkspaces);
+    safeSaveToStore("rainy-coder-recent-workspaces", recentWorkspaces);
   }
 
   setState((prev) => ({
@@ -851,7 +861,7 @@ const closeProject = async () => {
     recentWorkspaces,
   }));
 
-  void saveToStore("rainy-coder-current-view", "startup");
+  safeSaveToStore("rainy-coder-current-view", "startup");
 };
 
 // Lazy load children for a directory node
