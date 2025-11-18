@@ -66,6 +66,8 @@ export class ModuleLoader {
     // For the main module, if it's a relative path, resolve it against the extension path
     const mainPath = this.config.mainModulePath;
     const resolvedMainPath = this.resolveMainModulePath(mainPath);
+    console.log(`[ModuleLoader] Loading main module: "${mainPath}" -> "${resolvedMainPath}"`);
+    console.log(`[ModuleLoader] Extension path: "${this.config.extensionPath}"`);
     return await this.requireAsync(resolvedMainPath);
   }
 
@@ -80,9 +82,13 @@ export class ModuleLoader {
 
     // If relative, resolve against extension path
     if (mainPath.startsWith('./') || mainPath.startsWith('../')) {
+      // Normalize extension path (replace backslashes with forward slashes for consistency)
+      const normalizedExtPath = this.config.extensionPath.replace(/\\/g, '/');
       // Remove leading './'
       const cleanPath = mainPath.replace(/^\.\//, '');
-      return `${this.config.extensionPath}/${cleanPath}`;
+      // Join and normalize the result
+      const joined = `${normalizedExtPath}/${cleanPath}`;
+      return joined.replace(/\\/g, '/'); // Ensure forward slashes throughout
     }
 
     // Otherwise (node_modules), return as-is to be resolved later
