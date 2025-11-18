@@ -22,6 +22,11 @@ export enum ExtensionMessageType {
   APICall = 'api_call',
   APIResponse = 'api_response',
 
+  // Webview
+  ResolveWebview = 'resolve_webview',
+  WebviewResolved = 'webview_resolved',
+  WebviewMessage = 'webview_message',
+
   // Module System
   LoadModule = 'load_module',
   ModuleLoaded = 'module_loaded',

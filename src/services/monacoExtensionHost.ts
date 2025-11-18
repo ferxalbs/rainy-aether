@@ -9,6 +9,8 @@ import {
   ExtensionSandboxConfig,
   ActivationEventType,
 } from './extension';
+import { webviewActions } from '../stores/webviewStore';
+import { ideActions } from '../stores/ideStore';
 
 export class MonacoExtensionHost {
   private loadedExtensions: Map<string, LoadedExtension> = new Map();
@@ -163,6 +165,11 @@ export class MonacoExtensionHost {
     // Load icon themes
     if (contributes.iconThemes) {
       await this.loadIconThemes(extension, contributes.iconThemes, loadedExtension);
+    }
+
+    // Load webview views and containers
+    if (contributes.viewsContainers || contributes.views) {
+      await this.loadWebviewContributions(extension, contributes, loadedExtension);
     }
   }
 
@@ -579,6 +586,96 @@ export class MonacoExtensionHost {
     }
   }
 
+  /**
+   * Load webview views and view containers from extension contributions
+   */
+  private async loadWebviewContributions(
+    extension: InstalledExtension,
+    contributes: any,
+    loadedExtension: LoadedExtension
+  ): Promise<void> {
+    console.log(`[Webview] Loading webview contributions for ${extension.id}`);
+
+    try {
+      // Load view containers first (they define where views appear)
+      if (contributes.viewsContainers?.activitybar) {
+        for (const container of contributes.viewsContainers.activitybar) {
+          console.log(`[Webview] Found view container: ${container.id} (${container.title})`);
+
+          // View container is registered implicitly when we create views
+          // Store container metadata for reference
+          if (!loadedExtension.viewContainers) {
+            loadedExtension.viewContainers = [];
+          }
+          loadedExtension.viewContainers.push({
+            id: container.id,
+            title: container.title,
+            icon: container.icon,
+          });
+        }
+      }
+
+      // Load views (actual webview panels)
+      if (contributes.views) {
+        for (const [containerKey, views] of Object.entries<any[]>(contributes.views)) {
+          console.log(`[Webview] Loading ${views.length} view(s) for container: ${containerKey}`);
+
+          for (const view of views) {
+            // Only handle webview type views
+            if (view.type === 'webview' || !view.type) {
+              console.log(`[Webview] Creating webview panel: ${view.id} (${view.name})`);
+
+              // Create the webview panel
+              const panel = webviewActions.createWebviewPanel({
+                viewId: view.id,
+                extensionId: extension.id,
+                title: view.name || view.id,
+                icon: view.icon,
+                enableScripts: true,
+                retainContextWhenHidden: true,
+              });
+
+              console.log(`[Webview] Webview panel created: ${view.id}`);
+
+              // Show the panel (makes it appear in activity bar)
+              // Don't auto-switch sidebar - let user click the button
+              webviewActions.showWebview(view.id);
+
+              console.log(`[Webview] Webview panel ${view.id} is now available in sidebar`);
+
+              // Store view metadata for disposal
+              if (!loadedExtension.webviewViews) {
+                loadedExtension.webviewViews = [];
+              }
+              loadedExtension.webviewViews.push({
+                id: view.id,
+                name: view.name,
+                containerKey,
+              });
+
+              // Add disposal callback
+              loadedExtension.disposables.push({
+                dispose: () => {
+                  console.log(`[Webview] Disposing webview panel: ${view.id}`);
+                  webviewActions.disposeWebview(view.id);
+                },
+              });
+
+              console.log(`[Webview] Successfully registered webview view: ${view.id}`);
+            } else {
+              console.log(`[Webview] Skipping non-webview view: ${view.id} (type: ${view.type})`);
+            }
+          }
+        }
+      }
+
+      console.log(`[Webview] Finished loading webview contributions for ${extension.id}`);
+    } catch (error) {
+      console.error(`[Webview] Failed to load webview contributions for ${extension.id}:`, error);
+      throw error;
+    }
+  }
+
   private resolveExtensionPath(extension: InstalledExtension, relativePath: string): string {
     // The iconPath in material-icons.json is relative to the dist/ folder
     // Example: iconPath: "./../icons/git.svg" means go up from dist/ to extension root, then into icons/
@@ -950,6 +1047,16 @@ interface LoadedExtension {
   activated: boolean;
   sandbox: ExtensionSandbox | null;
   languageServices: Map<string, LanguageService>;
+  viewContainers?: Array<{
+    id: string;
+    title: string;
+    icon?: string;
+  }>;
+  webviewViews?: Array<{
+    id: string;
+    name: string;
+    containerKey: string;
+  }>;
 }
 
 interface LanguageService {
