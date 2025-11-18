@@ -929,6 +929,46 @@ export class MonacoExtensionHost {
   }
 
   /**
+   * Resolve webview HTML from an extension
+   * Called by WebviewPanel to get HTML content from extension's provider
+   */
+  async resolveExtensionWebview(extensionId: string, viewId: string): Promise<string> {
+    const loadedExtension = this.loadedExtensions.get(extensionId);
+    if (!loadedExtension) {
+      throw new Error(`Extension ${extensionId} is not loaded`);
+    }
+
+    if (!loadedExtension.sandbox) {
+      throw new Error(`Extension ${extensionId} has no sandbox (no main entry point)`);
+    }
+
+    if (!loadedExtension.activated) {
+      // Auto-activate the extension if needed
+      console.log(`Auto-activating extension ${extensionId} for webview ${viewId}`);
+      await this.tryActivateExtension(extensionId);
+    }
+
+    try {
+      return await loadedExtension.sandbox.resolveWebview(viewId);
+    } catch (error) {
+      console.error(`Failed to resolve webview ${viewId} from extension ${extensionId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Forward message from webview to extension
+   */
+  async sendMessageToExtension(extensionId: string, viewId: string, message: any): Promise<void> {
+    const loadedExtension = this.loadedExtensions.get(extensionId);
+    if (!loadedExtension?.sandbox) {
+      throw new Error(`Extension ${extensionId} is not loaded or has no sandbox`);
+    }
+
+    await loadedExtension.sandbox.handleMessageFromWebview(viewId, message);
+  }
+
+  /**
    * Get activation manager (for debugging)
    */
   getActivationManager(): ActivationManager {
