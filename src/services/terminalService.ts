@@ -306,7 +306,14 @@ class TerminalService {
       // Flush any pending writes
       await this.flushWriteBuffer(id);
 
-      // Clear timers
+      // Clear write buffer timer
+      const writeEntry = this.writeBuffers.get(id);
+      if (writeEntry && writeEntry.timer) {
+        clearTimeout(writeEntry.timer);
+      }
+      this.writeBuffers.delete(id);
+
+      // Clear resize timer
       const resizeTimer = this.resizeDebounceTimers.get(id);
       if (resizeTimer) {
         clearTimeout(resizeTimer);
