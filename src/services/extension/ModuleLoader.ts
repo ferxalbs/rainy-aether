@@ -68,7 +68,14 @@ export class ModuleLoader {
     const resolvedMainPath = this.resolveMainModulePath(mainPath);
     console.log(`[ModuleLoader] Loading main module: "${mainPath}" -> "${resolvedMainPath}"`);
     console.log(`[ModuleLoader] Extension path: "${this.config.extensionPath}"`);
-    return await this.requireAsync(resolvedMainPath);
+
+    // Check cache first
+    if (this.moduleCache.has(resolvedMainPath)) {
+      return this.moduleCache.get(resolvedMainPath)!.exports;
+    }
+
+    // Load the module directly without going through resolveModulePath again
+    return await this.loadModuleAsync(resolvedMainPath);
   }
 
   /**
@@ -116,6 +123,24 @@ export class ModuleLoader {
    * Synchronous module loading (for runtime require() calls)
    */
   private loadModule(modulePath: string, parentModule?: ModuleInfo): any {
+    // Check if this is a built-in module that we can load synchronously
+    if (this.isBuiltInModule(modulePath)) {
+      const builtInExports = this.loadBuiltInModule(modulePath);
+
+      // Cache built-in modules
+      const module = this.createModule(modulePath, parentModule);
+      module.exports = builtInExports;
+      module.loaded = true;
+
+      this.moduleCache.set(modulePath, {
+        module,
+        code: '// Built-in module',
+        exports: builtInExports,
+      });
+
+      return builtInExports;
+    }
+
     // Mark as loading
     this.loadingModules.add(modulePath);
 
@@ -149,7 +174,20 @@ export class ModuleLoader {
     try {
       // Check if this is a built-in Node.js module that we need to shim
       if (this.isBuiltInModule(modulePath)) {
-        return this.loadBuiltInModule(modulePath);
+        const builtInExports = this.loadBuiltInModule(modulePath);
+
+        // Cache built-in modules
+        const module = this.createModule(modulePath, parentModule);
+        module.exports = builtInExports;
+        module.loaded = true;
+
+        this.moduleCache.set(modulePath, {
+          module,
+          code: '// Built-in module',
+          exports: builtInExports,
+        });
+
+        return builtInExports;
       }
 
       // Create module object
@@ -246,8 +284,10 @@ export class ModuleLoader {
    * Resolve module path
    */
   private resolveModulePath(id: string, fromPath?: string): string {
-    // Built-in modules
+    // Built-in modules (including those with 'node:' prefix)
     if (this.isBuiltInModule(id)) {
+      // Return the original id (with or without 'node:' prefix)
+      // The loadModule will handle stripping the prefix
       return id;
     }
 
@@ -271,13 +311,38 @@ export class ModuleLoader {
 
   /**
    * Resolve node_modules path
+   * Implements Node.js resolution algorithm: search in parent directories
    */
-  private resolveNodeModule(id: string, _fromPath?: string): string {
-    // Try to resolve from extension's node_modules
-    const extensionNodeModules = `${this.config.extensionPath}/node_modules/${id}`;
+  private resolveNodeModule(id: string, fromPath?: string): string {
+    // Start from the directory containing the requesting file
+    let searchDir = fromPath ? this.getDirectoryName(fromPath) : this.config.extensionPath;
 
-    // Check if it's a package.json reference
-    // For now, we'll assume it's a direct path
+    // Search up the directory tree for node_modules
+    // This matches Node.js behavior: node_modules can be in any parent directory
+    const maxDepth = 10; // Prevent infinite loops
+    let depth = 0;
+
+    while (depth < maxDepth) {
+      const nodeModulesPath = `${searchDir}/node_modules/${id}`;
+
+      // Check if this would resolve to a path under the extension path
+      // We prioritize the extension's node_modules
+      if (searchDir === this.config.extensionPath ||
+          searchDir.startsWith(this.config.extensionPath + '/')) {
+        return this.normalizeModulePath(nodeModulesPath);
+      }
+
+      // Move up one directory
+      const parentDir = this.getDirectoryName(searchDir);
+      if (parentDir === searchDir || parentDir === '.') {
+        break; // Reached root
+      }
+      searchDir = parentDir;
+      depth++;
+    }
+
+    // Fallback to extension's node_modules
+    const extensionNodeModules = `${this.config.extensionPath}/node_modules/${id}`;
     return this.normalizeModulePath(extensionNodeModules);
   }
 
@@ -312,6 +377,9 @@ export class ModuleLoader {
    * Check if module is a built-in Node.js module
    */
   private isBuiltInModule(id: string): boolean {
+    // Strip 'node:' prefix if present (Node.js v14+ syntax)
+    const moduleId = id.startsWith('node:') ? id.substring(5) : id;
+
     const builtInModules = [
       'path',
       'fs',
@@ -327,24 +395,31 @@ export class ModuleLoader {
       'https',
       'net',
       'tls',
+      'tty',
       'child_process',
       'process',
       'timers',
+      'assert',
+      'constants',
+      'string_decoder',
       'vscode-languageclient', // VS Code language client shim
       'vscode-jsonrpc', // JSON-RPC protocol
     ];
 
-    return builtInModules.includes(id);
+    return builtInModules.includes(moduleId);
   }
 
   /**
    * Load built-in Node.js module shim
    */
   private loadBuiltInModule(id: string): any {
+    // Strip 'node:' prefix if present (Node.js v14+ syntax)
+    const moduleId = id.startsWith('node:') ? id.substring(5) : id;
+
     // Return basic shims for built-in modules
     // In a full implementation, we would provide more complete polyfills
 
-    switch (id) {
+    switch (moduleId) {
       case 'path':
         return this.getPathShim();
 
@@ -354,7 +429,11 @@ export class ModuleLoader {
         );
 
       case 'util':
-        return this.getUtilShim();
+        console.log('[ModuleLoader] Loading util module shim');
+        const utilExports = this.getUtilShim();
+        console.log('[ModuleLoader] util exports:', Object.keys(utilExports));
+        console.log('[ModuleLoader] util.debuglog from loadBuiltInModule:', utilExports.debuglog);
+        return utilExports;
 
       case 'events':
         return this.getEventsShim();
@@ -375,7 +454,7 @@ export class ModuleLoader {
         throw new Error('os module is not supported in browser environment');
 
       case 'child_process':
-        throw new Error('child_process module is not supported in browser environment');
+        return this.getChildProcessShim();
 
       case 'crypto':
         throw new Error(
@@ -390,8 +469,36 @@ export class ModuleLoader {
         // Provide JSON-RPC shim
         return this.getVSCodeJsonRpcShim();
 
+      case 'url':
+        return this.getUrlShim();
+
+      case 'querystring':
+        return this.getQuerystringShim();
+
+      case 'stream':
+        return this.getStreamShim();
+
+      case 'http':
+      case 'https':
+      case 'net':
+      case 'tls':
+        // Network modules not supported in browser
+        throw new Error(`Module '${id}' is not supported in browser environment`);
+
+      case 'timers':
+        return this.getTimersShim();
+
+      case 'assert':
+        return this.getAssertShim();
+
+      case 'constants':
+        return this.getConstantsShim();
+
+      case 'string_decoder':
+        return this.getStringDecoderShim();
+
       default:
-        throw new Error(`Built-in module '${id}' is not supported`);
+        throw new Error(`Built-in module '${moduleId}' is not supported`);
     }
   }
 
@@ -443,7 +550,7 @@ export class ModuleLoader {
    * Util module shim
    */
   private getUtilShim(): any {
-    return {
+    const utilShim = {
       inherits: (ctor: any, superCtor: any) => {
         ctor.super_ = superCtor;
         ctor.prototype = Object.create(superCtor.prototype, {
@@ -472,7 +579,65 @@ export class ModuleLoader {
           }
         });
       },
+      debuglog: (section: string) => {
+        // Return a function that logs debug messages for a specific section
+        // In browser environment, we can use console.debug
+        return (...args: any[]) => {
+          console.debug(`[${section}]`, ...args);
+        };
+      },
+      inspect: (obj: any, options?: any) => {
+        // Simple inspect implementation
+        try {
+          return JSON.stringify(obj, null, 2);
+        } catch (e) {
+          return String(obj);
+        }
+      },
+      isArray: (value: any) => Array.isArray(value),
+      isBoolean: (value: any) => typeof value === 'boolean',
+      isNull: (value: any) => value === null,
+      isNullOrUndefined: (value: any) => value == null,
+      isNumber: (value: any) => typeof value === 'number',
+      isString: (value: any) => typeof value === 'string',
+      isSymbol: (value: any) => typeof value === 'symbol',
+      isUndefined: (value: any) => value === undefined,
+      isRegExp: (value: any) => value instanceof RegExp,
+      isObject: (value: any) => typeof value === 'object' && value !== null,
+      isDate: (value: any) => value instanceof Date,
+      isError: (value: any) => value instanceof Error,
+      isFunction: (value: any) => typeof value === 'function',
+      isPrimitive: (value: any) => {
+        return value === null || (typeof value !== 'object' && typeof value !== 'function');
+      },
+      promisify: (fn: Function) => {
+        // Basic promisify implementation
+        return (...args: any[]) => {
+          return new Promise((resolve, reject) => {
+            fn(...args, (err: any, result: any) => {
+              if (err) reject(err);
+              else resolve(result);
+            });
+          });
+        };
+      },
+      callbackify: (fn: Function) => {
+        // Basic callbackify implementation
+        return (...args: any[]) => {
+          const callback = args[args.length - 1];
+          const promiseArgs = args.slice(0, -1);
+          Promise.resolve(fn(...promiseArgs))
+            .then((result) => callback(null, result))
+            .catch((err) => callback(err));
+        };
+      },
     };
+
+    // Debug logging to verify debuglog is properly set
+    console.log('[ModuleLoader] util.debuglog type:', typeof utilShim.debuglog);
+    console.log('[ModuleLoader] util.debuglog:', utilShim.debuglog);
+
+    return utilShim;
   }
 
   /**
@@ -584,6 +749,301 @@ export class ModuleLoader {
         InternalError: -32603,
       },
     };
+  }
+
+  /**
+   * URL module shim
+   */
+  private getUrlShim(): any {
+    return {
+      parse: (urlString: string) => {
+        try {
+          const url = new URL(urlString);
+          return {
+            protocol: url.protocol,
+            hostname: url.hostname,
+            port: url.port,
+            pathname: url.pathname,
+            search: url.search,
+            hash: url.hash,
+            href: url.href,
+          };
+        } catch (e) {
+          return null;
+        }
+      },
+      format: (urlObject: any) => {
+        const protocol = urlObject.protocol || '';
+        const hostname = urlObject.hostname || urlObject.host || '';
+        const port = urlObject.port ? `:${urlObject.port}` : '';
+        const pathname = urlObject.pathname || '';
+        const search = urlObject.search || '';
+        const hash = urlObject.hash || '';
+        return `${protocol}//${hostname}${port}${pathname}${search}${hash}`;
+      },
+      pathToFileURL: (path: string) => {
+        // Convert a file path to a file:// URL
+        // Normalize path separators to forward slashes
+        const normalizedPath = path.replace(/\\/g, '/');
+        // Ensure it starts with a slash for absolute paths
+        const absolutePath = normalizedPath.startsWith('/') ? normalizedPath : '/' + normalizedPath;
+        return new URL(`file://${absolutePath}`);
+      },
+      fileURLToPath: (url: URL | string) => {
+        // Convert a file:// URL to a file path
+        const urlObj = typeof url === 'string' ? new URL(url) : url;
+        if (urlObj.protocol !== 'file:') {
+          throw new Error('URL must use file:// protocol');
+        }
+        // Remove the leading slash on Windows-style paths (e.g., /C:/path)
+        let path = urlObj.pathname;
+        if (/^\/[a-zA-Z]:/.test(path)) {
+          path = path.substring(1);
+        }
+        return decodeURIComponent(path);
+      },
+      URL: typeof URL !== 'undefined' ? URL : undefined,
+      URLSearchParams: typeof URLSearchParams !== 'undefined' ? URLSearchParams : undefined,
+    };
+  }
+
+  /**
+   * Querystring module shim
+   */
+  private getQuerystringShim(): any {
+    return {
+      parse: (str: string) => {
+        const params = new URLSearchParams(str);
+        const result: any = {};
+        params.forEach((value, key) => {
+          result[key] = value;
+        });
+        return result;
+      },
+      stringify: (obj: any) => {
+        const params = new URLSearchParams();
+        Object.keys(obj).forEach(key => {
+          params.append(key, obj[key]);
+        });
+        return params.toString();
+      },
+    };
+  }
+
+  /**
+   * Stream module shim (basic)
+   */
+  private getStreamShim(): any {
+    const { EventEmitter } = this.getEventsShim();
+
+    class Readable extends EventEmitter {
+      constructor() {
+        super();
+      }
+    }
+
+    class Writable extends EventEmitter {
+      constructor() {
+        super();
+      }
+    }
+
+    return {
+      Readable,
+      Writable,
+      Stream: EventEmitter,
+    };
+  }
+
+  /**
+   * Timers module shim
+   */
+  private getTimersShim(): any {
+    return {
+      setTimeout: (callback: Function, delay: number, ...args: any[]) => {
+        return setTimeout(() => callback(...args), delay);
+      },
+      clearTimeout: (timeoutId: any) => {
+        clearTimeout(timeoutId);
+      },
+      setInterval: (callback: Function, delay: number, ...args: any[]) => {
+        return setInterval(() => callback(...args), delay);
+      },
+      clearInterval: (intervalId: any) => {
+        clearInterval(intervalId);
+      },
+      setImmediate: (callback: Function, ...args: any[]) => {
+        return setTimeout(() => callback(...args), 0);
+      },
+      clearImmediate: (immediateId: any) => {
+        clearTimeout(immediateId);
+      },
+    };
+  }
+
+  /**
+   * Assert module shim
+   */
+  private getAssertShim(): any {
+    const assert: any = (value: any, message?: string) => {
+      if (!value) {
+        throw new Error(message || 'Assertion failed');
+      }
+    };
+
+    assert.ok = assert;
+    assert.equal = (actual: any, expected: any, message?: string) => {
+      if (actual != expected) {
+        throw new Error(message || `${actual} != ${expected}`);
+      }
+    };
+    assert.strictEqual = (actual: any, expected: any, message?: string) => {
+      if (actual !== expected) {
+        throw new Error(message || `${actual} !== ${expected}`);
+      }
+    };
+    assert.deepEqual = (actual: any, expected: any, message?: string) => {
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+        throw new Error(message || 'Deep equality check failed');
+      }
+    };
+    assert.notEqual = (actual: any, expected: any, message?: string) => {
+      if (actual == expected) {
+        throw new Error(message || `${actual} == ${expected}`);
+      }
+    };
+    assert.throws = (fn: Function, error?: any, message?: string) => {
+      let threw = false;
+      try {
+        fn();
+      } catch (e) {
+        threw = true;
+      }
+      if (!threw) {
+        throw new Error(message || 'Function did not throw');
+      }
+    };
+    assert.fail = (message?: string) => {
+      throw new Error(message || 'Assertion failed');
+    };
+
+    return assert;
+  }
+
+  /**
+   * Constants module shim
+   */
+  private getConstantsShim(): any {
+    return {
+      // File system constants
+      O_RDONLY: 0,
+      O_WRONLY: 1,
+      O_RDWR: 2,
+      O_CREAT: 64,
+      O_EXCL: 128,
+      O_TRUNC: 512,
+      O_APPEND: 1024,
+
+      // Error constants
+      E2BIG: 7,
+      EACCES: 13,
+      EADDRINUSE: 98,
+      EADDRNOTAVAIL: 99,
+      EAFNOSUPPORT: 97,
+      EAGAIN: 11,
+      EEXIST: 17,
+      EINVAL: 22,
+      ENOENT: 2,
+      ENOTDIR: 20,
+
+      // Signal constants
+      SIGHUP: 1,
+      SIGINT: 2,
+      SIGTERM: 15,
+      SIGKILL: 9,
+    };
+  }
+
+  /**
+   * Child Process module shim
+   * Provides stub implementations that throw helpful errors when called
+   */
+  private getChildProcessShim(): any {
+    const { EventEmitter } = this.getEventsShim();
+
+    const notSupportedError = () => {
+      throw new Error('child_process operations are not supported in browser environment. Extensions should use VS Code APIs for process execution.');
+    };
+
+    class ChildProcessStub extends EventEmitter {
+      pid = -1;
+      stdin: any = null;
+      stdout: any = null;
+      stderr: any = null;
+      killed = false;
+
+      kill() {
+        notSupportedError();
+      }
+
+      send() {
+        notSupportedError();
+      }
+
+      disconnect() {
+        notSupportedError();
+      }
+    }
+
+    return {
+      exec: notSupportedError,
+      execFile: notSupportedError,
+      spawn: notSupportedError,
+      fork: notSupportedError,
+      execSync: notSupportedError,
+      execFileSync: notSupportedError,
+      spawnSync: notSupportedError,
+      ChildProcess: ChildProcessStub,
+    };
+  }
+
+  /**
+   * String Decoder module shim
+   * Provides basic StringDecoder functionality
+   */
+  private getStringDecoderShim(): any {
+    class StringDecoder {
+      private encoding: string;
+
+      constructor(encoding: string = 'utf8') {
+        this.encoding = encoding;
+      }
+
+      write(buffer: any): string {
+        // If it's already a string, return it
+        if (typeof buffer === 'string') {
+          return buffer;
+        }
+
+        // If it's a Buffer or Uint8Array
+        if (buffer && (buffer instanceof Uint8Array || ArrayBuffer.isView(buffer))) {
+          const decoder = new TextDecoder(this.encoding);
+          return decoder.decode(buffer);
+        }
+
+        // Fallback: convert to string
+        return String(buffer);
+      }
+
+      end(buffer?: any): string {
+        if (buffer) {
+          return this.write(buffer);
+        }
+        return '';
+      }
+    }
+
+    return { StringDecoder };
   }
 }
 

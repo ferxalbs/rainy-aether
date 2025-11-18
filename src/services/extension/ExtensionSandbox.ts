@@ -70,12 +70,16 @@ export class ExtensionSandbox {
       };
 
       // Send initialization message
+      const isTauri = this.isTauriEnvironment();
+      console.log(`[ExtensionSandbox] Initializing ${this.extensionId} with isTauriEnvironment: ${isTauri}`);
+
       await this.sendRequest<void>(ExtensionMessageType.Initialize, {
         extensionId: this.config.extensionId,
         extensionPath: this.config.extensionPath,
         manifest: this.config.manifest,
         storagePath: `${this.config.extensionPath}/storage`,
         globalStoragePath: `${this.config.extensionPath}/globalStorage`,
+        isTauriEnvironment: isTauri,
       } as InitializeMessageData);
 
       this.isInitialized = true;
@@ -509,20 +513,22 @@ export class ExtensionSandbox {
       throw new Error('Path is required for readExtensionFile');
     }
 
-    return await this.invokeTauri<string>('read_extension_file', { path });
-  }
-
-  private async invokeTauri<T>(command: string, payload: Record<string, unknown>): Promise<T> {
+    // Check if running in Tauri environment
     if (!this.isTauriEnvironment()) {
-      throw new Error('Tauri APIs are unavailable in browser-only mode');
+      throw new Error('Cannot read extension files in browser-only mode. Extension file loading requires Tauri environment.');
     }
 
     const { invoke } = await import('@tauri-apps/api/core');
-    return await invoke<T>(command, payload);
+    return await invoke<string>('read_extension_file', { path });
   }
 
   private isTauriEnvironment(): boolean {
-    return typeof window !== 'undefined' && '__TAURI__' in window;
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    // Check multiple Tauri indicators for robustness
+    const w = window as any;
+    return !!(w.__TAURI__ || w.__TAURI_INTERNALS__ || w.__TAURI_METADATA__);
   }
 
   /**

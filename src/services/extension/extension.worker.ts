@@ -26,6 +26,7 @@ let vscodeAPI: any = null;
 let activatedExtension: any = null;
 let isInitialized = false;
 let extensionBasePath: string | null = null;
+let isTauriEnvironment = false; // Set during initialization
 const fileContentCache = new Map<string, string>();
 
 /**
@@ -81,8 +82,9 @@ async function handleInitialize(message: ExtensionMessage): Promise<void> {
   extensionId = data.extensionId;
   manifest = data.manifest;
   extensionBasePath = data.extensionPath;
+  isTauriEnvironment = data.isTauriEnvironment || false;
 
-  log('info', `Initializing extension ${extensionId}`);
+  log('info', `Initializing extension ${extensionId} (Tauri: ${isTauriEnvironment})`);
 
   // Create extension context
   extensionContext = createExtensionContext({
@@ -391,6 +393,13 @@ async function readExtensionFile(path: string): Promise<string> {
 
   if (fileContentCache.has(normalizedPath)) {
     return fileContentCache.get(normalizedPath)!;
+  }
+
+  // In non-Tauri environment, we cannot read extension files
+  if (!isTauriEnvironment) {
+    const errorMsg = 'Cannot read extension files in browser-only mode. Extension file loading requires Tauri environment.';
+    log('error', errorMsg);
+    throw new Error(errorMsg);
   }
 
   try {

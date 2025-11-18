@@ -59,6 +59,7 @@ export interface InitializeMessageData {
   manifest: any;
   storagePath: string;
   globalStoragePath: string;
+  isTauriEnvironment: boolean; // Indicates if running in Tauri context
 }
 
 /**
@@ -235,6 +236,7 @@ export interface VSCodeWindow {
   showQuickPick(items: string[], options?: any): Promise<string | undefined>;
   showInputBox(options?: any): Promise<string | undefined>;
   createOutputChannel(name: string): any;
+  registerWebviewViewProvider(viewId: string, provider: any, options?: any): IDisposable;
   activeTextEditor: any;
   visibleTextEditors: any[];
   onDidChangeActiveTextEditor: any;
@@ -488,6 +490,7 @@ export enum ExtensionErrorType {
   ActivationFailed = 'activation_failed',
   ModuleLoadFailed = 'module_load_failed',
   APICallFailed = 'api_call_failed',
+  RuntimeError = 'runtime_error',
   Timeout = 'timeout',
   SandboxError = 'sandbox_error',
   Unknown = 'unknown',
