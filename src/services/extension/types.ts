@@ -233,6 +233,23 @@ export interface VSCodeAPI {
   Location: any;
   WorkspaceEdit: any;
   TextEdit: any;
+  WebviewPanel: any;
+  SnippetString: any;
+  ParameterInformation: any;
+  SignatureInformation: any;
+  SignatureHelp: any;
+  CompletionItem: any;
+  CompletionList: any;
+  Hover: any;
+  DocumentLink: any;
+  Color: any;
+  ColorInformation: any;
+  ColorPresentation: any;
+  FoldingRange: any;
+  SelectionRange: any;
+  CallHierarchyItem: any;
+  SemanticTokensLegend: any;
+  SemanticTokensBuilder: any;
 
   // Enums
   DiagnosticSeverity: any;
@@ -243,6 +260,24 @@ export interface VSCodeAPI {
   TreeItemCollapsibleState: any;
   OverviewRulerLane: any;
   DecorationRangeBehavior: any;
+  ViewColumn: any;
+  ProgressLocation: any;
+  ConfigurationTarget: any;
+  FileType: any;
+  ExtensionMode: any;
+  UIKind: any;
+  ExtensionKind: any;
+  ColorThemeKind: any;
+  StatusBarAlignment: any;
+  EndOfLine: any;
+  TextDocumentSaveReason: any;
+  QuickPickItemKind: any;
+  FoldingRangeKind: any;
+  SignatureHelpTriggerKind: any;
+  CompletionTriggerKind: any;
+  InsertTextFormat: any;
+  DocumentHighlightKind: any;
+  SymbolType: any;
 }
 
 /**
@@ -255,6 +290,7 @@ export interface VSCodeWindow {
   showQuickPick(items: string[], options?: any): Promise<string | undefined>;
   showInputBox(options?: any): Promise<string | undefined>;
   createOutputChannel(name: string): any;
+  createWebviewPanel(viewType: string, title: string, showOptions: any, options?: any): any;
   registerWebviewViewProvider(viewId: string, provider: any, options?: any): IDisposable;
   activeTextEditor: any;
   visibleTextEditors: any[];

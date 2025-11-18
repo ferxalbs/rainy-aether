@@ -151,6 +151,23 @@ export function createVSCodeAPI(
     Location: createLocationClass(),
     WorkspaceEdit: createWorkspaceEditClass(),
     TextEdit: createTextEditClass(),
+    WebviewPanel: createWebviewPanelClass(),
+    SnippetString: createSnippetStringClass(),
+    ParameterInformation: createParameterInformationClass(),
+    SignatureInformation: createSignatureInformationClass(),
+    SignatureHelp: createSignatureHelpClass(),
+    CompletionItem: createCompletionItemClass(),
+    CompletionList: createCompletionListClass(),
+    Hover: createHoverClass(),
+    DocumentLink: createDocumentLinkClass(),
+    Color: createColorClass(),
+    ColorInformation: createColorInformationClass(),
+    ColorPresentation: createColorPresentationClass(),
+    FoldingRange: createFoldingRangeClass(),
+    SelectionRange: createSelectionRangeClass(),
+    CallHierarchyItem: createCallHierarchyItemClass(),
+    SemanticTokensLegend: createSemanticTokensLegendClass(),
+    SemanticTokensBuilder: createSemanticTokensBuilderClass(),
 
     // Enums
     DiagnosticSeverity: {
@@ -226,6 +243,123 @@ export function createVSCodeAPI(
       OpenClosed: 2,
       ClosedOpen: 3,
     },
+    ViewColumn: {
+      Active: -1,
+      Beside: -2,
+      One: 1,
+      Two: 2,
+      Three: 3,
+      Four: 4,
+      Five: 5,
+      Six: 6,
+      Seven: 7,
+      Eight: 8,
+      Nine: 9,
+    },
+    ProgressLocation: {
+      SourceControl: 1,
+      Window: 10,
+      Notification: 15,
+    },
+    ConfigurationTarget: {
+      Global: 1,
+      Workspace: 2,
+      WorkspaceFolder: 3,
+    },
+    FileType: {
+      Unknown: 0,
+      File: 1,
+      Directory: 2,
+      SymbolicLink: 64,
+    },
+    ExtensionMode: {
+      Production: 1,
+      Development: 2,
+      Test: 3,
+    },
+    UIKind: {
+      Desktop: 1,
+      Web: 2,
+    },
+    ExtensionKind: {
+      UI: 1,
+      Workspace: 2,
+    },
+    ColorThemeKind: {
+      Light: 1,
+      Dark: 2,
+      HighContrast: 3,
+      HighContrastLight: 4,
+    },
+    StatusBarAlignment: {
+      Left: 1,
+      Right: 2,
+    },
+    EndOfLine: {
+      LF: 1,
+      CRLF: 2,
+    },
+    TextDocumentSaveReason: {
+      Manual: 1,
+      AfterDelay: 2,
+      FocusOut: 3,
+    },
+    QuickPickItemKind: {
+      Separator: -1,
+      Default: 0,
+    },
+    FoldingRangeKind: {
+      Comment: 1,
+      Imports: 2,
+      Region: 3,
+    },
+    SignatureHelpTriggerKind: {
+      Invoke: 1,
+      TriggerCharacter: 2,
+      ContentChange: 3,
+    },
+    CompletionTriggerKind: {
+      Invoke: 0,
+      TriggerCharacter: 1,
+      TriggerForIncompleteCompletions: 2,
+    },
+    InsertTextFormat: {
+      PlainText: 1,
+      Snippet: 2,
+    },
+    DocumentHighlightKind: {
+      Text: 0,
+      Read: 1,
+      Write: 2,
+    },
+    SymbolType: {
+      File: 0,
+      Module: 1,
+      Namespace: 2,
+      Package: 3,
+      Class: 4,
+      Method: 5,
+      Property: 6,
+      Field: 7,
+      Constructor: 8,
+      Enum: 9,
+      Interface: 10,
+      Function: 11,
+      Variable: 12,
+      Constant: 13,
+      String: 14,
+      Number: 15,
+      Boolean: 16,
+      Array: 17,
+      Object: 18,
+      Key: 19,
+      Null: 20,
+      EnumMember: 21,
+      Struct: 22,
+      Event: 23,
+      Operator: 24,
+      TypeParameter: 25,
+    },
   };
 
   return vscode;
@@ -288,6 +422,20 @@ function createWindowAPI(apiCall: APICallCallback): VSCodeWindow {
     onDidChangeVisibleTextEditors: createEvent(),
     onDidChangeTextEditorSelection: createEvent(),
     onDidChangeTextEditorVisibleRanges: createEvent(),
+
+    /**
+     * Create a webview panel
+     */
+    createWebviewPanel(
+      viewType: string,
+      title: string,
+      showOptions: any,
+      options?: any
+    ): any {
+      const WebviewPanelClass = createWebviewPanelClass();
+      const viewColumn = typeof showOptions === 'number' ? showOptions : (showOptions?.viewColumn ?? 1);
+      return new WebviewPanelClass(viewType, title, viewColumn, options || {});
+    },
 
     /**
      * Register a webview view provider
@@ -1186,6 +1334,373 @@ function createWorkspaceEditClass() {
         result.push([VSCodeUriClass.parse(uriStr), edits]);
       });
       return result;
+    }
+  };
+}
+
+/**
+ * Create WebviewPanel class
+ */
+function createWebviewPanelClass() {
+  return class WebviewPanel {
+    readonly viewType: string;
+    readonly webview: any;
+    title: string;
+    iconPath?: any;
+    readonly viewColumn?: number;
+    readonly active: boolean = true;
+    readonly visible: boolean = true;
+    readonly onDidDispose: any;
+    readonly onDidChangeViewState: any;
+    readonly options: any;
+
+    constructor(viewType: string, title: string, viewColumn: number, options: any = {}) {
+      this.viewType = viewType;
+      this.title = title;
+      this.viewColumn = viewColumn;
+      this.options = options;
+
+      // Create webview object
+      this.webview = {
+        html: '',
+        options: options.enableScripts ? { enableScripts: true } : {},
+        onDidReceiveMessage: createEvent(),
+        postMessage: async (_message: any) => true,
+        asWebviewUri: (uri: any) => uri,
+        cspSource: "'self'",
+      };
+
+      // Create events
+      this.onDidDispose = createEvent();
+      this.onDidChangeViewState = createEvent();
+    }
+
+    reveal(_viewColumn?: number, _preserveFocus?: boolean): void {
+      // No-op in our implementation
+    }
+
+    dispose(): void {
+      (this.onDidDispose as any).fire();
+    }
+  };
+}
+
+/**
+ * Create SnippetString class
+ */
+function createSnippetStringClass() {
+  return class SnippetString {
+    value: string;
+
+    constructor(value?: string) {
+      this.value = value || '';
+    }
+
+    appendText(string: string): SnippetString {
+      this.value += string.replace(/\$|}/g, '\\$&');
+      return this;
+    }
+
+    appendTabstop(number: number = 0): SnippetString {
+      this.value += '$' + number;
+      return this;
+    }
+
+    appendPlaceholder(value: string | ((snippet: SnippetString) => void), number: number = 0): SnippetString {
+      if (typeof value === 'function') {
+        const nested = new SnippetString();
+        value(nested);
+        this.value += '${' + number + ':' + nested.value + '}';
+      } else {
+        this.value += '${' + number + ':' + value + '}';
+      }
+      return this;
+    }
+
+    appendChoice(values: string[], number: number = 0): SnippetString {
+      this.value += '${' + number + '|' + values.join(',') + '|}';
+      return this;
+    }
+
+    appendVariable(name: string, defaultValue: string | ((snippet: SnippetString) => void)): SnippetString {
+      if (typeof defaultValue === 'function') {
+        const nested = new SnippetString();
+        defaultValue(nested);
+        this.value += '${' + name + ':' + nested.value + '}';
+      } else {
+        this.value += '${' + name + ':' + defaultValue + '}';
+      }
+      return this;
+    }
+  };
+}
+
+/**
+ * Create ParameterInformation class
+ */
+function createParameterInformationClass() {
+  return class ParameterInformation {
+    label: string | [number, number];
+    documentation?: string | any;
+
+    constructor(label: string | [number, number], documentation?: string | any) {
+      this.label = label;
+      this.documentation = documentation;
+    }
+  };
+}
+
+/**
+ * Create SignatureInformation class
+ */
+function createSignatureInformationClass() {
+  return class SignatureInformation {
+    label: string;
+    documentation?: string | any;
+    parameters: any[];
+    activeParameter?: number;
+
+    constructor(label: string, documentation?: string | any) {
+      this.label = label;
+      this.documentation = documentation;
+      this.parameters = [];
+    }
+  };
+}
+
+/**
+ * Create SignatureHelp class
+ */
+function createSignatureHelpClass() {
+  return class SignatureHelp {
+    signatures: any[];
+    activeSignature: number;
+    activeParameter: number;
+
+    constructor() {
+      this.signatures = [];
+      this.activeSignature = 0;
+      this.activeParameter = 0;
+    }
+  };
+}
+
+/**
+ * Create CompletionItem class
+ */
+function createCompletionItemClass() {
+  return class CompletionItem {
+    label: string | any;
+    kind?: number;
+    tags?: number[];
+    detail?: string;
+    documentation?: string | any;
+    sortText?: string;
+    filterText?: string;
+    preselect?: boolean;
+    insertText?: string | any;
+    range?: any;
+    commitCharacters?: string[];
+    keepWhitespace?: boolean;
+    additionalTextEdits?: any[];
+    command?: any;
+
+    constructor(label: string | any, kind?: number) {
+      this.label = label;
+      this.kind = kind;
+    }
+  };
+}
+
+/**
+ * Create CompletionList class
+ */
+function createCompletionListClass() {
+  return class CompletionList {
+    isIncomplete: boolean;
+    items: any[];
+
+    constructor(items: any[] = [], isIncomplete: boolean = false) {
+      this.items = items;
+      this.isIncomplete = isIncomplete;
+    }
+  };
+}
+
+/**
+ * Create Hover class
+ */
+function createHoverClass() {
+  return class Hover {
+    contents: any[];
+    range?: any;
+
+    constructor(contents: any | any[], range?: any) {
+      this.contents = Array.isArray(contents) ? contents : [contents];
+      this.range = range;
+    }
+  };
+}
+
+/**
+ * Create DocumentLink class
+ */
+function createDocumentLinkClass() {
+  return class DocumentLink {
+    range: any;
+    target?: any;
+    tooltip?: string;
+
+    constructor(range: any, target?: any) {
+      this.range = range;
+      this.target = target;
+    }
+  };
+}
+
+/**
+ * Create Color class
+ */
+function createColorClass() {
+  return class Color {
+    readonly red: number;
+    readonly green: number;
+    readonly blue: number;
+    readonly alpha: number;
+
+    constructor(red: number, green: number, blue: number, alpha: number) {
+      this.red = red;
+      this.green = green;
+      this.blue = blue;
+      this.alpha = alpha;
+    }
+  };
+}
+
+/**
+ * Create ColorInformation class
+ */
+function createColorInformationClass() {
+  return class ColorInformation {
+    range: any;
+    color: any;
+
+    constructor(range: any, color: any) {
+      this.range = range;
+      this.color = color;
+    }
+  };
+}
+
+/**
+ * Create ColorPresentation class
+ */
+function createColorPresentationClass() {
+  return class ColorPresentation {
+    label: string;
+    textEdit?: any;
+    additionalTextEdits?: any[];
+
+    constructor(label: string) {
+      this.label = label;
+    }
+  };
+}
+
+/**
+ * Create FoldingRange class
+ */
+function createFoldingRangeClass() {
+  return class FoldingRange {
+    start: number;
+    end: number;
+    kind?: number;
+
+    constructor(start: number, end: number, kind?: number) {
+      this.start = start;
+      this.end = end;
+      this.kind = kind;
+    }
+  };
+}
+
+/**
+ * Create SelectionRange class
+ */
+function createSelectionRangeClass() {
+  return class SelectionRange {
+    range: any;
+    parent?: any;
+
+    constructor(range: any, parent?: any) {
+      this.range = range;
+      this.parent = parent;
+    }
+  };
+}
+
+/**
+ * Create CallHierarchyItem class
+ */
+function createCallHierarchyItemClass() {
+  return class CallHierarchyItem {
+    kind: number;
+    name: string;
+    detail?: string;
+    uri: any;
+    range: any;
+    selectionRange: any;
+    tags?: number[];
+
+    constructor(kind: number, name: string, detail: string, uri: any, range: any, selectionRange: any) {
+      this.kind = kind;
+      this.name = name;
+      this.detail = detail;
+      this.uri = uri;
+      this.range = range;
+      this.selectionRange = selectionRange;
+    }
+  };
+}
+
+/**
+ * Create SemanticTokensLegend class
+ */
+function createSemanticTokensLegendClass() {
+  return class SemanticTokensLegend {
+    readonly tokenTypes: string[];
+    readonly tokenModifiers: string[];
+
+    constructor(tokenTypes: string[], tokenModifiers: string[] = []) {
+      this.tokenTypes = tokenTypes;
+      this.tokenModifiers = tokenModifiers;
+    }
+  };
+}
+
+/**
+ * Create SemanticTokensBuilder class
+ */
+function createSemanticTokensBuilderClass() {
+  return class SemanticTokensBuilder {
+    private _data: number[] = [];
+    private _prevLine: number = 0;
+    private _prevChar: number = 0;
+
+    push(line: number, char: number, length: number, tokenType: number, tokenModifiers: number = 0): void {
+      const deltaLine = line - this._prevLine;
+      const deltaChar = deltaLine === 0 ? char - this._prevChar : char;
+
+      this._data.push(deltaLine, deltaChar, length, tokenType, tokenModifiers);
+
+      this._prevLine = line;
+      this._prevChar = char;
+    }
+
+    build(): any {
+      return {
+        data: new Uint32Array(this._data),
+      };
     }
   };
 }
