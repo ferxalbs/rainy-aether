@@ -112,27 +112,41 @@ async function handleInitialize(message: ExtensionMessage): Promise<void> {
     return await callHostAPI(namespace, method, args);
   });
 
-  // Make vscode API available globally with Proxy to detect undefined accesses
-  const vscodeProxy = new Proxy(vscodeAPI, {
-    get(target, prop) {
-      const value = (target as any)[prop];
+  // Enhanced Proxy to detect undefined accesses at all levels
+  function createDeepProxy(target: any, path: string = 'vscode'): any {
+    return new Proxy(target, {
+      get(obj, prop) {
+        const value = (obj as any)[prop];
+        const fullPath = `${path}.${String(prop)}`;
 
-      // Log access to constructors/classes
-      if (typeof value === 'function' && prop !== 'toString' && prop !== 'valueOf') {
-        console.log(`[VSCodeAPI] Accessed class/function: ${String(prop)}`);
+        // Skip internal properties
+        if (typeof prop === 'symbol' || prop === 'then' || prop === 'constructor' || prop === 'prototype') {
+          return value;
+        }
+
+        // Warn if undefined - THIS IS THE KEY DEBUG INFO
+        if (value === undefined) {
+          console.error(`❌ [VSCodeAPI] UNDEFINED PROPERTY ACCESSED: ${fullPath}`);
+          console.trace();
+          return undefined;
+        }
+
+        // Log class/function access
+        if (typeof value === 'function') {
+          console.log(`✅ [VSCodeAPI] Accessed: ${fullPath} (type: ${typeof value})`);
+        }
+
+        // Recursively proxy objects (but not functions or primitives)
+        if (typeof value === 'object' && value !== null && !(value instanceof Function)) {
+          return createDeepProxy(value, fullPath);
+        }
+
+        return value;
       }
+    });
+  }
 
-      // Warn if undefined
-      if (value === undefined && prop !== 'then' && typeof prop === 'string') {
-        console.warn(`[VSCodeAPI] WARNING: Accessed undefined property: ${String(prop)}`);
-        console.trace();
-      }
-
-      return value;
-    }
-  });
-
-  (self as any).vscode = vscodeProxy;
+  (self as any).vscode = createDeepProxy(vscodeAPI);
 
   // Create module loader
   moduleLoader = createModuleLoader(

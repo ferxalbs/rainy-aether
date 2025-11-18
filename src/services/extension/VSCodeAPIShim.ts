@@ -104,8 +104,11 @@ export function createVSCodeAPI(
   _context: IExtensionContext,
   apiCall: APICallCallback
 ): VSCodeAPI {
-  // Create window namespace
-  const window = createWindowAPI(apiCall);
+  // Create classes once (singleton pattern for instanceof checks)
+  const WebviewPanelClass = createWebviewPanelClass();
+
+  // Create window namespace with injected classes
+  const window = createWindowAPI(apiCall, WebviewPanelClass);
 
   // Create workspace namespace
   const workspace = createWorkspaceAPI(apiCall);
@@ -151,7 +154,7 @@ export function createVSCodeAPI(
     Location: createLocationClass(),
     WorkspaceEdit: createWorkspaceEditClass(),
     TextEdit: createTextEditClass(),
-    WebviewPanel: createWebviewPanelClass(),
+    WebviewPanel: WebviewPanelClass,
     SnippetString: createSnippetStringClass(),
     ParameterInformation: createParameterInformationClass(),
     SignatureInformation: createSignatureInformationClass(),
@@ -368,7 +371,7 @@ export function createVSCodeAPI(
 /**
  * Create window namespace API
  */
-function createWindowAPI(apiCall: APICallCallback): VSCodeWindow {
+function createWindowAPI(apiCall: APICallCallback, WebviewPanelClass: any): VSCodeWindow {
   return {
     async showInformationMessage(message: string, ...items: string[]): Promise<string | undefined> {
       return await apiCall('window', 'showInformationMessage', [message, ...items]);
@@ -432,7 +435,6 @@ function createWindowAPI(apiCall: APICallCallback): VSCodeWindow {
       showOptions: any,
       options?: any
     ): any {
-      const WebviewPanelClass = createWebviewPanelClass();
       const viewColumn = typeof showOptions === 'number' ? showOptions : (showOptions?.viewColumn ?? 1);
       return new WebviewPanelClass(viewType, title, viewColumn, options || {});
     },
@@ -1687,11 +1689,51 @@ function createSemanticTokensBuilderClass() {
     private _prevLine: number = 0;
     private _prevChar: number = 0;
 
-    push(line: number, char: number, length: number, tokenType: number, tokenModifiers: number = 0): void {
+    /**
+     * Push semantic token data
+     * Supports two overloads:
+     * 1. push(line, char, length, tokenType, tokenModifiers?)
+     * 2. push(range, tokenType, tokenModifiers?)
+     */
+    push(lineOrRange: number | any, charOrTokenType: number, lengthOrTokenModifiers?: number, tokenType?: number, tokenModifiers: number = 0): void {
+      let line: number;
+      let char: number;
+      let length: number;
+      let actualTokenType: number;
+      let actualTokenModifiers: number;
+
+      // Check if first argument is a Range object (has start and end properties)
+      if (typeof lineOrRange === 'object' && lineOrRange !== null && 'start' in lineOrRange && 'end' in lineOrRange) {
+        // Range-based overload: push(range, tokenType, tokenModifiers?)
+        const range = lineOrRange;
+        line = range.start.line;
+        char = range.start.character;
+
+        // Calculate length from range
+        if (range.start.line === range.end.line) {
+          // Single-line range
+          length = range.end.character - range.start.character;
+        } else {
+          // Multi-line range - just use start to end of line
+          length = 1; // Fallback for multi-line
+        }
+
+        actualTokenType = charOrTokenType;
+        actualTokenModifiers = lengthOrTokenModifiers ?? 0;
+      } else {
+        // Numeric overload: push(line, char, length, tokenType, tokenModifiers?)
+        line = lineOrRange as number;
+        char = charOrTokenType;
+        length = lengthOrTokenModifiers!;
+        actualTokenType = tokenType!;
+        actualTokenModifiers = tokenModifiers;
+      }
+
+      // Common logic for both overloads
       const deltaLine = line - this._prevLine;
       const deltaChar = deltaLine === 0 ? char - this._prevChar : char;
 
-      this._data.push(deltaLine, deltaChar, length, tokenType, tokenModifiers);
+      this._data.push(deltaLine, deltaChar, length, actualTokenType, actualTokenModifiers);
 
       this._prevLine = line;
       this._prevChar = char;
