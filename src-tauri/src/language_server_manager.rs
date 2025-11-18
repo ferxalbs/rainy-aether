@@ -131,51 +131,76 @@ impl LanguageServerManager {
         let server_id_stdout = server_id.clone();
         let app_handle_stdout = app_handle.clone();
         thread::spawn(move || {
-            let reader = BufReader::new(stdout);
-            let mut buffer = String::new();
-            let mut content_length: Option<usize> = None;
+            use std::io::Read;
 
-            for line in reader.lines() {
-                match line {
-                    Ok(line) => {
-                        // Check if this is a Content-Length header
-                        if line.starts_with("Content-Length:") {
-                            if let Some(len_str) = line.split(':').nth(1) {
-                                content_length = len_str.trim().parse().ok();
-                            }
-                        } else if line.is_empty() && content_length.is_some() {
-                            // Empty line after headers, now read the content
-                            if let Some(len) = content_length {
-                                buffer.clear();
-                                buffer.reserve(len);
+            let mut reader = BufReader::new(stdout);
+            let mut header_line = String::new();
 
-                                // Read exactly `len` bytes
-                                // Note: This is a simplified version. A production
-                                // implementation should handle reading bytes more carefully
-                                // For now, we'll emit the message as-is
-                            }
-                            content_length = None;
-                        } else {
-                            buffer.push_str(&line);
-                            buffer.push('\n');
+            loop {
+                header_line.clear();
+
+                // Read headers line by line
+                let mut content_length: Option<usize> = None;
+
+                loop {
+                    match reader.read_line(&mut header_line) {
+                        Ok(0) => {
+                            // EOF - server closed
+                            let event_name = format!("lsp-close-{}", server_id_stdout);
+                            let _ = app_handle_stdout.emit(&event_name, ());
+                            return;
                         }
+                        Ok(_) => {
+                            // Check for Content-Length header
+                            if header_line.starts_with("Content-Length:") {
+                                if let Some(len_str) = header_line.split(':').nth(1) {
+                                    content_length = len_str.trim().parse().ok();
+                                }
+                            }
 
-                        // If we have a complete message, send it
-                        if !buffer.is_empty() && content_length.is_none() {
-                            let event_name = format!("lsp-message-{}", server_id_stdout);
-                            let _ = app_handle_stdout.emit(
-                                &event_name,
-                                serde_json::json!({
-                                    "message": buffer.clone()
-                                }),
-                            );
-                            buffer.clear();
+                            // Empty line marks end of headers
+                            if header_line.trim().is_empty() {
+                                break;
+                            }
+
+                            header_line.clear();
+                        }
+                        Err(e) => {
+                            eprintln!("[LSP] Error reading headers: {}", e);
+                            return;
                         }
                     }
-                    Err(e) => {
-                        eprintln!("[LSP] Error reading stdout: {}", e);
+                }
+
+                // Now read the content body
+                if let Some(len) = content_length {
+                    let mut content_buf = vec![0u8; len];
+
+                    if let Err(e) = reader.read_exact(&mut content_buf) {
+                        eprintln!("[LSP] Error reading message body: {}", e);
                         break;
                     }
+
+                    // Convert to string
+                    match String::from_utf8(content_buf) {
+                        Ok(message) => {
+                            let event_name = format!("lsp-message-{}", server_id_stdout);
+                            if let Err(e) = app_handle_stdout.emit(
+                                &event_name,
+                                serde_json::json!({
+                                    "message": message
+                                }),
+                            ) {
+                                eprintln!("[LSP] Error emitting message: {:?}", e);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("[LSP] Invalid UTF-8 in message: {}", e);
+                        }
+                    }
+                } else {
+                    eprintln!("[LSP] No Content-Length header found");
+                    break;
                 }
             }
 
