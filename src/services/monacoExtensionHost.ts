@@ -887,14 +887,25 @@ export class MonacoExtensionHost {
       throw new Error(`Extension ${extensionId} is not loaded`);
     }
 
-    if (loadedExtension.activated) {
+    if (!loadedExtension.sandbox) {
+      console.warn(`Extension ${extensionId} has no sandbox (no main entry point)`);
+      return;
+    }
+
+    // Check actual sandbox state, not just loadedExtension.activated
+    // This handles cases where the state might be out of sync
+    const isSandboxActivated = (loadedExtension.sandbox as any).isActivated;
+
+    if (loadedExtension.activated && isSandboxActivated) {
       console.log(`Extension ${extensionId} is already activated`);
       return;
     }
 
-    if (!loadedExtension.sandbox) {
-      console.warn(`Extension ${extensionId} has no sandbox (no main entry point)`);
-      return;
+    // State mismatch - reset and re-activate
+    if (loadedExtension.activated && !isSandboxActivated) {
+      console.warn(`State mismatch for ${extensionId}: loadedExtension.activated=true but sandbox.isActivated=false. Resetting and re-activating.`);
+      loadedExtension.activated = false;
+      this.activationManager.markDeactivated(extensionId);
     }
 
     try {
@@ -905,6 +916,10 @@ export class MonacoExtensionHost {
       await loadedExtension.sandbox.activate(activationEvent);
 
       // Sandbox will call onActivated handler when activation completes
+      // Verify activation succeeded
+      if (!loadedExtension.activated) {
+        throw new Error('Activation completed but onActivated callback was not called');
+      }
     } catch (error) {
       console.error(`Failed to activate extension ${extensionId}:`, error);
       this.activationManager.markFailed(extensionId, error instanceof Error ? error.message : String(error));
@@ -942,10 +957,21 @@ export class MonacoExtensionHost {
       throw new Error(`Extension ${extensionId} has no sandbox (no main entry point)`);
     }
 
+    // Ensure extension is activated before resolving webview
     if (!loadedExtension.activated) {
-      // Auto-activate the extension if needed
       console.log(`Auto-activating extension ${extensionId} for webview ${viewId}`);
-      await this.tryActivateExtension(extensionId);
+      try {
+        // Directly call activateExtension which handles re-activation checks
+        await this.activateExtension(extensionId, '*');
+      } catch (error) {
+        console.error(`Failed to activate extension ${extensionId}:`, error);
+        throw new Error(`Cannot resolve webview: extension activation failed - ${error}`);
+      }
+    }
+
+    // Double-check activation status
+    if (!loadedExtension.activated) {
+      throw new Error(`Extension ${extensionId} activation completed but extension is not marked as activated`);
     }
 
     try {
