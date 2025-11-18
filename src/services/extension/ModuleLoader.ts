@@ -63,7 +63,30 @@ export class ModuleLoader {
    * Load main extension module
    */
   async loadMainModule(): Promise<any> {
-    return await this.requireAsync(this.config.mainModulePath);
+    // For the main module, if it's a relative path, resolve it against the extension path
+    const mainPath = this.config.mainModulePath;
+    const resolvedMainPath = this.resolveMainModulePath(mainPath);
+    return await this.requireAsync(resolvedMainPath);
+  }
+
+  /**
+   * Resolve the main module path against extension path if needed
+   */
+  private resolveMainModulePath(mainPath: string): string {
+    // If already absolute, return as-is
+    if (mainPath.startsWith('/') || /^[a-zA-Z]:/.test(mainPath)) {
+      return mainPath;
+    }
+
+    // If relative, resolve against extension path
+    if (mainPath.startsWith('./') || mainPath.startsWith('../')) {
+      // Remove leading './'
+      const cleanPath = mainPath.replace(/^\.\//, '');
+      return `${this.config.extensionPath}/${cleanPath}`;
+    }
+
+    // Otherwise (node_modules), return as-is to be resolved later
+    return mainPath;
   }
 
   /**
