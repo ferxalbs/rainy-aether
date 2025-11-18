@@ -350,6 +350,11 @@ export class ModuleLoader {
    * Normalize module path (add .js extension if missing)
    */
   private normalizeModulePath(path: string): string {
+    // Don't normalize built-in modules
+    if (this.isBuiltInModule(path)) {
+      return path;
+    }
+
     // Remove trailing slash
     path = path.replace(/\/$/, '');
 
@@ -387,6 +392,7 @@ export class ModuleLoader {
       'util',
       'events',
       'stream',
+      'stream/promises', // Stream promises API
       'buffer',
       'crypto',
       'url',
@@ -399,9 +405,11 @@ export class ModuleLoader {
       'child_process',
       'process',
       'timers',
+      'timers/promises',
       'assert',
       'constants',
       'string_decoder',
+      'v8', // V8 engine API
       'vscode-languageclient', // VS Code language client shim
       'vscode-jsonrpc', // JSON-RPC protocol
     ];
@@ -424,9 +432,7 @@ export class ModuleLoader {
         return this.getPathShim();
 
       case 'fs':
-        throw new Error(
-          'fs module is not supported in browser environment. Use vscode.workspace.fs instead.'
-        );
+        return this.getFsShim();
 
       case 'util':
         console.log('[ModuleLoader] Loading util module shim');
@@ -451,7 +457,7 @@ export class ModuleLoader {
         return this.getProcessShim();
 
       case 'os':
-        throw new Error('os module is not supported in browser environment');
+        return this.getOsShim();
 
       case 'child_process':
         return this.getChildProcessShim();
@@ -478,6 +484,9 @@ export class ModuleLoader {
       case 'stream':
         return this.getStreamShim();
 
+      case 'stream/promises':
+        return this.getStreamPromisesShim();
+
       case 'http':
       case 'https':
       case 'net':
@@ -485,8 +494,14 @@ export class ModuleLoader {
         // Network modules not supported in browser
         throw new Error(`Module '${id}' is not supported in browser environment`);
 
+      case 'tty':
+        return this.getTtyShim();
+
       case 'timers':
         return this.getTimersShim();
+
+      case 'timers/promises':
+        return this.getTimersPromisesShim();
 
       case 'assert':
         return this.getAssertShim();
@@ -496,6 +511,9 @@ export class ModuleLoader {
 
       case 'string_decoder':
         return this.getStringDecoderShim();
+
+      case 'v8':
+        return this.getV8Shim();
 
       default:
         throw new Error(`Built-in module '${moduleId}' is not supported`);
@@ -547,6 +565,85 @@ export class ModuleLoader {
   }
 
   /**
+   * FS module shim
+   * Provides stub implementations that guide users to use VS Code APIs
+   */
+  private getFsShim(): any {
+    const notSupportedError = (operation: string) => {
+      throw new Error(
+        `fs.${operation} is not supported in browser environment. Extensions should use vscode.workspace.fs API instead.`
+      );
+    };
+
+    // Create stub objects for common fs functionality
+    const fsStub: any = {
+      // File reading
+      readFile: (..._args: any[]) => notSupportedError('readFile'),
+      readFileSync: (..._args: any[]) => notSupportedError('readFileSync'),
+
+      // File writing
+      writeFile: (..._args: any[]) => notSupportedError('writeFile'),
+      writeFileSync: (..._args: any[]) => notSupportedError('writeFileSync'),
+
+      // File operations
+      unlink: (..._args: any[]) => notSupportedError('unlink'),
+      unlinkSync: (..._args: any[]) => notSupportedError('unlinkSync'),
+      rename: (..._args: any[]) => notSupportedError('rename'),
+      renameSync: (..._args: any[]) => notSupportedError('renameSync'),
+
+      // Directory operations
+      mkdir: (..._args: any[]) => notSupportedError('mkdir'),
+      mkdirSync: (..._args: any[]) => notSupportedError('mkdirSync'),
+      rmdir: (..._args: any[]) => notSupportedError('rmdir'),
+      rmdirSync: (..._args: any[]) => notSupportedError('rmdirSync'),
+      readdir: (..._args: any[]) => notSupportedError('readdir'),
+      readdirSync: (..._args: any[]) => notSupportedError('readdirSync'),
+
+      // File info
+      stat: (..._args: any[]) => notSupportedError('stat'),
+      statSync: (..._args: any[]) => notSupportedError('statSync'),
+      lstat: (..._args: any[]) => notSupportedError('lstat'),
+      lstatSync: (..._args: any[]) => notSupportedError('lstatSync'),
+      exists: (..._args: any[]) => notSupportedError('exists'),
+      existsSync: (..._args: any[]) => notSupportedError('existsSync'),
+      access: (..._args: any[]) => notSupportedError('access'),
+      accessSync: (..._args: any[]) => notSupportedError('accessSync'),
+
+      // Streams
+      createReadStream: (..._args: any[]) => notSupportedError('createReadStream'),
+      createWriteStream: (..._args: any[]) => notSupportedError('createWriteStream'),
+
+      // Watch
+      watch: (..._args: any[]) => notSupportedError('watch'),
+      watchFile: (..._args: any[]) => notSupportedError('watchFile'),
+      unwatchFile: (..._args: any[]) => notSupportedError('unwatchFile'),
+
+      // Promises API
+      promises: {
+        readFile: (..._args: any[]) => notSupportedError('promises.readFile'),
+        writeFile: (..._args: any[]) => notSupportedError('promises.writeFile'),
+        mkdir: (..._args: any[]) => notSupportedError('promises.mkdir'),
+        readdir: (..._args: any[]) => notSupportedError('promises.readdir'),
+        stat: (..._args: any[]) => notSupportedError('promises.stat'),
+        unlink: (..._args: any[]) => notSupportedError('promises.unlink'),
+        rmdir: (..._args: any[]) => notSupportedError('promises.rmdir'),
+        rename: (..._args: any[]) => notSupportedError('promises.rename'),
+        access: (..._args: any[]) => notSupportedError('promises.access'),
+      },
+
+      // Constants
+      constants: {
+        F_OK: 0,
+        R_OK: 4,
+        W_OK: 2,
+        X_OK: 1,
+      },
+    };
+
+    return fsStub;
+  }
+
+  /**
    * Util module shim
    */
   private getUtilShim(): any {
@@ -586,7 +683,7 @@ export class ModuleLoader {
           console.debug(`[${section}]`, ...args);
         };
       },
-      inspect: (obj: any, options?: any) => {
+      inspect: (obj: any, _options?: any) => {
         // Simple inspect implementation
         try {
           return JSON.stringify(obj, null, 2);
@@ -714,6 +811,145 @@ export class ModuleLoader {
       cwd: () => '/',
       nextTick: (callback: Function, ...args: any[]) => {
         setTimeout(() => callback(...args), 0);
+      },
+    };
+  }
+
+  /**
+   * OS module shim
+   * Provides basic OS information for browser environment
+   */
+  private getOsShim(): any {
+    // Detect platform from user agent
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    let platform = 'linux';
+    if (ua.includes('Win')) platform = 'win32';
+    else if (ua.includes('Mac')) platform = 'darwin';
+
+    return {
+      platform: () => platform,
+      type: () => {
+        if (platform === 'win32') return 'Windows_NT';
+        if (platform === 'darwin') return 'Darwin';
+        return 'Linux';
+      },
+      release: () => '0.0.0',
+      arch: () => 'x64',
+      hostname: () => 'localhost',
+      homedir: () => '/',
+      tmpdir: () => '/tmp',
+      endianness: () => 'LE',
+      cpus: () => [{
+        model: 'Browser',
+        speed: 0,
+        times: { user: 0, nice: 0, sys: 0, idle: 0, irq: 0 }
+      }],
+      totalmem: () => 0,
+      freemem: () => 0,
+      uptime: () => 0,
+      loadavg: () => [0, 0, 0],
+      networkInterfaces: () => ({}),
+      EOL: '\n',
+      devNull: '/dev/null',
+      constants: {
+        // Signal constants
+        signals: {
+          SIGHUP: 1,
+          SIGINT: 2,
+          SIGQUIT: 3,
+          SIGILL: 4,
+          SIGTRAP: 5,
+          SIGABRT: 6,
+          SIGIOT: 6,
+          SIGBUS: 7,
+          SIGFPE: 8,
+          SIGKILL: 9,
+          SIGUSR1: 10,
+          SIGSEGV: 11,
+          SIGUSR2: 12,
+          SIGPIPE: 13,
+          SIGALRM: 14,
+          SIGTERM: 15,
+          SIGCHLD: 17,
+          SIGCONT: 18,
+          SIGSTOP: 19,
+          SIGTSTP: 20,
+          SIGTTIN: 21,
+          SIGTTOU: 22,
+          SIGURG: 23,
+          SIGXCPU: 24,
+          SIGXFSZ: 25,
+          SIGVTALRM: 26,
+          SIGPROF: 27,
+          SIGWINCH: 28,
+          SIGIO: 29,
+          SIGPOLL: 29,
+          SIGPWR: 30,
+          SIGSYS: 31,
+          SIGUNUSED: 31,
+        },
+        // Error constants
+        errno: {
+          E2BIG: 7,
+          EACCES: 13,
+          EADDRINUSE: 98,
+          EADDRNOTAVAIL: 99,
+          EAFNOSUPPORT: 97,
+          EAGAIN: 11,
+          EEXIST: 17,
+          EINVAL: 22,
+          ENOENT: 2,
+          ENOTDIR: 20,
+        },
+        // Priority constants
+        priority: {
+          PRIORITY_LOW: 19,
+          PRIORITY_BELOW_NORMAL: 10,
+          PRIORITY_NORMAL: 0,
+          PRIORITY_ABOVE_NORMAL: -7,
+          PRIORITY_HIGH: -14,
+          PRIORITY_HIGHEST: -20,
+        },
+        // Also include at top level for backwards compatibility
+        SIGHUP: 1,
+        SIGINT: 2,
+        SIGQUIT: 3,
+        SIGILL: 4,
+        SIGTRAP: 5,
+        SIGABRT: 6,
+        SIGIOT: 6,
+        SIGBUS: 7,
+        SIGFPE: 8,
+        SIGKILL: 9,
+        SIGUSR1: 10,
+        SIGSEGV: 11,
+        SIGUSR2: 12,
+        SIGPIPE: 13,
+        SIGALRM: 14,
+        SIGTERM: 15,
+        SIGCHLD: 17,
+        SIGCONT: 18,
+        SIGSTOP: 19,
+        SIGTSTP: 20,
+        SIGTTIN: 21,
+        SIGTTOU: 22,
+        SIGURG: 23,
+        SIGXCPU: 24,
+        SIGXFSZ: 25,
+        SIGVTALRM: 26,
+        SIGPROF: 27,
+        SIGWINCH: 28,
+        SIGIO: 29,
+        SIGPOLL: 29,
+        SIGPWR: 30,
+        SIGSYS: 31,
+        SIGUNUSED: 31,
+        PRIORITY_LOW: 19,
+        PRIORITY_BELOW_NORMAL: 10,
+        PRIORITY_NORMAL: 0,
+        PRIORITY_ABOVE_NORMAL: -7,
+        PRIORITY_HIGH: -14,
+        PRIORITY_HIGHEST: -20,
       },
     };
   }
@@ -856,6 +1092,38 @@ export class ModuleLoader {
   }
 
   /**
+   * Stream/Promises module shim
+   * Provides promise-based stream utilities
+   */
+  private getStreamPromisesShim(): any {
+    const { Readable, Writable } = this.getStreamShim();
+
+    return {
+      // Pipeline function that works with async iterables
+      pipeline: async (..._streams: any[]) => {
+        // Simple implementation that just resolves
+        // In a real implementation, this would chain streams together
+        return Promise.resolve();
+      },
+
+      // Finished promise wrapper
+      finished: (stream: any) => {
+        return new Promise((resolve, _reject) => {
+          if (!stream) {
+            return resolve(undefined);
+          }
+          // Simulate stream completion
+          setTimeout(() => resolve(undefined), 0);
+        });
+      },
+
+      // Readable stream utilities
+      Readable,
+      Writable,
+    };
+  }
+
+  /**
    * Timers module shim
    */
   private getTimersShim(): any {
@@ -877,6 +1145,39 @@ export class ModuleLoader {
       },
       clearImmediate: (immediateId: any) => {
         clearTimeout(immediateId);
+      },
+    };
+  }
+
+  /**
+   * Timers/Promises module shim
+   * Provides promise-based timer functions
+   */
+  private getTimersPromisesShim(): any {
+    return {
+      setTimeout: (delay: number, value?: any) => {
+        return new Promise((resolve) => {
+          setTimeout(() => resolve(value), delay);
+        });
+      },
+      setImmediate: (value?: any) => {
+        return new Promise((resolve) => {
+          setTimeout(() => resolve(value), 0);
+        });
+      },
+      setInterval: async function* (delay: number, value?: any) {
+        while (true) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          yield value;
+        }
+      },
+      scheduler: {
+        wait: (delay: number) => {
+          return new Promise((resolve) => setTimeout(resolve, delay));
+        },
+        yield: () => {
+          return new Promise((resolve) => setTimeout(resolve, 0));
+        },
       },
     };
   }
@@ -912,7 +1213,7 @@ export class ModuleLoader {
         throw new Error(message || `${actual} == ${expected}`);
       }
     };
-    assert.throws = (fn: Function, error?: any, message?: string) => {
+    assert.throws = (fn: Function, _error?: any, message?: string) => {
       let threw = false;
       try {
         fn();
@@ -934,33 +1235,213 @@ export class ModuleLoader {
    * Constants module shim
    */
   private getConstantsShim(): any {
-    return {
-      // File system constants
-      O_RDONLY: 0,
-      O_WRONLY: 1,
-      O_RDWR: 2,
-      O_CREAT: 64,
-      O_EXCL: 128,
-      O_TRUNC: 512,
-      O_APPEND: 1024,
+    // Signal constants (matching Node.js os.constants.signals)
+    const signals = {
+      SIGHUP: 1,
+      SIGINT: 2,
+      SIGQUIT: 3,
+      SIGILL: 4,
+      SIGTRAP: 5,
+      SIGABRT: 6,
+      SIGIOT: 6,
+      SIGBUS: 7,
+      SIGFPE: 8,
+      SIGKILL: 9,
+      SIGUSR1: 10,
+      SIGSEGV: 11,
+      SIGUSR2: 12,
+      SIGPIPE: 13,
+      SIGALRM: 14,
+      SIGTERM: 15,
+      SIGCHLD: 17,
+      SIGCONT: 18,
+      SIGSTOP: 19,
+      SIGTSTP: 20,
+      SIGTTIN: 21,
+      SIGTTOU: 22,
+      SIGURG: 23,
+      SIGXCPU: 24,
+      SIGXFSZ: 25,
+      SIGVTALRM: 26,
+      SIGPROF: 27,
+      SIGWINCH: 28,
+      SIGIO: 29,
+      SIGPOLL: 29,
+      SIGPWR: 30,
+      SIGSYS: 31,
+      SIGUNUSED: 31,
+    };
 
-      // Error constants
+    // Error constants (errno)
+    const errno = {
       E2BIG: 7,
       EACCES: 13,
       EADDRINUSE: 98,
       EADDRNOTAVAIL: 99,
       EAFNOSUPPORT: 97,
       EAGAIN: 11,
+      EALREADY: 114,
+      EBADF: 9,
+      EBADMSG: 74,
+      EBUSY: 16,
+      ECANCELED: 125,
+      ECHILD: 10,
+      ECONNABORTED: 103,
+      ECONNREFUSED: 111,
+      ECONNRESET: 104,
+      EDEADLK: 35,
+      EDESTADDRREQ: 89,
+      EDOM: 33,
+      EDQUOT: 122,
       EEXIST: 17,
+      EFAULT: 14,
+      EFBIG: 27,
+      EHOSTUNREACH: 113,
+      EIDRM: 43,
+      EILSEQ: 84,
+      EINPROGRESS: 115,
+      EINTR: 4,
       EINVAL: 22,
+      EIO: 5,
+      EISCONN: 106,
+      EISDIR: 21,
+      ELOOP: 40,
+      EMFILE: 24,
+      EMLINK: 31,
+      EMSGSIZE: 90,
+      EMULTIHOP: 72,
+      ENAMETOOLONG: 36,
+      ENETDOWN: 100,
+      ENETRESET: 102,
+      ENETUNREACH: 101,
+      ENFILE: 23,
+      ENOBUFS: 105,
+      ENODATA: 61,
+      ENODEV: 19,
       ENOENT: 2,
+      ENOEXEC: 8,
+      ENOLCK: 37,
+      ENOLINK: 67,
+      ENOMEM: 12,
+      ENOMSG: 42,
+      ENOPROTOOPT: 92,
+      ENOSPC: 28,
+      ENOSR: 63,
+      ENOSTR: 60,
+      ENOSYS: 38,
+      ENOTCONN: 107,
       ENOTDIR: 20,
+      ENOTEMPTY: 39,
+      ENOTSOCK: 88,
+      ENOTSUP: 95,
+      ENOTTY: 25,
+      ENXIO: 6,
+      EOPNOTSUPP: 95,
+      EOVERFLOW: 75,
+      EPERM: 1,
+      EPIPE: 32,
+      EPROTO: 71,
+      EPROTONOSUPPORT: 93,
+      EPROTOTYPE: 91,
+      ERANGE: 34,
+      EROFS: 30,
+      ESPIPE: 29,
+      ESRCH: 3,
+      ESTALE: 116,
+      ETIME: 62,
+      ETIMEDOUT: 110,
+      ETXTBSY: 26,
+      EWOULDBLOCK: 11,
+      EXDEV: 18,
+    };
 
-      // Signal constants
-      SIGHUP: 1,
-      SIGINT: 2,
-      SIGTERM: 15,
-      SIGKILL: 9,
+    // Priority constants
+    const priority = {
+      PRIORITY_LOW: 19,
+      PRIORITY_BELOW_NORMAL: 10,
+      PRIORITY_NORMAL: 0,
+      PRIORITY_ABOVE_NORMAL: -7,
+      PRIORITY_HIGH: -14,
+      PRIORITY_HIGHEST: -20,
+    };
+
+    // File system constants
+    const fs = {
+      // Access modes
+      F_OK: 0,
+      R_OK: 4,
+      W_OK: 2,
+      X_OK: 1,
+
+      // File open flags
+      O_RDONLY: 0,
+      O_WRONLY: 1,
+      O_RDWR: 2,
+      O_CREAT: 64,
+      O_EXCL: 128,
+      O_NOCTTY: 256,
+      O_TRUNC: 512,
+      O_APPEND: 1024,
+      O_DIRECTORY: 65536,
+      O_NOATIME: 262144,
+      O_NOFOLLOW: 131072,
+      O_SYNC: 1052672,
+      O_DSYNC: 4096,
+      O_DIRECT: 16384,
+      O_NONBLOCK: 2048,
+
+      // File type constants
+      S_IFMT: 61440,
+      S_IFREG: 32768,
+      S_IFDIR: 16384,
+      S_IFCHR: 8192,
+      S_IFBLK: 24576,
+      S_IFIFO: 4096,
+      S_IFLNK: 40960,
+      S_IFSOCK: 49152,
+
+      // File mode constants
+      S_IRWXU: 448,
+      S_IRUSR: 256,
+      S_IWUSR: 128,
+      S_IXUSR: 64,
+      S_IRWXG: 56,
+      S_IRGRP: 32,
+      S_IWGRP: 16,
+      S_IXGRP: 8,
+      S_IRWXO: 7,
+      S_IROTH: 4,
+      S_IWOTH: 2,
+      S_IXOTH: 1,
+    };
+
+    // UV constants (libuv error codes)
+    const uv = {
+      UV_UDP_REUSEADDR: 4,
+    };
+
+    return {
+      // Include all signal constants at top level for backwards compatibility
+      ...signals,
+
+      // Include all errno constants at top level for backwards compatibility
+      ...errno,
+
+      // Include all priority constants at top level for backwards compatibility
+      ...priority,
+
+      // Include all fs constants at top level for backwards compatibility
+      ...fs,
+
+      // Include all uv constants at top level for backwards compatibility
+      ...uv,
+
+      // Grouped constants (Node.js style)
+      signals,
+      errno,
+      priority,
+      fs,
+      uv,
     };
   }
 
@@ -1008,6 +1489,66 @@ export class ModuleLoader {
   }
 
   /**
+   * TTY module shim
+   * Provides basic terminal detection functionality
+   */
+  private getTtyShim(): any {
+    const { Readable, Writable } = this.getStreamShim();
+
+    // ReadStream class (stdin-like)
+    class ReadStream extends Readable {
+      isRaw = false;
+      isTTY = false;
+
+      setRawMode(mode: boolean) {
+        this.isRaw = mode;
+        return this;
+      }
+    }
+
+    // WriteStream class (stdout/stderr-like)
+    class WriteStream extends Writable {
+      isTTY = false;
+      columns = 80;
+      rows = 24;
+
+      clearLine(_dir: number) {
+        return true;
+      }
+
+      clearScreenDown() {
+        return true;
+      }
+
+      cursorTo(_x: number, _y?: number) {
+        return true;
+      }
+
+      moveCursor(_dx: number, _dy: number) {
+        return true;
+      }
+
+      getColorDepth() {
+        return 8;
+      }
+
+      hasColors(_count?: number) {
+        return true;
+      }
+
+      getWindowSize() {
+        return [this.columns, this.rows];
+      }
+    }
+
+    return {
+      isatty: (_fd: number) => false, // In browser, never a TTY
+      ReadStream,
+      WriteStream,
+    };
+  }
+
+  /**
    * String Decoder module shim
    * Provides basic StringDecoder functionality
    */
@@ -1044,6 +1585,124 @@ export class ModuleLoader {
     }
 
     return { StringDecoder };
+  }
+
+  /**
+   * V8 module shim
+   * Provides basic V8 engine API stubs
+   */
+  private getV8Shim(): any {
+    return {
+      // Serialization API (used by many packages for structured cloning)
+      serialize: (value: any) => {
+        // Simple JSON-based serialization fallback
+        try {
+          const json = JSON.stringify(value);
+          return new TextEncoder().encode(json);
+        } catch (e) {
+          throw new Error('V8 serialization not fully supported in browser environment');
+        }
+      },
+      deserialize: (buffer: Uint8Array) => {
+        try {
+          const json = new TextDecoder().decode(buffer);
+          return JSON.parse(json);
+        } catch (e) {
+          throw new Error('V8 deserialization not fully supported in browser environment');
+        }
+      },
+
+      // Serializer/Deserializer classes (stub implementations)
+      Serializer: class Serializer {
+        writeHeader() {}
+        writeValue(_value: any) {}
+        releaseBuffer() { return new Uint8Array(0); }
+        transferArrayBuffer(_id: number, _arrayBuffer: ArrayBuffer) {}
+        writeUint32(_value: number) {}
+        writeUint64(_hi: number, _lo: number) {}
+        writeDouble(_value: number) {}
+        writeRawBytes(_buffer: Uint8Array) {}
+      },
+      Deserializer: class Deserializer {
+        constructor(_buffer: Uint8Array) {}
+        readHeader() { return true; }
+        readValue() { return null; }
+        transferArrayBuffer(_id: number, _arrayBuffer: ArrayBuffer) {}
+        getWireFormatVersion() { return 15; }
+        readUint32() { return 0; }
+        readUint64() { return [0, 0]; }
+        readDouble() { return 0; }
+        readRawBytes(_length: number) { return new Uint8Array(0); }
+      },
+
+      // DefaultSerializer/DefaultDeserializer (wrappers around serialize/deserialize)
+      DefaultSerializer: class DefaultSerializer {
+        constructor() {}
+        writeValue(value: any) {
+          try {
+            const json = JSON.stringify(value);
+            return new TextEncoder().encode(json);
+          } catch (e) {
+            return new Uint8Array(0);
+          }
+        }
+        releaseBuffer() { return new Uint8Array(0); }
+      },
+      DefaultDeserializer: class DefaultDeserializer {
+        constructor(_buffer: Uint8Array) {}
+        readValue() { return null; }
+      },
+
+      // Heap statistics (stub values)
+      getHeapStatistics: () => ({
+        total_heap_size: 0,
+        total_heap_size_executable: 0,
+        total_physical_size: 0,
+        total_available_size: 0,
+        used_heap_size: 0,
+        heap_size_limit: 0,
+        malloced_memory: 0,
+        peak_malloced_memory: 0,
+        does_zap_garbage: 0,
+        number_of_native_contexts: 0,
+        number_of_detached_contexts: 0,
+      }),
+
+      getHeapSpaceStatistics: () => [],
+
+      getHeapSnapshot: () => {
+        throw new Error('V8 heap snapshots are not available in browser environment');
+      },
+
+      writeHeapSnapshot: (_filename?: string) => {
+        throw new Error('V8 heap snapshots are not available in browser environment');
+      },
+
+      // Code cache API
+      getHeapCodeStatistics: () => ({
+        code_and_metadata_size: 0,
+        bytecode_and_metadata_size: 0,
+        external_script_source_size: 0,
+      }),
+
+      // Promises
+      setFlagsFromString: (_flags: string) => {
+        // Flags are ignored in browser environment
+        console.warn('[V8 Shim] setFlagsFromString is not supported in browser environment');
+      },
+
+      // Cached data versioning
+      cachedDataVersionTag: () => 0,
+
+      // Take heap snapshot
+      takeCoverage: () => {
+        throw new Error('V8 coverage is not available in browser environment');
+      },
+
+      stopCoverage: () => {
+        throw new Error('V8 coverage is not available in browser environment');
+      },
+    };
   }
 }
 
