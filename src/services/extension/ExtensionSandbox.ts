@@ -173,6 +173,94 @@ export class ExtensionSandbox {
   }
 
   /**
+   * Resolve webview HTML from extension
+   * Calls the extension's webview provider to get HTML content
+   */
+  async resolveWebview(viewId: string): Promise<string> {
+    if (!this.isInitialized || !this.worker) {
+      throw new Error(`Sandbox for ${this.extensionId} is not initialized`);
+    }
+
+    if (!this.isActivated) {
+      throw new Error(`Extension ${this.extensionId} is not activated`);
+    }
+
+    try {
+      if (this.config.debug) {
+        console.log(`[ExtensionSandbox] Requesting webview resolution for ${viewId}`);
+      }
+
+      const response = await this.sendRequest<{ html: string }>(
+        ExtensionMessageType.ResolveWebview,
+        { viewId }
+      );
+
+      if (this.config.debug) {
+        console.log(`[ExtensionSandbox] Webview ${viewId} resolved, HTML length: ${response.html.length}`);
+      }
+
+      return response.html;
+    } catch (error) {
+      const extensionError: ExtensionError = {
+        type: ExtensionErrorType.RuntimeError,
+        message: `Failed to resolve webview ${viewId}: ${error}`,
+        extensionId: this.extensionId,
+        stack: error instanceof Error ? error.stack : undefined,
+      };
+      this.emitError(extensionError);
+      throw error;
+    }
+  }
+
+  /**
+   * Send a message to the webview (from extension to webview)
+   */
+  async postMessageToWebview(viewId: string, message: any): Promise<void> {
+    if (!this.isInitialized || !this.worker) {
+      throw new Error(`Sandbox for ${this.extensionId} is not initialized`);
+    }
+
+    try {
+      // Just forward the message - no response expected
+      this.worker.postMessage({
+        type: ExtensionMessageType.WebviewMessage,
+        data: {
+          viewId,
+          messageData: message,
+          direction: 'toWebview',
+        },
+      });
+    } catch (error) {
+      console.error(`[ExtensionSandbox] Error posting message to webview ${viewId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle message from webview (from webview to extension)
+   */
+  async handleMessageFromWebview(viewId: string, message: any): Promise<void> {
+    if (!this.isInitialized || !this.worker) {
+      throw new Error(`Sandbox for ${this.extensionId} is not initialized`);
+    }
+
+    try {
+      // Forward message to worker
+      this.worker.postMessage({
+        type: ExtensionMessageType.WebviewMessage,
+        data: {
+          viewId,
+          messageData: message,
+          direction: 'fromWebview',
+        },
+      });
+    } catch (error) {
+      console.error(`[ExtensionSandbox] Error handling message from webview ${viewId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Dispose the sandbox (terminate worker)
    */
   async dispose(): Promise<void> {
@@ -405,6 +493,12 @@ export class ExtensionSandbox {
     if (namespace === 'workspace' && method === 'readExtensionFile') {
       const [path] = args;
       return await this.readExtensionFileFromHost(path);
+    }
+
+    if (namespace === 'webview' && method === 'postMessage') {
+      const [viewId, message] = args;
+      await this.postMessageToWebview(viewId, message);
+      return true;
     }
 
     throw new Error(`Unsupported API call: ${namespace}.${method}`);

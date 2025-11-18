@@ -99,6 +99,34 @@ export function WebviewPanel({ viewId, className }: WebviewPanelProps) {
   const themeState = useThemeState();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isReady, setIsReady] = useState(false);
+  const [isLoadingHTML, setIsLoadingHTML] = useState(false);
+  const [htmlError, setHtmlError] = useState<string | null>(null);
+
+  // Request HTML from extension on mount if not already loaded
+  useEffect(() => {
+    if (!panel) return;
+
+    // Only request if we don't have HTML yet and extension ID is provided
+    if (!panel.html && panel.extensionId && !isLoadingHTML && !htmlError) {
+      setIsLoadingHTML(true);
+
+      // Dynamic import to avoid circular dependencies
+      import('@/services/monacoExtensionHost').then(async ({ monacoExtensionHost }) => {
+        try {
+          console.log(`[WebviewPanel] Requesting HTML for ${viewId} from extension ${panel.extensionId}`);
+          const html = await monacoExtensionHost.resolveExtensionWebview(panel.extensionId!, viewId);
+          webviewActions.updateWebviewHtml(viewId, html);
+          console.log(`[WebviewPanel] HTML loaded for ${viewId}, length: ${html.length}`);
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          console.error(`[WebviewPanel] Failed to load HTML for ${viewId}:`, error);
+          setHtmlError(errorMsg);
+        } finally {
+          setIsLoadingHTML(false);
+        }
+      });
+    }
+  }, [viewId, panel?.html, panel?.extensionId, isLoadingHTML, htmlError]);
 
   // Handle messages from webview
   useEffect(() => {
@@ -135,15 +163,24 @@ export function WebviewPanel({ viewId, className }: WebviewPanelProps) {
         return;
       }
 
-      // Forward message to extension handlers
-      if (data.message) {
+      // Forward message to extension
+      if (data.message && panel?.extensionId) {
+        // Forward to extension via monacoExtensionHost
+        import('@/services/monacoExtensionHost').then(({ monacoExtensionHost }) => {
+          monacoExtensionHost.sendMessageToExtension(panel.extensionId!, viewId, data.message)
+            .catch(error => {
+              console.error(`[WebviewPanel] Failed to forward message to extension:`, error);
+            });
+        });
+
+        // Also call the store handler for any store-level listeners
         webviewActions.handleMessageFromWebview(viewId, data.message);
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [viewId]);
+  }, [viewId, panel?.extensionId]);
 
   // Listen for messages to send to webview
   useEffect(() => {
@@ -190,6 +227,33 @@ export function WebviewPanel({ viewId, className }: WebviewPanelProps) {
     return (
       <div className={cn('flex items-center justify-center h-full', className)}>
         <p className="text-muted-foreground">Webview panel not found</p>
+      </div>
+    );
+  }
+
+  // Show error if HTML loading failed
+  if (htmlError) {
+    return (
+      <div className={cn('flex flex-col items-center justify-center h-full gap-4', className)}>
+        <div className="flex items-center gap-2 text-destructive">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span className="font-medium">Failed to load webview</span>
+        </div>
+        <p className="text-sm text-muted-foreground max-w-md text-center">{htmlError}</p>
+      </div>
+    );
+  }
+
+  // Show loading if HTML is being requested
+  if (isLoadingHTML || !panel.html) {
+    return (
+      <div className={cn('flex items-center justify-center h-full', className)}>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span>Loading webview content...</span>
+        </div>
       </div>
     );
   }

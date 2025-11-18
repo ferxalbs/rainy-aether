@@ -300,31 +300,42 @@ async function handleResolveWebview(message: ExtensionMessage): Promise<void> {
 }
 
 /**
- * Handle message from webview UI
+ * Handle message from/to webview
  */
 async function handleWebviewMessage(message: ExtensionMessage): Promise<void> {
-  const { viewId, messageData } = message.data;
+  const { viewId, messageData, direction } = message.data;
 
-  log('debug', `Received webview message from ${viewId}:`, messageData);
+  log('debug', `Received webview message for ${viewId} (${direction}):`, messageData);
 
   try {
-    // Get the message handler for this view
-    const handlers = (self as any).__webviewMessageHandlers;
-    if (!handlers) {
-      log('warn', `No webview message handlers registered`);
-      return;
+    // Only handle messages FROM webview TO extension
+    // Messages from extension TO webview are handled via the webview.postMessage API
+    // which calls callHostAPI('webview', 'postMessage', ...)
+    if (direction === 'fromWebview') {
+      // Get the message handler for this view
+      const handlers = (self as any).__webviewMessageHandlers;
+      if (!handlers) {
+        log('warn', `No webview message handlers registered`);
+        return;
+      }
+
+      const handler = handlers.get(viewId);
+      if (!handler) {
+        log('warn', `No message handler found for view ${viewId}`);
+        return;
+      }
+
+      // Call the extension's onDidReceiveMessage handler
+      await handler(messageData);
+
+      log('debug', `Webview message handled for ${viewId}`);
+    } else if (direction === 'toWebview') {
+      // This case shouldn't normally occur since extension uses webview.postMessage()
+      // which goes through callHostAPI. But we'll log it for debugging.
+      log('warn', `Unexpected toWebview direction in handleWebviewMessage for ${viewId}`);
+    } else {
+      log('warn', `Unknown direction '${direction}' in webview message for ${viewId}`);
     }
-
-    const handler = handlers.get(viewId);
-    if (!handler) {
-      log('warn', `No message handler found for view ${viewId}`);
-      return;
-    }
-
-    // Call the handler
-    await handler(messageData);
-
-    log('debug', `Webview message handled for ${viewId}`);
   } catch (error) {
     log('error', `Error handling webview message for ${viewId}:`, error);
   }
