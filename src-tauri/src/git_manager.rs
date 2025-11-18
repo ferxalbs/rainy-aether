@@ -375,16 +375,21 @@ pub fn git_get_status(path: String) -> Result<GitStatus, String> {
     for entry in &status_entries {
         let code = &entry.code;
         if code.len() >= 2 {
-            match code.chars().next().unwrap() {
-                'A' | 'M' | 'D' | 'R' | 'C' => staged += 1,
-                'U' => conflicts += 1,
-                _ => {}
+            // Safe unwrap: we checked len >= 2
+            if let Some(first_char) = code.chars().next() {
+                match first_char {
+                    'A' | 'M' | 'D' | 'R' | 'C' => staged += 1,
+                    'U' => conflicts += 1,
+                    _ => {}
+                }
             }
-            match code.chars().nth(1).unwrap() {
-                'M' | 'D' => modified += 1,
-                'U' => conflicts += 1,
-                '?' => untracked += 1,
-                _ => {}
+            if let Some(second_char) = code.chars().nth(1) {
+                match second_char {
+                    'M' | 'D' => modified += 1,
+                    'U' => conflicts += 1,
+                    '?' => untracked += 1,
+                    _ => {}
+                }
             }
         }
     }

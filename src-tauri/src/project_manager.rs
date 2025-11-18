@@ -249,7 +249,10 @@ pub async fn watch_project_changes(
     path: String,
     state: State<'_, WatcherState>,
 ) -> Result<(), String> {
-    let mut watcher_guard = state.watcher.lock().unwrap();
+    let mut watcher_guard = state
+        .watcher
+        .lock()
+        .map_err(|e| format!("Failed to acquire watcher lock: {}", e))?;
 
     if watcher_guard.is_some() {
         // We are already watching a directory. Stop the previous watcher.
@@ -281,7 +284,9 @@ pub async fn watch_project_changes(
                         .collect();
 
                     if !relevant_paths.is_empty() {
-                        window.emit("file-change", &relevant_paths).unwrap();
+                        if let Err(e) = window.emit("file-change", &relevant_paths) {
+                            eprintln!("Failed to emit file-change event: {:?}", e);
+                        }
                     }
                 }
                 Err(e) => println!("watch error: {:?}", e),
