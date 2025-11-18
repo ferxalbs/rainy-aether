@@ -1,9 +1,11 @@
 import React from "react";
-import { Folder, GitCommit } from "lucide-react";
+import { Folder, GitCommit, Bot } from "lucide-react";
 
 import { useIDEStore } from "../../stores/ideStore";
 import ProjectExplorer from "./ProjectExplorer";
 import GitHistoryPanel from "./GitHistoryPanel";
+import { WebviewSidebarContainer } from "./WebviewPanel";
+import { useWebviewPanels } from "@/stores/webviewStore";
 import { cn } from "@/lib/cn";
 import {
   Tooltip,
@@ -49,11 +51,23 @@ const Sidebar: React.FC = () => {
   const snapshot = state();
   const activeTab = snapshot.sidebarActive;
   const isOpen = snapshot.isSidebarOpen;
+  const webviewPanels = useWebviewPanels();
+
+  // Helper to check if a tab is a webview tab
+  const isWebviewTab = (tab: string): boolean => {
+    return tab.startsWith('webview:');
+  };
+
+  // Get webview ID from tab
+  const getWebviewId = (tab: string): string => {
+    return tab.replace('webview:', '');
+  };
 
   return (
     <div className="flex h-full border-r ">
       {/* Activity Bar - Always visible */}
       <div className="flex flex-col items-center py-2 bg-sidebar border-r border-sidebar-border">
+        {/* Built-in panels */}
         <ActivityButton
           icon={Folder}
           label="Explorer"
@@ -66,6 +80,22 @@ const Sidebar: React.FC = () => {
           active={activeTab === "git"}
           onClick={() => actions.setSidebarActive("git")}
         />
+
+        {/* Separator */}
+        {webviewPanels.length > 0 && (
+          <div className="w-8 h-px bg-border my-2" />
+        )}
+
+        {/* Dynamic webview panels */}
+        {webviewPanels.map((panel) => (
+          <ActivityButton
+            key={panel.viewId}
+            icon={Bot} // Default icon, can be customized per panel
+            label={panel.title}
+            active={activeTab === `webview:${panel.viewId}`}
+            onClick={() => actions.setSidebarActive(`webview:${panel.viewId}` as any)}
+          />
+        ))}
       </div>
 
       {/* Content Panel - Conditionally visible */}
@@ -73,6 +103,11 @@ const Sidebar: React.FC = () => {
         <div className="w-64 bg-sidebar flex flex-col rounded-r-lg">
           {activeTab === "explorer" && <ProjectExplorer />}
           {activeTab === "git" && <GitHistoryPanel />}
+
+          {/* Render webview panels */}
+          {isWebviewTab(activeTab) && (
+            <WebviewSidebarContainer viewId={getWebviewId(activeTab)} />
+          )}
         </div>
       )}
     </div>

@@ -31,6 +31,8 @@ import ExtensionMarketplace from "./ExtensionMarketplace";
 import ExtensionManager from "./ExtensionManager";
 import { initializeUpdateService, startAutoUpdateCheck } from "../../services/updateService";
 import ProblemsPanel from "./ProblemsPanel";
+import { DiffPreviewPanel } from "./DiffPreviewPanel";
+import { useDiffState } from "@/stores/diffStore";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 
 const IDE: React.FC = () => {
@@ -48,7 +50,18 @@ const IDE: React.FC = () => {
   const [isExtensionManagerOpen, setIsExtensionManagerOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(true); // Panel unificado siempre disponible
-  const [activeBottomTab, setActiveBottomTab] = useState<'terminal' | 'problems'>('terminal');
+  const [activeBottomTab, setActiveBottomTab] = useState<'terminal' | 'problems' | 'diff'>('terminal');
+
+  // Subscribe to diff state to auto-open diff panel
+  const diffState = useDiffState();
+
+  // Auto-open diff panel when a diff is created
+  useEffect(() => {
+    if (diffState.isDiffPanelOpen && diffState.activeDiffSetId) {
+      setIsBottomPanelOpen(true);
+      setActiveBottomTab('diff');
+    }
+  }, [diffState.isDiffPanelOpen, diffState.activeDiffSetId]);
 
   const tabSwitchHideTimerRef = useRef<number | null>(null);
   const quickOpenRef = useRef(isQuickOpenOpen);
@@ -501,10 +514,10 @@ const IDE: React.FC = () => {
                           collapsible
                           className="min-h-40"
                         >
-                          {/* Panel unificado con Tabs - Siempre muestra ambos tabs */}
+                          {/* Panel unificado con Tabs - Terminal, Problems y Diff */}
                           <Tabs
                             value={activeBottomTab}
-                            onValueChange={(value) => setActiveBottomTab(value as 'terminal' | 'problems')}
+                            onValueChange={(value) => setActiveBottomTab(value as 'terminal' | 'problems' | 'diff')}
                             className="h-full flex flex-col gap-0"
                           >
                             <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8">
@@ -520,6 +533,17 @@ const IDE: React.FC = () => {
                               >
                                 Problems
                               </TabsTrigger>
+                              <TabsTrigger
+                                value="diff"
+                                className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                              >
+                                Diff Preview
+                                {diffState.diffSets.size > 0 && (
+                                  <span className="ml-2 px-1.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
+                                    {diffState.diffSets.size}
+                                  </span>
+                                )}
+                              </TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="terminal" className="flex-1 m-0 h-full">
@@ -528,6 +552,10 @@ const IDE: React.FC = () => {
 
                             <TabsContent value="problems" className="flex-1 m-0 h-full">
                               <ProblemsPanel onClose={() => setIsBottomPanelOpen(false)} />
+                            </TabsContent>
+
+                            <TabsContent value="diff" className="flex-1 m-0 h-full">
+                              <DiffPreviewPanel />
                             </TabsContent>
                           </Tabs>
                         </ResizablePanel>
