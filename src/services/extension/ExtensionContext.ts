@@ -132,14 +132,16 @@ export class ExtensionContext implements IExtensionContext {
    * Dispose all subscriptions
    */
   disposeSubscriptions(): void {
-    for (const subscription of this.subscriptions) {
+    const subscriptions = this.subscriptions;
+    this.subscriptions = []; // Clear immediately to prevent re-entry
+
+    for (const subscription of subscriptions) {
       try {
         subscription.dispose();
       } catch (error) {
         console.error(`[ExtensionContext] Error disposing subscription:`, error);
       }
     }
-    this.subscriptions = [];
   }
 
   /**

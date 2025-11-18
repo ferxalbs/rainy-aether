@@ -110,6 +110,8 @@ export class ExtensionSandbox {
       return;
     }
 
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     try {
       // Send activation message with timeout
       const activationPromise = this.sendRequest<void>(
@@ -118,12 +120,15 @@ export class ExtensionSandbox {
       );
 
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           reject(new Error(`Activation timeout after ${this.activationTimeout}ms`));
         }, this.activationTimeout);
       });
 
       await Promise.race([activationPromise, timeoutPromise]);
+
+      // Clean up timeout on success
+      if (timeoutId) clearTimeout(timeoutId);
 
       this.isActivated = true;
 
@@ -135,6 +140,7 @@ export class ExtensionSandbox {
         this.onActivatedHandler();
       }
     } catch (error) {
+      if (timeoutId) clearTimeout(timeoutId);
       const extensionError: ExtensionError = {
         type: ExtensionErrorType.ActivationFailed,
         message: `Failed to activate extension: ${error}`,
@@ -273,6 +279,18 @@ export class ExtensionSandbox {
     if (this.worker) {
       this.worker.terminate();
       this.worker = null;
+    }
+
+    // Clean up any pending requests
+    const pendingIds = Array.from(this.requestHandlers.keys());
+    if (pendingIds.length > 0) {
+      console.warn(
+        `[ExtensionSandbox] Disposing with ${pendingIds.length} pending requests for ${this.extensionId}: ${pendingIds.join(', ')}`
+      );
+    }
+
+    for (const [id, handler] of this.requestHandlers) {
+      handler.reject(new Error('Extension sandbox disposed'));
     }
 
     this.messageHandlers.clear();
@@ -541,8 +559,18 @@ export class ExtensionSandbox {
   private sendRequest<T>(type: ExtensionMessageType, data: any): Promise<T> {
     return new Promise((resolve, reject) => {
       const id = `req-${this.nextRequestId++}`;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-      this.requestHandlers.set(id, { resolve, reject });
+      this.requestHandlers.set(id, {
+        resolve: (value: T) => {
+          if (timeoutId) clearTimeout(timeoutId);
+          resolve(value);
+        },
+        reject: (error: any) => {
+          if (timeoutId) clearTimeout(timeoutId);
+          reject(error);
+        }
+      });
 
       this.sendMessage({
         type,
@@ -550,8 +578,8 @@ export class ExtensionSandbox {
         data,
       });
 
-      // Timeout for request
-      setTimeout(() => {
+      // Store timeout reference for cleanup
+      timeoutId = setTimeout(() => {
         if (this.requestHandlers.has(id)) {
           this.requestHandlers.delete(id);
           reject(new Error(`Request timeout for ${type}`));

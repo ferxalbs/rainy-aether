@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import { Trash2, Power, PowerOff, AlertTriangle, CheckCircle, XCircle, Package, Activity, RefreshCw, Settings, Shield, Zap, Clock } from 'lucide-react';
 import { useExtensionStore, useExtensionInstallation } from '../../stores/extensionStore';
 import { InstalledExtension } from '../../types/extension';
@@ -11,7 +11,7 @@ interface ExtensionManagerProps {
   onClose: () => void;
 }
 
-const ExtensionManager: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) => {
+const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, onClose }) => {
   const { installedExtensions, refreshExtensions } = useExtensionStore();
   const { enableExtension, disableExtension, uninstallExtension } = useExtensionInstallation();
   const extensionConfig = useExtensionConfig();
@@ -391,7 +391,13 @@ interface ExtensionItemProps {
   statusText: string;
 }
 
-const ExtensionItem: React.FC<ExtensionItemProps> = ({
+// Memoize ExtensionManager to prevent unnecessary re-renders
+const ExtensionManager = memo(
+  ExtensionManagerComponent,
+  (prevProps, nextProps) => prevProps.isOpen === nextProps.isOpen
+);
+
+const ExtensionItemComponent: React.FC<ExtensionItemProps> = ({
   extension,
   onToggle,
   onUninstall,
@@ -499,5 +505,15 @@ const ExtensionItem: React.FC<ExtensionItemProps> = ({
     </div>
   );
 };
+
+// Memoize ExtensionItem to prevent unnecessary re-renders
+const ExtensionItem = memo(
+  ExtensionItemComponent,
+  (prevProps, nextProps) =>
+    prevProps.extension.id === nextProps.extension.id &&
+    prevProps.extension.state === nextProps.extension.state &&
+    prevProps.extension.enabled === nextProps.extension.enabled &&
+    prevProps.statusText === nextProps.statusText
+);
 
 export default ExtensionManager;
