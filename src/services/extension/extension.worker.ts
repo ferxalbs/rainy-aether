@@ -48,6 +48,14 @@ self.onmessage = async (event: MessageEvent<ExtensionMessage>) => {
         await handleDeactivate(message);
         break;
 
+      case ExtensionMessageType.ResolveWebview:
+        await handleResolveWebview(message);
+        break;
+
+      case ExtensionMessageType.WebviewMessage:
+        await handleWebviewMessage(message);
+        break;
+
       case ExtensionMessageType.APIResponse:
         // API responses are handled by the API call promise
         break;
@@ -196,6 +204,130 @@ async function handleEvent(message: ExtensionMessage): Promise<void> {
 
   // Events can be dispatched to extension if it has event handlers
   // For now, we just log them
+}
+
+/**
+ * Handle webview resolution request from host
+ */
+async function handleResolveWebview(message: ExtensionMessage): Promise<void> {
+  const { viewId } = message.data;
+
+  log('info', `Resolving webview: ${viewId}`);
+
+  try {
+    // Get the provider for this view ID
+    const providers = (self as any).__webviewProviders;
+    if (!providers) {
+      throw new Error('No webview providers registered');
+    }
+
+    const provider = providers.get(viewId);
+    if (!provider) {
+      throw new Error(`No provider found for view ${viewId}`);
+    }
+
+    // Create a webview view object that the provider can use
+    let webviewHtml = '';
+    const webviewView = {
+      viewType: viewId,
+      webview: {
+        html: '',
+        get onDidReceiveMessage() {
+          return (handler: any) => {
+            // Store message handler for this view
+            if (!(self as any).__webviewMessageHandlers) {
+              (self as any).__webviewMessageHandlers = new Map();
+            }
+            (self as any).__webviewMessageHandlers.set(viewId, handler);
+            return { dispose: () => {
+              (self as any).__webviewMessageHandlers?.delete(viewId);
+            }};
+          };
+        },
+        postMessage: async (msg: any) => {
+          // Send message to host to forward to webview
+          await callHostAPI('webview', 'postMessage', [viewId, msg]);
+          return true;
+        },
+        get options() {
+          return {};
+        },
+        set options(value: any) {
+          // No-op
+        },
+      },
+      title: undefined,
+      description: undefined,
+      visible: true,
+
+      show: () => {
+        // No-op - already handled by host
+      },
+
+      dispose: () => {
+        // No-op
+      },
+    };
+
+    // Intercept HTML setter
+    Object.defineProperty(webviewView.webview, 'html', {
+      get: () => webviewHtml,
+      set: (value: string) => {
+        webviewHtml = value;
+      },
+    });
+
+    // Call the provider's resolveWebviewView method
+    if (provider.resolveWebviewView) {
+      await provider.resolveWebviewView(webviewView, {}, {});
+    }
+
+    // Send the HTML back to the host
+    sendMessage({
+      type: ExtensionMessageType.WebviewResolved,
+      id: message.id,
+      data: {
+        viewId,
+        html: webviewHtml,
+      },
+    });
+
+    log('info', `Webview ${viewId} resolved with HTML length: ${webviewHtml.length}`);
+  } catch (error) {
+    log('error', `Failed to resolve webview ${viewId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Handle message from webview UI
+ */
+async function handleWebviewMessage(message: ExtensionMessage): Promise<void> {
+  const { viewId, messageData } = message.data;
+
+  log('debug', `Received webview message from ${viewId}:`, messageData);
+
+  try {
+    // Get the message handler for this view
+    const handlers = (self as any).__webviewMessageHandlers;
+    if (!handlers) {
+      log('warn', `No webview message handlers registered`);
+      return;
+    }
+
+    const handler = handlers.get(viewId);
+    if (!handler) {
+      log('warn', `No message handler found for view ${viewId}`);
+      return;
+    }
+
+    // Call the handler
+    await handler(messageData);
+
+    log('debug', `Webview message handled for ${viewId}`);
+  } catch (error) {
+    log('error', `Error handling webview message for ${viewId}:`, error);
+  }
 }
 
 /**

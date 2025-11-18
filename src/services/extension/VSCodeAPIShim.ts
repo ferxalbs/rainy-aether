@@ -177,6 +177,32 @@ function createWindowAPI(apiCall: APICallCallback): VSCodeWindow {
     onDidChangeVisibleTextEditors: createEvent(),
     onDidChangeTextEditorSelection: createEvent(),
     onDidChangeTextEditorVisibleRanges: createEvent(),
+
+    /**
+     * Register a webview view provider
+     * This is called by extensions like Cline to provide their UI
+     */
+    registerWebviewViewProvider(viewId: string, provider: any, options?: any): Disposable {
+      // Store provider in global map for later resolution
+      // The host will send a message asking us to resolve the webview
+      if (!(self as any).__webviewProviders) {
+        (self as any).__webviewProviders = new Map();
+      }
+      (self as any).__webviewProviders.set(viewId, provider);
+
+      // Notify host that we have a provider ready
+      apiCall('window', 'registerWebviewViewProvider', [viewId, options]).catch((error) => {
+        console.error(`[VSCodeAPI] Failed to register webview view provider for ${viewId}:`, error);
+      });
+
+      // Return disposable
+      return new Disposable(() => {
+        (self as any).__webviewProviders?.delete(viewId);
+        apiCall('window', 'disposeWebviewViewProvider', [viewId]).catch(() => {
+          // Ignore errors on disposal
+        });
+      });
+    },
   };
 }
 
