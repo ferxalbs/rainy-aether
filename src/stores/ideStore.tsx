@@ -48,7 +48,7 @@ export interface Workspace {
   type: "folder" | "file";
 }
 
-export type SidebarTab = "explorer" | "git";
+export type SidebarTab = "explorer" | "git" | `webview:${string}`;
 export type ViewMode = "ide" | "agents";
 
 export interface IDEState {
@@ -946,7 +946,11 @@ const ideActions = {
   saveFileAs,
   saveAllFiles,
   closeProject,
+  getState, // Add getState to actions for non-React access
 };
+
+// Export ideActions for use outside of React context
+export { ideActions };
 
 interface IDEContextValue {
   state: () => IDEState;
