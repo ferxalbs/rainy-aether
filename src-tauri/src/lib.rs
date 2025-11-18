@@ -432,7 +432,9 @@ pub fn run() {
         font_manager::get_font_file_info,
     ]);
 
-    builder
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    if let Err(error) = builder.run(tauri::generate_context!()) {
+        eprintln!("Error while running Tauri application: {}", error);
+        eprintln!("The application will now exit. Please report this error.");
+        std::process::exit(1);
+    }
 }

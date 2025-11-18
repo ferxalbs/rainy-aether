@@ -17,6 +17,8 @@ let autoSaveCallback: AutoSaveCallback | null = null;
 let autoSaveTimer: NodeJS.Timeout | null = null;
 let currentMode: AutoSaveMode = 'off';
 let currentDelay = 1000;
+let blurListener: (() => void) | null = null;
+let configChangeDisposable: (() => void) | null = null;
 
 /**
  * Register a callback to be called when auto-save triggers
@@ -89,16 +91,44 @@ function applyAutoSaveConfiguration(): void {
 }
 
 /**
+ * Cleanup auto-save service resources
+ */
+export function cleanupAutoSaveService(): void {
+  // Clear timer
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+  }
+
+  // Remove window blur listener
+  if (blurListener) {
+    window.removeEventListener('blur', blurListener);
+    blurListener = null;
+  }
+
+  // Dispose configuration change listener
+  if (configChangeDisposable) {
+    configChangeDisposable();
+    configChangeDisposable = null;
+  }
+
+  console.log('[AutoSaveService] Cleaned up resources');
+}
+
+/**
  * Initialize auto-save service
  */
 export function initializeAutoSaveService(): void {
   console.log('[AutoSaveService] Initializing...');
 
+  // Clean up existing resources before initializing
+  cleanupAutoSaveService();
+
   // Apply initial configuration
   applyAutoSaveConfiguration();
 
   // Listen for configuration changes
-  configurationService.onChange((event) => {
+  configChangeDisposable = configurationService.onChange((event) => {
     const autoSaveKeys = event.changedKeys.filter(
       key => key.startsWith('files.autoSave')
     );
@@ -109,12 +139,15 @@ export function initializeAutoSaveService(): void {
     }
   });
 
-  // Listen for window focus changes
-  window.addEventListener('blur', () => {
+  // Create and store blur listener
+  blurListener = () => {
     if (currentMode === 'onWindowChange') {
       triggerAutoSave();
     }
-  });
+  };
+
+  // Listen for window focus changes
+  window.addEventListener('blur', blurListener);
 
   console.log('[AutoSaveService] Initialized successfully');
 }
