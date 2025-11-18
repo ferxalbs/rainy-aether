@@ -173,6 +173,13 @@ async function handleActivate(message: ExtensionMessage): Promise<void> {
     throw new Error('Worker not initialized');
   }
 
+  // Guard against duplicate activation
+  if (activatedExtension) {
+    log('warn', `Extension ${extensionId} is already activated, skipping duplicate activation`);
+    sendResponse(message.id, {});
+    return;
+  }
+
   const data = message.data as ActivateMessageData;
 
   log('info', `Activating extension ${extensionId} (event: ${data.activationEvent})`);
@@ -180,6 +187,16 @@ async function handleActivate(message: ExtensionMessage): Promise<void> {
   try {
     // Load main module
     const mainModule = await moduleLoader.loadMainModule();
+
+    // Debug: Log what the module exports
+    if (mainModule) {
+      const exportKeys = Object.keys(mainModule);
+      log('info', `Module exports: [${exportKeys.join(', ')}]`);
+      log('info', `activate type: ${typeof mainModule.activate}`);
+      log('info', `deactivate type: ${typeof mainModule.deactivate}`);
+    } else {
+      log('error', `Module returned null/undefined`);
+    }
 
     // Call activate function if it exists
     if (mainModule && typeof mainModule.activate === 'function') {
@@ -191,6 +208,8 @@ async function handleActivate(message: ExtensionMessage): Promise<void> {
       log('info', `Extension ${extensionId} activated successfully`);
     } else {
       log('warn', `Extension ${extensionId} has no activate function`);
+      // Still mark as "activated" to prevent duplicate attempts
+      activatedExtension = mainModule || {};
     }
 
     // Send success response

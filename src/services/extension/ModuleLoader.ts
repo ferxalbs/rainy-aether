@@ -209,27 +209,69 @@ export class ModuleLoader {
       const wrappedCode = this.wrapModule(code, modulePath);
 
       // Execute module code
-      const moduleFunction = new Function(
-        'exports',
-        'require',
-        'module',
-        '__filename',
-        '__dirname',
-        wrappedCode
-      );
+      let moduleFunction: Function;
+      try {
+        moduleFunction = new Function(
+          'exports',
+          'require',
+          'module',
+          '__filename',
+          '__dirname',
+          wrappedCode
+        );
+      } catch (syntaxError) {
+        console.error(`[ModuleLoader] Syntax error in module ${modulePath}:`, syntaxError);
+        throw syntaxError;
+      }
 
-      const require = (id: string) => this.require(id, module);
+      const require = (id: string) => {
+        console.log(`[ModuleLoader] require('${id}') called from ${modulePath}`);
+        const result = this.require(id, module);
+        if (id === 'vscode') {
+          console.log(`[ModuleLoader] vscode module returned with keys:`, Object.keys(result || {}).slice(0, 20));
+          // Check for critical classes
+          const criticalClasses = ['TreeDataProvider', 'EventEmitter', 'Uri', 'Range', 'Position', 'Disposable'];
+          const missing = criticalClasses.filter(c => !result[c]);
+          if (missing.length > 0) {
+            console.error(`[ModuleLoader] ❌ Missing critical vscode classes:`, missing);
+          }
+        }
+        return result;
+      };
       const __filename = modulePath;
       const __dirname = this.getDirectoryName(modulePath);
 
-      moduleFunction.call(
-        module.exports,
-        module.exports,
-        require,
-        module,
-        __filename,
-        __dirname
-      );
+      try {
+        moduleFunction.call(
+          module.exports,
+          module.exports,
+          require,
+          module,
+          __filename,
+          __dirname
+        );
+      } catch (executionError: any) {
+        // Log detailed error information
+        console.error(`[ModuleLoader] ❌ Module execution failed for ${modulePath}`);
+        console.error(`[ModuleLoader] Error type:`, executionError?.constructor?.name);
+        console.error(`[ModuleLoader] Error message:`, executionError?.message);
+
+        // If it's the "Class extends value undefined" error, try to provide more context
+        if (executionError?.message?.includes('Class extends value undefined')) {
+          console.error(`[ModuleLoader] 🔍 This error typically means the extension is trying to extend a class that doesn't exist.`);
+          console.error(`[ModuleLoader] 🔍 Check if all required vscode.* classes are implemented in VSCodeAPIShim.ts`);
+
+          // Log the vscode API that was provided
+          const vscode = (self as any).vscode;
+          if (vscode) {
+            const allKeys = Object.keys(vscode);
+            const classKeys = allKeys.filter(k => typeof vscode[k] === 'function');
+            console.error(`[ModuleLoader] 🔍 Available vscode classes:`, classKeys);
+          }
+        }
+
+        throw executionError;
+      }
 
       // Mark as loaded
       module.loaded = true;
