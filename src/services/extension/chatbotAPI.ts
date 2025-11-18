@@ -155,8 +155,14 @@ export function registerWebviewViewProvider(
   };
 
   // Call provider to set up the webview
-  Promise.resolve(provider.resolveWebviewView(webviewView, context, token)).catch(error => {
+  const resolvePromise = Promise.resolve(
+    provider.resolveWebviewView(webviewView, context, token)
+  ).catch(error => {
     console.error(`[chatbotAPI] Error resolving webview view ${viewId}:`, error);
+    // Dispose the webview panel on error
+    webviewActions.disposeWebview(viewId);
+    // Re-throw to allow caller to handle if needed
+    throw error;
   });
 
   // Return disposable
@@ -164,6 +170,10 @@ export function registerWebviewViewProvider(
     dispose() {
       webviewActions.disposeWebview(viewId);
     },
+    // Expose the resolution promise for error tracking
+    get ready() {
+      return resolvePromise;
+    }
   };
 }
 

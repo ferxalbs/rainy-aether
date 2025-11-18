@@ -342,27 +342,43 @@ function createCommandsAPI(apiCall: APICallCallback): any {
  */
 function createEvent(): any {
   const listeners: Function[] = [];
+  const disposedListeners = new WeakSet<Function>();
 
   const event = (listener: Function) => {
     listeners.push(listener);
+    let isDisposed = false;
+
     return {
       dispose: () => {
+        if (isDisposed) {
+          console.warn('[VSCodeAPI] Event listener already disposed');
+          return;
+        }
         const index = listeners.indexOf(listener);
         if (index !== -1) {
           listeners.splice(index, 1);
         }
+        disposedListeners.add(listener);
+        isDisposed = true;
       },
     };
   };
 
   event.fire = (...args: any[]) => {
-    listeners.forEach(listener => {
+    // Create a copy to avoid issues if listeners dispose themselves during iteration
+    const listenersCopy = [...listeners];
+    listenersCopy.forEach(listener => {
       try {
         listener(...args);
       } catch (error) {
         console.error('[VSCodeAPI] Event listener error:', error);
       }
     });
+  };
+
+  // Add a method to clear all listeners (for cleanup)
+  event.clear = () => {
+    listeners.length = 0;
   };
 
   return event;
