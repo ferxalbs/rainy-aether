@@ -218,12 +218,22 @@ export interface VSCodeAPI {
   Selection: any;
   Disposable: typeof Disposable;
   EventEmitter: any;
+  TreeItem: any;
+  TreeDataProvider: any;
+  CancellationTokenSource: any;
+  MarkdownString: any;
+  ThemeIcon: any;
+  ThemeColor: any;
 
   // Enums
   DiagnosticSeverity: any;
   CompletionItemKind: any;
   SymbolKind: any;
+  SymbolTag: any;
   TextEditorRevealType: any;
+  TreeItemCollapsibleState: any;
+  OverviewRulerLane: any;
+  DecorationRangeBehavior: any;
 }
 
 /**

@@ -22,6 +22,82 @@ import {
 type APICallCallback = (namespace: string, method: string, args: any[]) => Promise<any>;
 
 /**
+ * Thenable - represents a value that can be synchronous or asynchronous
+ */
+type Thenable<T> = T | Promise<T>;
+
+/**
+ * WebviewViewProvider interface
+ * Extensions should implement this to provide webview content
+ */
+export interface WebviewViewProvider {
+  resolveWebviewView(
+    webviewView: WebviewView,
+    context: WebviewViewResolveContext,
+    token: CancellationToken
+  ): void | Thenable<void>;
+}
+
+/**
+ * WebviewView interface
+ */
+export interface WebviewView {
+  readonly viewType: string;
+  readonly webview: Webview;
+  title?: string;
+  description?: string;
+  readonly visible: boolean;
+  readonly onDidDispose: any;
+  readonly onDidChangeVisibility: any;
+  show(preserveFocus?: boolean): void;
+}
+
+/**
+ * Webview interface
+ */
+export interface Webview {
+  html: string;
+  options: WebviewOptions;
+  readonly onDidReceiveMessage: any;
+  postMessage(message: any): Thenable<boolean>;
+  asWebviewUri?(localResource: VSCodeUri): VSCodeUri;
+  readonly cspSource?: string;
+}
+
+/**
+ * WebviewOptions interface
+ */
+export interface WebviewOptions {
+  enableScripts?: boolean;
+  enableForms?: boolean;
+  localResourceRoots?: readonly VSCodeUri[];
+  portMapping?: readonly WebviewPortMapping[];
+}
+
+/**
+ * WebviewPortMapping interface
+ */
+export interface WebviewPortMapping {
+  webviewPort: number;
+  extensionHostPort: number;
+}
+
+/**
+ * WebviewViewResolveContext interface
+ */
+export interface WebviewViewResolveContext {
+  readonly state: any;
+}
+
+/**
+ * CancellationToken interface
+ */
+export interface CancellationToken {
+  readonly isCancellationRequested: boolean;
+  readonly onCancellationRequested: any;
+}
+
+/**
  * Create VS Code API shim
  */
 export function createVSCodeAPI(
@@ -60,6 +136,12 @@ export function createVSCodeAPI(
     Selection: createSelectionClass(),
     Disposable,
     EventEmitter: createEventEmitterClass(),
+    TreeItem: createTreeItemClass(),
+    TreeDataProvider: null, // Interface, no constructor
+    CancellationTokenSource: createCancellationTokenSourceClass(),
+    MarkdownString: createMarkdownStringClass(),
+    ThemeIcon: createThemeIconClass(),
+    ThemeColor: createThemeColorClass(),
 
     // Enums
     DiagnosticSeverity: {
@@ -109,11 +191,31 @@ export function createVSCodeAPI(
       Boolean: 16,
       Array: 17,
     },
+    SymbolTag: {
+      Deprecated: 1,
+    },
     TextEditorRevealType: {
       Default: 0,
       InCenter: 1,
       InCenterIfOutsideViewport: 2,
       AtTop: 3,
+    },
+    TreeItemCollapsibleState: {
+      None: 0,
+      Collapsed: 1,
+      Expanded: 2,
+    },
+    OverviewRulerLane: {
+      Left: 1,
+      Center: 2,
+      Right: 4,
+      Full: 7,
+    },
+    DecorationRangeBehavior: {
+      OpenOpen: 0,
+      ClosedClosed: 1,
+      OpenClosed: 2,
+      ClosedOpen: 3,
     },
   };
 
@@ -183,12 +285,15 @@ function createWindowAPI(apiCall: APICallCallback): VSCodeWindow {
      * This is called by extensions like Cline to provide their UI
      */
     registerWebviewViewProvider(viewId: string, provider: any, options?: any): Disposable {
-      // Store provider in global map for later resolution
-      // The host will send a message asking us to resolve the webview
-      if (!(self as any).__webviewProviders) {
-        (self as any).__webviewProviders = new Map();
+      // Store provider in worker-level storage (defined in extension.worker.ts)
+      // Access the global storage that persists across worker messages
+      const workerGlobal = self as any;
+      if (!workerGlobal.__rainyAether_webviewProviders) {
+        workerGlobal.__rainyAether_webviewProviders = new Map();
       }
-      (self as any).__webviewProviders.set(viewId, provider);
+      workerGlobal.__rainyAether_webviewProviders.set(viewId, provider);
+
+      console.log(`[VSCodeAPI] Registered webview provider for: ${viewId}`);
 
       // Notify host that we have a provider ready
       apiCall('window', 'registerWebviewViewProvider', [viewId, options]).catch((error) => {
@@ -197,7 +302,7 @@ function createWindowAPI(apiCall: APICallCallback): VSCodeWindow {
 
       // Return disposable
       return new Disposable(() => {
-        (self as any).__webviewProviders?.delete(viewId);
+        workerGlobal.__rainyAether_webviewProviders?.delete(viewId);
         apiCall('window', 'disposeWebviewViewProvider', [viewId]).catch(() => {
           // Ignore errors on disposal
         });
@@ -577,6 +682,153 @@ function createEventEmitterClass() {
 
     dispose(): void {
       this.listeners = [];
+    }
+  };
+}
+
+/**
+ * Create TreeItem class
+ */
+function createTreeItemClass() {
+  return class TreeItem {
+    label?: string | any;
+    id?: string;
+    iconPath?: any;
+    description?: string | boolean;
+    resourceUri?: any;
+    tooltip?: string | any;
+    command?: any;
+    collapsibleState?: number;
+    contextValue?: string;
+    accessibilityInformation?: any;
+
+    constructor(label: string | any, collapsibleState?: number);
+    constructor(resourceUri: any, collapsibleState?: number);
+    constructor(labelOrUri: string | any, collapsibleState?: number) {
+      if (typeof labelOrUri === 'string') {
+        this.label = labelOrUri;
+      } else if (labelOrUri && typeof labelOrUri === 'object' && 'path' in labelOrUri) {
+        this.resourceUri = labelOrUri;
+      } else {
+        this.label = labelOrUri;
+      }
+      this.collapsibleState = collapsibleState;
+    }
+  };
+}
+
+/**
+ * Create CancellationTokenSource class
+ */
+function createCancellationTokenSourceClass() {
+  return class CancellationTokenSource {
+    private _token: CancellationToken | undefined = undefined;
+    private _isCancelled = false;
+    private _emitter: any;
+
+    constructor() {
+      const EventEmitterClass = createEventEmitterClass();
+      this._emitter = new EventEmitterClass();
+    }
+
+    get token(): CancellationToken {
+      if (!this._token) {
+        this._token = {
+          isCancellationRequested: this._isCancelled,
+          onCancellationRequested: this._emitter.event,
+        };
+      }
+      return this._token;
+    }
+
+    cancel(): void {
+      if (!this._isCancelled) {
+        this._isCancelled = true;
+        if (this._token) {
+          (this._token as any).isCancellationRequested = true;
+        }
+        this._emitter.fire(undefined);
+      }
+    }
+
+    dispose(): void {
+      this.cancel();
+      this._emitter.dispose();
+    }
+  };
+}
+
+/**
+ * Create MarkdownString class
+ */
+function createMarkdownStringClass() {
+  return class MarkdownString {
+    value: string;
+    isTrusted?: boolean | { readonly enabledCommands: readonly string[] };
+    supportThemeIcons?: boolean;
+    supportHtml?: boolean;
+    baseUri?: any;
+
+    constructor(value?: string, supportThemeIcons?: boolean) {
+      this.value = value || '';
+      this.supportThemeIcons = supportThemeIcons;
+    }
+
+    appendText(value: string): MarkdownString {
+      this.value += value
+        .replace(/[\\`*_{}[\]()#+\-.!]/g, '\\$&')
+        .replace(/\n/g, '\n\n');
+      return this;
+    }
+
+    appendMarkdown(value: string): MarkdownString {
+      this.value += value;
+      return this;
+    }
+
+    appendCodeblock(value: string, language?: string): MarkdownString {
+      this.value += '\n```';
+      if (language) {
+        this.value += language;
+      }
+      this.value += '\n' + value + '\n```\n';
+      return this;
+    }
+  };
+}
+
+/**
+ * Create ThemeIcon class
+ */
+function createThemeIconClass() {
+  return class ThemeIcon {
+    readonly id: string;
+    readonly color?: any;
+
+    constructor(id: string, color?: any) {
+      this.id = id;
+      this.color = color;
+    }
+
+    static File = new (class ThemeIcon {
+      readonly id = 'file';
+    })();
+
+    static Folder = new (class ThemeIcon {
+      readonly id = 'folder';
+    })();
+  };
+}
+
+/**
+ * Create ThemeColor class
+ */
+function createThemeColorClass() {
+  return class ThemeColor {
+    readonly id: string;
+
+    constructor(id: string) {
+      this.id = id;
     }
   };
 }

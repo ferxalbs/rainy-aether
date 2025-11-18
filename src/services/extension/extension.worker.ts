@@ -32,6 +32,16 @@ const cacheAccessOrder: string[] = [];
 const MAX_CACHE_SIZE = 50; // Cache only 50 most recent files
 
 /**
+ * NOTE: Webview providers and message handlers are stored in the worker global scope
+ * using namespaced keys to prevent conflicts:
+ * - __rainyAether_webviewProviders: Maps viewId to provider instance
+ * - __rainyAether_webviewMessageHandlers: Maps viewId to message handler function
+ *
+ * This ensures they persist across worker message cycles and are accessible
+ * from both VSCodeAPIShim and the worker message handlers.
+ */
+
+/**
  * Message handler
  */
 self.onmessage = async (event: MessageEvent<ExtensionMessage>) => {
@@ -219,56 +229,98 @@ async function handleResolveWebview(message: ExtensionMessage): Promise<void> {
   log('info', `Resolving webview: ${viewId}`);
 
   try {
-    // Get the provider for this view ID
-    const providers = (self as any).__webviewProviders;
-    if (!providers) {
+    // Get the provider for this view ID from worker-level storage
+    const workerGlobal = self as any;
+    const providers = workerGlobal.__rainyAether_webviewProviders;
+
+    if (!providers || !(providers instanceof Map)) {
+      log('error', 'No webview providers map found in worker global');
       throw new Error('No webview providers registered');
     }
 
     const provider = providers.get(viewId);
     if (!provider) {
+      log('error', `No provider found for view ${viewId}. Available providers: ${Array.from(providers.keys()).join(', ')}`);
       throw new Error(`No provider found for view ${viewId}`);
     }
 
+    log('info', `Found provider for ${viewId}, creating webview view object`);
+
+    // Create a proper CancellationToken
+    const cancellationToken = {
+      isCancellationRequested: false,
+      onCancellationRequested: (_listener: Function) => {
+        // Return disposable (listener would be called on cancellation)
+        return { dispose: () => {} };
+      },
+    };
+
+    // Create a proper WebviewViewResolveContext
+    const resolveContext = {
+      state: undefined, // Could be restored from persistence in the future
+    };
+
     // Create a webview view object that the provider can use
     let webviewHtml = '';
+    const webviewOptions: any = {
+      enableScripts: true,
+      enableForms: true,
+      localResourceRoots: [],
+    };
+
     const webviewView = {
       viewType: viewId,
       webview: {
         html: '',
+        options: webviewOptions,
         get onDidReceiveMessage() {
           return (handler: any) => {
-            // Store message handler for this view
-            if (!(self as any).__webviewMessageHandlers) {
-              (self as any).__webviewMessageHandlers = new Map();
+            // Store message handler for this view in worker-level storage
+            if (!workerGlobal.__rainyAether_webviewMessageHandlers) {
+              workerGlobal.__rainyAether_webviewMessageHandlers = new Map();
             }
-            (self as any).__webviewMessageHandlers.set(viewId, handler);
-            return { dispose: () => {
-              (self as any).__webviewMessageHandlers?.delete(viewId);
-            }};
+            workerGlobal.__rainyAether_webviewMessageHandlers.set(viewId, handler);
+            log('debug', `Registered message handler for webview ${viewId}`);
+            return {
+              dispose: () => {
+                workerGlobal.__rainyAether_webviewMessageHandlers?.delete(viewId);
+                log('debug', `Disposed message handler for webview ${viewId}`);
+              }
+            };
           };
         },
         postMessage: async (msg: any) => {
           // Send message to host to forward to webview
+          log('debug', `Sending message to webview ${viewId}:`, msg);
           await callHostAPI('webview', 'postMessage', [viewId, msg]);
           return true;
         },
-        get options() {
-          return {};
+        asWebviewUri: (uri: any) => {
+          // Convert local resource URIs to webview URIs
+          // For now, just return the URI as-is
+          return uri;
         },
-        set options(value: any) {
-          // No-op
+        get cspSource() {
+          return "'self'";
         },
       },
       title: undefined,
       description: undefined,
       visible: true,
-
-      show: () => {
+      onDidDispose: (_listener: Function) => {
+        // Return disposable (listener would be called on dispose)
+        return { dispose: () => {} };
+      },
+      onDidChangeVisibility: (_listener: Function) => {
+        // Return disposable (listener would be called on visibility change)
+        return { dispose: () => {} };
+      },
+      show: (preserveFocus?: boolean) => {
+        log('debug', `webviewView.show() called for ${viewId}, preserveFocus: ${preserveFocus}`);
         // No-op - already handled by host
       },
-
       dispose: () => {
+        log('debug', `webviewView.dispose() called for ${viewId}`);
         // No-op
       },
     };
@@ -277,13 +329,31 @@ async function handleResolveWebview(message: ExtensionMessage): Promise<void> {
     Object.defineProperty(webviewView.webview, 'html', {
       get: () => webviewHtml,
       set: (value: string) => {
+        log('debug', `Setting webview HTML for ${viewId}, length: ${value.length}`);
         webviewHtml = value;
       },
+      enumerable: true,
+      configurable: true,
     });
 
-    // Call the provider's resolveWebviewView method
+    // Intercept options setter
+    Object.defineProperty(webviewView.webview, 'options', {
+      get: () => webviewOptions,
+      set: (value: any) => {
+        log('debug', `Setting webview options for ${viewId}:`, value);
+        Object.assign(webviewOptions, value);
+      },
+      enumerable: true,
+      configurable: true,
+    });
+
+    // Call the provider's resolveWebviewView method with proper context and token
     if (provider.resolveWebviewView) {
-      await provider.resolveWebviewView(webviewView, {}, {});
+      log('info', `Calling resolveWebviewView for ${viewId}`);
+      await provider.resolveWebviewView(webviewView, resolveContext, cancellationToken);
+      log('info', `resolveWebviewView completed for ${viewId}`);
+    } else {
+      log('warn', `Provider for ${viewId} has no resolveWebviewView method`);
     }
 
     // Send the HTML back to the host
@@ -293,6 +363,7 @@ async function handleResolveWebview(message: ExtensionMessage): Promise<void> {
       data: {
         viewId,
         html: webviewHtml,
+        options: webviewOptions,
       },
     });
 
@@ -316,16 +387,18 @@ async function handleWebviewMessage(message: ExtensionMessage): Promise<void> {
     // Messages from extension TO webview are handled via the webview.postMessage API
     // which calls callHostAPI('webview', 'postMessage', ...)
     if (direction === 'fromWebview') {
-      // Get the message handler for this view
-      const handlers = (self as any).__webviewMessageHandlers;
-      if (!handlers) {
-        log('warn', `No webview message handlers registered`);
+      // Get the message handler for this view from worker-level storage
+      const workerGlobal = self as any;
+      const handlers = workerGlobal.__rainyAether_webviewMessageHandlers;
+
+      if (!handlers || !(handlers instanceof Map)) {
+        log('warn', `No webview message handlers map found in worker global`);
         return;
       }
 
       const handler = handlers.get(viewId);
       if (!handler) {
-        log('warn', `No message handler found for view ${viewId}`);
+        log('warn', `No message handler found for view ${viewId}. Available handlers: ${Array.from(handlers.keys()).join(', ')}`);
         return;
       }
 

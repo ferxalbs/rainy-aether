@@ -386,6 +386,7 @@ export class ModuleLoader {
     const moduleId = id.startsWith('node:') ? id.substring(5) : id;
 
     const builtInModules = [
+      'vscode', // VS Code Extension API (CRITICAL for extensions)
       'path',
       'fs',
       'os',
@@ -428,6 +429,18 @@ export class ModuleLoader {
     // In a full implementation, we would provide more complete polyfills
 
     switch (moduleId) {
+      case 'vscode':
+        // Return the VS Code API from the global scope
+        // This is set by the extension worker when it initializes the VS Code API
+        const vscode = (self as any).vscode;
+        if (!vscode) {
+          throw new Error(
+            'VS Code API not available. This should be initialized by the extension worker before loading modules.'
+          );
+        }
+        console.log('[ModuleLoader] Loaded vscode module from global scope');
+        return vscode;
+
       case 'path':
         return this.getPathShim();
 
