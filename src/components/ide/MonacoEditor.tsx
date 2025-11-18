@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, memo } from 'react';
 import * as monaco from 'monaco-editor';
 import { editorActions } from '../../stores/editorStore';
 import { getCurrentTheme, subscribeToThemeChanges } from '../../stores/themeStore';
@@ -19,7 +19,7 @@ interface MonacoEditorProps {
   filename?: string; // Optional filename for better language detection
 }
 
-const MonacoEditor: React.FC<MonacoEditorProps> = ({
+const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
   value,
   language = 'javascript',
   onChange,
@@ -53,6 +53,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     }
   }, [language]);
 
+  // Memoize theme creation based on actual theme properties
   const createMonacoTheme = useCallback(() => {
     const theme = themeRef.current;
     const isDark = theme.mode === 'night' ||
@@ -60,8 +61,8 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       theme.variables['--bg-editor'] === '#1c1917' ||
       theme.variables['--bg-editor'] === '#2d2a26';
 
-    const themeName = `custom-theme-${theme.mode}`;
-    
+    const themeName = `custom-theme-${theme.mode}-${theme.name.replace(/\s+/g, '-')}`;
+
     monaco.editor.defineTheme(themeName, {
       base: isDark ? 'vs-dark' : 'vs',
       inherit: true,
@@ -73,17 +74,17 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         // Keywords
         { token: 'keyword', foreground: toMonacoColor(theme.variables['--accent-primary']), fontStyle: 'bold' },
         { token: 'control.keyword', foreground: toMonacoColor(theme.variables['--accent-primary']), fontStyle: 'bold' },
-        
+
         // Strings
         { token: 'string', foreground: isDark ? 'CE9178' : 'A31515' },
         { token: 'string.escape', foreground: isDark ? 'D7BA7D' : 'EE0000' },
-        
+
         // Numbers
         { token: 'number', foreground: isDark ? 'B5CEA8' : '098658' },
-        
+
         // Functions
         { token: 'identifier.function', foreground: isDark ? 'DCDCAA' : '795E26' },
-        
+
         // Variables and properties
         { token: 'variable', foreground: toMonacoColor(theme.variables['--text-editor']) },
         { token: 'property', foreground: isDark ? '9CDCFE' : '0451A5' },
@@ -98,21 +99,21 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
         { token: 'delimiter', foreground: toMonacoColor(theme.variables['--text-editor']) },
         { token: 'delimiter.bracket', foreground: isDark ? 'FFD700' : '0431FA' },
         { token: 'delimiter.parenthesis', foreground: toMonacoColor(theme.variables['--text-editor']) },
-        
+
         // HTML tags
         { token: 'tag', foreground: isDark ? '569CD6' : '800000' },
         { token: 'tag.attribute.name', foreground: isDark ? '92C5F8' : '0451A5' },
-        
+
         // CSS
         { token: 'attribute.value', foreground: isDark ? 'D19A66' : '0451A5' },
         { token: 'unit', foreground: isDark ? 'B5CEA8' : '098658' },
-        
+
         // Markdown
         { token: 'heading', foreground: toMonacoColor(theme.variables['--accent-primary']), fontStyle: 'bold' },
         { token: 'emphasis', fontStyle: 'italic' },
         { token: 'strong', fontStyle: 'bold' },
         { token: 'link', foreground: toMonacoColor(theme.variables['--accent-secondary']) },
-        
+
         // Invalid
         { token: 'invalid', foreground: isDark ? 'F44747' : 'CD3131', fontStyle: 'underline' },
       ],
@@ -374,5 +375,17 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     />
   );
 };
+
+// Memoize component to prevent unnecessary re-renders
+const MonacoEditor = memo(MonacoEditorComponent, (prevProps, nextProps) => {
+  // Custom comparison for better performance
+  return (
+    prevProps.value === nextProps.value &&
+    prevProps.language === nextProps.language &&
+    prevProps.readOnly === nextProps.readOnly &&
+    prevProps.filename === nextProps.filename &&
+    prevProps.onChange === nextProps.onChange
+  );
+});
 
 export default MonacoEditor;

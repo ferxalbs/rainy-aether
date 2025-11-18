@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, memo } from "react";
 import { useIDEStore, FileNode } from "../../stores/ideStore";
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, FilePlus, FolderPlus } from "lucide-react";
 import { Button } from "../ui/button";
@@ -18,9 +18,9 @@ interface FileNodeProps {
 }
 
 /**
- * Render an icon from IconDefinition
+ * Render an icon from IconDefinition - Memoized to prevent unnecessary re-renders
  */
-const RenderIcon: React.FC<{ icon: IconDefinition; size?: number; className?: string; style?: React.CSSProperties }> = ({ icon, size = 16, className, style }) => {
+const RenderIcon = memo<{ icon: IconDefinition; size?: number; className?: string; style?: React.CSSProperties }>(({ icon, size = 16, className, style }) => {
   // React component (Rainy Aether built-in themes)
   if (icon.iconComponent) {
     const IconComponent = icon.iconComponent;
@@ -29,16 +29,12 @@ const RenderIcon: React.FC<{ icon: IconDefinition; size?: number; className?: st
 
   // Icon path (extension-provided icons)
   if (icon.iconPath) {
-    console.log(`[RenderIcon] Rendering icon with path:`, icon.iconPath.substring(0, 100) + '...');
-
     // Check if it's an SVG string
     if (icon.iconPath.startsWith('<svg')) {
       return <div dangerouslySetInnerHTML={{ __html: icon.iconPath }} style={{ width: size, height: size, ...style }} className={className} />;
     }
     // Otherwise it's a path/data URL to an image
-    return <img src={icon.iconPath} alt="" style={{ width: size, height: size, ...style }} className={className} onError={() => {
-      console.error('[RenderIcon] Failed to load icon:', icon.iconPath?.substring(0, 100));
-    }} />;
+    return <img src={icon.iconPath} alt="" style={{ width: size, height: size, ...style }} className={className} />;
   }
 
   // Font-based icon (future support)
@@ -59,11 +55,10 @@ const RenderIcon: React.FC<{ icon: IconDefinition; size?: number; className?: st
   }
 
   // Fallback to generic file icon
-  console.log('[RenderIcon] Using fallback icon');
   return <File size={size} className={className} style={style} />;
-};
+});
 
-const FileNodeComponent: React.FC<FileNodeProps> = ({
+const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
   node,
   level,
   selectedPath,
@@ -93,9 +88,9 @@ const FileNodeComponent: React.FC<FileNodeProps> = ({
     } else {
       actions.openFile(node);
     }
-  }, [actions, node, setSelectedPath, isOpen]);
+  }, [actions, node.path, node.is_directory, node.children_loaded, node.children, setSelectedPath, isOpen]);
 
-  // Get icon from theme
+  // Get icon from theme - memoized with proper dependencies
   const icon = useMemo(() => {
     if (node.is_directory) {
       const folderIcon = iconThemeActions.getFolderIcon(node.name, isOpen, false);
@@ -108,7 +103,7 @@ const FileNodeComponent: React.FC<FileNodeProps> = ({
       // Fallback to Lucide icon
       return { iconComponent: File };
     }
-  }, [node, isOpen, activeTheme]);
+  }, [node.is_directory, node.name, isOpen, activeTheme]);
 
   const isSelected = selectedPath === node.path;
 
@@ -188,7 +183,19 @@ const FileNodeComponent: React.FC<FileNodeProps> = ({
   );
 };
 
-const ProjectExplorer: React.FC = () => {
+// Memoize FileNodeComponent to prevent unnecessary re-renders of tree nodes
+const FileNodeComponent = memo(FileNodeComponentInternal, (prevProps, nextProps) => {
+  return (
+    prevProps.node.path === nextProps.node.path &&
+    prevProps.node.name === nextProps.node.name &&
+    prevProps.node.is_directory === nextProps.node.is_directory &&
+    prevProps.selectedPath === nextProps.selectedPath &&
+    prevProps.level === nextProps.level &&
+    prevProps.node.children?.length === nextProps.node.children?.length
+  );
+});
+
+const ProjectExplorerInternal: React.FC = () => {
   const { state, actions } = useIDEStore();
   const snapshot = state();
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -413,5 +420,8 @@ const ProjectExplorer: React.FC = () => {
     </div>
   );
 };
+
+// Memoize ProjectExplorer to prevent unnecessary re-renders
+const ProjectExplorer = memo(ProjectExplorerInternal);
 
 export default ProjectExplorer;
