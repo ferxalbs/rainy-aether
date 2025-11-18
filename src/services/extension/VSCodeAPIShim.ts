@@ -137,11 +137,20 @@ export function createVSCodeAPI(
     Disposable,
     EventEmitter: createEventEmitterClass(),
     TreeItem: createTreeItemClass(),
-    TreeDataProvider: null, // Interface, no constructor
+    TreeDataProvider: createTreeDataProviderClass(),
     CancellationTokenSource: createCancellationTokenSourceClass(),
     MarkdownString: createMarkdownStringClass(),
     ThemeIcon: createThemeIconClass(),
     ThemeColor: createThemeColorClass(),
+    StatusBarItem: createStatusBarItemClass(),
+    QuickPickItem: createQuickPickItemClass(),
+    CodeLens: createCodeLensClass(),
+    Command: createCommandClass(),
+    Diagnostic: createDiagnosticClass(),
+    DiagnosticCollection: createDiagnosticCollectionClass(),
+    Location: createLocationClass(),
+    WorkspaceEdit: createWorkspaceEditClass(),
+    TextEdit: createTextEditClass(),
 
     // Enums
     DiagnosticSeverity: {
@@ -829,6 +838,354 @@ function createThemeColorClass() {
 
     constructor(id: string) {
       this.id = id;
+    }
+  };
+}
+
+/**
+ * Create TreeDataProvider base class
+ * Extensions can extend this or implement the interface
+ */
+function createTreeDataProviderClass() {
+  const EventEmitterClass = createEventEmitterClass();
+
+  return class TreeDataProvider {
+    private _onDidChangeTreeData: any;
+
+    constructor() {
+      this._onDidChangeTreeData = new EventEmitterClass();
+    }
+
+    get onDidChangeTreeData() {
+      return this._onDidChangeTreeData.event;
+    }
+
+    refresh(): void {
+      this._onDidChangeTreeData.fire(undefined);
+    }
+
+    getTreeItem(element: any): any {
+      // Subclasses should override
+      return element;
+    }
+
+    getChildren(_element?: any): any[] | Promise<any[]> {
+      // Subclasses should override
+      return [];
+    }
+
+    getParent?(_element: any): any | Promise<any> {
+      // Optional method
+      return null;
+    }
+
+    resolveTreeItem?(item: any, _element: any): any | Promise<any> {
+      // Optional method
+      return item;
+    }
+  };
+}
+
+/**
+ * Create StatusBarItem class
+ */
+function createStatusBarItemClass() {
+  return class StatusBarItem {
+    id?: string;
+    alignment: number = 1;
+    priority?: number;
+    text: string = '';
+    tooltip?: string | any;
+    color?: string | any;
+    backgroundColor?: any;
+    command?: string | any;
+    accessibilityInformation?: any;
+
+    show(): void {
+      // No-op in our implementation
+    }
+
+    hide(): void {
+      // No-op in our implementation
+    }
+
+    dispose(): void {
+      // No-op in our implementation
+    }
+  };
+}
+
+/**
+ * Create QuickPickItem class
+ */
+function createQuickPickItemClass() {
+  return class QuickPickItem {
+    label: string = '';
+    description?: string;
+    detail?: string;
+    picked?: boolean;
+    alwaysShow?: boolean;
+    buttons?: readonly any[];
+  };
+}
+
+/**
+ * Create CodeLens class
+ */
+function createCodeLensClass() {
+  const RangeClass = createRangeClass();
+
+  return class CodeLens {
+    range: any;
+    command?: any;
+    isResolved: boolean = false;
+
+    constructor(range: any, command?: any) {
+      this.range = range;
+      this.command = command;
+      this.isResolved = !!command;
+    }
+  };
+}
+
+/**
+ * Create Command class/interface
+ */
+function createCommandClass() {
+  return class Command {
+    title: string;
+    command: string;
+    tooltip?: string;
+    arguments?: any[];
+
+    constructor(title: string, command: string, ...args: any[]) {
+      this.title = title;
+      this.command = command;
+      this.arguments = args;
+    }
+  };
+}
+
+/**
+ * Create Diagnostic class
+ */
+function createDiagnosticClass() {
+  const RangeClass = createRangeClass();
+
+  return class Diagnostic {
+    range: any;
+    message: string;
+    severity: number;
+    source?: string;
+    code?: string | number | { value: string | number; target: any };
+    relatedInformation?: any[];
+    tags?: number[];
+
+    constructor(range: any, message: string, severity: number = 0) {
+      this.range = range;
+      this.message = message;
+      this.severity = severity;
+    }
+  };
+}
+
+/**
+ * Create DiagnosticCollection class
+ */
+function createDiagnosticCollectionClass() {
+  return class DiagnosticCollection {
+    name: string;
+    private diagnostics: Map<string, any[]> = new Map();
+
+    constructor(name: string) {
+      this.name = name;
+    }
+
+    set(uri: any, diagnostics: any[] | undefined): void;
+    set(entries: [any, any[] | undefined][]): void;
+    set(uriOrEntries: any, diagnostics?: any[]): void {
+      if (Array.isArray(uriOrEntries)) {
+        // Batch set
+        uriOrEntries.forEach(([uri, diags]) => {
+          const uriStr = uri.toString();
+          if (diags === undefined) {
+            this.diagnostics.delete(uriStr);
+          } else {
+            this.diagnostics.set(uriStr, diags);
+          }
+        });
+      } else {
+        // Single set
+        const uriStr = uriOrEntries.toString();
+        if (diagnostics === undefined) {
+          this.diagnostics.delete(uriStr);
+        } else {
+          this.diagnostics.set(uriStr, diagnostics);
+        }
+      }
+    }
+
+    delete(uri: any): void {
+      this.diagnostics.delete(uri.toString());
+    }
+
+    clear(): void {
+      this.diagnostics.clear();
+    }
+
+    forEach(callback: (uri: any, diagnostics: any[], collection: DiagnosticCollection) => void): void {
+      this.diagnostics.forEach((diags, uriStr) => {
+        const VSCodeUriClass = VSCodeUri;
+        callback(VSCodeUriClass.parse(uriStr), diags, this);
+      });
+    }
+
+    get(uri: any): any[] | undefined {
+      return this.diagnostics.get(uri.toString());
+    }
+
+    has(uri: any): boolean {
+      return this.diagnostics.has(uri.toString());
+    }
+
+    dispose(): void {
+      this.diagnostics.clear();
+    }
+  };
+}
+
+/**
+ * Create Location class
+ */
+function createLocationClass() {
+  const RangeClass = createRangeClass();
+
+  return class Location {
+    uri: any;
+    range: any;
+
+    constructor(uri: any, rangeOrPosition: any) {
+      this.uri = uri;
+      if (rangeOrPosition.line !== undefined) {
+        // It's a Position, create a range from it
+        const PositionClass = createPositionClass();
+        this.range = new RangeClass(rangeOrPosition, rangeOrPosition);
+      } else {
+        // It's already a Range
+        this.range = rangeOrPosition;
+      }
+    }
+  };
+}
+
+/**
+ * Create TextEdit class
+ */
+function createTextEditClass() {
+  const RangeClass = createRangeClass();
+
+  return class TextEdit {
+    range: any;
+    newText: string;
+    newEol?: number;
+
+    constructor(range: any, newText: string) {
+      this.range = range;
+      this.newText = newText;
+    }
+
+    static replace(range: any, newText: string): TextEdit {
+      return new TextEdit(range, newText);
+    }
+
+    static insert(position: any, newText: string): TextEdit {
+      const range = new RangeClass(position, position);
+      return new TextEdit(range, newText);
+    }
+
+    static delete(range: any): TextEdit {
+      return new TextEdit(range, '');
+    }
+
+    static setEndOfLine(eol: number): TextEdit {
+      const edit = new TextEdit(null as any, '');
+      edit.newEol = eol;
+      return edit;
+    }
+  };
+}
+
+/**
+ * Create WorkspaceEdit class
+ */
+function createWorkspaceEditClass() {
+  return class WorkspaceEdit {
+    private _edits: Map<string, any[]> = new Map();
+    private _resourceEdits: any[] = [];
+
+    get size(): number {
+      return this._edits.size + this._resourceEdits.length;
+    }
+
+    replace(uri: any, range: any, newText: string): void {
+      const TextEditClass = createTextEditClass();
+      this.set(uri, [TextEditClass.replace(range, newText)]);
+    }
+
+    insert(uri: any, position: any, newText: string): void {
+      const TextEditClass = createTextEditClass();
+      this.set(uri, [TextEditClass.insert(position, newText)]);
+    }
+
+    delete(uri: any, range: any): void {
+      const TextEditClass = createTextEditClass();
+      this.set(uri, [TextEditClass.delete(range)]);
+    }
+
+    has(uri: any): boolean {
+      return this._edits.has(uri.toString());
+    }
+
+    set(uri: any, edits: any[]): void {
+      this._edits.set(uri.toString(), edits);
+    }
+
+    get(uri: any): any[] {
+      return this._edits.get(uri.toString()) || [];
+    }
+
+    createFile(uri: any, options?: { overwrite?: boolean; ignoreIfExists?: boolean }): void {
+      this._resourceEdits.push({
+        type: 'create',
+        uri,
+        options,
+      });
+    }
+
+    deleteFile(uri: any, options?: { recursive?: boolean; ignoreIfNotExists?: boolean }): void {
+      this._resourceEdits.push({
+        type: 'delete',
+        uri,
+        options,
+      });
+    }
+
+    renameFile(oldUri: any, newUri: any, options?: { overwrite?: boolean; ignoreIfExists?: boolean }): void {
+      this._resourceEdits.push({
+        type: 'rename',
+        oldUri,
+        newUri,
+        options,
+      });
+    }
+
+    entries(): [any, any[]][] {
+      const result: [any, any[]][] = [];
+      this._edits.forEach((edits, uriStr) => {
+        const VSCodeUriClass = VSCodeUri;
+        result.push([VSCodeUriClass.parse(uriStr), edits]);
+      });
+      return result;
     }
   };
 }

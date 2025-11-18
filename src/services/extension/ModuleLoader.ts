@@ -439,6 +439,21 @@ export class ModuleLoader {
           );
         }
         console.log('[ModuleLoader] Loaded vscode module from global scope');
+        console.log('[ModuleLoader] Available vscode classes:', Object.keys(vscode).filter(k => typeof vscode[k] === 'function'));
+
+        // Validate critical classes
+        const criticalClasses = [
+          'Uri', 'Range', 'Position', 'Selection', 'Disposable', 'EventEmitter',
+          'TreeItem', 'TreeDataProvider', 'CancellationTokenSource', 'MarkdownString',
+          'ThemeIcon', 'ThemeColor', 'StatusBarItem', 'Diagnostic', 'Location',
+          'WorkspaceEdit', 'TextEdit'
+        ];
+
+        const missingClasses = criticalClasses.filter(className => !vscode[className]);
+        if (missingClasses.length > 0) {
+          console.warn('[ModuleLoader] WARNING: Missing vscode classes:', missingClasses);
+        }
+
         return vscode;
 
       case 'path':

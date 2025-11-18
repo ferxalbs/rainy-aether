@@ -224,6 +224,15 @@ export interface VSCodeAPI {
   MarkdownString: any;
   ThemeIcon: any;
   ThemeColor: any;
+  StatusBarItem: any;
+  QuickPickItem: any;
+  CodeLens: any;
+  Command: any;
+  Diagnostic: any;
+  DiagnosticCollection: any;
+  Location: any;
+  WorkspaceEdit: any;
+  TextEdit: any;
 
   // Enums
   DiagnosticSeverity: any;
