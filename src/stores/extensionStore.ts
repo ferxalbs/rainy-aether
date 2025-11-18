@@ -112,54 +112,102 @@ async function initializeStore() {
 
   // Listen to extension manager events
   extensionManager.on('extension:installing', async (_extension) => {
-    const extensions = await extensionManager.getInstalledExtensions();
-    updateState({
-      isInstalling: true,
-      installingExtension: _extension.id,
-      installedExtensions: extensions
-    });
+    try {
+      const extensions = await extensionManager.getInstalledExtensions();
+      updateState({
+        isInstalling: true,
+        installingExtension: _extension.id,
+        installedExtensions: extensions
+      });
+    } catch (error) {
+      console.error('[ExtensionStore] Error during extension installation event:', error);
+      updateState({
+        isInstalling: false,
+        installingExtension: null
+      });
+    }
   });
 
   extensionManager.on('extension:installed', async (_extension) => {
-    const extensions = await extensionManager.getInstalledExtensions();
-    updateState({
-      isInstalling: false,
-      installingExtension: null,
-      installedExtensions: extensions
-    });
+    try {
+      const extensions = await extensionManager.getInstalledExtensions();
+      updateState({
+        isInstalling: false,
+        installingExtension: null,
+        installedExtensions: extensions
+      });
+    } catch (error) {
+      console.error('[ExtensionStore] Error loading extensions after install:', error);
+      updateState({
+        isInstalling: false,
+        installingExtension: null
+      });
+    }
   });
 
   extensionManager.on('extension:enabling', async (_extension) => {
-    await refreshExtensions();
+    try {
+      await refreshExtensions();
+    } catch (error) {
+      console.error('[ExtensionStore] Error during extension enabling event:', error);
+    }
   });
 
   extensionManager.on('extension:enabled', async (_extension) => {
-    await refreshExtensions();
+    try {
+      await refreshExtensions();
+    } catch (error) {
+      console.error('[ExtensionStore] Error during extension enabled event:', error);
+    }
   });
 
   extensionManager.on('extension:disabling', async (_extension) => {
-    await refreshExtensions();
+    try {
+      await refreshExtensions();
+    } catch (error) {
+      console.error('[ExtensionStore] Error during extension disabling event:', error);
+    }
   });
 
   extensionManager.on('extension:disabled', async (_extension) => {
-    await refreshExtensions();
+    try {
+      await refreshExtensions();
+    } catch (error) {
+      console.error('[ExtensionStore] Error during extension disabled event:', error);
+    }
   });
 
   extensionManager.on('extension:uninstalling', async (_extension) => {
-    await refreshExtensions();
+    try {
+      await refreshExtensions();
+    } catch (error) {
+      console.error('[ExtensionStore] Error during extension uninstalling event:', error);
+    }
   });
 
   extensionManager.on('extension:uninstalled', async (_extension) => {
-    await refreshExtensions();
+    try {
+      await refreshExtensions();
+    } catch (error) {
+      console.error('[ExtensionStore] Error during extension uninstalled event:', error);
+    }
   });
 
   extensionManager.on('extension:error', async (_extension, _error) => {
-    const extensions = await extensionManager.getInstalledExtensions();
-    updateState({
-      isInstalling: false,
-      installingExtension: null,
-      installedExtensions: extensions
-    });
+    try {
+      const extensions = await extensionManager.getInstalledExtensions();
+      updateState({
+        isInstalling: false,
+        installingExtension: null,
+        installedExtensions: extensions
+      });
+    } catch (error) {
+      console.error('[ExtensionStore] Error loading extensions after error event:', error);
+      updateState({
+        isInstalling: false,
+        installingExtension: null
+      });
+    }
   });
 }
 

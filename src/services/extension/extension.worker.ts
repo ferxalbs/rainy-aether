@@ -28,6 +28,8 @@ let isInitialized = false;
 let extensionBasePath: string | null = null;
 let isTauriEnvironment = false; // Set during initialization
 const fileContentCache = new Map<string, string>();
+const cacheAccessOrder: string[] = [];
+const MAX_CACHE_SIZE = 50; // Cache only 50 most recent files
 
 /**
  * Message handler
@@ -349,12 +351,16 @@ async function handleWebviewMessage(message: ExtensionMessage): Promise<void> {
 async function callHostAPI(namespace: string, method: string, args: any[]): Promise<any> {
   return new Promise((resolve, reject) => {
     const id = `api-${Date.now()}-${Math.random()}`;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     // Set up response handler
     const responseHandler = (event: MessageEvent<ExtensionMessage>) => {
       const message = event.data;
       if (message.type === ExtensionMessageType.APIResponse && message.id === id) {
         self.removeEventListener('message', responseHandler);
+
+        // Clean up timeout on response
+        if (timeoutId) clearTimeout(timeoutId);
 
         if (message.data.success) {
           resolve(message.data.result);
@@ -377,8 +383,8 @@ async function callHostAPI(namespace: string, method: string, args: any[]): Prom
       },
     });
 
-    // Timeout after 30 seconds
-    setTimeout(() => {
+    // Store timeout reference for cleanup
+    timeoutId = setTimeout(() => {
       self.removeEventListener('message', responseHandler);
       reject(new Error('API call timeout'));
     }, 30000);
@@ -392,6 +398,12 @@ async function readExtensionFile(path: string): Promise<string> {
   const normalizedPath = normalizeExtensionFilePath(path);
 
   if (fileContentCache.has(normalizedPath)) {
+    // Move to end (most recently used) for LRU tracking
+    const idx = cacheAccessOrder.indexOf(normalizedPath);
+    if (idx > -1) {
+      cacheAccessOrder.splice(idx, 1);
+    }
+    cacheAccessOrder.push(normalizedPath);
     return fileContentCache.get(normalizedPath)!;
   }
 
@@ -409,7 +421,14 @@ async function readExtensionFile(path: string): Promise<string> {
       throw new Error('Invalid file content received from host');
     }
 
+    // Enforce max cache size with LRU eviction
+    if (fileContentCache.size >= MAX_CACHE_SIZE) {
+      const oldest = cacheAccessOrder.shift()!;
+      fileContentCache.delete(oldest);
+    }
+
     fileContentCache.set(normalizedPath, content);
+    cacheAccessOrder.push(normalizedPath);
     return content;
   } catch (error) {
     log('error', `Failed to read extension file: ${normalizedPath}`, error);
