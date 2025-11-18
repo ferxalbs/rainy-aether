@@ -97,12 +97,18 @@ const IDE: React.FC = () => {
   // Initialize update service
   useEffect(() => {
     const initUpdates = async () => {
-      await initializeUpdateService();
-      // Start auto-checking for updates every 24 hours
-      startAutoUpdateCheck(24);
+      try {
+        await initializeUpdateService();
+        // Start auto-checking for updates every 24 hours
+        startAutoUpdateCheck(24);
+      } catch (error) {
+        console.error('[IDE] Failed to initialize update service:', error);
+        // Update service failure is not critical - app can continue
+        // User will be notified through the UI if updates are unavailable
+      }
     };
 
-    initUpdates().catch(console.error);
+    initUpdates();
   }, []);
 
   const cycleTab = useCallback(

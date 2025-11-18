@@ -162,23 +162,32 @@ export function refreshRepoDetection() {
     .catch(() => updateGitState({ isRepo: false }));
 }
 
-export async function refreshHistory(maxCount = 100, debounce = true) {
-  const wsPath = git.workspacePath;
+export async function refreshHistory(maxCount = 100, debounce = true, targetPath?: string) {
+  const wsPath = targetPath || git.workspacePath;
   if (!wsPath) return;
 
   // Debounce to prevent excessive calls
   if (debounce) {
     if (refreshHistoryTimer) clearTimeout(refreshHistoryTimer);
-    refreshHistoryTimer = setTimeout(() => refreshHistory(maxCount, false), 300);
+    // Pass wsPath to maintain consistency across debounce
+    refreshHistoryTimer = setTimeout(() => refreshHistory(maxCount, false, wsPath), 300);
+    return;
+  }
+
+  // Verify workspace hasn't changed before starting
+  const currentWsPath = git.workspacePath;
+  if (currentWsPath !== wsPath) {
+    console.log('[Git] Workspace changed before history refresh, aborting');
     return;
   }
 
   updateGitState({ loadingHistory: true });
   try {
-    // Verify workspace hasn't changed during debounce
-    const currentWsPath = git.workspacePath;
-    if (currentWsPath !== wsPath) {
-      console.log('[Git] Workspace changed during debounce, aborting history refresh');
+    // Double-check workspace hasn't changed during async operations
+    const doubleCheckPath = git.workspacePath;
+    if (doubleCheckPath !== wsPath) {
+      console.log('[Git] Workspace changed during history refresh, aborting');
+      updateGitState({ loadingHistory: false });
       return;
     }
 
