@@ -864,9 +864,63 @@ export class ModuleLoader {
       listenerCount(event: string): number {
         return this.events.get(event)?.length || 0;
       }
+
+      addListener(event: string, listener: Function): this {
+        return this.on(event, listener);
+      }
+
+      removeListener(event: string, listener: Function): this {
+        return this.off(event, listener);
+      }
+
+      // Static method for max listeners
+      static defaultMaxListeners = 10;
+
+      setMaxListeners(_n: number): this {
+        return this;
+      }
+
+      getMaxListeners(): number {
+        return EventEmitter.defaultMaxListeners;
+      }
+
+      eventNames(): string[] {
+        return Array.from(this.events.keys());
+      }
+
+      listeners(event: string): Function[] {
+        return this.events.get(event) || [];
+      }
+
+      rawListeners(event: string): Function[] {
+        return this.listeners(event);
+      }
+
+      prependListener(event: string, listener: Function): this {
+        if (!this.events.has(event)) {
+          this.events.set(event, []);
+        }
+        this.events.get(event)!.unshift(listener);
+        return this;
+      }
+
+      prependOnceListener(event: string, listener: Function): this {
+        const onceListener = (...args: any[]) => {
+          this.off(event, onceListener);
+          listener.apply(this, args);
+        };
+        return this.prependListener(event, onceListener);
+      }
     }
 
-    return { EventEmitter };
+    // In Node.js, require('events') returns EventEmitter class directly
+    // but also has EventEmitter as a property for compatibility
+    // This matches: const EventEmitter = require('events')
+    // and also: const { EventEmitter } = require('events')
+    const exports: any = EventEmitter;
+    exports.EventEmitter = EventEmitter;
+    exports.default = EventEmitter;
+    return exports;
   }
 
   /**
@@ -1140,7 +1194,7 @@ export class ModuleLoader {
    * Stream module shim (basic)
    */
   private getStreamShim(): any {
-    const { EventEmitter } = this.getEventsShim();
+    const EventEmitter = this.getEventsShim();
 
     class Readable extends EventEmitter {
       constructor() {
@@ -1520,7 +1574,7 @@ export class ModuleLoader {
    * Provides stub implementations that throw helpful errors when called
    */
   private getChildProcessShim(): any {
-    const { EventEmitter } = this.getEventsShim();
+    const EventEmitter = this.getEventsShim();
 
     const notSupportedError = () => {
       throw new Error('child_process operations are not supported in browser environment. Extensions should use VS Code APIs for process execution.');
