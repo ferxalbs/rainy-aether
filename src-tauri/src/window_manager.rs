@@ -13,7 +13,10 @@ use tauri_plugin_shell::ShellExt;
 pub async fn window_open_new(app: AppHandle) -> Result<String, String> {
     let label = format!("main-{}", chrono::Utc::now().timestamp_millis());
 
-    eprintln!("[window_manager] Creating new window '{}' (StartupPage)", label);
+    eprintln!(
+        "[window_manager] Creating new window '{}' (StartupPage)",
+        label
+    );
 
     // Build window - EXACTLY like Fluxium (no visible, no show, just build)
     let _window = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App("index.html".into()))

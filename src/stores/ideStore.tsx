@@ -682,6 +682,13 @@ const closeSettings = () => {
 };
 
 const closeFile = (fileId: string) => {
+  // Clean up auto-save timer to prevent memory leak
+  const timer = autoSaveTimers.get(fileId);
+  if (timer) {
+    clearTimeout(timer);
+    autoSaveTimers.delete(fileId);
+  }
+
   setState((prev) => {
     const openFiles = prev.openFiles.filter((file) => file.id !== fileId);
     const activeFileId = prev.activeFileId === fileId ? openFiles[0]?.id ?? null : prev.activeFileId;
