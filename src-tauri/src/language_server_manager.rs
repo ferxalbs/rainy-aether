@@ -68,7 +68,10 @@ impl LanguageServerManager {
 
         // Check if server is already running
         {
-            let servers = self.servers.lock().unwrap();
+            let servers = self
+                .servers
+                .lock()
+                .map_err(|e| format!("Failed to acquire servers lock: {}", e))?;
             if servers.contains_key(&server_id) {
                 return Err(format!("Server {} is already running", server_id));
             }
@@ -110,7 +113,10 @@ impl LanguageServerManager {
 
         // Store process info
         {
-            let mut servers = self.servers.lock().unwrap();
+            let mut servers = self
+                .servers
+                .lock()
+                .map_err(|e| format!("Failed to acquire servers lock: {}", e))?;
             servers.insert(
                 server_id.clone(),
                 LanguageServerProcess {
@@ -213,7 +219,10 @@ impl LanguageServerManager {
     pub fn stop_server(&self, server_id: &str) -> Result<(), String> {
         println!("[LSP] Stopping language server: {}", server_id);
 
-        let mut servers = self.servers.lock().unwrap();
+        let mut servers = self
+            .servers
+            .lock()
+            .map_err(|e| format!("Failed to acquire servers lock: {}", e))?;
 
         if let Some(mut server_process) = servers.remove(server_id) {
             // Try to gracefully kill the process
@@ -234,7 +243,10 @@ impl LanguageServerManager {
 
     /// Send a message to a language server
     pub fn send_message(&self, server_id: &str, message: &str) -> Result<(), String> {
-        let mut servers = self.servers.lock().unwrap();
+        let mut servers = self
+            .servers
+            .lock()
+            .map_err(|e| format!("Failed to acquire servers lock: {}", e))?;
 
         if let Some(server_process) = servers.get_mut(server_id) {
             if let Some(stdin) = &mut server_process.stdin {
@@ -262,13 +274,27 @@ impl LanguageServerManager {
 
     /// Check if a server is running
     pub fn is_server_running(&self, server_id: &str) -> bool {
-        let servers = self.servers.lock().unwrap();
+        // Recover from poisoned mutex
+        let servers = match self.servers.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!("[LSP] Mutex poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         servers.contains_key(server_id)
     }
 
     /// Get list of running servers
     pub fn get_running_servers(&self) -> Vec<String> {
-        let servers = self.servers.lock().unwrap();
+        // Recover from poisoned mutex
+        let servers = match self.servers.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!("[LSP] Mutex poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         servers.keys().cloned().collect()
     }
 
@@ -276,7 +302,14 @@ impl LanguageServerManager {
     pub fn stop_all_servers(&self) {
         println!("[LSP] Stopping all language servers");
 
-        let mut servers = self.servers.lock().unwrap();
+        // Recover from poisoned mutex
+        let mut servers = match self.servers.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!("[LSP] Mutex poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         let server_ids: Vec<String> = servers.keys().cloned().collect();
 
         for server_id in server_ids {

@@ -175,6 +175,13 @@ export async function refreshHistory(maxCount = 100, debounce = true) {
 
   updateGitState({ loadingHistory: true });
   try {
+    // Verify workspace hasn't changed during debounce
+    const currentWsPath = git.workspacePath;
+    if (currentWsPath !== wsPath) {
+      console.log('[Git] Workspace changed during debounce, aborting history refresh');
+      return;
+    }
+
     // Use native implementation to fix crashes when viewing commits
     const [commits, unpushed]: [Commit[], string[]] = await Promise.all([
       invoke<Commit[]>("git_log_native", { path: wsPath, maxCount: maxCount }),
@@ -205,6 +212,13 @@ export async function refreshStatus(debounce = true) {
   }
 
   try {
+    // Verify workspace hasn't changed during debounce
+    const currentWsPath = git.workspacePath;
+    if (currentWsPath !== wsPath) {
+      console.log('[Git] Workspace changed during debounce, aborting status refresh');
+      return;
+    }
+
     // Use native implementation for better performance (6-8x faster)
     const entries = await invoke<StatusEntry[]>("git_status_native", { path: wsPath });
     updateGitState({ status: entries });
@@ -226,6 +240,13 @@ export async function refreshBranches(debounce = true) {
 
   updateGitState({ loadingBranches: true });
   try {
+    // Verify workspace hasn't changed during debounce
+    const currentWsPath = git.workspacePath;
+    if (currentWsPath !== wsPath) {
+      console.log('[Git] Workspace changed during debounce, aborting branches refresh');
+      return;
+    }
+
     // Use native implementation for better performance (7.5x faster)
     const branches = await invoke<Branch[]>("git_branches_native", { path: wsPath });
     const currentBranch = branches.find(b => b.current)?.name;
@@ -876,8 +897,31 @@ export async function getConfig(key: string) {
 export async function setConfig(key: string, value: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_set_config", { path: wsPath, key, value });
+}
+
+// ============================================================================
+// CLEANUP
+// ============================================================================
+
+/**
+ * Clean up all git timers to prevent memory leaks
+ * Should be called when workspace is closed or changed
+ */
+export function cleanupGitTimers() {
+  if (refreshStatusTimer) {
+    clearTimeout(refreshStatusTimer);
+    refreshStatusTimer = null;
+  }
+  if (refreshHistoryTimer) {
+    clearTimeout(refreshHistoryTimer);
+    refreshHistoryTimer = null;
+  }
+  if (refreshBranchesTimer) {
+    clearTimeout(refreshBranchesTimer);
+    refreshBranchesTimer = null;
+  }
 }
 
 export { git as gitState };
