@@ -112,8 +112,27 @@ async function handleInitialize(message: ExtensionMessage): Promise<void> {
     return await callHostAPI(namespace, method, args);
   });
 
-  // Make vscode API available globally
-  (self as any).vscode = vscodeAPI;
+  // Make vscode API available globally with Proxy to detect undefined accesses
+  const vscodeProxy = new Proxy(vscodeAPI, {
+    get(target, prop) {
+      const value = (target as any)[prop];
+
+      // Log access to constructors/classes
+      if (typeof value === 'function' && prop !== 'toString' && prop !== 'valueOf') {
+        console.log(`[VSCodeAPI] Accessed class/function: ${String(prop)}`);
+      }
+
+      // Warn if undefined
+      if (value === undefined && prop !== 'then' && typeof prop === 'string') {
+        console.warn(`[VSCodeAPI] WARNING: Accessed undefined property: ${String(prop)}`);
+        console.trace();
+      }
+
+      return value;
+    }
+  });
+
+  (self as any).vscode = vscodeProxy;
 
   // Create module loader
   moduleLoader = createModuleLoader(
