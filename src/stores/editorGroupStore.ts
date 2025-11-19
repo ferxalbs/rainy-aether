@@ -63,24 +63,29 @@ export const editorGroupActions = {
   split(direction: SplitDirection = "horizontal") {
     setState((prev) => {
       if (prev.groups.length >= 3) {
-        // Limit to 3 splits for now
         return prev;
       }
 
       const activeGroup = prev.groups.find((g) => g.id === prev.activeGroupId);
-      if (!activeGroup) return prev;
+      if (!activeGroup || activeGroup.openFileIds.length === 0) {
+        // Don't split if no files are open
+        return prev;
+      }
 
       const newGroupId = `group-${Date.now()}`;
+
+      // New group starts empty - user will open files in it
       const newGroup: EditorGroup = {
         id: newGroupId,
-        activeFileId: activeGroup.activeFileId,
-        openFileIds: activeGroup.activeFileId ? [activeGroup.activeFileId] : [],
+        activeFileId: null,
+        openFileIds: [],
       };
 
       return {
         ...prev,
         groups: [...prev.groups, newGroup],
-        activeGroupId: newGroupId,
+        // Keep active group as the original one
+        activeGroupId: prev.activeGroupId,
         splitDirection: direction,
       };
     });
@@ -92,7 +97,6 @@ export const editorGroupActions = {
   closeGroup(groupId: string) {
     setState((prev) => {
       if (prev.groups.length <= 1) {
-        // Can't close the last group
         return prev;
       }
 
@@ -264,10 +268,11 @@ export const editorGroupActions = {
 
   /**
    * Sync with IDE store when files are opened/closed
+   * This is called when the IDE store changes
    */
   syncWithOpenFiles(openFileIds: string[], activeFileId: string | null) {
     setState((prev) => {
-      // If only one group, keep it synced with IDE store
+      // If only one group, keep it fully synced with IDE store
       if (prev.groups.length === 1) {
         return {
           ...prev,
@@ -281,24 +286,80 @@ export const editorGroupActions = {
         };
       }
 
-      // With multiple groups, remove closed files from all groups
-      const closedFiles = new Set(
-        prev.groups.flatMap((g) => g.openFileIds).filter((id) => !openFileIds.includes(id))
+      // With multiple groups:
+      // 1. Find newly opened files (in IDE but not in any group)
+      const allGroupFileIds = new Set(prev.groups.flatMap((g) => g.openFileIds));
+      const newFileIds = openFileIds.filter((id) => !allGroupFileIds.has(id));
+
+      // 2. Find closed files (in groups but not in IDE)
+      const closedFileIds = new Set(
+        Array.from(allGroupFileIds).filter((id) => !openFileIds.includes(id))
       );
 
-      if (closedFiles.size === 0) return prev;
+      // 3. Update groups
+      let updatedGroups = prev.groups.map((group) => {
+        // Remove closed files
+        const filteredFiles = group.openFileIds.filter((id) => !closedFileIds.has(id));
+
+        // Determine new active file if current was closed
+        let newActiveFileId = group.activeFileId;
+        if (closedFileIds.has(group.activeFileId || "")) {
+          newActiveFileId = filteredFiles[0] || null;
+        }
+
+        return {
+          ...group,
+          openFileIds: filteredFiles,
+          activeFileId: newActiveFileId,
+        };
+      });
+
+      // 4. Add new files to the active group
+      if (newFileIds.length > 0) {
+        updatedGroups = updatedGroups.map((group) => {
+          if (group.id === prev.activeGroupId) {
+            return {
+              ...group,
+              openFileIds: [...group.openFileIds, ...newFileIds],
+              activeFileId: activeFileId || newFileIds[newFileIds.length - 1],
+            };
+          }
+          return group;
+        });
+      }
+
+      // 5. Update active file in the active group if it changed
+      if (activeFileId) {
+        updatedGroups = updatedGroups.map((group) => {
+          if (group.id === prev.activeGroupId && group.openFileIds.includes(activeFileId)) {
+            return {
+              ...group,
+              activeFileId,
+            };
+          }
+          return group;
+        });
+      }
 
       return {
         ...prev,
-        groups: prev.groups.map((group) => ({
-          ...group,
-          openFileIds: group.openFileIds.filter((id) => !closedFiles.has(id)),
-          activeFileId: closedFiles.has(group.activeFileId || "")
-            ? group.openFileIds.filter((id) => !closedFiles.has(id))[0] || null
-            : group.activeFileId,
-        })),
+        groups: updatedGroups,
       };
     });
+  },
+
+  /**
+   * Check if we have multiple groups
+   */
+  hasSplits() {
+    return state.groups.length > 1;
+  },
+
+  /**
+   * Get active group
+   */
+  getActiveGroup() {
+    return state.groups.find((g) => g.id === state.activeGroupId);
   },
 
   /**

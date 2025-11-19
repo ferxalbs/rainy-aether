@@ -87,7 +87,7 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
     <div
       className={cn(
         "flex flex-col h-full file-viewer-main",
-        isActive && "ring-1 ring-primary/50"
+        isActive && "ring-2 ring-primary/50"
       )}
       onClick={onActivate}
     >
@@ -108,7 +108,10 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
                     "focus-visible:ring-0 focus-visible:ring-offset-0",
                     isActiveTab ? "active" : ""
                   )}
-                  onClick={() => onFileSelect(file.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFileSelect(file.id);
+                  }}
                 >
                   <span className="truncate max-w-32">{file.name}</span>
                   {file.isDirty && (
@@ -133,8 +136,8 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
         </div>
 
         {/* Split controls */}
-        {showSplitControls && groupFiles.length > 0 && (
-          <div className="flex items-center px-1 gap-0.5">
+        <div className="flex items-center px-1 gap-0.5">
+          {showSplitControls && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -146,6 +149,7 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
                       e.stopPropagation();
                       editorGroupActions.split("horizontal");
                     }}
+                    disabled={groupFiles.length === 0}
                   >
                     <Columns className="h-3.5 w-3.5" />
                   </Button>
@@ -163,6 +167,7 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
                       e.stopPropagation();
                       editorGroupActions.split("vertical");
                     }}
+                    disabled={groupFiles.length === 0}
                   >
                     <SplitSquareVertical className="h-3.5 w-3.5" />
                   </Button>
@@ -170,23 +175,23 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
                 <TooltipContent>Split Down</TooltipContent>
               </Tooltip>
             </TooltipProvider>
+          )}
 
-            {canClose && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClose();
-                }}
-                title="Close Split"
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-        )}
+          {canClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              title="Close Split"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Breadcrumbs */}
@@ -202,10 +207,18 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
             onChange={(value: string) => onContentChange(activeFile.id, value)}
           />
         ) : (
-          <div className="flex items-center justify-center h-full file-viewer-fallback">
+          <div
+            className={cn(
+              "flex items-center justify-center h-full file-viewer-fallback cursor-pointer",
+              isActive && "bg-accent/20"
+            )}
+            onClick={onActivate}
+          >
             <div className="text-center">
               <div className="text-2xl mb-2">📄</div>
-              <div>Select a file to start editing</div>
+              <div className="text-sm text-muted-foreground">
+                {canClose ? "Click here and open a file" : "Select a file to start editing"}
+              </div>
             </div>
           </div>
         )}
