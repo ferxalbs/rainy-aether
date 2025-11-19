@@ -40,6 +40,7 @@ export interface OpenFile {
   path: string;
   content: string;
   isDirty: boolean;
+  isPinned?: boolean;
 }
 
 export interface Workspace {
@@ -713,6 +714,112 @@ const closeFile = (fileId: string) => {
   });
 };
 
+const pinFile = (fileId: string) => {
+  setState((prev) => {
+    const fileIndex = prev.openFiles.findIndex((file) => file.id === fileId);
+    if (fileIndex === -1) return prev;
+
+    const file = prev.openFiles[fileIndex];
+    const updatedFile = { ...file, isPinned: true };
+
+    // Remove file from current position and add to beginning (after other pinned files)
+    const otherFiles = prev.openFiles.filter((f) => f.id !== fileId);
+    const pinnedFiles = otherFiles.filter((f) => f.isPinned);
+    const unpinnedFiles = otherFiles.filter((f) => !f.isPinned);
+
+    return {
+      ...prev,
+      openFiles: [...pinnedFiles, updatedFile, ...unpinnedFiles],
+    };
+  });
+};
+
+const unpinFile = (fileId: string) => {
+  setState((prev) => {
+    const fileIndex = prev.openFiles.findIndex((file) => file.id === fileId);
+    if (fileIndex === -1) return prev;
+
+    const file = prev.openFiles[fileIndex];
+    const updatedFile = { ...file, isPinned: false };
+
+    // Move to after all pinned files
+    const otherFiles = prev.openFiles.filter((f) => f.id !== fileId);
+    const pinnedFiles = otherFiles.filter((f) => f.isPinned);
+    const unpinnedFiles = otherFiles.filter((f) => !f.isPinned);
+
+    return {
+      ...prev,
+      openFiles: [...pinnedFiles, updatedFile, ...unpinnedFiles],
+    };
+  });
+};
+
+const togglePinFile = (fileId: string) => {
+  const file = getState().openFiles.find((f) => f.id === fileId);
+  if (!file) return;
+
+  if (file.isPinned) {
+    unpinFile(fileId);
+  } else {
+    pinFile(fileId);
+  }
+};
+
+const closeUnpinnedFiles = () => {
+  setState((prev) => {
+    const pinnedFiles = prev.openFiles.filter((file) => file.isPinned);
+    const activeFileId = pinnedFiles.some((file) => file.id === prev.activeFileId)
+      ? prev.activeFileId
+      : pinnedFiles[0]?.id ?? null;
+
+    return {
+      ...prev,
+      openFiles: pinnedFiles,
+      activeFileId,
+    };
+  });
+};
+
+const closeOtherFiles = (keepFileId: string) => {
+  setState((prev) => {
+    const fileToKeep = prev.openFiles.find((file) => file.id === keepFileId);
+    const pinnedFiles = prev.openFiles.filter((file) => file.isPinned && file.id !== keepFileId);
+
+    const openFiles = fileToKeep
+      ? [...pinnedFiles, fileToKeep]
+      : pinnedFiles;
+
+    return {
+      ...prev,
+      openFiles,
+      activeFileId: keepFileId,
+    };
+  });
+};
+
+const closeFilesToTheRight = (fileId: string) => {
+  setState((prev) => {
+    const fileIndex = prev.openFiles.findIndex((file) => file.id === fileId);
+    if (fileIndex === -1) return prev;
+
+    // Keep files up to and including the target file, plus any pinned files after
+    const filesToKeep = prev.openFiles.filter((file, index) => {
+      if (index <= fileIndex) return true;
+      return file.isPinned;
+    });
+
+    const activeFileId = filesToKeep.some((file) => file.id === prev.activeFileId)
+      ? prev.activeFileId
+      : filesToKeep[filesToKeep.length - 1]?.id ?? null;
+
+    return {
+      ...prev,
+      openFiles: filesToKeep,
+      activeFileId,
+    };
+  });
+};
+
 const setActiveFile = (fileId: string) => {
   setState((prev) => ({ ...prev, activeFileId: fileId }));
   
@@ -771,7 +878,42 @@ const saveFile = async (fileId: string) => {
   if (!file) return;
 
   try {
-    await invoke("save_file_content", { path: file.path, content: file.content });
+    // Check if Format on Save is enabled
+    const { getSettingsState } = await import("./settingsStore");
+    const { editorActions } = await import("./editorStore");
+    const settings = getSettingsState();
+
+    if (settings.editor.formatOnSave && file.path) {
+      // Format the document before saving
+      try {
+        editorActions.formatDocument();
+        // Wait a bit for formatting to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Get updated content after formatting
+        const editor = editorActions.getCurrentEditor();
+        if (editor) {
+          const formattedContent = editor.getValue();
+          // Update the file content with formatted version
+          setState((prev) => ({
+            ...prev,
+            openFiles: prev.openFiles.map((openFile) =>
+              openFile.id === fileId ? { ...openFile, content: formattedContent } : openFile,
+            ),
+          }));
+          // Use formatted content for saving
+          await invoke("save_file_content", { path: file.path, content: formattedContent });
+        } else {
+          await invoke("save_file_content", { path: file.path, content: file.content });
+        }
+      } catch (formatError) {
+        console.warn("Format on save failed, saving without formatting:", formatError);
+        await invoke("save_file_content", { path: file.path, content: file.content });
+      }
+    } else {
+      await invoke("save_file_content", { path: file.path, content: file.content });
+    }
+
     setState((prev) => ({
       ...prev,
       openFiles: prev.openFiles.map((openFile) =>
@@ -964,6 +1106,13 @@ const ideActions = {
   saveAllFiles,
   closeProject,
   getState, // Add getState to actions for non-React access
+  // Pinned tabs actions
+  pinFile,
+  unpinFile,
+  togglePinFile,
+  closeUnpinnedFiles,
+  closeOtherFiles,
+  closeFilesToTheRight,
 };
 
 // Export ideActions for use outside of React context
