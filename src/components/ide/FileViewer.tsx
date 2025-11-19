@@ -197,6 +197,7 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
   onMoveFile,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = React.useRef(0);
 
   const groupFiles = useMemo(() => {
     return group.openFileIds
@@ -212,18 +213,31 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
     return allGroups.filter((g) => g.id !== group.id);
   }, [allGroups, group.id]);
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current++;
+    if (dragCounterRef.current === 1) {
+      setIsDragOver(true);
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    setIsDragOver(true);
   };
 
-  const handleDragLeave = () => {
-    setIsDragOver(false);
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
     setIsDragOver(false);
 
     try {
@@ -241,9 +255,10 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
       className={cn(
         "flex flex-col h-full file-viewer-main",
         isActive && "ring-2 ring-primary/50",
-        isDragOver && "bg-accent/30"
+        isDragOver && "bg-accent/30 ring-2 ring-primary"
       )}
       onClick={onActivate}
+      onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
