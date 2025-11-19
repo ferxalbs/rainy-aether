@@ -9,9 +9,16 @@ import {
   Moon,
   Sun,
   FilePlus,
+  Minimize2,
+  Maximize2,
+  Map,
+  Columns,
+  WrapText,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { toggleDayNight, useThemeState, isExtensionThemeActive } from "../../stores/themeStore";
+import { editorActions } from "../../stores/editorStore";
+import { editorGroupActions } from "../../stores/editorGroupStore";
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -122,6 +129,133 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
         title: "Open Theme Store",
         run: () => onOpenThemeSwitcher(),
         icon: "palette",
+      },
+      // Folding commands
+      {
+        id: "fold-all",
+        title: "Fold All",
+        hint: "Ctrl+K Ctrl+0",
+        run: () => editorActions.foldAll(),
+      },
+      {
+        id: "unfold-all",
+        title: "Unfold All",
+        hint: "Ctrl+K Ctrl+J",
+        run: () => editorActions.unfoldAll(),
+      },
+      {
+        id: "fold",
+        title: "Fold",
+        hint: "Ctrl+Shift+[",
+        run: () => editorActions.fold(),
+      },
+      {
+        id: "unfold",
+        title: "Unfold",
+        hint: "Ctrl+Shift+]",
+        run: () => editorActions.unfold(),
+      },
+      {
+        id: "toggle-fold",
+        title: "Toggle Fold",
+        run: () => editorActions.toggleFold(),
+      },
+      {
+        id: "fold-recursively",
+        title: "Fold Recursively",
+        run: () => editorActions.foldRecursively(),
+      },
+      {
+        id: "unfold-recursively",
+        title: "Unfold Recursively",
+        run: () => editorActions.unfoldRecursively(),
+      },
+      // View commands
+      {
+        id: "toggle-minimap",
+        title: "Toggle Minimap",
+        run: () => editorActions.toggleMinimap(),
+      },
+      {
+        id: "toggle-word-wrap",
+        title: "Toggle Word Wrap",
+        hint: "Alt+Z",
+        run: () => editorActions.toggleWrap(),
+      },
+      // Split editor commands
+      {
+        id: "split-editor-right",
+        title: "Split Editor Right",
+        run: () => editorGroupActions.split("horizontal"),
+      },
+      {
+        id: "split-editor-down",
+        title: "Split Editor Down",
+        run: () => editorGroupActions.split("vertical"),
+      },
+      {
+        id: "close-all-splits",
+        title: "Close All Editor Splits",
+        run: () => editorGroupActions.closeSplits(),
+      },
+      // Search commands
+      {
+        id: "global-search",
+        title: "Search in Files",
+        hint: "Ctrl+Shift+F",
+        run: () => {
+          actions.setSidebarActive("search");
+          actions.setSidebarOpen(true);
+        },
+      },
+      // Format and code actions
+      {
+        id: "format-document",
+        title: "Format Document",
+        hint: "Shift+Alt+F",
+        run: () => editorActions.formatDocument(),
+      },
+      {
+        id: "go-to-definition",
+        title: "Go to Definition",
+        hint: "F12",
+        run: () => editorActions.goToDefinition(),
+      },
+      {
+        id: "peek-definition",
+        title: "Peek Definition",
+        hint: "Alt+F12",
+        run: () => editorActions.peekDefinition(),
+      },
+      {
+        id: "find-references",
+        title: "Find All References",
+        hint: "Shift+F12",
+        run: () => editorActions.findAllReferences(),
+      },
+      {
+        id: "rename-symbol",
+        title: "Rename Symbol",
+        hint: "F2",
+        run: () => editorActions.renameSymbol(),
+      },
+      {
+        id: "go-to-symbol",
+        title: "Go to Symbol in Editor",
+        hint: "Ctrl+Shift+O",
+        run: () => editorActions.goToSymbol(),
+      },
+      // Toggle sidebar and zen mode
+      {
+        id: "toggle-sidebar",
+        title: "Toggle Sidebar",
+        hint: "Ctrl+B",
+        run: () => actions.toggleSidebar(),
+      },
+      {
+        id: "toggle-zen-mode",
+        title: "Toggle Zen Mode",
+        run: () => actions.toggleZenMode(),
       },
     ],
     [actions, getActiveFile, onOpenThemeSwitcher, theme.currentTheme.mode],

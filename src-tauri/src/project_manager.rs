@@ -312,3 +312,335 @@ pub fn get_temp_dir() -> Result<String, String> {
         .map(|s| s.to_string())
         .ok_or_else(|| "Failed to get temp directory".to_string())
 }
+
+/// Search result for a single match
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SearchMatch {
+    pub line_number: usize,
+    pub line_content: String,
+    pub match_start: usize,
+    pub match_end: usize,
+}
+
+/// Search result for a file
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FileSearchResult {
+    pub path: String,
+    pub name: String,
+    pub matches: Vec<SearchMatch>,
+}
+
+/// Search options
+#[derive(Deserialize, Debug)]
+pub struct SearchOptions {
+    pub case_sensitive: bool,
+    pub whole_word: bool,
+    pub use_regex: bool,
+    pub include_pattern: Option<String>,
+    pub exclude_pattern: Option<String>,
+    pub max_results: Option<usize>,
+}
+
+/// Check if file should be searched based on include/exclude patterns
+fn should_search_file(path: &Path, include: &Option<String>, exclude: &Option<String>) -> bool {
+    let path_str = path.to_string_lossy().to_string();
+    let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+
+    // Check exclude patterns first
+    if let Some(exclude_pat) = exclude {
+        for pattern in exclude_pat.split(',').map(|s| s.trim()) {
+            if !pattern.is_empty() {
+                // Simple glob matching
+                if pattern.starts_with('*') {
+                    let suffix = &pattern[1..];
+                    if name.ends_with(suffix) || path_str.ends_with(suffix) {
+                        return false;
+                    }
+                } else if pattern.ends_with('*') {
+                    let prefix = &pattern[..pattern.len()-1];
+                    if name.starts_with(prefix) || path_str.contains(prefix) {
+                        return false;
+                    }
+                } else if name == pattern || path_str.contains(pattern) {
+                    return false;
+                }
+            }
+        }
+    }
+
+    // Check include patterns
+    if let Some(include_pat) = include {
+        let patterns: Vec<&str> = include_pat.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+        if !patterns.is_empty() {
+            for pattern in patterns {
+                // Simple glob matching
+                if pattern.starts_with('*') {
+                    let suffix = &pattern[1..];
+                    if name.ends_with(suffix) {
+                        return true;
+                    }
+                } else if pattern.ends_with('*') {
+                    let prefix = &pattern[..pattern.len()-1];
+                    if name.starts_with(prefix) {
+                        return true;
+                    }
+                } else if name == pattern {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Check if file is likely binary
+fn is_binary_file(path: &Path) -> bool {
+    let extension = path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    matches!(
+        extension.as_str(),
+        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "ico" | "webp" | "svg" |
+        "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" |
+        "zip" | "tar" | "gz" | "rar" | "7z" |
+        "exe" | "dll" | "so" | "dylib" |
+        "woff" | "woff2" | "ttf" | "otf" | "eot" |
+        "mp3" | "mp4" | "avi" | "mov" | "mkv" | "wav" | "flac" |
+        "sqlite" | "db" | "lock"
+    )
+}
+
+/// Search for text in files recursively
+fn search_in_directory(
+    dir: &Path,
+    query: &str,
+    options: &SearchOptions,
+    results: &mut Vec<FileSearchResult>,
+    current_count: &mut usize,
+    max_results: usize,
+) -> Result<(), String> {
+    if *current_count >= max_results {
+        return Ok(());
+    }
+
+    let entries = fs::read_dir(dir).map_err(|e| e.to_string())?;
+
+    for entry in entries.flatten() {
+        if *current_count >= max_results {
+            break;
+        }
+
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+
+        // Skip ignored directories
+        if should_ignore(&name) {
+            continue;
+        }
+
+        if path.is_dir() {
+            // Recurse into subdirectory
+            search_in_directory(&path, query, options, results, current_count, max_results)?;
+        } else if path.is_file() {
+            // Check if we should search this file
+            if !should_search_file(&path, &options.include_pattern, &options.exclude_pattern) {
+                continue;
+            }
+
+            // Skip binary files
+            if is_binary_file(&path) {
+                continue;
+            }
+
+            // Skip files larger than 1MB
+            if let Ok(metadata) = fs::metadata(&path) {
+                if metadata.len() > 1024 * 1024 {
+                    continue;
+                }
+            }
+
+            // Search in file
+            if let Ok(content) = fs::read_to_string(&path) {
+                let matches = search_in_content(&content, query, options);
+
+                if !matches.is_empty() {
+                    *current_count += matches.len();
+
+                    results.push(FileSearchResult {
+                        path: path.to_string_lossy().to_string(),
+                        name,
+                        matches,
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Search for matches in file content
+fn search_in_content(content: &str, query: &str, options: &SearchOptions) -> Vec<SearchMatch> {
+    let mut matches = Vec::new();
+
+    if options.use_regex {
+        // Regex search
+        let pattern = if options.case_sensitive {
+            regex::Regex::new(query)
+        } else {
+            regex::RegexBuilder::new(query)
+                .case_insensitive(true)
+                .build()
+        };
+
+        if let Ok(re) = pattern {
+            for (line_num, line) in content.lines().enumerate() {
+                for mat in re.find_iter(line) {
+                    matches.push(SearchMatch {
+                        line_number: line_num + 1,
+                        line_content: line.to_string(),
+                        match_start: mat.start(),
+                        match_end: mat.end(),
+                    });
+                }
+            }
+        }
+    } else {
+        // Plain text search
+        let search_query = if options.case_sensitive {
+            query.to_string()
+        } else {
+            query.to_lowercase()
+        };
+
+        for (line_num, line) in content.lines().enumerate() {
+            let search_line = if options.case_sensitive {
+                line.to_string()
+            } else {
+                line.to_lowercase()
+            };
+
+            let mut start = 0;
+            while let Some(pos) = search_line[start..].find(&search_query) {
+                let match_start = start + pos;
+                let match_end = match_start + query.len();
+
+                // Check whole word if needed
+                if options.whole_word {
+                    let before_ok = match_start == 0 ||
+                        !line.chars().nth(match_start - 1).map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
+                    let after_ok = match_end >= line.len() ||
+                        !line.chars().nth(match_end).map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
+
+                    if !before_ok || !after_ok {
+                        start = match_start + 1;
+                        continue;
+                    }
+                }
+
+                matches.push(SearchMatch {
+                    line_number: line_num + 1,
+                    line_content: line.to_string(),
+                    match_start,
+                    match_end,
+                });
+
+                start = match_end;
+            }
+        }
+    }
+
+    matches
+}
+
+/// Search for text across all files in a workspace
+#[tauri::command]
+pub async fn search_in_workspace(
+    path: String,
+    query: String,
+    options: SearchOptions,
+) -> Result<Vec<FileSearchResult>, String> {
+    if query.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let dir_path = PathBuf::from(&path);
+    if !dir_path.exists() || !dir_path.is_dir() {
+        return Err("Invalid workspace path".to_string());
+    }
+
+    let max_results = options.max_results.unwrap_or(1000);
+    let mut results = Vec::new();
+    let mut current_count = 0;
+
+    search_in_directory(&dir_path, &query, &options, &mut results, &mut current_count, max_results)?;
+
+    // Sort results by file path
+    results.sort_by(|a, b| a.path.cmp(&b.path));
+
+    Ok(results)
+}
+
+/// Replace text in a single file
+#[tauri::command]
+pub async fn replace_in_file(
+    path: String,
+    search: String,
+    replace: String,
+    options: SearchOptions,
+) -> Result<usize, String> {
+    let file_path = PathBuf::from(&path);
+    let content = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
+
+    let (new_content, count) = if options.use_regex {
+        let pattern = if options.case_sensitive {
+            regex::Regex::new(&search)
+        } else {
+            regex::RegexBuilder::new(&search)
+                .case_insensitive(true)
+                .build()
+        };
+
+        match pattern {
+            Ok(re) => {
+                let count = re.find_iter(&content).count();
+                let new_content = re.replace_all(&content, replace.as_str()).to_string();
+                (new_content, count)
+            }
+            Err(e) => return Err(format!("Invalid regex: {}", e)),
+        }
+    } else {
+        let mut new_content = content.clone();
+        let mut count = 0;
+
+        if options.case_sensitive {
+            while new_content.contains(&search) {
+                new_content = new_content.replacen(&search, &replace, 1);
+                count += 1;
+            }
+        } else {
+            let search_lower = search.to_lowercase();
+            let mut result = String::new();
+            let mut remaining = new_content.as_str();
+
+            while let Some(pos) = remaining.to_lowercase().find(&search_lower) {
+                result.push_str(&remaining[..pos]);
+                result.push_str(&replace);
+                remaining = &remaining[pos + search.len()..];
+                count += 1;
+            }
+            result.push_str(remaining);
+            new_content = result;
+        }
+
+        (new_content, count)
+    };
+
+    fs::write(&file_path, new_content).map_err(|e| e.to_string())?;
+
+    Ok(count)
+}

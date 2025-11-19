@@ -244,6 +244,14 @@ const IDE: React.FC = () => {
         return;
       }
 
+      if (ctrl && shift && key === "f") {
+        event.preventDefault();
+        // Open global search in sidebar
+        actionsRef.current.setSidebarActive("search");
+        actionsRef.current.setSidebarOpen(true);
+        return;
+      }
+
       if (!ctrl && !shift && key === "f3") {
         event.preventDefault();
         editorActions.findNext();

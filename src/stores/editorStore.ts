@@ -642,6 +642,95 @@ export const editorActions = {
         console.error('Go forward failed:', error);
       }
     }
+  },
+
+  // Code folding actions
+  foldAll() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.foldAll')?.run();
+      } catch (error) {
+        console.error('Fold all failed:', error);
+      }
+    }
+  },
+
+  unfoldAll() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.unfoldAll')?.run();
+      } catch (error) {
+        console.error('Unfold all failed:', error);
+      }
+    }
+  },
+
+  fold() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.fold')?.run();
+      } catch (error) {
+        console.error('Fold failed:', error);
+      }
+    }
+  },
+
+  unfold() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.unfold')?.run();
+      } catch (error) {
+        console.error('Unfold failed:', error);
+      }
+    }
+  },
+
+  toggleFold() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.toggleFold')?.run();
+      } catch (error) {
+        console.error('Toggle fold failed:', error);
+      }
+    }
+  },
+
+  foldLevel(level: number) {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction(`editor.foldLevel${level}`)?.run();
+      } catch (error) {
+        console.error(`Fold level ${level} failed:`, error);
+      }
+    }
+  },
+
+  foldRecursively() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.foldRecursively')?.run();
+      } catch (error) {
+        console.error('Fold recursively failed:', error);
+      }
+    }
+  },
+
+  unfoldRecursively() {
+    const v = editorState.view;
+    if (v) {
+      try {
+        v.getAction('editor.unfoldRecursively')?.run();
+      } catch (error) {
+        console.error('Unfold recursively failed:', error);
+      }
+    }
   }
 };
 

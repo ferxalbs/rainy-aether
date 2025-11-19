@@ -1,9 +1,10 @@
 import React from "react";
-import { Folder, GitCommit, Bot } from "lucide-react";
+import { Folder, GitCommit, Bot, Search } from "lucide-react";
 
 import { useIDEStore } from "../../stores/ideStore";
 import ProjectExplorer from "./ProjectExplorer";
 import GitHistoryPanel from "./GitHistoryPanel";
+import GlobalSearch from "./GlobalSearch";
 import { WebviewSidebarContainer } from "./WebviewPanel";
 import { useWebviewPanels } from "@/stores/webviewStore";
 import { cn } from "@/lib/cn";
@@ -75,6 +76,12 @@ const Sidebar: React.FC = () => {
           onClick={() => actions.setSidebarActive("explorer")}
         />
         <ActivityButton
+          icon={Search}
+          label="Search"
+          active={activeTab === "search"}
+          onClick={() => actions.setSidebarActive("search")}
+        />
+        <ActivityButton
           icon={GitCommit}
           label="Git"
           active={activeTab === "git"}
@@ -102,6 +109,7 @@ const Sidebar: React.FC = () => {
       {isOpen && (
         <div className="w-64 bg-sidebar flex flex-col rounded-r-lg">
           {activeTab === "explorer" && <ProjectExplorer />}
+          {activeTab === "search" && <GlobalSearch />}
           {activeTab === "git" && <GitHistoryPanel />}
 
           {/* Render webview panels */}
