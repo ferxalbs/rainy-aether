@@ -386,6 +386,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Git Branch',
       text: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 0 1-9 9"></path></svg> ${gitStatus.branch || 'No Git'}${!gitStatus.clean ? ` <span class="text-yellow-500">${gitStatus.staged > 0 ? `●${gitStatus.staged}` : ''}${gitStatus.modified > 0 ? ` +${gitStatus.modified}` : ''}${gitStatus.untracked > 0 ? ` ?${gitStatus.untracked}` : ''}</span>` : ''}`,
       tooltip: gitStatus.branch ? `Branch: ${gitStatus.branch}` : 'Not a git repository',
+      ariaLabel: gitStatus.branch ? `Git Branch: ${gitStatus.branch}` : 'Git: Not a repository',
       order: 2,
       position: 'left'
     },
@@ -394,6 +395,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Sync',
       text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Sync',
       tooltip: 'Sync changes',
+      ariaLabel: 'Sync changes',
       onClick: () => console.log('Sync clicked'),
       order: 3,
       position: 'left'
@@ -406,6 +408,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Network Status',
       text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path><path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path><path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg> Offline',
       tooltip: 'No internet connection',
+      ariaLabel: 'Network Status: Offline',
       kind: 'warning',
       order: 0,
       position: 'right'
@@ -416,6 +419,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Notifications',
       text: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg> ${notificationStats.unread}`,
       tooltip: `${notificationStats.unread} unread notification${notificationStats.unread !== 1 ? 's' : ''}`,
+      ariaLabel: `Notifications: ${notificationStats.unread} unread`,
       onClick: handleNotificationClick,
       kind: notificationStats.errors > 0 ? 'error' : notificationStats.warnings > 0 ? 'warning' : 'prominent',
       order: 0,
@@ -427,6 +431,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'File Encoding',
       text: editorInfo.encoding,
       tooltip: 'Select Encoding',
+      ariaLabel: `File Encoding: ${editorInfo.encoding}`,
       onClick: () => setIsEncodingSelectorOpen(!isEncodingSelectorOpen),
       order: 1,
       position: 'right'
@@ -437,6 +442,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'End of Line Sequence',
       text: eol,
       tooltip: 'Select End of Line Sequence',
+      ariaLabel: `End of Line Sequence: ${eol}`,
       onClick: () => setIsEOLSelectorOpen(!isEOLSelectorOpen),
       order: 1.5,
       position: 'right'
@@ -447,6 +453,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Language Mode',
       text: editorInfo.language,
       tooltip: `Select Language Mode`,
+      ariaLabel: `Language Mode: ${editorInfo.language}`,
       onClick: () => setIsLanguageSelectorOpen(!isLanguageSelectorOpen),
       order: 2,
       position: 'right'
@@ -457,6 +464,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Cursor Position',
       text: `Ln ${editorInfo.line}, Col ${editorInfo.column}${editorInfo.selection ? ` • ${editorInfo.selection}` : ''}`,
       tooltip: 'Cursor position',
+      ariaLabel: `Cursor Position: Line ${editorInfo.line}, Column ${editorInfo.column}`,
       order: 3,
       position: 'right'
     },
@@ -466,6 +474,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Indentation',
       text: editorInfo.spaces > 0 ? `Spaces: ${editorInfo.spaces}` : `Tab Size: ${editorInfo.tabSize}`,
       tooltip: 'Indentation settings',
+      ariaLabel: `Indentation: ${editorInfo.spaces > 0 ? `Spaces: ${editorInfo.spaces}` : `Tab Size: ${editorInfo.tabSize}`}`,
       order: 4,
       position: 'right'
     },
@@ -475,6 +484,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Platform',
       text: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg> ${platformName}`,
       tooltip: `Running on ${platformName}`,
+      ariaLabel: `Platform: ${platformName}`,
       order: 5,
       position: 'right'
     } : null,
@@ -484,6 +494,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Theme',
       text: getCurrentTheme().displayName,
       tooltip: 'Select Color Theme',
+      ariaLabel: `Current Theme: ${getCurrentTheme().displayName}`,
       onClick: () => setIsThemeSelectorOpen(!isThemeSelectorOpen),
       order: 6,
       position: 'right'
@@ -494,6 +505,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Help',
       text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
       tooltip: 'Help and Documentation (Click for menu, Ctrl+K Ctrl+S for shortcuts)',
+      ariaLabel: 'Help and Documentation',
       onClick: (e?: React.MouseEvent) => {
         // Check if Ctrl/Cmd key is pressed
         if (e && (e.ctrlKey || e.metaKey)) {
@@ -511,6 +523,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       name: 'Rainy Aether',
       text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>',
       tooltip: 'Rainy Aether IDE',
+      ariaLabel: 'Rainy Aether IDE',
       order: 8,
       position: 'right'
     }

@@ -176,6 +176,8 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                   size="icon"
                   className="h-8 w-8"
                   onClick={() => searchActions.toggleOption("case_sensitive")}
+                  aria-label="Match Case"
+                  aria-pressed={searchState.options.case_sensitive}
                 >
                   <CaseSensitive className="h-4 w-4" />
                 </Button>
@@ -190,6 +192,8 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                   size="icon"
                   className="h-8 w-8"
                   onClick={() => searchActions.toggleOption("whole_word")}
+                  aria-label="Match Whole Word"
+                  aria-pressed={searchState.options.whole_word}
                 >
                   <WholeWord className="h-4 w-4" />
                 </Button>
@@ -204,6 +208,8 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                   size="icon"
                   className="h-8 w-8"
                   onClick={() => searchActions.toggleOption("use_regex")}
+                  aria-label="Use Regular Expression"
+                  aria-pressed={searchState.options.use_regex}
                 >
                   <Regex className="h-4 w-4" />
                 </Button>
@@ -234,6 +240,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                     className="h-8 w-8"
                     onClick={() => searchActions.replaceAll(workspacePath)}
                     disabled={!searchState.query || searchState.results.length === 0}
+                    aria-label="Replace All"
                   >
                     <RefreshCw className="h-4 w-4" />
                   </Button>
@@ -302,6 +309,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                   size="sm"
                   className="h-5 text-xs px-1"
                   onClick={() => searchActions.expandAllFiles()}
+                  aria-label="Expand all files"
                 >
                   <FolderOpen className="h-3 w-3" />
                 </Button>
@@ -310,6 +318,7 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
                   size="sm"
                   className="h-5 text-xs px-1"
                   onClick={() => searchActions.collapseAllFiles()}
+                  aria-label="Collapse all files"
                 >
                   <FolderClosed className="h-3 w-3" />
                 </Button>
@@ -407,6 +416,7 @@ function FileResultItem({
               e.stopPropagation();
               searchActions.replaceInFile(result.path, workspacePath);
             }}
+            aria-label="Replace all in file"
           >
             <Replace className="h-3 w-3" />
           </Button>
