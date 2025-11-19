@@ -48,7 +48,7 @@ export interface Workspace {
   type: "folder" | "file";
 }
 
-export type SidebarTab = "explorer" | "git" | `webview:${string}`;
+export type SidebarTab = "explorer" | "search" | "git" | `webview:${string}`;
 export type ViewMode = "ide" | "agents";
 
 export interface IDEState {

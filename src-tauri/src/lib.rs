@@ -235,6 +235,8 @@ pub fn run() {
         project_manager::rename_path,
         project_manager::delete_path,
         project_manager::get_temp_dir,
+        project_manager::search_in_workspace,
+        project_manager::replace_in_file,
         terminal_manager::terminal_create,
         terminal_manager::terminal_write,
         terminal_manager::terminal_resize,
