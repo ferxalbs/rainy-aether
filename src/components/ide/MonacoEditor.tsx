@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, memo } from 'react';
 import * as monaco from 'monaco-editor';
 import { editorActions } from '../../stores/editorStore';
 import { getCurrentTheme, subscribeToThemeChanges } from '../../stores/themeStore';
+import { getSettingsState } from '../../stores/settingsStore';
 import { configureMonaco, getLanguageFromFilename } from '../../services/monacoConfig';
 import { configurationService } from '../../services/configurationService';
 import { applyEditorConfiguration } from '../../services/editorConfigurationService';
@@ -201,36 +202,183 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
       model = monaco.editor.createModel(value, detectedLanguage, modelUri);
     }
 
-    // Get editor configuration from configuration service
-    const fontSize = configurationService.get<number>('editor.fontSize', 14);
-    const fontFamily = configurationService.get<string>('editor.fontFamily', 'Consolas, "Courier New", monospace');
-    const tabSize = configurationService.get<number>('editor.tabSize', 4);
-    const insertSpaces = configurationService.get<boolean>('editor.insertSpaces', true);
+    // Get editor configuration from settings store (prioritized) and configuration service (fallback)
+    const editorSettings = getSettingsState().editor;
+
+    const fontSize = editorSettings.fontSize || configurationService.get<number>('editor.fontSize', 14);
+    const fontFamily = editorSettings.fontFamily || configurationService.get<string>('editor.fontFamily', 'Consolas, "Courier New", monospace');
+    const tabSize = editorSettings.tabSize || configurationService.get<number>('editor.tabSize', 4);
+    const insertSpaces = editorSettings.insertSpaces ?? configurationService.get<boolean>('editor.insertSpaces', true);
     const wordWrap = configurationService.get<string>('editor.wordWrap', 'off');
     const lineNumbers = configurationService.get<string>('editor.lineNumbers', 'on');
-    const minimapEnabled = configurationService.get<boolean>('editor.minimap.enabled', true);
+    const minimapEnabled = editorSettings.minimapEnabled ?? configurationService.get<boolean>('editor.minimap.enabled', true);
 
     const editor = monaco.editor.create(container, {
       model,
       theme: themeName,
       readOnly,
       automaticLayout: false, // Disable automatic layout, we'll handle it manually
+
+      // Font settings
       fontSize,
       fontFamily,
+      lineHeight: editorSettings.lineHeight,
+      letterSpacing: editorSettings.letterSpacing,
+
+      // Tab settings
       tabSize,
       insertSpaces,
+      detectIndentation: editorSettings.detectIndentation,
+
+      // Line numbers
       lineNumbers: lineNumbers as 'on' | 'off' | 'relative' | 'interval',
-      minimap: { enabled: minimapEnabled },
+
+      // Minimap settings
+      minimap: {
+        enabled: minimapEnabled,
+        scale: editorSettings.minimapScale,
+        showSlider: editorSettings.minimapShowSlider,
+      },
+
+      // Visual settings
       scrollBeyondLastLine: false,
       wordWrap: wordWrap as 'off' | 'on' | 'wordWrapColumn' | 'bounded',
-      bracketPairColorization: { enabled: true },
-      guides: {
-        bracketPairs: true,
-        indentation: true,
+      renderWhitespace: editorSettings.renderWhitespace,
+
+      // Bracket pair colorization
+      bracketPairColorization: {
+        enabled: editorSettings.bracketPairColorization,
+        independentColorPoolPerBracketType: true,
       },
+
+      // Guides
+      guides: {
+        bracketPairs: editorSettings.bracketPairColorization,
+        bracketPairsHorizontal: 'active',
+        highlightActiveBracketPair: true,
+        indentation: editorSettings.indentGuides,
+        highlightActiveIndentation: true,
+      },
+
+      // Sticky scroll (keep function headers visible)
+      stickyScroll: {
+        enabled: editorSettings.stickyScroll,
+        maxLineCount: 5,
+      },
+
+      // Auto-closing brackets and quotes
+      autoClosingBrackets: editorSettings.autoClosingBrackets ? 'languageDefined' : 'never',
+      autoClosingQuotes: editorSettings.autoClosingQuotes ? 'languageDefined' : 'never',
+      autoSurround: editorSettings.autoSurround ? 'languageDefined' : 'never',
+
+      // Linked editing (auto-rename matching tags)
+      linkedEditing: editorSettings.linkedEditing,
+
+      // Cursor settings
+      cursorStyle: editorSettings.cursorStyle,
+      cursorBlinking: editorSettings.cursorBlinking,
+      cursorSmoothCaretAnimation: editorSettings.cursorSmoothCaretAnimation,
+
+      // Scroll settings
+      smoothScrolling: editorSettings.smoothScrolling,
+      mouseWheelZoom: editorSettings.mouseWheelZoom,
+
+      // Format settings
+      formatOnPaste: editorSettings.formatOnPaste,
+      formatOnType: editorSettings.formatOnType,
+
+      // Suggestions
       suggest: {
         showKeywords: true,
         showSnippets: true,
+        showClasses: true,
+        showColors: true,
+        showConstants: true,
+        showConstructors: true,
+        showEnumMembers: true,
+        showEnums: true,
+        showEvents: true,
+        showFields: true,
+        showFiles: true,
+        showFolders: true,
+        showFunctions: true,
+        showInterfaces: true,
+        showIssues: true,
+        showMethods: true,
+        showModules: true,
+        showOperators: true,
+        showProperties: true,
+        showReferences: true,
+        showStructs: true,
+        showTypeParameters: true,
+        showUnits: true,
+        showUsers: true,
+        showValues: true,
+        showVariables: true,
+        showWords: true,
+        insertMode: 'insert',
+        filterGraceful: true,
+        snippetsPreventQuickSuggestions: true,
+        localityBonus: true,
+        shareSuggestSelections: true,
+        showStatusBar: true,
+        preview: true,
+        previewMode: 'subwordSmart',
+      },
+
+      // Quick suggestions
+      quickSuggestions: {
+        other: true,
+        comments: false,
+        strings: false,
+      },
+
+      // Parameter hints
+      parameterHints: {
+        enabled: true,
+        cycle: true,
+      },
+
+      // Hover
+      hover: {
+        enabled: true,
+        delay: 300,
+        sticky: true,
+      },
+
+      // Code lens
+      codeLens: true,
+
+      // Folding
+      folding: true,
+      foldingStrategy: 'indentation',
+      foldingHighlight: true,
+      unfoldOnClickAfterEndOfLine: true,
+
+      // Other features
+      colorDecorators: true,
+      links: true,
+      renderLineHighlight: 'all',
+      scrollbar: {
+        verticalScrollbarSize: 10,
+        horizontalScrollbarSize: 10,
+        useShadows: false,
+        verticalHasArrows: false,
+        horizontalHasArrows: false,
+        vertical: 'visible',
+        horizontal: 'visible',
+      },
+      overviewRulerBorder: false,
+      hideCursorInOverviewRuler: false,
+      matchBrackets: 'always',
+      renderControlCharacters: true,
+      contextmenu: true,
+      multiCursorModifier: 'alt',
+      accessibilitySupport: 'auto',
+      find: {
+        addExtraSpaceOnTop: false,
+        autoFindInSelection: 'multiline',
+        seedSearchStringFromSelection: 'selection',
       },
     });
 

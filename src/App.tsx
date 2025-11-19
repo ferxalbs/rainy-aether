@@ -10,6 +10,7 @@ import { initializeEditorConfigurationService } from "./services/editorConfigura
 import { initializeAutoSaveService } from "./services/autoSaveService";
 import LoadingScreen from "./components/ui/loading-screen";
 import ErrorBoundary from "./components/ui/error-boundary";
+import { ToastContainer } from "./components/ui/Toast";
 import { useLoadingState, loadingActions } from "./stores/loadingStore";
 import { extensionManager } from "./services/extensionManager";
 import { initTerminalService } from "./services/terminalService";
@@ -328,6 +329,7 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <IDEProvider>
         <IDE />
+        <ToastContainer position="bottom-right" />
       </IDEProvider>
     </ErrorBoundary>
   );
