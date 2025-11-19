@@ -84,8 +84,52 @@ export const editorGroupActions = {
       return {
         ...prev,
         groups: [...prev.groups, newGroup],
-        // Keep active group as the original one
-        activeGroupId: prev.activeGroupId,
+        // Set the new group as active so files open there
+        activeGroupId: newGroupId,
+        splitDirection: direction,
+      };
+    });
+  },
+
+  /**
+   * Split with a specific file - creates a new group and moves the file there
+   */
+  splitWithFile(fileId: string, direction: SplitDirection = "horizontal") {
+    setState((prev) => {
+      if (prev.groups.length >= 3) {
+        return prev;
+      }
+
+      // Find which group has this file
+      const sourceGroup = prev.groups.find((g) => g.openFileIds.includes(fileId));
+      if (!sourceGroup) {
+        return prev;
+      }
+
+      const newGroupId = `group-${Date.now()}`;
+
+      // Remove file from source group
+      const updatedSourceGroup = {
+        ...sourceGroup,
+        openFileIds: sourceGroup.openFileIds.filter((id) => id !== fileId),
+        activeFileId: sourceGroup.activeFileId === fileId
+          ? sourceGroup.openFileIds.find((id) => id !== fileId) || null
+          : sourceGroup.activeFileId,
+      };
+
+      // Create new group with the file
+      const newGroup: EditorGroup = {
+        id: newGroupId,
+        activeFileId: fileId,
+        openFileIds: [fileId],
+      };
+
+      return {
+        ...prev,
+        groups: prev.groups.map((g) =>
+          g.id === sourceGroup.id ? updatedSourceGroup : g
+        ).concat(newGroup),
+        activeGroupId: newGroupId,
         splitDirection: direction,
       };
     });
