@@ -113,6 +113,7 @@ const DraggableTab: React.FC<DraggableTabProps> = ({
               isActive ? "active" : ""
             )}
             onClick={onSelect}
+            aria-label={`Select tab ${file.name}`}
           >
             <GripVertical size={12} className="mr-1 opacity-50 cursor-grab" />
             <span className="truncate max-w-32">{file.name}</span>
@@ -129,6 +130,7 @@ const DraggableTab: React.FC<DraggableTabProps> = ({
               onClose();
             }}
             title="Close tab"
+            aria-label="Close tab"
           >
             <X size={12} className="file-viewer-close-icon" />
           </Button>
@@ -296,6 +298,7 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
                       e.stopPropagation();
                       onClose();
                     }}
+                    aria-label="Close split"
                   >
                     <X className="h-3.5 w-3.5" />
                   </Button>

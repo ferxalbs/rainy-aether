@@ -342,6 +342,8 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
                 "px-2 py-1 rounded transition-colors",
                 filter === 'all' ? "bg-primary text-primary-foreground" : "hover:bg-muted"
               )}
+              aria-label="Show all problems"
+              aria-pressed={filter === 'all'}
             >
               All
             </button>
@@ -351,6 +353,8 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
                 "px-2 py-1 rounded transition-colors flex items-center gap-1",
                 filter === 'errors' ? "bg-red-500/20 text-red-500" : "hover:bg-muted"
               )}
+              aria-label={`Show errors (${errorCount})`}
+              aria-pressed={filter === 'errors'}
             >
               <XCircle size={12} />
               {errorCount}
@@ -361,6 +365,8 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
                 "px-2 py-1 rounded transition-colors flex items-center gap-1",
                 filter === 'warnings' ? "bg-yellow-500/20 text-yellow-500" : "hover:bg-muted"
               )}
+              aria-label={`Show warnings (${warningCount})`}
+              aria-pressed={filter === 'warnings'}
             >
               <AlertCircle size={12} />
               {warningCount}
@@ -371,6 +377,8 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
                 "px-2 py-1 rounded transition-colors flex items-center gap-1",
                 filter === 'info' ? "bg-blue-500/20 text-blue-500" : "hover:bg-muted"
               )}
+              aria-label={`Show info (${infoCount})`}
+              aria-pressed={filter === 'info'}
             >
               <Info size={12} />
               {infoCount}
@@ -382,6 +390,7 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
               onClick={onClose}
               className="p-1 hover:bg-muted rounded transition-colors"
               title="Close problems panel"
+              aria-label="Close problems panel"
             >
               <X size={16} />
             </button>
@@ -421,6 +430,8 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
                     ? getSourceColor(owner)
                     : "bg-muted/50 text-muted-foreground hover:bg-muted"
                 )}
+                aria-label={`Filter by ${owner}`}
+                aria-pressed={selectedOwners.includes(owner)}
               >
                 {owner}
               </button>
@@ -536,6 +547,7 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
                                 "hover:bg-yellow-500/20 text-yellow-500"
                               )}
                               title="Show quick fixes (Ctrl+.)"
+                              aria-label="Show quick fixes"
                             >
                               <Lightbulb size={16} />
                             </button>
