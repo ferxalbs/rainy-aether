@@ -1,4 +1,5 @@
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -141,9 +142,9 @@ pub fn open_project_dialog() {
 #[tauri::command]
 pub async fn load_project_structure(path: String) -> Result<FileNode, String> {
     let dir_path = PathBuf::from(&path);
-    // Load only 2 levels deep initially for performance
-    // Frontend can request more levels on-demand
-    read_directory_shallow(&dir_path, 2, 0)
+    // Load only 1 level deep initially for maximum performance
+    // Frontend can request more levels on-demand by expanding folders
+    read_directory_shallow(&dir_path, 1, 0)
 }
 
 // New command to load children of a specific directory on-demand
@@ -181,12 +182,30 @@ pub async fn load_directory_children(path: String) -> Result<Vec<FileNode>, Stri
 
 #[tauri::command]
 pub async fn get_file_content(path: String) -> Result<String, String> {
-    let file_path = PathBuf::from(&path);
+    use std::io::Read;
 
+    let file_path = PathBuf::from(&path);
     let metadata = fs::metadata(&file_path).map_err(|e| e.to_string())?;
+
+    // If file is larger than 5MB, load only the first 100KB as a preview
     if metadata.len() > 5 * 1024 * 1024 {
-        // 5MB limit
-        return Err("File is larger than 5MB.".to_string());
+        let file = fs::File::open(&file_path).map_err(|e| e.to_string())?;
+        let reader = std::io::BufReader::new(file);
+        let mut buffer = String::new();
+
+        // Read up to 100KB
+        reader
+            .take(100 * 1024)
+            .read_to_string(&mut buffer)
+            .map_err(|e| e.to_string())?;
+
+        // Add visual marker for the user
+        buffer.push_str("\n\n/* ========================================\n");
+        buffer.push_str(&format!("   CONTENT TRUNCATED - FILE SIZE: {:.2} MB\n", metadata.len() as f64 / (1024.0 * 1024.0)));
+        buffer.push_str("   Only the first 100 KB are shown above.\n");
+        buffer.push_str("   ======================================== */");
+
+        return Ok(buffer);
     }
 
     fs::read_to_string(&file_path).map_err(|e| e.to_string())
@@ -419,19 +438,32 @@ fn search_in_directory(
     dir: &Path,
     query: &str,
     options: &SearchOptions,
-    results: &mut Vec<FileSearchResult>,
-    current_count: &mut usize,
+    results: &Arc<Mutex<Vec<FileSearchResult>>>,
+    current_count: &Arc<Mutex<usize>>,
     max_results: usize,
 ) -> Result<(), String> {
-    if *current_count >= max_results {
-        return Ok(());
+    // Check if we've reached the max results limit
+    {
+        let count = current_count.lock().unwrap();
+        if *count >= max_results {
+            return Ok(());
+        }
     }
 
-    let entries = fs::read_dir(dir).map_err(|e| e.to_string())?;
+    // Collect all entries first
+    let entries: Vec<_> = fs::read_dir(dir)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .collect();
 
-    for entry in entries.flatten() {
-        if *current_count >= max_results {
-            break;
+    // Parallel processing of entries
+    entries.par_iter().try_for_each(|entry| {
+        // Check limit again
+        {
+            let count = current_count.lock().unwrap();
+            if *count >= max_results {
+                return Ok(());
+            }
         }
 
         let path = entry.path();
@@ -439,27 +471,27 @@ fn search_in_directory(
 
         // Skip ignored directories
         if should_ignore(&name) {
-            continue;
+            return Ok(());
         }
 
         if path.is_dir() {
-            // Recurse into subdirectory
+            // Recurse into subdirectory (this will also use parallel processing)
             search_in_directory(&path, query, options, results, current_count, max_results)?;
         } else if path.is_file() {
             // Check if we should search this file
             if !should_search_file(&path, &options.include_pattern, &options.exclude_pattern) {
-                continue;
+                return Ok(());
             }
 
             // Skip binary files
             if is_binary_file(&path) {
-                continue;
+                return Ok(());
             }
 
             // Skip files larger than 1MB
             if let Ok(metadata) = fs::metadata(&path) {
                 if metadata.len() > 1024 * 1024 {
-                    continue;
+                    return Ok(());
                 }
             }
 
@@ -468,19 +500,26 @@ fn search_in_directory(
                 let matches = search_in_content(&content, query, options);
 
                 if !matches.is_empty() {
-                    *current_count += matches.len();
+                    // Acquire locks and update shared state
+                    let mut results_guard = results.lock().unwrap();
+                    let mut count_guard = current_count.lock().unwrap();
 
-                    results.push(FileSearchResult {
-                        path: path.to_string_lossy().to_string(),
-                        name,
-                        matches,
-                    });
+                    // Double-check we haven't exceeded limit while waiting for lock
+                    if *count_guard < max_results {
+                        *count_guard += matches.len();
+
+                        results_guard.push(FileSearchResult {
+                            path: path.to_string_lossy().to_string(),
+                            name,
+                            matches,
+                        });
+                    }
                 }
             }
         }
-    }
 
-    Ok(())
+        Ok(())
+    })
 }
 
 /// Search for matches in file content
@@ -574,15 +613,22 @@ pub async fn search_in_workspace(
     }
 
     let max_results = options.max_results.unwrap_or(1000);
-    let mut results = Vec::new();
-    let mut current_count = 0;
 
-    search_in_directory(&dir_path, &query, &options, &mut results, &mut current_count, max_results)?;
+    // Wrap results and count in Arc<Mutex<>> for thread-safe parallel processing
+    let results_shared = Arc::new(Mutex::new(Vec::new()));
+    let count_shared = Arc::new(Mutex::new(0usize));
 
-    // Sort results by file path
-    results.sort_by(|a, b| a.path.cmp(&b.path));
+    search_in_directory(&dir_path, &query, &options, &results_shared, &count_shared, max_results)?;
 
-    Ok(results)
+    // Extract results from Arc<Mutex<>> and sort
+    let results = Arc::try_unwrap(results_shared)
+        .map(|mutex| mutex.into_inner().unwrap())
+        .unwrap_or_else(|arc| arc.lock().unwrap().clone());
+
+    let mut sorted_results = results;
+    sorted_results.sort_by(|a, b| a.path.cmp(&b.path));
+
+    Ok(sorted_results)
 }
 
 /// Replace text in a single file
