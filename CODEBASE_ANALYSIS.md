@@ -10,6 +10,7 @@
 ### 1.1 Core Editor Features
 
 ✅ **IMPLEMENTED:**
+
 - **Monaco Editor Integration**: Full TypeScript/JavaScript support with syntax highlighting
 - **File Viewing & Editing**: Complete file open/save/close workflow
 - **Word Wrap Toggle**: Alt+Z to enable/disable word wrapping
@@ -23,6 +24,7 @@
 - **Minimap**: Configurable minimap with `editor.minimap.enabled` setting
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/MonacoEditor.tsx` (396 lines)
 - `/home/user/rainy-aether-2/src/services/editorConfigurationService.ts`
 - `/home/user/rainy-aether-2/src/stores/editorStore.ts`
@@ -30,6 +32,7 @@
 ### 1.2 Workspace & File Management
 
 ✅ **IMPLEMENTED:**
+
 - **File Explorer**: Full project tree with hierarchy display in sidebar
 - **File Tree Navigation**: Expandable/collapsible folder structure
 - **Recent Workspaces**: Open recent projects from menu bar (stores up to 5)
@@ -43,6 +46,7 @@
 - **Drag & Drop**: Drag files between editor panels (implemented in FileViewer)
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/ProjectExplorer.tsx`
 - `/home/user/rainy-aether-2/src/components/ide/FileViewer.tsx` (461 lines)
 - `/home/user/rainy-aether-2/src/services/autoSaveService.ts`
@@ -51,6 +55,7 @@
 ### 1.3 Editor Tab Management
 
 ✅ **IMPLEMENTED:**
+
 - **Multiple Tabs**: Open multiple files simultaneously
 - **Tab Switching**: Ctrl+Tab (next), Ctrl+Shift+Tab (previous)
 - **Tab Highlighting**: Visual indication of active/dirty tabs
@@ -62,12 +67,14 @@
 - **Drag & Drop Between Panels**: Move tabs between split editor groups
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/FileViewer.tsx`
 - `/home/user/rainy-aether-2/src/components/ide/TabSwitcher.tsx`
 
 ### 1.4 Split Editor Panels
 
 ✅ **IMPLEMENTED:**
+
 - **Horizontal Split**: Ctrl+\ to create vertical split (side by side)
 - **Vertical Split**: Available through context menu (split down)
 - **Multiple Panels**: Up to 3 concurrent editor groups
@@ -77,12 +84,14 @@
 - **Context Menu**: Right-click on tab for split options
 
 **Store/Infrastructure:**
+
 - `/home/user/rainy-aether-2/src/stores/editorGroupStore.ts` (split infrastructure)
 - `/home/user/rainy-aether-2/src/components/ide/FileViewer.tsx` (split UI implementation)
 
 ### 1.5 Search & Replace
 
 ✅ **IMPLEMENTED:**
+
 - **Global Search**: Ctrl+Shift+F for workspace-wide search
 - **Search with Options**:
   - Case-sensitive toggle
@@ -95,16 +104,19 @@
 - **Match Highlighting**: Highlighted search results with line/position info
 
 **Backend Support:**
+
 - `/home/user/rainy-aether-2/src-tauri/src/project_manager.rs` (async search with regex)
 - `/home/user/rainy-aether-2/src/stores/searchStore.ts` (state management)
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/GlobalSearch.tsx`
 - `/home/user/rainy-aether-2/src/stores/searchStore.ts`
 
 ### 1.6 Terminal
 
 ✅ **IMPLEMENTED:**
+
 - **Multiple Terminal Sessions**: Create multiple terminal tabs
 - **Terminal Tabs**: Tab interface for session management
 - **Search in Terminal**: Ctrl+Shift+F to search terminal output
@@ -116,6 +128,7 @@
 - **Split View Infrastructure**: Store infrastructure exists but UI not fully implemented
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/TerminalPanel.tsx` (100+ lines shown)
 - `/home/user/rainy-aether-2/src/stores/terminalStore.ts`
 - `/home/user/rainy-aether-2/src-tauri/src/terminal_manager.rs`
@@ -123,6 +136,7 @@
 ### 1.7 Git Integration
 
 ✅ **IMPLEMENTED:**
+
 - **Git Status**: Display file status (modified, staged, untracked)
 - **Staging/Unstaging**: Stage individual files
 - **Commits**: Create commits with message
@@ -134,17 +148,20 @@
 - **Clone Repository**: Clone from remote via CloneDialog
 
 **Backend:**
+
 - `/home/user/rainy-aether-2/src-tauri/src/git_manager.rs`
 - `/home/user/rainy-aether-2/src-tauri/src/git_native.rs` (libgit2 implementation)
 - `/home/user/rainy-aether-2/src-tauri/src/git_auth.rs`
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/stores/gitStore.ts`
 - `/home/user/rainy-aether-2/src/services/gitService.ts`
 
 ### 1.8 Keyboard Shortcuts
 
 ✅ **IMPLEMENTED:**
+
 - **Comprehensive Shortcuts**: 25+ shortcuts mapped
 - **Keyboard Dialog**: Accessible via help menu with searchable list
 - **Global Shortcuts**: Registered with Tauri global shortcut plugin
@@ -152,6 +169,7 @@
 - **Custom Keybindings**: Infrastructure exists in configuration
 
 **Key Shortcuts:**
+
 - `Ctrl+P`: Quick open files
 - `Ctrl+Shift+P`: Command palette
 - `Ctrl+,`: Settings
@@ -166,12 +184,14 @@
 - `Alt+Z`: Toggle word wrap
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/KeyboardShortcutsDialog.tsx`
 - `/home/user/rainy-aether-2/src/components/ide/IDE.tsx` (keyboard handler at lines 146-462)
 
 ### 1.9 Command Palette
 
 ✅ **IMPLEMENTED:**
+
 - **Ctrl+Shift+P**: Opens command palette
 - **Command Filtering**: Fuzzy search through available commands
 - **Command Categories**: Organized by function (file, edit, view, git, settings, etc.)
@@ -180,11 +200,13 @@
 - **Disabled Commands**: Gray out unavailable commands based on context
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/CommandPalette.tsx`
 
 ### 1.10 Quick Open / File Finder
 
 ✅ **IMPLEMENTED:**
+
 - **Ctrl+P**: Quick file open dialog
 - **Fuzzy Search**: Match files by partial name
 - **Recent Files**: Prioritizes recently opened files
@@ -192,11 +214,13 @@
 - **Performance**: Optimized for large workspaces
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/QuickOpen.tsx`
 
 ### 1.11 Status Bar
 
 ✅ **IMPLEMENTED:**
+
 - **Line/Column Display**: Shows current cursor position
 - **File Info**: Display encoding, EOL type, language mode
 - **Diagnostic Summary**: Show errors/warnings count
@@ -206,11 +230,13 @@
 - **Language Mode**: Display and change language mode
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/StatusBar.tsx`
 
 ### 1.12 Themes & Appearance
 
 ✅ **IMPLEMENTED:**
+
 - **Day/Night Themes**: Built-in day and night themes
 - **Custom Themes**: Full theme customization system
 - **Theme Switching**: Quick switch themes (Ctrl+Shift+P > Change Color Theme)
@@ -219,6 +245,7 @@
 - **Zen Mode**: Focus mode with sidebar/status bar hidden
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/stores/themeStore.ts`
 - `/home/user/rainy-aether-2/src/stores/iconThemeStore.ts`
 - `/home/user/rainy-aether-2/src/themes/` (theme definitions)
@@ -226,6 +253,7 @@
 ### 1.13 Diagnostics & Problems
 
 ✅ **IMPLEMENTED:**
+
 - **Problems Panel**: Unified panel for errors and warnings
 - **Severity Filtering**: Show errors, warnings, info, hints
 - **File Grouping**: Problems grouped by file
@@ -233,6 +261,7 @@
 - **Marker Service**: Complete diagnostic system with refactored marker service
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/ProblemsPanel.tsx`
 - `/home/user/rainy-aether-2/src/services/markerService.ts` (new)
 - `/home/user/rainy-aether-2/src/services/diagnosticService.ts` (deprecated wrapper)
@@ -240,6 +269,7 @@
 ### 1.14 Additional Features
 
 ✅ **IMPLEMENTED:**
+
 - **Settings Page**: Configurable settings (fonts, editor options, theme, etc.)
 - **Diff Preview**: Side-by-side diff viewer with syntax highlighting
 - **Menu Bar**: File, Edit, View, Git, Help menus
@@ -250,6 +280,7 @@
 - **Agents View**: Separate view for AI agent interactions
 
 **Files:**
+
 - `/home/user/rainy-aether-2/src/components/ide/SettingsPage.tsx`
 - `/home/user/rainy-aether-2/src/components/ide/DiffPreviewPanel.tsx`
 - `/home/user/rainy-aether-2/src/components/ide/MenuBar.tsx`
@@ -355,11 +386,13 @@
 ### 3.1 Component-Level Optimizations
 
 **Issue 1: Large Component Files**
+
 - `IDE.tsx`: 638 lines - Complex with many event handlers
 - `FileViewer.tsx`: 461 lines - Tab management and split logic
 - `MonacoEditor.tsx`: 396 lines - Repetitive theme configuration
 
 **Recommendation:**
+
 ```
 Priority: MEDIUM
 Files:
@@ -377,10 +410,12 @@ Effort: Medium
 ```
 
 **Issue 2: Missing React.memo & useCallback**
+
 - Memoization count: Only 141 instances in ~30+ IDE components
 - Many components re-render unnecessarily
 
 **Recommendation:**
+
 ```
 Priority: MEDIUM
 Action: Audit and add memoization:
@@ -396,10 +431,12 @@ Effort: Low-Medium
 ### 3.2 State Management Optimizations
 
 **Issue 1: Frequent State Updates**
+
 - IDE state broadcasts to entire app on every change
 - `ideStore.tsx` has broad listeners affecting many components
 
 **Recommendation:**
+
 ```
 Priority: MEDIUM
 Action: Implement selective subscriptions:
@@ -415,10 +452,12 @@ Effort: High (requires refactoring)
 ```
 
 **Issue 2: Search Store Performance**
+
 - Global search can trigger many results
 - Results stored as full array without pagination
 
 **Recommendation:**
+
 ```
 Priority: MEDIUM
 File: /home/user/rainy-aether-2/src/stores/searchStore.ts
@@ -435,10 +474,12 @@ Effort: Medium
 ### 3.3 Editor Performance
 
 **Issue 1: Monaco Instance Lifecycle**
+
 - Monaco recreated on file changes
 - Language detection on every file open
 
 **Recommendation:**
+
 ```
 Priority: MEDIUM
 File: /home/user/rainy-aether-2/src/components/ide/MonacoEditor.tsx
@@ -453,10 +494,12 @@ Effort: Medium
 ```
 
 **Issue 2: Theme Application Overhead**
+
 - Complex theme creation with many rules
 - Recreates Monaco theme on every mount
 
 **Recommendation:**
+
 ```
 Priority: MEDIUM
 Action: Cache theme definitions:
@@ -472,10 +515,12 @@ Effort: Low-Medium
 ### 3.4 Memory Leak Detection & Prevention
 
 **Issue 1: Event Listener Management**
+
 - Event listeners registered: 2 in IDE.tsx (minimal cleanup audit visible)
 - Tauri event listeners using let unlistenFns: (() => void)[]
 
 **Recommendation:**
+
 ```
 Priority: HIGH
 File: /home/user/rainy-aether-2/src/components/ide/IDE.tsx (lines 310-461)
@@ -490,10 +535,12 @@ Effort: Low (verify/document)
 ```
 
 **Issue 2: Terminal Session Cleanup**
+
 - xterm.js instances may accumulate
 - PTY process cleanup on close
 
 **Recommendation:**
+
 ```
 Priority: MEDIUM
 File: /home/user/rainy-aether-2/src/stores/terminalStore.ts
@@ -509,10 +556,12 @@ Effort: Medium
 ### 3.5 Bundle Size Optimization
 
 **Current Status:**
+
 - Tauri app: ~100MB (already optimized vs Electron's ~500MB+)
 - Monaco: Large (~15MB uncompressed, compressed in app)
 
 **Recommendation:**
+
 ```
 Priority: LOW (already optimized)
 Action: Monitor and optimize:
@@ -531,10 +580,12 @@ Effort: Low-Medium
 ### 4.1 Accessibility Issues
 
 **Issue 1: Limited ARIA Labels**
+
 - Accessibility attributes count: Only 22 instances in IDE components
 - Missing: aria-label on many interactive elements
 
 **Recommendation:**
+
 ```
 Priority: MEDIUM
 Action: Audit and add accessibility:
@@ -554,10 +605,12 @@ Effort: Low-Medium
 ```
 
 **Issue 2: Focus Management**
+
 - Modal dialogs may not trap focus properly
 - Tab order not explicitly managed
 
 **Recommendation:**
+
 ```
 Priority: LOW
 Action: Improve focus management:
@@ -572,10 +625,12 @@ Effort: Low-Medium
 ### 4.2 UX Improvements
 
 **Issue 1: Command Palette Discoverability**
+
 - Users may not know about Ctrl+Shift+P
 - No in-app hints on startup
 
 **Recommendation:**
+
 ```
 Priority: LOW
 Action: Improve discoverability:
@@ -588,10 +643,12 @@ Effort: Low
 ```
 
 **Issue 2: Keyboard Shortcut Configuration**
+
 - Shortcuts are hardcoded
 - No UI to customize keybindings
 
 **Recommendation:**
+
 ```
 Priority: MEDIUM
 Action: Implement keybinding customization:
@@ -609,10 +666,12 @@ Effort: High
 ```
 
 **Issue 3: Drag & Drop Feedback**
+
 - Limited visual feedback during drag/drop
 - Drop zones not clearly indicated
 
 **Recommendation:**
+
 ```
 Priority: LOW
 Files: /home/user/rainy-aether-2/src/components/ide/FileViewer.tsx
@@ -632,6 +691,7 @@ Effort: Low
 ### 5.1 High-Impact Improvements
 
 **File: `/home/user/rainy-aether-2/src/components/ide/IDE.tsx` (638 lines)**
+
 - **Issue**: Massive component with multiple responsibilities
 - **Recommendation**: Extract into sub-hooks and components
   1. Extract keyboard shortcuts → `useIDEKeyboardShortcuts` hook
@@ -643,6 +703,7 @@ Effort: Low
 - **Impact**: Significant improvement in maintainability and testability
 
 **File: `/home/user/rainy-aether-2/src/stores/ideStore.tsx`**
+
 - **Issue**: Single monolithic store with many responsibilities
 - **Recommendation**: Split into domain-specific stores
   1. `fileStore.ts` - Open files, active file management
@@ -653,6 +714,7 @@ Effort: Low
 - **Impact**: 30% reduction in unnecessary re-renders
 
 **File: `/home/user/rainy-aether-2/src/components/ide/MonacoEditor.tsx` (396 lines)**
+
 - **Issue**: Complex theme setup, language detection
 - **Recommendation**: Extract and optimize
   1. Extract theme creation → `useMonacoTheme` hook
@@ -663,6 +725,7 @@ Effort: Low
 - **Effort**: Medium
 
 **File: `/home/user/rainy-aether-2/src/components/ide/FileViewer.tsx` (461 lines)**
+
 - **Issue**: Complex tab management, drag/drop, split logic
 - **Recommendation**: Extract into smaller components
   1. Extract DraggableTab → wrap with React.memo
@@ -708,24 +771,28 @@ Effort: Low
 ## 6. IMPLEMENTATION PRIORITY MATRIX
 
 ### Quick Wins (1-2 days)
+
 1. Add accessibility labels (22 aria-label additions)
 2. Fix known TODOs in StartupPage, StatusBar
 3. Memoize frequently rendered components (DraggableTab, etc.)
 4. Cache Monaco theme definitions
 
 ### Medium-Term (1-2 weeks)
+
 1. Extract IDE.tsx into sub-hooks (50% size reduction)
 2. Implement search result pagination/virtualization
 3. Add error toasts to ConfigurationSettings
 4. Implement format-on-save feature
 
 ### Long-Term (2-4 weeks)
+
 1. Split ideStore into domain-specific stores
 2. Implement snippet system
 3. Improve LSP/IntelliSense integration
 4. Add keyboard shortcut customization UI
 
 ### Major Features (4+ weeks)
+
 1. Implement code refactoring actions
 2. Add debugging support
 3. Advanced version control (pull/push/merge)
@@ -754,6 +821,7 @@ Effort: Low
 **Overall Assessment:** Rainy Aether is a well-architected, feature-rich IDE with solid fundamentals. The codebase demonstrates good use of Tauri, React hooks, and TypeScript patterns.
 
 **Strengths:**
+
 - Clean separation between frontend and backend
 - Comprehensive keyboard shortcut support
 - Good file management and project exploration
@@ -762,6 +830,7 @@ Effort: Low
 - Well-structured stores using custom hooks
 
 **Areas for Improvement:**
+
 1. **Code Splitting**: Large components should be broken into smaller pieces
 2. **Performance**: Several opportunities for memoization and state optimization
 3. **Feature Completeness**: Missing IntelliSense, debugging, and code actions
@@ -769,9 +838,9 @@ Effort: Low
 5. **Refactoring**: Some incomplete features (encoding change, configuration scopes)
 
 **Next Steps:**
+
 1. Address quick wins (accessibility, TODOs)
 2. Optimize component architecture (extract hooks)
 3. Implement LSP/IntelliSense properly
 4. Add snippet system
 5. Improve error handling and user feedback
-

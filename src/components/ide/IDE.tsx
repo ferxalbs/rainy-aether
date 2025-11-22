@@ -31,7 +31,7 @@ import ExtensionMarketplace from "./ExtensionMarketplace";
 import ExtensionManager from "./ExtensionManager";
 import { initializeUpdateService, startAutoUpdateCheck } from "../../services/updateService";
 import ProblemsPanel from "./ProblemsPanel";
-import { DiffPreviewPanel } from "./DiffPreviewPanel";
+
 import { useDiffState } from "@/stores/diffStore";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 
@@ -547,17 +547,6 @@ const IDE: React.FC = () => {
                               >
                                 Problems
                               </TabsTrigger>
-                              <TabsTrigger
-                                value="diff"
-                                className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                              >
-                                Diff Preview
-                                {diffState.diffSets.size > 0 && (
-                                  <span className="ml-2 px-1.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
-                                    {diffState.diffSets.size}
-                                  </span>
-                                )}
-                              </TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="terminal" className="flex-1 m-0 h-full">
@@ -568,9 +557,6 @@ const IDE: React.FC = () => {
                               <ProblemsPanel onClose={() => setIsBottomPanelOpen(false)} />
                             </TabsContent>
 
-                            <TabsContent value="diff" className="flex-1 m-0 h-full">
-                              <DiffPreviewPanel />
-                            </TabsContent>
                           </Tabs>
                         </ResizablePanel>
                       </>
