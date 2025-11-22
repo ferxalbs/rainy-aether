@@ -14,6 +14,7 @@ import {
 import { useIDEStore } from "../../stores/ideStore";
 import { editorActions } from "../../stores/editorStore";
 import { terminalActions, getTerminalState } from "../../stores/terminalStore";
+import { panelActions } from "../../stores/panelStore";
 import ModeSwitcher from "./ModeSwitcher";
 
 interface MenuBarProps {
@@ -358,15 +359,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <MenubarShortcut>{cmdKey}+Shift+X</MenubarShortcut>
           </MenubarItem>
           <MenubarSeparator />
-          <MenubarItem onSelect={() => terminalActions.toggle()}>
+          <MenubarItem onSelect={() => panelActions.togglePanel('terminal')}>
             Terminal
             <MenubarShortcut>{cmdKey}+`</MenubarShortcut>
           </MenubarItem>
-          <MenubarItem onSelect={() => actions.toggleProblems()}>
+          <MenubarItem onSelect={() => panelActions.togglePanel('problems')}>
             Problems
             <MenubarShortcut>{cmdKey}+Shift+M</MenubarShortcut>
           </MenubarItem>
-          <MenubarItem onSelect={() => actions.toggleOutput()}>
+          <MenubarItem onSelect={() => panelActions.togglePanel('output')}>
             Output
             <MenubarShortcut>{cmdKey}+Shift+U</MenubarShortcut>
           </MenubarItem>
@@ -545,7 +546,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
             <MenubarShortcut>{cmdKey}+Shift+W</MenubarShortcut>
           </MenubarItem>
           <MenubarSeparator />
-          <MenubarItem onSelect={() => terminalActions.toggle()}>
+          <MenubarItem onSelect={() => panelActions.togglePanel('terminal')}>
             Toggle Terminal Panel
             <MenubarShortcut>{cmdKey}+`</MenubarShortcut>
           </MenubarItem>

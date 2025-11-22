@@ -18,8 +18,8 @@ import "../../css/IDE.css";
 import TabSwitcher from "./TabSwitcher";
 import TerminalPanel from "./TerminalPanel";
 import { editorActions, editorState } from "../../stores/editorStore";
-import { terminalActions } from "../../stores/terminalStore";
 import { useLoadingState } from "../../stores/loadingStore";
+import { usePanelState, panelActions } from "../../stores/panelStore";
 import LoadingScreen from "../ui/loading-screen";
 import GoToLineDialog from "../ui/go-to-line-dialog";
 import {
@@ -39,6 +39,7 @@ const IDE: React.FC = () => {
   const { state, actions } = useIDEStore();
   useIDEState(); // Subscribe to state changes to trigger re-renders
   const loadingState = useLoadingState();
+  const panelState = usePanelState(); // Use centralized panel state
 
   const [isThemeSwitcherOpen, setIsThemeSwitcherOpen] = useState(false);
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
@@ -49,8 +50,6 @@ const IDE: React.FC = () => {
   const [isExtensionMarketplaceOpen, setIsExtensionMarketplaceOpen] = useState(false);
   const [isExtensionManagerOpen, setIsExtensionManagerOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
-  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(true); // Panel unificado siempre disponible
-  const [activeBottomTab, setActiveBottomTab] = useState<'terminal' | 'problems' | 'diff'>('terminal');
 
   // Subscribe to diff state to auto-open diff panel
   const diffState = useDiffState();
@@ -58,8 +57,7 @@ const IDE: React.FC = () => {
   // Auto-open diff panel when a diff is created
   useEffect(() => {
     if (diffState.isDiffPanelOpen && diffState.activeDiffSetId) {
-      setIsBottomPanelOpen(true);
-      setActiveBottomTab('diff');
+      panelActions.showPanel('diff');
     }
   }, [diffState.isDiffPanelOpen, diffState.activeDiffSetId]);
 
@@ -92,6 +90,11 @@ const IDE: React.FC = () => {
         tabSwitchHideTimerRef.current = null;
       }
     };
+  }, []);
+
+  // Initialize panel store
+  useEffect(() => {
+    panelActions.initialize();
   }, []);
 
   // Initialize update service
@@ -274,7 +277,7 @@ const IDE: React.FC = () => {
 
       if (ctrl && code === "Backquote") {
         event.preventDefault();
-        terminalActions.toggle();
+        panelActions.togglePanel('terminal');
         return;
       }
 
@@ -292,17 +295,7 @@ const IDE: React.FC = () => {
 
       if (ctrl && shift && key === "m") {
         event.preventDefault();
-        // Toggle panel y activar tab de Problems
-        setIsBottomPanelOpen((prev) => {
-          if (!prev) {
-            setActiveBottomTab('problems');
-            return true;
-          }
-          return !prev;
-        });
-        if (isBottomPanelOpen) {
-          setActiveBottomTab('problems');
-        }
+        panelActions.togglePanel('problems');
         return;
       }
     };
@@ -370,15 +363,9 @@ const IDE: React.FC = () => {
       attachListener("shortcut/open-project", () => actionsRef.current.openFolderDialog());
       attachListener("shortcut/new-file", () => actionsRef.current.createNewFile());
       attachListener("shortcut/toggle-sidebar", () => actionsRef.current.toggleSidebar());
-      attachListener("shortcut/toggle-terminal", () => {
-        setIsBottomPanelOpen(true);
-        setActiveBottomTab('terminal');
-      });
+      attachListener("shortcut/toggle-terminal", () => panelActions.togglePanel('terminal'));
       attachListener("shortcut/redo", () => editorActions.redo());
-      attachListener("shortcut/toggle-problems", () => {
-        setIsBottomPanelOpen(true);
-        setActiveBottomTab('problems');
-      });
+      attachListener("shortcut/toggle-problems", () => panelActions.togglePanel('problems'));
 
       (async () => {
         try {
@@ -436,12 +423,10 @@ const IDE: React.FC = () => {
           await registerShortcut("CommandOrControl+O", () => actionsRef.current.openFolderDialog());
           await registerShortcut("CommandOrControl+N", () => actionsRef.current.createNewFile());
           await registerShortcut("CommandOrControl+B", () => actionsRef.current.toggleSidebar());
+          await registerShortcut("CommandOrControl+`", () => panelActions.togglePanel('terminal'));
           await registerShortcut("CommandOrControl+Shift+Z", () => editorActions.redo());
           await registerShortcut("CommandOrControl+Shift+X", () => setIsExtensionMarketplaceOpen(true));
-          await registerShortcut("CommandOrControl+Shift+M", () => {
-            setIsBottomPanelOpen(true);
-            setActiveBottomTab('problems');
-          });
+          await registerShortcut("CommandOrControl+Shift+M", () => panelActions.togglePanel('problems'));
           console.info("Global shortcuts registered via JS plugin");
         } catch (error) {
           console.warn("Global shortcut plugin registration failed", error);
@@ -467,7 +452,7 @@ const IDE: React.FC = () => {
   const isZenMode = snapshot.isZenMode;
   const view = editorState.view;
   const maxLine = view ? view.getModel()?.getLineCount() ?? 1 : 1;
-  const showBottomPanel = !isZenMode && isBottomPanelOpen;
+  const showBottomPanel = !isZenMode && panelState.isBottomPanelOpen;
 
   // Show workspace loading overlay when loading workspace
   const isWorkspaceLoading = loadingState.isLoading && loadingState.loadingContext === 'workspace';
@@ -530,8 +515,8 @@ const IDE: React.FC = () => {
                         >
                           {/* Panel unificado con Tabs - Terminal, Problems y Diff */}
                           <Tabs
-                            value={activeBottomTab}
-                            onValueChange={(value) => setActiveBottomTab(value as 'terminal' | 'problems' | 'diff')}
+                            value={panelState.activeBottomTab}
+                            onValueChange={(value) => panelActions.setActiveTab(value as 'terminal' | 'problems' | 'diff' | 'output')}
                             className="h-full flex flex-col gap-0"
                           >
                             <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8">
@@ -547,6 +532,17 @@ const IDE: React.FC = () => {
                               >
                                 Problems
                               </TabsTrigger>
+                              <button
+                                type="button"
+                                onClick={() => panelActions.hidePanel()}
+                                className="ml-auto mr-2 p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
+                                aria-label="Close Panel"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
                             </TabsList>
 
                             <TabsContent value="terminal" className="flex-1 m-0 h-full">
@@ -554,7 +550,7 @@ const IDE: React.FC = () => {
                             </TabsContent>
 
                             <TabsContent value="problems" className="flex-1 m-0 h-full">
-                              <ProblemsPanel onClose={() => setIsBottomPanelOpen(false)} />
+                              <ProblemsPanel onClose={() => panelActions.hidePanel()} />
                             </TabsContent>
 
                           </Tabs>
@@ -566,10 +562,7 @@ const IDE: React.FC = () => {
               </div>
               {!isZenMode && (
                 <StatusBar
-                  onToggleProblemsPanel={() => {
-                    setIsBottomPanelOpen(true);
-                    setActiveBottomTab('problems');
-                  }}
+                  onToggleProblemsPanel={() => panelActions.togglePanel('problems')}
                 />
               )}
             </>
