@@ -1,21 +1,34 @@
 
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { Separator } from "@/components/ui/separator"
+import {
+    ResizableHandle,
+    ResizablePanel,
+    ResizablePanelGroup,
+} from "@/components/ui/resizable"
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { AgentsSidebar } from "./AgentsSidebar"
 import { AgentChatWindow } from "./AgentChatWindow"
 
 export function AgentsLayout() {
     return (
-        <SidebarProvider>
-            <AgentsSidebar />
-            <SidebarInset>
-                <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-                    <SidebarTrigger className="-ml-1" />
-                    <Separator orientation="vertical" className="mr-2 h-4" />
-                    <span className="font-semibold">Agents</span>
-                </header>
-                <AgentChatWindow />
-            </SidebarInset>
+        <SidebarProvider className="min-h-0 h-full">
+            <div className="h-full w-full overflow-hidden">
+                <ResizablePanelGroup direction="horizontal">
+                    <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="min-w-[250px]">
+                        <AgentsSidebar className="!static !h-full !w-full border-r" />
+                    </ResizablePanel>
+                    <ResizableHandle withHandle />
+                    <ResizablePanel defaultSize={80}>
+                        <div className="flex flex-col h-full">
+                            <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 bg-background">
+                                <span className="font-semibold">Agents</span>
+                            </header>
+                            <div className="flex-1 overflow-hidden h-full">
+                                <AgentChatWindow />
+                            </div>
+                        </div>
+                    </ResizablePanel>
+                </ResizablePanelGroup>
+            </div>
         </SidebarProvider>
     )
 }

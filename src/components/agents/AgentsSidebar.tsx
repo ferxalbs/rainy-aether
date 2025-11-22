@@ -1,4 +1,6 @@
+
 import { Plus, Search } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 import {
     Sidebar,
@@ -14,9 +16,9 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 
-export function AgentsSidebar() {
+export function AgentsSidebar({ className }: { className?: string }) {
     return (
-        <Sidebar collapsible="icon" className="border-r">
+        <Sidebar collapsible="none" className={cn("border-r", className)}>
             <SidebarHeader className="border-b p-4 gap-4">
                 <div className="flex items-center justify-between px-1">
                     <span className="font-semibold text-sm">Agents</span>
