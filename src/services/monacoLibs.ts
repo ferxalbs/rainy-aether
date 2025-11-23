@@ -465,24 +465,30 @@ export function addMonacoExtraLibs() {
   `;
 
   try {
-    // Add Node.js core types
-    monaco.languages.typescript.typescriptDefaults.addExtraLib(nodeTypes, 'ts:node.d.ts');
-    monaco.languages.typescript.javascriptDefaults.addExtraLib(nodeTypes, 'js:node.d.ts');
+    // Add extra libs with fallback-only approach
+    // These are lightweight stubs that help IntelliSense without conflicting with real types
 
-    // Add React types
-    monaco.languages.typescript.typescriptDefaults.addExtraLib(reactTypes, 'ts:react.d.ts');
-    monaco.languages.typescript.javascriptDefaults.addExtraLib(reactTypes, 'js:react.d.ts');
+    // Note: These libs are intentionally minimal to avoid conflicts
+    // They provide basic completions without full type checking
+
+    // Add Node.js core types (basic stubs for common modules)
+    monaco.languages.typescript.typescriptDefaults.addExtraLib(nodeTypes, 'file:///node_modules/@types/node/index.d.ts');
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(nodeTypes, 'file:///node_modules/@types/node/index.d.ts');
+
+    // Add React types (basic stubs for hooks and components)
+    monaco.languages.typescript.typescriptDefaults.addExtraLib(reactTypes, 'file:///node_modules/@types/react/index.d.ts');
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(reactTypes, 'file:///node_modules/@types/react/index.d.ts');
 
     // Add Tauri types
-    monaco.languages.typescript.typescriptDefaults.addExtraLib(tauriTypes, 'ts:tauri.d.ts');
-    monaco.languages.typescript.javascriptDefaults.addExtraLib(tauriTypes, 'js:tauri.d.ts');
+    monaco.languages.typescript.typescriptDefaults.addExtraLib(tauriTypes, 'file:///node_modules/@tauri-apps/api/index.d.ts');
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(tauriTypes, 'file:///node_modules/@tauri-apps/api/index.d.ts');
 
     // Add Monaco types
-    monaco.languages.typescript.typescriptDefaults.addExtraLib(monacoTypes, 'ts:monaco.d.ts');
+    monaco.languages.typescript.typescriptDefaults.addExtraLib(monacoTypes, 'file:///node_modules/monaco-editor/index.d.ts');
 
     // Add utility library types
-    monaco.languages.typescript.typescriptDefaults.addExtraLib(utilTypes, 'ts:utils.d.ts');
-    monaco.languages.typescript.javascriptDefaults.addExtraLib(utilTypes, 'js:utils.d.ts');
+    monaco.languages.typescript.typescriptDefaults.addExtraLib(utilTypes, 'file:///node_modules/@types/utils/index.d.ts');
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(utilTypes, 'file:///node_modules/@types/utils/index.d.ts');
 
     console.info('[Monaco] Extra library definitions added (Node.js, React, Tauri, Utilities)');
   } catch (error) {
