@@ -413,7 +413,13 @@ export function addMonacoExtraLibs() {
       export function hydrateRoot(container: Element, initialChildren: React.ReactNode): Root;
     }
 
-    // JSX Global Namespace - CRITICAL for React/TypeScript
+    `;
+
+  // JSX Global Namespace - CRITICAL for React/TypeScript
+  // Must be in a separate file to be picked up globally
+  const jsxTypes = `
+    import * as React from 'react';
+
     declare global {
       namespace JSX {
         interface Element extends React.ReactElement<any, any> { }
@@ -818,6 +824,10 @@ export function addMonacoExtraLibs() {
     // Add React types (basic stubs for hooks and components)
     monaco.typescript.typescriptDefaults.addExtraLib(reactTypes, 'file:///node_modules/@types/react/index.d.ts');
     monaco.typescript.javascriptDefaults.addExtraLib(reactTypes, 'file:///node_modules/@types/react/index.d.ts');
+
+    // Add JSX types separately to ensure they are picked up globally
+    monaco.typescript.typescriptDefaults.addExtraLib(jsxTypes, 'file:///node_modules/@types/react/jsx-runtime.d.ts');
+    monaco.typescript.javascriptDefaults.addExtraLib(jsxTypes, 'file:///node_modules/@types/react/jsx-runtime.d.ts');
 
     // Add Tauri types
     monaco.typescript.typescriptDefaults.addExtraLib(tauriTypes, 'file:///node_modules/@tauri-apps/api/index.d.ts');

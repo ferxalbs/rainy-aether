@@ -22,14 +22,15 @@ export function configureMonaco() {
   }
 
   // Configure TypeScript/JavaScript compiler options
-  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-    target: monaco.languages.typescript.ScriptTarget.ES2020,
+  monaco.typescript.typescriptDefaults.setCompilerOptions({
+    target: monaco.typescript.ScriptTarget.ES2020,
     allowNonTsExtensions: true,
-    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    module: monaco.languages.typescript.ModuleKind.ESNext,
+    moduleResolution: monaco.typescript.ModuleResolutionKind.NodeJs,
+    module: monaco.typescript.ModuleKind.ESNext,
     noEmit: true,
     esModuleInterop: true,
-    jsx: monaco.languages.typescript.JsxEmit.React,
+    jsx: monaco.typescript.JsxEmit.React,
+    jsxFactory: 'React.createElement',
     reactNamespace: 'React',
     allowJs: true,
     skipLibCheck: true,
@@ -43,14 +44,15 @@ export function configureMonaco() {
     lib: ['es2020', 'dom', 'dom.iterable', 'esnext'],
   });
 
-  monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-    target: monaco.languages.typescript.ScriptTarget.ES2020,
+  monaco.typescript.javascriptDefaults.setCompilerOptions({
+    target: monaco.typescript.ScriptTarget.ES2020,
     allowNonTsExtensions: true,
-    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    module: monaco.languages.typescript.ModuleKind.ESNext,
+    moduleResolution: monaco.typescript.ModuleResolutionKind.NodeJs,
+    module: monaco.typescript.ModuleKind.ESNext,
     noEmit: true,
     esModuleInterop: true,
-    jsx: monaco.languages.typescript.JsxEmit.React,
+    jsx: monaco.typescript.JsxEmit.React,
+    jsxFactory: 'React.createElement',
     reactNamespace: 'React',
     allowJs: true,
     skipLibCheck: true,
@@ -62,7 +64,7 @@ export function configureMonaco() {
   });
 
   // Set diagnostic options - enable full validation like VS Code
-  monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+  monaco.typescript.typescriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false,
     diagnosticCodesToIgnore: [
@@ -79,7 +81,7 @@ export function configureMonaco() {
     ],
   });
 
-  monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+  monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false,
     diagnosticCodesToIgnore: [
@@ -96,14 +98,14 @@ export function configureMonaco() {
   });
 
   // Enable eager model sync for better IntelliSense
-  monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
-  monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
+  monaco.typescript.typescriptDefaults.setEagerModelSync(true);
+  monaco.typescript.javascriptDefaults.setEagerModelSync(true);
 
   // Add extra library definitions for common modules
   addMonacoExtraLibs();
 
   // Configure HTML language
-  monaco.languages.html.htmlDefaults.setOptions({
+  monaco.html.htmlDefaults.setOptions({
     format: {
       tabSize: 2,
       insertSpaces: true,
@@ -122,7 +124,7 @@ export function configureMonaco() {
   });
 
   // Configure CSS language
-  monaco.languages.css.cssDefaults.setOptions({
+  monaco.css.cssDefaults.setOptions({
     validate: true,
     lint: {
       compatibleVendorPrefixes: 'warning',
@@ -147,7 +149,7 @@ export function configureMonaco() {
   });
 
   // Configure JSON language
-  monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+  monaco.json.jsonDefaults.setDiagnosticsOptions({
     validate: true,
     allowComments: true,
     schemas: [],
