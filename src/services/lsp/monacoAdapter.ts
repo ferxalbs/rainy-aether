@@ -60,16 +60,25 @@ export function registerLSPWithMonaco(): void {
 function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void {
   const diagnosticService = getDiagnosticService();
   const uri = model.uri;
+  const uriString = uri.toString();
+
+  // Track if model is disposed to prevent updates after disposal
+  let isDisposed = false;
 
   // Function to sync Monaco diagnostics to our diagnostic service
   const syncDiagnostics = () => {
+    // Skip if model is disposed
+    if (isDisposed) {
+      return;
+    }
+
     const markers = monaco.editor.getModelMarkers({ resource: uri });
 
     // Clear previous Monaco diagnostics for this file
     const allDiagnostics = diagnosticService.getAllDiagnostics();
     allDiagnostics
       .filter((d: { source: DiagnosticSource; file?: string }) =>
-        d.source === DiagnosticSource.Monaco && d.file === uri.toString())
+        d.source === DiagnosticSource.Monaco && d.file === uriString)
       .forEach((d: { id: string }) => diagnosticService.removeDiagnostic(d.id));
 
     // Add new diagnostics
@@ -81,11 +90,11 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
         : DiagnosticSeverity.Info;
 
       diagnosticService.addDiagnostic({
-        id: `monaco-${uri.toString()}-${index}`,
+        id: `monaco-${uriString}-${index}`,
         source: DiagnosticSource.Monaco,
         severity,
         message: marker.message,
-        file: uri.toString(),
+        file: uriString,
         line: marker.startLineNumber,
         column: marker.startColumn,
         code: marker.code?.toString(),
@@ -93,12 +102,13 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
     });
   };
 
-  // Initial sync
-  setTimeout(syncDiagnostics, 1000); // Wait for Monaco to compute initial diagnostics
-
-  // Track changes
+  // Track changes with debouncing
   let syncTimeout: number | null = null;
   const debouncedSync = () => {
+    if (isDisposed) {
+      return;
+    }
+
     if (syncTimeout !== null) {
       clearTimeout(syncTimeout);
     }
@@ -108,14 +118,45 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
     }, 500); // Debounce 500ms
   };
 
-  model.onDidChangeContent(debouncedSync);
+  // Register event listeners
+  const contentChangeDisposable = model.onDidChangeContent(debouncedSync);
 
-  // Also track when Monaco updates markers
-  monaco.editor.onDidChangeMarkers((changedResources) => {
-    if (changedResources.some(resource => resource.toString() === uri.toString())) {
+  // Track marker changes globally
+  const markerChangeDisposable = monaco.editor.onDidChangeMarkers((changedResources) => {
+    if (!isDisposed && changedResources.some(resource => resource.toString() === uriString)) {
       debouncedSync();
     }
   });
+
+  // Cleanup on model disposal - CRITICAL to prevent memory leaks
+  model.onWillDispose(() => {
+    // Mark as disposed
+    isDisposed = true;
+
+    // Clear any pending timeout
+    if (syncTimeout !== null) {
+      clearTimeout(syncTimeout);
+      syncTimeout = null;
+    }
+
+    // Dispose event listeners
+    contentChangeDisposable.dispose();
+    markerChangeDisposable.dispose();
+
+    // Clear diagnostics for this file
+    const allDiagnostics = diagnosticService.getAllDiagnostics();
+    allDiagnostics
+      .filter((d: { source: DiagnosticSource; file?: string }) =>
+        d.source === DiagnosticSource.Monaco && d.file === uriString)
+      .forEach((d: { id: string }) => diagnosticService.removeDiagnostic(d.id));
+  });
+
+  // Initial sync after a delay to let Monaco compute diagnostics
+  setTimeout(() => {
+    if (!isDisposed) {
+      syncDiagnostics();
+    }
+  }, 1000);
 }
 
 /**
