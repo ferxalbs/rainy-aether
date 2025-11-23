@@ -142,23 +142,21 @@ class ProjectContextService {
     }
 
     const compilerOptions = tsconfig.compilerOptions;
-    const monacoOptions: monaco.languages.typescript.CompilerOptions = {};
+    const monacoOptions: monaco.typescript.CompilerOptions = {};
 
     // Map target
     if (compilerOptions.target) {
-      const targetMap: Record<string, monaco.languages.typescript.ScriptTarget> = {
-        'ES3': monaco.languages.typescript.ScriptTarget.ES3,
-        'ES5': monaco.languages.typescript.ScriptTarget.ES5,
-        'ES6': monaco.languages.typescript.ScriptTarget.ES2015,
-        'ES2015': monaco.languages.typescript.ScriptTarget.ES2015,
-        'ES2016': monaco.languages.typescript.ScriptTarget.ES2016,
-        'ES2017': monaco.languages.typescript.ScriptTarget.ES2017,
-        'ES2018': monaco.languages.typescript.ScriptTarget.ES2018,
-        'ES2019': monaco.languages.typescript.ScriptTarget.ES2019,
-        'ES2020': monaco.languages.typescript.ScriptTarget.ES2020,
-        'ES2021': monaco.languages.typescript.ScriptTarget.ES2021,
-        'ES2022': monaco.languages.typescript.ScriptTarget.ES2022,
-        'ESNext': monaco.languages.typescript.ScriptTarget.ESNext,
+      const targetMap: Record<string, monaco.typescript.ScriptTarget> = {
+        'ES3': monaco.typescript.ScriptTarget.ES3,
+        'ES5': monaco.typescript.ScriptTarget.ES5,
+        'ES6': monaco.typescript.ScriptTarget.ES2015,
+        'ES2015': monaco.typescript.ScriptTarget.ES2015,
+        'ES2016': monaco.typescript.ScriptTarget.ES2016,
+        'ES2017': monaco.typescript.ScriptTarget.ES2017,
+        'ES2018': monaco.typescript.ScriptTarget.ES2018,
+        'ES2019': monaco.typescript.ScriptTarget.ES2019,
+        'ES2020': monaco.typescript.ScriptTarget.ES2020,
+        'ESNext': monaco.typescript.ScriptTarget.ESNext,
       };
       const target = targetMap[compilerOptions.target.toUpperCase()];
       if (target !== undefined) {
@@ -168,17 +166,15 @@ class ProjectContextService {
 
     // Map module
     if (compilerOptions.module) {
-      const moduleMap: Record<string, monaco.languages.typescript.ModuleKind> = {
-        'CommonJS': monaco.languages.typescript.ModuleKind.CommonJS,
-        'AMD': monaco.languages.typescript.ModuleKind.AMD,
-        'UMD': monaco.languages.typescript.ModuleKind.UMD,
-        'System': monaco.languages.typescript.ModuleKind.System,
-        'ES6': monaco.languages.typescript.ModuleKind.ES2015,
-        'ES2015': monaco.languages.typescript.ModuleKind.ES2015,
-        'ES2020': monaco.languages.typescript.ModuleKind.ES2020,
-        'ES2022': monaco.languages.typescript.ModuleKind.ES2022,
-        'ESNext': monaco.languages.typescript.ModuleKind.ESNext,
-        'None': monaco.languages.typescript.ModuleKind.None,
+      const moduleMap: Record<string, monaco.typescript.ModuleKind> = {
+        'CommonJS': monaco.typescript.ModuleKind.CommonJS,
+        'AMD': monaco.typescript.ModuleKind.AMD,
+        'UMD': monaco.typescript.ModuleKind.UMD,
+        'System': monaco.typescript.ModuleKind.System,
+        'ES6': monaco.typescript.ModuleKind.ES2015,
+        'ES2015': monaco.typescript.ModuleKind.ES2015,
+        'ESNext': monaco.typescript.ModuleKind.ESNext,
+        'None': monaco.typescript.ModuleKind.None,
       };
       const module = moduleMap[compilerOptions.module];
       if (module !== undefined) {
@@ -188,12 +184,12 @@ class ProjectContextService {
 
     // Map module resolution
     if (compilerOptions.moduleResolution) {
-      const resolutionMap: Record<string, monaco.languages.typescript.ModuleResolutionKind> = {
-        'Classic': monaco.languages.typescript.ModuleResolutionKind.Classic,
-        'Node': monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-        'NodeJs': monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-        'Node16': monaco.languages.typescript.ModuleResolutionKind.NodeJs, // Fallback
-        'NodeNext': monaco.languages.typescript.ModuleResolutionKind.NodeJs, // Fallback
+      const resolutionMap: Record<string, monaco.typescript.ModuleResolutionKind> = {
+        'Classic': monaco.typescript.ModuleResolutionKind.Classic,
+        'Node': monaco.typescript.ModuleResolutionKind.NodeJs,
+        'NodeJs': monaco.typescript.ModuleResolutionKind.NodeJs,
+        'Node16': monaco.typescript.ModuleResolutionKind.NodeJs, // Fallback
+        'NodeNext': monaco.typescript.ModuleResolutionKind.NodeJs, // Fallback
       };
       const resolution = resolutionMap[compilerOptions.moduleResolution];
       if (resolution !== undefined) {
@@ -203,13 +199,13 @@ class ProjectContextService {
 
     // Map JSX
     if (compilerOptions.jsx) {
-      const jsxMap: Record<string, monaco.languages.typescript.JsxEmit> = {
-        'None': monaco.languages.typescript.JsxEmit.None,
-        'Preserve': monaco.languages.typescript.JsxEmit.Preserve,
-        'React': monaco.languages.typescript.JsxEmit.React,
-        'ReactNative': monaco.languages.typescript.JsxEmit.ReactNative,
-        'ReactJSX': monaco.languages.typescript.JsxEmit.ReactJSX,
-        'ReactJSXDev': monaco.languages.typescript.JsxEmit.ReactJSXDev,
+      const jsxMap: Record<string, monaco.typescript.JsxEmit> = {
+        'None': monaco.typescript.JsxEmit.None,
+        'Preserve': monaco.typescript.JsxEmit.Preserve,
+        'React': monaco.typescript.JsxEmit.React,
+        'ReactNative': monaco.typescript.JsxEmit.ReactNative,
+        'ReactJSX': monaco.typescript.JsxEmit.ReactJSX,
+        'ReactJSXDev': monaco.typescript.JsxEmit.ReactJSXDev,
       };
       const jsx = jsxMap[compilerOptions.jsx];
       if (jsx !== undefined) {
@@ -257,21 +253,21 @@ class ProjectContextService {
     }
 
     // Apply to TypeScript defaults
-    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-      ...monaco.languages.typescript.typescriptDefaults.getCompilerOptions(),
+    monaco.typescript.typescriptDefaults.setCompilerOptions({
+      ...monaco.typescript.typescriptDefaults.getCompilerOptions(),
       ...monacoOptions,
       allowNonTsExtensions: true, // Always allow non-TS extensions in editor
     });
 
     // Apply relevant options to JavaScript defaults
-    const jsOptions: monaco.languages.typescript.CompilerOptions = {
+    const jsOptions: monaco.typescript.CompilerOptions = {
       ...monacoOptions,
       allowJs: true,
       checkJs: compilerOptions.checkJs ?? false,
       allowNonTsExtensions: true,
     };
-    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-      ...monaco.languages.typescript.javascriptDefaults.getCompilerOptions(),
+    monaco.typescript.javascriptDefaults.setCompilerOptions({
+      ...monaco.typescript.javascriptDefaults.getCompilerOptions(),
       ...jsOptions,
     });
 

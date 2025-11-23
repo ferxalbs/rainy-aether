@@ -35,7 +35,7 @@ export const FontSettings: React.FC = () => {
 
   const loadInstalledFonts = () => {
     const fonts = fontManager.getInstalledFonts();
-    setInstalledFonts(fonts);
+    setInstalledFonts([...fonts]);
   };
 
   const loadGoogleFonts = async () => {
@@ -46,7 +46,7 @@ export const FontSettings: React.FC = () => {
 
     try {
       const fonts = await fontManager.fetchGoogleFonts();
-      setGoogleFonts(fonts);
+      setGoogleFonts([...fonts]);
     } catch (err: any) {
       setError(`Failed to load Google Fonts: ${err.message}`);
     } finally {

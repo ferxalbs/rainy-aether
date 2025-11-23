@@ -44,7 +44,7 @@ async function getTypeScriptSymbols(
   model: monaco.editor.ITextModel
 ): Promise<SymbolNode[]> {
   try {
-    const worker = await monaco.languages.typescript.getTypeScriptWorker();
+    const worker = await monaco.typescript.getTypeScriptWorker();
     const client = await worker(model.uri);
 
     // Get navigation tree (this is how VS Code gets symbols)

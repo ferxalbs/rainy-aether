@@ -9,11 +9,6 @@ import {
   Moon,
   Sun,
   FilePlus,
-  Minimize2,
-  Maximize2,
-  Map,
-  Columns,
-  WrapText,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { toggleDayNight, useThemeState, isExtensionThemeActive } from "../../stores/themeStore";
