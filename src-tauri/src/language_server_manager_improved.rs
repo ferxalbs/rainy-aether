@@ -49,12 +49,12 @@ pub struct LanguageServerManagerImproved {
 }
 
 /// Server statistics
-#[derive(Debug, Default)]
-struct ServerStats {
-    total_messages_sent: u64,
-    total_messages_received: u64,
-    total_errors: u64,
-    active_sessions: u32,
+#[derive(Debug, Default, Clone)]
+pub struct ServerStats {
+    pub total_messages_sent: u64,
+    pub total_messages_received: u64,
+    pub total_errors: u64,
+    pub active_sessions: u32,
 }
 
 /// Parameters for starting a language server
@@ -83,7 +83,7 @@ pub struct ServerResponse {
 
 /// LSP Error types
 #[derive(Debug)]
-enum LSPError {
+pub enum LSPError {
     ServerAlreadyRunning(String),
     ServerNotRunning(String),
     ProcessSpawnFailed(std::io::Error),

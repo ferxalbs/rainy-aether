@@ -4,7 +4,6 @@
  */
 
 import { useEffect, useRef } from 'react';
-import * as monaco from 'monaco-editor';
 import {
   initializeLanguageClient,
   shutdownLanguageClient,
@@ -80,7 +79,7 @@ export function useLSPIntegration(options: UseLSPIntegrationOptions = {}) {
         isInitialized.current = true;
 
         // Start the language client
-        await initializeLanguageClient();
+        await initializeLanguageClient(workspacePath);
 
         // Mark as ready
         isLSPReady.current = true;
@@ -133,51 +132,6 @@ export function useLSPIntegration(options: UseLSPIntegrationOptions = {}) {
     isLSPRunning: isLanguageClientRunning(),
     restartLSP,
   };
-}
-
-/**
- * Configure Monaco services for LSP integration
- * Call this before creating the editor instance
- */
-export function configureMonacoServices() {
-  // Configure Monaco to work with LSP
-  // This sets up the necessary services for language features
-
-  // Set up TypeScript compiler options for better IntelliSense
-  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-    target: monaco.languages.typescript.ScriptTarget.Latest,
-    allowNonTsExtensions: true,
-    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    module: monaco.languages.typescript.ModuleKind.CommonJS,
-    noEmit: true,
-    esModuleInterop: true,
-    jsx: monaco.languages.typescript.JsxEmit.React,
-    reactNamespace: 'React',
-    allowJs: true,
-    typeRoots: ['node_modules/@types'],
-  });
-
-  // Configure diagnostics options
-  monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
-    noSemanticValidation: false,
-    noSyntaxValidation: false,
-    onlyVisible: false,
-  });
-
-  // Same for JavaScript
-  monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
-    target: monaco.languages.typescript.ScriptTarget.Latest,
-    allowNonTsExtensions: true,
-    allowJs: true,
-  });
-
-  monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-    noSemanticValidation: false,
-    noSyntaxValidation: false,
-    onlyVisible: false,
-  });
-
-  console.info('[LSP] Monaco services configured for LSP integration');
 }
 
 /**

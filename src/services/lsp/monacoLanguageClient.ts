@@ -6,14 +6,10 @@
  */
 
 import * as monaco from 'monaco-editor';
-import {
-  MonacoLanguageClient,
-  CloseAction,
-  ErrorAction,
-  MessageTransports,
-} from 'monaco-languageclient';
+import { MonacoLanguageClient } from 'monaco-languageclient';
+import type { MessageTransports } from 'vscode-languageclient/browser.js';
+import { CloseAction, ErrorAction } from 'vscode-languageclient/browser.js';
 import { createTauriMessageConnection, isTauriEnvironment } from './TauriTransport';
-import { useIDEState } from '@/stores/ideStore';
 
 /**
  * Language Client Manager
@@ -23,6 +19,14 @@ class LanguageClientManager {
   private client: MonacoLanguageClient | null = null;
   private isStarted = false;
   private isStarting = false;
+  private workspacePath: string = '/';
+
+  /**
+   * Set workspace path
+   */
+  setWorkspacePath(path: string): void {
+    this.workspacePath = path;
+  }
 
   /**
    * Start the language client
@@ -43,6 +47,9 @@ class LanguageClientManager {
     try {
       console.info('[LSP] Starting Monaco Language Client...');
 
+      // Create message transports
+      const messageTransports: MessageTransports = await createTauriMessageConnection('utf-8');
+
       // Create the language client
       this.client = new MonacoLanguageClient({
         name: 'TypeScript/JavaScript Language Client',
@@ -57,7 +64,7 @@ class LanguageClientManager {
 
           // Workspace configuration
           workspaceFolder: {
-            uri: monaco.Uri.file(this.getWorkspacePath()).toString(),
+            uri: monaco.Uri.file(this.workspacePath).toString(),
             name: 'workspace',
             index: 0,
           },
@@ -72,14 +79,6 @@ class LanguageClientManager {
               console.warn('[LSP] Connection closed');
               return { action: CloseAction.Restart };
             },
-          },
-
-          // Synchronization options
-          synchronize: {
-            // Notify the server about file changes to '.ts', '.js', '.tsx', '.jsx' files
-            fileEvents: [
-              monaco.workspace.createFileSystemWatcher('**/*.{ts,tsx,js,jsx}'),
-            ],
           },
 
           // Initialization options for typescript-language-server
@@ -97,21 +96,11 @@ class LanguageClientManager {
           },
         },
 
-        // Connection provider - creates the transport layer
-        connectionProvider: {
-          get: async (encoding: string): Promise<MessageTransports> => {
-            console.info('[LSP] Creating Tauri message connection...');
-            return createTauriMessageConnection(encoding);
-          },
-        },
+        // Message transports
+        messageTransports,
       });
 
       // Start the client
-      // This will:
-      // 1. Create the transport via connectionProvider
-      // 2. Send 'initialize' request
-      // 3. Send 'initialized' notification
-      // 4. Start synchronizing documents
       await this.client.start();
 
       this.isStarted = true;
@@ -169,20 +158,6 @@ class LanguageClientManager {
   getClient(): MonacoLanguageClient | null {
     return this.client;
   }
-
-  /**
-   * Get the workspace path from IDE state
-   */
-  private getWorkspacePath(): string {
-    // Try to get from IDE state
-    const ideState = useIDEState.getState?.();
-    if (ideState?.workspace) {
-      return ideState.workspace;
-    }
-
-    // Fallback to current working directory
-    return process.cwd?.() || '/';
-  }
 }
 
 // Singleton instance
@@ -202,8 +177,11 @@ export function getLanguageClientManager(): LanguageClientManager {
  * Initialize and start the language client
  * Call this after Monaco Editor is ready
  */
-export async function initializeLanguageClient(): Promise<void> {
+export async function initializeLanguageClient(workspacePath?: string): Promise<void> {
   const manager = getLanguageClientManager();
+  if (workspacePath) {
+    manager.setWorkspacePath(workspacePath);
+  }
   await manager.start();
 }
 

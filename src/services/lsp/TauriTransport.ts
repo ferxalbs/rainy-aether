@@ -8,83 +8,51 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type {
-  Message,
-  MessageReader,
-  MessageWriter,
-  DataCallback,
-  PartialMessageInfo,
-  Disposable,
-  Event,
-  Emitter
-} from 'vscode-jsonrpc';
-import { Disposable as DisposableImpl } from 'vscode-jsonrpc';
-import { RAL } from 'vscode-jsonrpc';
+import type { Message } from 'vscode-languageserver-protocol';
+import { AbstractMessageReader, AbstractMessageWriter, type DataCallback, type MessageReader, type MessageWriter } from 'vscode-languageclient/browser.js';
+import type { MessageTransports } from 'vscode-languageclient/browser.js';
 
 /**
  * Tauri Message Reader
  * Reads LSP messages from the language server via Tauri IPC events
  */
-export class TauriMessageReader implements MessageReader {
+export class TauriMessageReader extends AbstractMessageReader implements MessageReader {
   private sessionId: number;
-  private dataCallback: DataCallback | undefined;
-  private closeCallback: (() => void) | undefined;
-  private errorCallback: ((error: Error) => void) | undefined;
   private unlistenMessage: UnlistenFn | null = null;
   private unlistenClose: UnlistenFn | null = null;
   private unlistenError: UnlistenFn | null = null;
-  private disposed = false;
-
-  onError: Event<Error>;
-  private errorEmitter: Emitter<Error>;
-
-  onClose: Event<void>;
-  private closeEmitter: Emitter<void>;
-
-  onPartialMessage: Event<PartialMessageInfo>;
-  private partialMessageEmitter: Emitter<PartialMessageInfo>;
 
   constructor(sessionId: number) {
+    super();
     this.sessionId = sessionId;
-
-    // Create emitters using RAL (Runtime Abstraction Layer)
-    this.errorEmitter = new RAL().messageBuffer.Emitter<Error>();
-    this.onError = this.errorEmitter.event;
-
-    this.closeEmitter = new RAL().messageBuffer.Emitter<void>();
-    this.onClose = this.closeEmitter.event;
-
-    this.partialMessageEmitter = new RAL().messageBuffer.Emitter<PartialMessageInfo>();
-    this.onPartialMessage = this.partialMessageEmitter.event;
   }
 
   /**
    * Start listening for messages from the language server
    */
-  async listen(callback: DataCallback): Promise<void> {
-    this.dataCallback = callback;
+  listen(callback: DataCallback): void {
+    // Set up event listeners for messages from the server
+    this.setupEventListeners(callback);
+  }
 
+  /**
+   * Set up event listeners for server messages
+   */
+  private async setupEventListeners(callback: DataCallback): Promise<void> {
     try {
       // Listen for LSP messages from the server
       this.unlistenMessage = await listen<{ message: string }>(
         `lsp-message-${this.sessionId}`,
         (event) => {
-          if (this.disposed) return;
-
           try {
             // Parse the JSON-RPC message
             const message = JSON.parse(event.payload.message) as Message;
 
             // Deliver to the callback
-            if (this.dataCallback) {
-              this.dataCallback(message);
-            }
+            callback(message);
           } catch (error) {
             console.error('[TauriMessageReader] Failed to parse message:', error);
-            if (this.errorCallback) {
-              this.errorCallback(error as Error);
-            }
-            this.errorEmitter.fire(error as Error);
+            this.fireError(error);
           }
         }
       );
@@ -93,13 +61,8 @@ export class TauriMessageReader implements MessageReader {
       this.unlistenClose = await listen(
         `lsp-close-${this.sessionId}`,
         () => {
-          if (this.disposed) return;
-
           console.info(`[TauriMessageReader] Server closed: ${this.sessionId}`);
-          if (this.closeCallback) {
-            this.closeCallback();
-          }
-          this.closeEmitter.fire();
+          this.fireClose();
         }
       );
 
@@ -107,19 +70,14 @@ export class TauriMessageReader implements MessageReader {
       this.unlistenError = await listen<{ error: string }>(
         `lsp-error-${this.sessionId}`,
         (event) => {
-          if (this.disposed) return;
-
           const error = new Error(event.payload.error);
           console.error('[TauriMessageReader] Server error:', error);
-          if (this.errorCallback) {
-            this.errorCallback(error);
-          }
-          this.errorEmitter.fire(error);
+          this.fireError(error);
         }
       );
     } catch (error) {
       console.error('[TauriMessageReader] Failed to set up listeners:', error);
-      throw error;
+      this.fireError(error);
     }
   }
 
@@ -127,9 +85,7 @@ export class TauriMessageReader implements MessageReader {
    * Dispose and clean up resources
    */
   dispose(): void {
-    if (this.disposed) return;
-
-    this.disposed = true;
+    super.dispose();
 
     // Clean up event listeners
     if (this.unlistenMessage) {
@@ -144,11 +100,6 @@ export class TauriMessageReader implements MessageReader {
       this.unlistenError();
       this.unlistenError = null;
     }
-
-    // Dispose emitters
-    this.errorEmitter.dispose();
-    this.closeEmitter.dispose();
-    this.partialMessageEmitter.dispose();
   }
 }
 
@@ -156,52 +107,37 @@ export class TauriMessageReader implements MessageReader {
  * Tauri Message Writer
  * Writes LSP messages to the language server via Tauri IPC commands
  */
-export class TauriMessageWriter implements MessageWriter {
+export class TauriMessageWriter extends AbstractMessageWriter implements MessageWriter {
   private sessionId: number;
-  private errorCallback: ((error: Error) => void) | undefined;
-  private closeCallback: (() => void) | undefined;
-  private disposed = false;
-
-  onError: Event<[Error, Message | undefined, number | undefined]>;
-  private errorEmitter: Emitter<[Error, Message | undefined, number | undefined]>;
-
-  onClose: Event<void>;
-  private closeEmitter: Emitter<void>;
+  private errorCount = 0;
+  private writtenBytes = 0;
 
   constructor(sessionId: number) {
+    super();
     this.sessionId = sessionId;
-
-    // Create emitters using RAL
-    this.errorEmitter = new RAL().messageBuffer.Emitter<[Error, Message | undefined, number | undefined]>();
-    this.onError = this.errorEmitter.event;
-
-    this.closeEmitter = new RAL().messageBuffer.Emitter<void>();
-    this.onClose = this.closeEmitter.event;
   }
 
   /**
    * Write a message to the language server
    */
   async write(message: Message): Promise<void> {
-    if (this.disposed) {
-      throw new Error('[TauriMessageWriter] Writer is disposed');
-    }
-
     try {
       // Serialize the message to JSON
       const serialized = JSON.stringify(message);
+      const messageLength = new TextEncoder().encode(serialized).length;
 
       // Send via Tauri IPC to the Rust backend
       await invoke('lsp_send_message', {
         serverId: `session-${this.sessionId}`,
         message: serialized,
       });
+
+      // Track bytes written
+      this.writtenBytes += messageLength;
     } catch (error) {
       console.error('[TauriMessageWriter] Failed to write message:', error);
-      if (this.errorCallback) {
-        this.errorCallback(error as Error);
-      }
-      this.errorEmitter.fire([error as Error, message, undefined]);
+      this.errorCount++;
+      this.fireError(error, message, this.errorCount);
       throw error;
     }
   }
@@ -210,30 +146,15 @@ export class TauriMessageWriter implements MessageWriter {
    * End the writer
    */
   end(): void {
-    if (this.closeCallback) {
-      this.closeCallback();
-    }
-    this.closeEmitter.fire();
+    // No-op for Tauri transport
   }
 
   /**
    * Dispose and clean up resources
    */
   dispose(): void {
-    if (this.disposed) return;
-
-    this.disposed = true;
-    this.errorEmitter.dispose();
-    this.closeEmitter.dispose();
+    super.dispose();
   }
-}
-
-/**
- * Message Transports container
- */
-export interface MessageTransports {
-  reader: MessageReader;
-  writer: MessageWriter;
 }
 
 /**
