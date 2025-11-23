@@ -65,37 +65,14 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
   // Track if model is disposed to prevent updates after disposal
   let isDisposed = false;
 
-  // Additional diagnostic codes to filter out (beyond Monaco's configuration)
-  const ignoredCodes = new Set([
-    // These are already in Monaco config but double-check
-    2307, 2792, 7016, 2688, 2304,
-    1192, 1259, 1479,
-    7006, 7031, 7034,
-    2614, 2769,
-    6133, 6196,
-    1371, 1345,
-
-    // Additional noise filters
-    2305, // Module has no exported member
-    2339, // Property does not exist on type (often false positive)
-    2322, // Type is not assignable (too aggressive in editor)
-    80001, // File is a CommonJS module
-    80005, // 'require' call may be converted to an import
-    80006, // This may be converted to an async function
-  ]);
-
   // Function to check if diagnostic should be shown
   const shouldShowDiagnostic = (marker: monaco.editor.IMarker): boolean => {
-    // Filter by code
+    // Filter by code - codes are now centralized in monacoConfig.ts
     const code = typeof marker.code === 'string'
       ? parseInt(marker.code, 10)
       : typeof marker.code === 'object' && marker.code?.value
       ? parseInt(marker.code.value.toString(), 10)
       : null;
-
-    if (code && ignoredCodes.has(code)) {
-      return false;
-    }
 
     // Only show errors and warnings, skip hints and info in Problems panel
     if (marker.severity < monaco.MarkerSeverity.Warning) {

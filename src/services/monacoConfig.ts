@@ -61,44 +61,22 @@ export function configureMonaco() {
     lib: ['es2020', 'dom', 'dom.iterable', 'esnext'],
   });
 
-  // Set diagnostic options - match VS Code behavior
+  // Set diagnostic options - enable full validation like VS Code
   monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false,
     diagnosticCodesToIgnore: [
-      // Module resolution false positives
-      2307, // Cannot find module (editor without full node_modules context)
-      2792, // Cannot find module (alternative code)
+      // Only ignore errors that truly don't apply in editor context
+      2307, // Cannot find module (common in editors without full project context)
       7016, // Could not find declaration file for module
-
-      // Declaration file issues (editor-specific)
-      2688, // Cannot find type definition file
-      2304, // Cannot find name (for globals not in scope)
-
-      // Import/require issues in editor context
-      1192, // Module has no default export
-      1259, // Module can only be default-imported
-      1479, // The current file is a CommonJS module
-
-      // Implicit any (too noisy in editor)
-      7006, // Parameter implicitly has 'any' type
-      7031, // Binding element implicitly has 'any' type
-      7034, // Variable implicitly has type 'any'
-
-      // React/JSX specific (handled by our stubs)
-      2614, // Module has no exported member (for React types)
-      2769, // No overload matches this call
-
-      // Editor-specific issues
-      6133, // Declared but never read (too aggressive in partial files)
-      6196, // Declared but value never read
-
-      // Type-only imports
-      1371, // This import is never used as a value
-      1345, // An expression of type 'void' cannot be tested for truthiness
+      // Additional noise filters for better editor experience
+      2305, // Module has no exported member
+      2339, // Property does not exist on type (often false positive)
+      2322, // Type is not assignable (too aggressive in editor)
+      80001, // File is a CommonJS module
+      80005, // 'require' call may be converted to an import
+      80006, // This may be converted to an async function
     ],
-    onlyVisible: true, // Only show diagnostics for visible files
-    modelSync: true, // Keep model in sync
   });
 
   monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
@@ -106,13 +84,15 @@ export function configureMonaco() {
     noSyntaxValidation: false,
     diagnosticCodesToIgnore: [
       2307, // Cannot find module
-      2792, // Cannot find module (alternative)
-      7016, // Could not find declaration file
-      2304, // Cannot find name
-      1192, // Module has no default export
+      7016, // Could not find declaration file for module
+      // Additional noise filters for better editor experience
+      2305, // Module has no exported member
+      2339, // Property does not exist on type (often false positive)
+      2322, // Type is not assignable (too aggressive in editor)
+      80001, // File is a CommonJS module
+      80005, // 'require' call may be converted to an import
+      80006, // This may be converted to an async function
     ],
-    onlyVisible: true,
-    modelSync: true,
   });
 
   // Enable eager model sync for better IntelliSense
