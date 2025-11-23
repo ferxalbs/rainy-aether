@@ -227,6 +227,7 @@ pub fn run() {
         project_manager::open_project_dialog,
         project_manager::load_project_structure,
         project_manager::load_directory_children,
+        project_manager::list_directory,
         project_manager::get_file_content,
         project_manager::save_file_content,
         project_manager::watch_project_changes,

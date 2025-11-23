@@ -596,6 +596,52 @@ fn search_in_content(content: &str, query: &str, options: &SearchOptions) -> Vec
     matches
 }
 
+/// List directory contents (for LSP/WorkspaceFS)
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DirectoryEntry {
+    pub name: String,
+    pub is_directory: bool,
+    pub path: String,
+}
+
+#[tauri::command]
+pub async fn list_directory(path: String) -> Result<Vec<DirectoryEntry>, String> {
+    let dir_path = PathBuf::from(&path);
+
+    if !dir_path.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+
+    if !dir_path.is_dir() {
+        return Err(format!("Path is not a directory: {}", path));
+    }
+
+    let mut entries: Vec<DirectoryEntry> = fs::read_dir(&dir_path)
+        .map_err(|e| format!("Failed to read directory: {}", e))?
+        .filter_map(|entry| entry.ok())
+        .map(|entry| {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            let is_directory = path.is_dir();
+
+            DirectoryEntry {
+                name,
+                is_directory,
+                path: path.to_string_lossy().to_string(),
+            }
+        })
+        .collect();
+
+    // Sort: directories first, then alphabetically
+    entries.sort_by(|a, b| match (a.is_directory, b.is_directory) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+    });
+
+    Ok(entries)
+}
+
 /// Search for text across all files in a workspace
 #[tauri::command]
 pub async fn search_in_workspace(

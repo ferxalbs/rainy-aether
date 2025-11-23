@@ -635,6 +635,17 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
       // Non-fatal error - continue
     }
 
+    // Configure Monaco with workspace-specific settings (tsconfig.json, package.json)
+    try {
+      console.log('[IDE] Configuring Monaco with workspace settings');
+      const { configureMonacoForWorkspace } = await import("@/services/monacoConfig");
+      await configureMonacoForWorkspace(workspace.path);
+      console.log('[IDE] Monaco configured with workspace settings successfully');
+    } catch (error) {
+      console.warn("Failed to configure Monaco with workspace settings:", error);
+      // Non-fatal error - continue
+    }
+
     // Small delay to ensure Monaco is ready
     await new Promise(resolve => setTimeout(resolve, 200));
     loadingActions.completeStage('monaco');
