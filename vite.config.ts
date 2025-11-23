@@ -14,6 +14,8 @@ export default defineConfig({
       // Polyfill Node.js built-ins for LangGraph compatibility
       "async_hooks": path.resolve(__dirname, "./src/polyfills/async_hooks.ts"),
       "node:async_hooks": path.resolve(__dirname, "./src/polyfills/async_hooks.ts"),
+      // Stub vscode module (used by vscode-languageclient but not needed in browser)
+      "vscode": path.resolve(__dirname, "./src/polyfills/vscode.ts"),
     },
   },
   define: {
@@ -22,8 +24,8 @@ export default defineConfig({
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
   },
   optimizeDeps: {
-    include: ['monaco-editor'],
-    exclude: ['vscode'], // Exclude vscode module from bundling
+    include: ['monaco-editor', 'vscode-languageclient/browser'],
+    exclude: ['vscode'], // Exclude vscode module from bundling (stubbed in polyfills)
     esbuildOptions: {
       define: {
         global: 'globalThis',
