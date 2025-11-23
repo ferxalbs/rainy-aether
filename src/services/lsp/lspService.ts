@@ -4,6 +4,7 @@
  */
 
 import { LSPClient } from './lspClient';
+import { OptimizedLSPClient } from './OptimizedLSPClient';
 import type { LanguageServerConfig, Diagnostic } from './types';
 import { getDiagnosticService, DiagnosticSource, DiagnosticSeverity } from '../diagnosticService';
 
@@ -24,7 +25,8 @@ class LSPService {
       return;
     }
 
-    const client = new LSPClient(config);
+    // Use OptimizedLSPClient for better performance
+    const client = new OptimizedLSPClient(config);
 
     // Map languages to this server
     for (const lang of config.languages) {

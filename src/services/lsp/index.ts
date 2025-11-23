@@ -5,6 +5,7 @@
 
 export * from './types';
 export * from './lspClient';
+export * from './OptimizedLSPClient';
 export * from './lspService';
 export * from './JSONRPCProtocol';
 export * from './ConnectionManager';

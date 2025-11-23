@@ -49,6 +49,7 @@ export interface ConnectionOptions {
  */
 export class ConnectionManager {
   private serverId: string;
+  private sessionId: number | null = null;
   private protocol: JSONRPCProtocol;
   private state: ConnectionState = ConnectionState.Disconnected;
   private stateChangeHandlers = new Set<(state: ConnectionState) => void>();
@@ -92,17 +93,25 @@ export class ConnectionManager {
     this.setState(ConnectionState.Connecting);
 
     try {
-      // Set up event listeners for messages from the server
-      await this.setupEventListeners();
-
-      // Start the language server via Tauri backend
-      await invoke('lsp_start_server', {
+      // Start the language server via Tauri backend (using improved implementation)
+      const result = await invoke<{ success: boolean; sessionId?: number; error?: string }>('lsp_start_server_improved', {
         serverId: this.serverId,
         command: options.command,
         args: options.args || [],
         cwd: options.cwd,
         env: options.env || {},
       });
+
+      if (!result.success || !result.sessionId) {
+        throw new Error(result.error || 'Failed to start LSP server');
+      }
+
+      // Store session ID
+      this.sessionId = result.sessionId;
+      console.info(`[LSP Connection] Server started with session ID: ${this.sessionId}`);
+
+      // Set up event listeners using session ID
+      await this.setupEventListeners();
 
       this.setState(ConnectionState.Connected);
       console.info(`[LSP Connection] Connected: ${this.serverId}`);
@@ -125,8 +134,8 @@ export class ConnectionManager {
       // Cancel all pending requests
       this.protocol.cancelAllRequests();
 
-      // Stop the language server
-      await invoke('lsp_stop_server', { serverId: this.serverId });
+      // Stop the language server (using improved implementation)
+      await invoke('lsp_stop_server_improved', { serverId: this.serverId });
 
       // Clean up event listeners
       await this.cleanupEventListeners();
@@ -183,21 +192,25 @@ export class ConnectionManager {
    * Set up event listeners for server messages
    */
   private async setupEventListeners(): Promise<void> {
-    // Listen for messages from the language server
-    this.unlistenMessage = await listen(`lsp-message-${this.serverId}`, (event) => {
+    if (!this.sessionId) {
+      throw new Error('Cannot setup event listeners: no session ID');
+    }
+
+    // Listen for messages from the language server (using session ID)
+    this.unlistenMessage = await listen(`lsp-message-${this.sessionId}`, (event) => {
       const payload = event.payload as { message: string };
       this.handleServerMessage(payload.message);
     });
 
-    // Listen for server errors
-    this.unlistenError = await listen(`lsp-error-${this.serverId}`, (event) => {
+    // Listen for server errors (using session ID)
+    this.unlistenError = await listen(`lsp-error-${this.sessionId}`, (event) => {
       const payload = event.payload as { error: string };
       console.error(`[LSP Connection] Server error:`, payload.error);
       this.setState(ConnectionState.Error);
     });
 
-    // Listen for server close
-    this.unlistenClose = await listen(`lsp-close-${this.serverId}`, () => {
+    // Listen for server close (using session ID)
+    this.unlistenClose = await listen(`lsp-close-${this.sessionId}`, () => {
       console.info(`[LSP Connection] Server closed: ${this.serverId}`);
       this.setState(ConnectionState.Disconnected);
     });
@@ -243,7 +256,7 @@ export class ConnectionManager {
   private async sendToServer(message: JSONRPCMessage): Promise<void> {
     try {
       const serialized = this.protocol.serializeMessage(message);
-      await invoke('lsp_send_message', {
+      await invoke('lsp_send_message_improved', {
         serverId: this.serverId,
         message: serialized,
       });
