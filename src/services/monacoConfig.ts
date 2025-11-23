@@ -7,8 +7,10 @@ import * as monaco from 'monaco-editor';
 import { initializeLSP } from './lsp';
 import { registerLSPWithMonaco, registerCustomLSPProviders } from './lsp/monacoAdapter';
 import { addMonacoExtraLibs } from './monacoLibs';
+import { initializeProjectContext } from './projectContext';
 
 let isConfigured = false;
+let workspaceConfigured = false;
 
 /**
  * Configure Monaco Editor with proper language services
@@ -153,6 +155,25 @@ export function configureMonaco() {
 
   isConfigured = true;
   console.info('[Monaco] Language services configured with LSP support');
+}
+
+/**
+ * Configure Monaco with workspace-specific settings
+ * This should be called when a workspace is loaded
+ */
+export async function configureMonacoForWorkspace(workspacePath: string): Promise<void> {
+  if (workspaceConfigured) {
+    console.debug('[Monaco] Workspace already configured, reinitializing...');
+  }
+
+  try {
+    // Load project configuration (tsconfig.json, package.json)
+    await initializeProjectContext(workspacePath);
+    workspaceConfigured = true;
+    console.info('[Monaco] Workspace-specific configuration applied');
+  } catch (error) {
+    console.warn('[Monaco] Failed to configure workspace settings:', error);
+  }
 }
 
 /**
