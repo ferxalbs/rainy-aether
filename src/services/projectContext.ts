@@ -217,24 +217,26 @@ class ProjectContextService {
       }
     }
 
-    // Boolean options
-    if (compilerOptions.strict !== undefined) monacoOptions.strict = compilerOptions.strict;
+    // Boolean options - be conservative in editor context
+    // Don't apply strict mode flags that are too noisy in an editor
     if (compilerOptions.esModuleInterop !== undefined) monacoOptions.esModuleInterop = compilerOptions.esModuleInterop;
     if (compilerOptions.skipLibCheck !== undefined) monacoOptions.skipLibCheck = compilerOptions.skipLibCheck;
     if (compilerOptions.resolveJsonModule !== undefined) monacoOptions.resolveJsonModule = compilerOptions.resolveJsonModule;
     if (compilerOptions.isolatedModules !== undefined) monacoOptions.isolatedModules = compilerOptions.isolatedModules;
     if (compilerOptions.allowJs !== undefined) monacoOptions.allowJs = compilerOptions.allowJs;
-    if (compilerOptions.checkJs !== undefined) monacoOptions.checkJs = compilerOptions.checkJs;
     if (compilerOptions.noEmit !== undefined) monacoOptions.noEmit = compilerOptions.noEmit;
     if (compilerOptions.allowSyntheticDefaultImports !== undefined) {
       monacoOptions.allowSyntheticDefaultImports = compilerOptions.allowSyntheticDefaultImports;
     }
-    if (compilerOptions.noUnusedLocals !== undefined) monacoOptions.noUnusedLocals = compilerOptions.noUnusedLocals;
-    if (compilerOptions.noUnusedParameters !== undefined) monacoOptions.noUnusedParameters = compilerOptions.noUnusedParameters;
-    if (compilerOptions.noImplicitReturns !== undefined) monacoOptions.noImplicitReturns = compilerOptions.noImplicitReturns;
-    if (compilerOptions.noFallthroughCasesInSwitch !== undefined) {
-      monacoOptions.noFallthroughCasesInSwitch = compilerOptions.noFallthroughCasesInSwitch;
-    }
+
+    // Skip strict checking options that are too noisy in editor context
+    // These are better handled by the build process, not the editor
+    // - noUnusedLocals (already filtered in diagnostics)
+    // - noUnusedParameters (already filtered in diagnostics)
+    // - noImplicitReturns (too strict for editor)
+    // - noFallthroughCasesInSwitch (too strict for editor)
+    // - strict mode (let project build handle this)
+    // - checkJs (usually too noisy for editor)
 
     // Lib option
     if (compilerOptions.lib && Array.isArray(compilerOptions.lib)) {
