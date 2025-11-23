@@ -6,7 +6,9 @@
       "Bash(cargo test:*)",
       "Bash(cargo fmt:*)",
       "Bash(cargo clippy:*)",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm install:*)"
     ],
     "deny": [],
     "ask": []
