@@ -95,11 +95,13 @@ export class ConnectionManager {
     try {
       // Start the language server via Tauri backend (using improved implementation)
       const result = await invoke<{ success: boolean; sessionId?: number; error?: string }>('lsp_start_server_improved', {
-        serverId: this.serverId,
-        command: options.command,
-        args: options.args || [],
-        cwd: options.cwd,
-        env: options.env || {},
+        params: {
+          serverId: this.serverId,
+          command: options.command,
+          args: options.args || [],
+          cwd: options.cwd,
+          env: options.env || {},
+        }
       });
 
       if (!result.success || !result.sessionId) {
