@@ -14,8 +14,6 @@ export default defineConfig({
       // Polyfill Node.js built-ins for LangGraph compatibility
       "async_hooks": path.resolve(__dirname, "./src/polyfills/async_hooks.ts"),
       "node:async_hooks": path.resolve(__dirname, "./src/polyfills/async_hooks.ts"),
-      // Stub vscode module (used by vscode-languageclient but not needed in browser)
-      "vscode": path.resolve(__dirname, "./src/polyfills/vscode.ts"),
     },
   },
   define: {
@@ -24,8 +22,7 @@ export default defineConfig({
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
   },
   optimizeDeps: {
-    include: ['monaco-editor', 'vscode-languageclient/browser'],
-    exclude: ['vscode'], // Exclude vscode module from bundling (stubbed in polyfills)
+    include: ['monaco-editor'],
     esbuildOptions: {
       define: {
         global: 'globalThis',
@@ -35,7 +32,6 @@ export default defineConfig({
   build: {
     target: "esnext",
     rollupOptions: {
-      external: ['vscode'], // Mark vscode as external (provided by extension host)
       output: {
         // Ensure proper format for workers
         format: 'es',
@@ -51,11 +47,8 @@ export default defineConfig({
     },
   },
 
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
+  // Vite options tailored for Tauri development
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 1420,
     strictPort: true,
@@ -68,11 +61,12 @@ export default defineConfig({
           port: 1421,
         }
       : {
-          // Allow multiple clients (windows) to connect to HMR
-          clientPort: 1421,
+          // FIX: Usa 1420 para el servidor WebSocket cuando no hay host personalizado
+          protocol: "ws",
+          host: "localhost",
+          port: 1420, // Cambiado de clientPort: 1421 a port: 1420
         },
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
   },

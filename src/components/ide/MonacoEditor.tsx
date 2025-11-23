@@ -3,11 +3,9 @@ import * as monaco from 'monaco-editor';
 import { editorActions } from '../../stores/editorStore';
 import { getCurrentTheme, subscribeToThemeChanges } from '../../stores/themeStore';
 import { getSettingsState } from '../../stores/settingsStore';
-import { useIDEState } from '../../stores/ideStore';
 import { configureMonaco, getLanguageFromFilename } from '../../services/monacoConfig';
 import { configurationService } from '../../services/configurationService';
 import { applyEditorConfiguration } from '../../services/editorConfigurationService';
-import { useLSPIntegration } from '../../services/lsp/useLSPIntegration';
 
 // Helper: Monaco expects hex colors WITHOUT the '#' prefix
 const toMonacoColor = (color: string): string => {
@@ -34,19 +32,6 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
   const onChangeRef = useRef<typeof onChange>(onChange);
   const themeRef = useRef(getCurrentTheme());
   const isMountedRef = useRef(false);
-  const ideState = useIDEState();
-
-  // Initialize LSP integration
-  const { isLSPReady, isLSPRunning } = useLSPIntegration({
-    enabled: true,
-    workspacePath: ideState.workspace || undefined,
-    onReady: () => {
-      console.log('[MonacoEditor] ✅ LSP is ready for TypeScript/JavaScript!');
-    },
-    onError: (error) => {
-      console.error('[MonacoEditor] ❌ LSP initialization error:', error);
-    },
-  });
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -537,24 +522,10 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
   }, [getMonacoLanguage, readOnly]);
 
   return (
-    <div className="relative w-full h-full">
-      <div
-        ref={setContainer}
-        className="monaco-container w-full h-full"
-      />
-      {/* LSP Status Indicator (bottom-right, only during development) */}
-      {process.env.NODE_ENV === 'development' && isLSPRunning && (
-        <div className="absolute bottom-2 right-2 z-10 pointer-events-none">
-          <div className={`px-2 py-1 rounded-md text-xs font-mono shadow-lg ${
-            isLSPReady
-              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-              : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-          }`}>
-            LSP: {isLSPReady ? '✅ Ready' : '⏳ Starting...'}
-          </div>
-        </div>
-      )}
-    </div>
+    <div
+      ref={setContainer}
+      className="monaco-container w-full h-full"
+    />
   );
 };
 
