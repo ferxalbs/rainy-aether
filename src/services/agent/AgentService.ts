@@ -99,11 +99,11 @@ export class AgentService {
   }
 
   /**
-   * Execute tool calls and optionally get a final response
+   * Execute tool calls and get a final response from the LLM
    */
   private async handleToolCalls(
     response: ChatMessage,
-    _history: ChatMessage[]
+    history: ChatMessage[]
   ): Promise<ChatMessage> {
     if (!response.toolCalls || response.toolCalls.length === 0) {
       return response;
@@ -122,22 +122,38 @@ export class AgentService {
       }
     }
 
-    // For now, just return the response with executed tools
-    // In a more advanced implementation, we could send the tool results back to the LLM
-    // for a follow-up response:
-    /*
+    // Create a message with tool results to send back to the LLM
+    const toolResultsContent = response.toolCalls.map(tc => {
+      if (tc.status === 'success') {
+        return `Tool ${tc.name} executed successfully:\n${JSON.stringify(tc.result, null, 2)}`;
+      } else {
+        return `Tool ${tc.name} failed with error: ${tc.error}`;
+      }
+    }).join('\n\n');
+
     const toolResultsMessage: ChatMessage = {
       id: crypto.randomUUID(),
-      role: 'function',
-      content: JSON.stringify(response.toolCalls.map(tc => tc.result)),
+      role: 'user',
+      content: `Tool execution results:\n\n${toolResultsContent}\n\nBased on these results, please provide your response to my original question.`,
       timestamp: new Date(),
     };
 
-    const finalResponse = await this.provider.sendMessage([...history, response, toolResultsMessage], []);
-    return finalResponse;
-    */
+    // Send tool results back to LLM for final response
+    if (!this.provider) {
+      return response;
+    }
 
-    return response;
+    try {
+      const finalResponse = await this.provider.sendMessage(
+        [...history, response, toolResultsMessage],
+        [] // No tools on second pass to avoid infinite loops
+      );
+      return finalResponse;
+    } catch (error) {
+      console.error('Failed to get final response after tool execution:', error);
+      // Return the original response with tool results if final call fails
+      return response;
+    }
   }
 
   /**

@@ -49,6 +49,7 @@ export function useAgentChat() {
 
       // Track streaming text
       let fullStreamedText = '';
+      let hasAddedStreamedMessage = false;
 
       // Handle streaming chunks
       const handleChunk = (chunk: StreamChunk) => {
@@ -58,8 +59,9 @@ export function useAgentChat() {
         } else if (chunk.type === 'done' && chunk.fullMessage) {
           // Clear streaming state
           setStreamingContent('');
-          // Add final message to store
+          // Add the message to store
           agentActions.addMessage(activeSession.id, chunk.fullMessage);
+          hasAddedStreamedMessage = true;
         }
       };
 
@@ -69,8 +71,9 @@ export function useAgentChat() {
         handleChunk
       );
 
-      // If not streaming or streaming failed, add response directly
-      if (!streamingContent) {
+      // If response wasn't added via streaming, add it now
+      // This handles both non-streaming responses and the final response after tool execution
+      if (!hasAddedStreamedMessage) {
         agentActions.addMessage(activeSession.id, response);
       }
     } catch (error) {

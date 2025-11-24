@@ -16,7 +16,7 @@ import { useActiveSession, agentActions } from "@/stores/agentStore"
 import { AVAILABLE_MODELS } from "@/services/agent/providers"
 
 // Helper to safely render tool results
-function renderToolResult(result: unknown): string {
+function renderToolResult(result: unknown): React.ReactNode {
     if (result === null || result === undefined) {
         return 'null';
     }
@@ -110,7 +110,7 @@ export function AgentChatWindow() {
                                                         <CheckCircle2 className="h-3 w-3" />
                                                         <span>Completed successfully</span>
                                                     </div>
-                                                    {tool.result && (
+                                                    {tool.result !== undefined && tool.result !== null && (
                                                         <div className="bg-muted/30 p-2 rounded overflow-x-auto mt-1">
                                                             <div className="text-muted-foreground">Result:</div>
                                                             <pre>{renderToolResult(tool.result)}</pre>
