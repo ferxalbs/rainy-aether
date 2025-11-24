@@ -548,11 +548,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
         "h-6 select-none overflow-hidden"
       )}>
         {/* Left side items */}
-        <div className="flex items-stretch flex-shrink-0">
+        <div className="flex items-stretch shrink-0">
           {leftItems.map(item => (
             <div
               key={item.id}
-              ref={item.id === 'status.problems' ? problemsButtonRef : undefined}
+              ref={item.id === 'status.problems' ? (problemsButtonRef as React.RefObject<HTMLDivElement>) : undefined}
               onMouseEnter={item.id === 'status.problems' ? handleProblemsMouseEnter : undefined}
               onMouseLeave={item.id === 'status.problems' ? handleProblemsMouseLeave : undefined}
             >
@@ -568,17 +568,17 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
               key={item.id}
               ref={
                 item.id === 'help'
-                  ? helpButtonRef
+                  ? (helpButtonRef as React.RefObject<HTMLDivElement>)
                   : item.id === 'notifications'
-                  ? notificationButtonRef
+                  ? (notificationButtonRef as React.RefObject<HTMLDivElement>)
                   : item.id === 'theme'
-                  ? themeButtonRef
+                  ? (themeButtonRef as React.RefObject<HTMLDivElement>)
                   : item.id === 'encoding'
-                  ? encodingButtonRef
+                  ? (encodingButtonRef as React.RefObject<HTMLDivElement>)
                   : item.id === 'language'
-                  ? languageButtonRef
+                  ? (languageButtonRef as React.RefObject<HTMLDivElement>)
                   : item.id === 'eol'
-                  ? eolButtonRef
+                  ? (eolButtonRef as React.RefObject<HTMLDivElement>)
                   : undefined
               }
             >
@@ -601,7 +601,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       <HelpMenu
         isOpen={isHelpMenuOpen}
         onClose={() => setIsHelpMenuOpen(false)}
-        triggerRef={helpButtonRef}
+        triggerRef={helpButtonRef as React.RefObject<HTMLElement>}
         onOpenKeyboardShortcuts={() => {
           setIsHelpMenuOpen(false);
           setIsKeyboardShortcutsOpen(true);
@@ -612,7 +612,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       <NotificationCenter
         isOpen={isNotificationCenterOpen}
         onClose={() => setIsNotificationCenterOpen(false)}
-        triggerRef={notificationButtonRef}
+        triggerRef={notificationButtonRef as React.RefObject<HTMLElement>}
       />
 
       {/* Keyboard Shortcuts Dialog */}

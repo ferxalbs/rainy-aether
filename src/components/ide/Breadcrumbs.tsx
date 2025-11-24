@@ -11,6 +11,7 @@ interface BreadcrumbsProps {
 
 const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
   const [currentPath, setCurrentPath] = useState<SymbolNode[]>([]);
+  const [symbols, setSymbols] = useState<SymbolNode[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fileName, setFileName] = useState<string>('Untitled');
 
@@ -79,8 +80,21 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
     }
   };
 
-  // Update symbols and current path using Monaco's API
-  const updateSymbols = useCallback(async () => {
+  // Update path based on cursor position (fast operation using cached symbols)
+  const updatePath = useCallback((currentSymbols: SymbolNode[]) => {
+    if (!editor) return;
+    
+    const position = editor.getPosition();
+    if (position && currentSymbols.length > 0) {
+      const path = findSymbolPathAtPosition(currentSymbols, position);
+      setCurrentPath(path);
+    } else {
+      setCurrentPath([]);
+    }
+  }, [editor]);
+
+  // Fetch symbols from model (expensive operation)
+  const fetchSymbols = useCallback(async () => {
     if (!editor) return;
 
     const model = editor.getModel();
@@ -94,24 +108,19 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
       setFileName(name);
 
       // Get symbols from Monaco's DocumentSymbolProvider
-      const symbols = await getDocumentSymbols(model);
-
-      // Get current cursor position
-      const position = editor.getPosition();
-      if (position && symbols.length > 0) {
-        // Find the symbol path at the cursor position
-        const path = findSymbolPathAtPosition(symbols, position);
-        setCurrentPath(path);
-      } else {
-        setCurrentPath([]);
-      }
+      const newSymbols = await getDocumentSymbols(model);
+      setSymbols(newSymbols);
+      
+      // Update path immediately with new symbols
+      updatePath(newSymbols);
     } catch (error) {
-      console.error('[Breadcrumbs] Failed to update symbols:', error);
+      console.error('[Breadcrumbs] Failed to fetch symbols:', error);
+      setSymbols([]);
       setCurrentPath([]);
     } finally {
       setIsLoading(false);
     }
-  }, [editor]);
+  }, [editor, updatePath]);
 
   // Navigate to symbol
   const navigateToSymbol = useCallback((symbol: SymbolNode) => {
@@ -123,48 +132,56 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
     editor.focus();
   }, [editor]);
 
-  // Update symbols on content change and cursor position change
+  // Effect for content changes and model changes (fetch symbols)
   useEffect(() => {
     if (!editor) return;
 
     // Initial update
-    updateSymbols();
+    fetchSymbols();
 
-    // Update on content change (debounced to avoid excessive calls)
+    // Update on content change (debounced longer as it's expensive)
     let contentTimeout: number | null = null;
     const contentDisposable = editor.onDidChangeModelContent(() => {
       if (contentTimeout !== null) {
         clearTimeout(contentTimeout);
       }
       contentTimeout = window.setTimeout(() => {
-        updateSymbols();
-      }, 500); // Debounce 500ms
+        fetchSymbols();
+      }, 1000); // Debounce 1000ms
     });
 
-    // Update on cursor position change (debounced)
+    // Update when model changes (file switch)
+    const modelDisposable = editor.onDidChangeModel(() => {
+      fetchSymbols();
+    });
+
+    return () => {
+      if (contentTimeout !== null) clearTimeout(contentTimeout);
+      contentDisposable.dispose();
+      modelDisposable.dispose();
+    };
+  }, [editor, fetchSymbols]);
+
+  // Effect for cursor changes (update path only)
+  useEffect(() => {
+    if (!editor) return;
+
+    // Update on cursor position change (fast debounce)
     let cursorTimeout: number | null = null;
     const cursorDisposable = editor.onDidChangeCursorPosition(() => {
       if (cursorTimeout !== null) {
         clearTimeout(cursorTimeout);
       }
       cursorTimeout = window.setTimeout(() => {
-        updateSymbols();
-      }, 150); // Debounce 150ms
-    });
-
-    // Update when model changes (file switch)
-    const modelDisposable = editor.onDidChangeModel(() => {
-      updateSymbols();
+        updatePath(symbols);
+      }, 100); // Debounce 100ms
     });
 
     return () => {
-      if (contentTimeout !== null) clearTimeout(contentTimeout);
       if (cursorTimeout !== null) clearTimeout(cursorTimeout);
-      contentDisposable.dispose();
       cursorDisposable.dispose();
-      modelDisposable.dispose();
     };
-  }, [editor, updateSymbols]);
+  }, [editor, symbols, updatePath]);
 
   // Don't show breadcrumbs if no editor
   if (!editor) {
