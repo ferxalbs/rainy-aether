@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { ChatMessage } from '@/types/chat';
+import { agentHistoryService } from '@/services/agent/AgentHistoryService';
 
 // ===========================
 // Types & Interfaces
@@ -51,6 +52,27 @@ const setState = (updater: (prev: AgentState) => AgentState) => {
 // ===========================
 
 export const agentActions = {
+  /**
+   * Initialize store from history
+   */
+  async initialize() {
+    try {
+      const sessions = await agentHistoryService.listSessions();
+      if (sessions.length > 0) {
+        setState((prev) => ({
+          ...prev,
+          sessions,
+          activeSessionId: sessions[0].id,
+        }));
+      } else {
+        // Create initial session if none exists
+        this.createSession("First Agent");
+      }
+    } catch (error) {
+      console.error('Failed to initialize agent store:', error);
+    }
+  },
+
   /**
    * Create a new agent session
    */
@@ -178,6 +200,9 @@ Be autonomous, proactive, and task-completing. Don't just gather info - FINISH T
       activeSessionId: sessionId,
     }));
 
+    // Save to history
+    agentHistoryService.saveSession(newSession);
+
     return sessionId;
   },
 
@@ -198,6 +223,9 @@ Be autonomous, proactive, and task-completing. Don't just gather info - FINISH T
         activeSessionId: newActiveId,
       };
     });
+
+    // Delete from history
+    agentHistoryService.deleteSession(sessionId);
   },
 
   /**
@@ -214,89 +242,129 @@ Be autonomous, proactive, and task-completing. Don't just gather info - FINISH T
    * Add a message to a session
    */
   addMessage(sessionId: string, message: ChatMessage) {
+    let updatedSession: AgentSession | undefined;
+
     setState((prev) => ({
       ...prev,
-      sessions: prev.sessions.map((session) =>
-        session.id === sessionId
-          ? {
-              ...session,
-              messages: [...session.messages, message],
-              lastMessageAt: new Date(),
-            }
-          : session
-      ),
+      sessions: prev.sessions.map((session) => {
+        if (session.id === sessionId) {
+          updatedSession = {
+            ...session,
+            messages: [...session.messages, message],
+            lastMessageAt: new Date(),
+          };
+          return updatedSession;
+        }
+        return session;
+      }),
     }));
+
+    if (updatedSession) {
+      agentHistoryService.saveSession(updatedSession);
+    }
   },
 
   /**
    * Update a message in a session (useful for updating tool call results)
    */
   updateMessage(sessionId: string, messageId: string, updates: Partial<ChatMessage>) {
+    let updatedSession: AgentSession | undefined;
+
     setState((prev) => ({
       ...prev,
-      sessions: prev.sessions.map((session) =>
-        session.id === sessionId
-          ? {
-              ...session,
-              messages: session.messages.map((msg) =>
-                msg.id === messageId ? { ...msg, ...updates } : msg
-              ),
-            }
-          : session
-      ),
+      sessions: prev.sessions.map((session) => {
+        if (session.id === sessionId) {
+          updatedSession = {
+            ...session,
+            messages: session.messages.map((msg) =>
+              msg.id === messageId ? { ...msg, ...updates } : msg
+            ),
+          };
+          return updatedSession;
+        }
+        return session;
+      }),
     }));
+
+    if (updatedSession) {
+      agentHistoryService.saveSession(updatedSession);
+    }
   },
 
   /**
    * Clear all messages in a session (keep system prompt)
    */
   clearSession(sessionId: string) {
+    let updatedSession: AgentSession | undefined;
+
     setState((prev) => ({
       ...prev,
-      sessions: prev.sessions.map((session) =>
-        session.id === sessionId
-          ? {
-              ...session,
-              messages: [session.messages[0]], // Keep system prompt
-              lastMessageAt: new Date(),
-            }
-          : session
-      ),
+      sessions: prev.sessions.map((session) => {
+        if (session.id === sessionId) {
+          updatedSession = {
+            ...session,
+            messages: [session.messages[0]], // Keep system prompt
+            lastMessageAt: new Date(),
+          };
+          return updatedSession;
+        }
+        return session;
+      }),
     }));
+
+    if (updatedSession) {
+      agentHistoryService.saveSession(updatedSession);
+    }
   },
 
   /**
    * Update session model
    */
   updateSessionModel(sessionId: string, model: string) {
+    let updatedSession: AgentSession | undefined;
+
     setState((prev) => ({
       ...prev,
-      sessions: prev.sessions.map((session) =>
-        session.id === sessionId
-          ? {
-              ...session,
-              model,
-            }
-          : session
-      ),
+      sessions: prev.sessions.map((session) => {
+        if (session.id === sessionId) {
+          updatedSession = {
+            ...session,
+            model,
+          };
+          return updatedSession;
+        }
+        return session;
+      }),
     }));
+
+    if (updatedSession) {
+      agentHistoryService.saveSession(updatedSession);
+    }
   },
 
   /**
    * Update session name
    */
   updateSessionName(sessionId: string, name: string) {
+    let updatedSession: AgentSession | undefined;
+
     setState((prev) => ({
       ...prev,
-      sessions: prev.sessions.map((session) =>
-        session.id === sessionId
-          ? {
-              ...session,
-              name,
-            }
-          : session
-      ),
+      sessions: prev.sessions.map((session) => {
+        if (session.id === sessionId) {
+          updatedSession = {
+            ...session,
+            name,
+          };
+          return updatedSession;
+        }
+        return session;
+      }),
     }));
+
+    if (updatedSession) {
+      agentHistoryService.saveSession(updatedSession);
+    }
   },
 
   /**

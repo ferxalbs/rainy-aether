@@ -14,6 +14,9 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.70.1
         version: 0.70.1(zod@4.1.12)
+      '@cerebras/cerebras_cloud_sdk':
+        specifier: ^1.59.0
+        version: 1.59.0
       '@google/genai':
         specifier: ^1.30.0
         version: 1.30.0
@@ -501,6 +504,9 @@ packages:
   '@babel/types@7.28.5':
     resolution: {integrity: sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA==}
     engines: {node: '>=6.9.0'}
+
+  '@cerebras/cerebras_cloud_sdk@1.59.0':
+    resolution: {integrity: sha512-bDx86IgIb+FzbLQVUtVnjsEv7e+TDPwQkulycLNImsb9ecyIJPfpURSIyxV4pdoHZ9zMVaQy59hBqJ0zLqNK8Q==}
 
   '@esbuild/aix-ppc64@0.25.11':
     resolution: {integrity: sha512-Xt1dOL13m8u0WE8iplx9Ibbm+hFAO0GsU2P34UNoDGvZYkY8ifSiy6Zuc1lYxfG7svWE2fzqCUmFp5HCn51gJg==}
@@ -4015,6 +4021,18 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@cerebras/cerebras_cloud_sdk@1.59.0':
+    dependencies:
+      '@types/node': 18.19.130
+      '@types/node-fetch': 2.6.13
+      abort-controller: 3.0.0
+      agentkeepalive: 4.6.0
+      form-data-encoder: 1.7.2
+      formdata-node: 4.4.1
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
 
   '@esbuild/aix-ppc64@0.25.11':
     optional: true

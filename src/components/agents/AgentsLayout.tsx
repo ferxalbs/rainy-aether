@@ -13,12 +13,10 @@ import { useAgentStore, agentActions } from "@/stores/agentStore"
 export function AgentsLayout() {
     const { sessions } = useAgentStore();
 
-    // Create initial session if none exists
+    // Initialize agent store (load history)
     useEffect(() => {
-        if (sessions.length === 0) {
-            agentActions.createSession("First Agent");
-        }
-    }, [sessions.length]);
+        agentActions.initialize();
+    }, []);
 
     return (
         <SidebarProvider className="min-h-0 h-full">

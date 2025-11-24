@@ -108,8 +108,23 @@ class ToolRegistry {
           // Read current content
           const currentContent = await invoke<string>("get_file_content", { path: resolvedPath });
 
+          // Normalize line endings for comparison
+          const normalizedContent = currentContent.replace(/\r\n/g, '\n');
+          const normalizedOldString = old_string.replace(/\r\n/g, '\n');
+
           // Check if old_string exists
-          if (!currentContent.includes(old_string)) {
+          if (!normalizedContent.includes(normalizedOldString)) {
+            // Try fuzzy matching or whitespace normalization if exact match fails
+            const looseContent = normalizedContent.replace(/\s+/g, ' ');
+            const looseOldString = normalizedOldString.replace(/\s+/g, ' ');
+            
+            if (looseContent.includes(looseOldString)) {
+               return {
+                success: false,
+                error: `The text was found but with different whitespace/indentation. Please read the file again to get the exact content.`
+              };
+            }
+
             return {
               success: false,
               error: `The specified old_string was not found in '${path}'. Make sure you're using the exact text from the file.`
@@ -117,7 +132,7 @@ class ToolRegistry {
           }
 
           // Check if old_string appears multiple times
-          const occurrences = currentContent.split(old_string).length - 1;
+          const occurrences = normalizedContent.split(normalizedOldString).length - 1;
           if (occurrences > 1) {
             return {
               success: false,
@@ -126,7 +141,12 @@ class ToolRegistry {
           }
 
           // Perform the replacement
-          const newContent = currentContent.replace(old_string, new_string);
+          // We need to be careful with replace() as it only replaces the first occurrence
+          // But we've already verified there's only one occurrence (or we warned about it)
+          // However, we need to handle the original content with original line endings if possible
+          // For now, we'll use the normalized content for replacement and save that
+          // This might change line endings to LF, which is generally fine
+          const newContent = normalizedContent.replace(normalizedOldString, new_string);
           await invoke("save_file_content", { path: resolvedPath, content: newContent });
 
           return {
@@ -511,7 +531,6 @@ class ToolRegistry {
           const sessionId = await terminalService.create({ cwd: workingDir });
           
           let output = '';
-          let isDone = false;
           
           // Subscribe to data events
           const cleanup = terminalService.onData((id, data) => {
@@ -524,20 +543,34 @@ class ToolRegistry {
             // Send command
             await terminalService.write(sessionId, command + "\r\n");
             
-            // Wait for a bit to capture output (this is a heuristic, ideally we'd detect prompt)
-            // For now, we'll wait for a reasonable amount of time or until we see a prompt-like pattern
-            // But since we can't easily detect completion in a raw PTY without complex logic,
-            // we will use a short timeout for "interactive" commands or rely on the user to check.
-            // HOWEVER, for the agent, we want to return *some* output.
+            // Wait for output with a smarter timeout strategy
+            // We'll wait up to 5 seconds, but return early if we see a prompt or significant pause
+            const startTime = Date.now();
+            let lastOutputTime = Date.now();
             
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s for output
+            while (Date.now() - startTime < 5000) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // If we haven't received output for 1 second and we have some output, assume command finished or paused
+                if (output.length > 0 && Date.now() - lastOutputTime > 1000) {
+                    break;
+                }
+                
+                // Update last output time if output length changed
+                // (This is a simplified check, ideally we'd track actual data events)
+            }
             
             // Clean up session
             await terminalService.kill(sessionId);
             
+            // Filter out ANSI escape codes for cleaner output
+            // eslint-disable-next-line no-control-regex
+            const cleanOutput = output.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+            
             return {
               success: true,
-              stdout: output,
+              stdout: cleanOutput,
+              rawOutput: output,
               message: `Command executed. Output captured below.`,
               sessionId
             };

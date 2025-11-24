@@ -1,5 +1,5 @@
-import { ChatMessage, ToolCall } from '@/types/chat';
-import { ToolDefinition } from '../ToolRegistry';
+import { ChatMessage, ToolCall } from "@/types/chat";
+import { ToolDefinition } from "../ToolRegistry";
 
 // ===========================
 // Provider Interface
@@ -13,7 +13,7 @@ export interface AIProviderConfig {
 }
 
 export interface StreamChunk {
-  type: 'text' | 'tool_call' | 'done' | 'tool_update' | 'error';
+  type: "text" | "tool_call" | "done" | "tool_update" | "error";
   content?: string;
   toolCall?: ToolCall;
   fullMessage?: ChatMessage;
@@ -48,14 +48,14 @@ export interface AIProvider {
  */
 export function convertMessagesToAPIFormat(messages: ChatMessage[]): any[] {
   return messages
-    .filter((m) => m.role !== 'system') // System prompts handled separately
+    .filter((m) => m.role !== "system") // System prompts handled separately
     .map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
+      role: m.role === "assistant" ? "model" : "user",
       content: m.content,
       ...(m.toolCalls && {
         tool_calls: m.toolCalls.map((tc) => ({
           id: tc.id,
-          type: 'function',
+          type: "function",
           function: {
             name: tc.name,
             arguments: JSON.stringify(tc.arguments),
@@ -70,7 +70,7 @@ export function convertMessagesToAPIFormat(messages: ChatMessage[]): any[] {
  */
 export function convertToolsToFunctionFormat(tools: ToolDefinition[]): any[] {
   return tools.map((tool) => ({
-    type: 'function',
+    type: "function",
     function: {
       name: tool.name,
       description: tool.description,
@@ -90,7 +90,7 @@ export function generateMessageId(): string {
  * Create a ChatMessage from provider response
  */
 export function createChatMessage(
-  role: 'user' | 'assistant' | 'system',
+  role: "user" | "assistant" | "system",
   content: string,
   toolCalls?: ToolCall[]
 ): ChatMessage {
