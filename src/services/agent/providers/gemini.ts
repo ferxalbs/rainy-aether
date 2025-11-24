@@ -139,7 +139,23 @@ export class GeminiProvider implements AIProvider {
       let toolCalls: ToolCall[] = [];
 
       for await (const chunk of stream) {
-        const chunkText = chunk.text;
+        let chunkText = '';
+        
+        // Safely extract text to avoid warnings about non-text parts (function calls)
+        if (chunk.candidates && chunk.candidates[0] && chunk.candidates[0].content && chunk.candidates[0].content.parts) {
+          for (const part of chunk.candidates[0].content.parts) {
+            if (part.text) {
+              chunkText += part.text;
+            }
+          }
+        } else {
+          // Fallback to text property if structure is different, but wrap in try-catch
+          try {
+            chunkText = chunk.text || '';
+          } catch (e) {
+            // Ignore
+          }
+        }
 
         if (chunkText) {
           fullText += chunkText;
