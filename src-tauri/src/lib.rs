@@ -240,6 +240,7 @@ pub fn run() {
         project_manager::get_temp_dir,
         project_manager::search_in_workspace,
         project_manager::replace_in_file,
+        project_manager::execute_command,
         terminal_manager::terminal_create,
         terminal_manager::terminal_write,
         terminal_manager::terminal_resize,

@@ -43,6 +43,36 @@ For example, you could say:
 
 ---
 
+### Example 1.5: Incomplete Task (Showing But Not Doing)
+
+**User Request:**
+> "Change the title on line 7 of claude.md to 'New Project Guide'"
+
+**❌ BAD Response:**
+
+```
+Let me read the file first to see the current content.
+
+[Calls read_file("claude.md")]
+
+I can see that line 7 currently has:
+# CLAUDE.md - AI Assistant Reference Guide
+
+This is what needs to be changed.
+```
+
+**Why this is BAD:**
+
+- ❌ Agent READ the file (good!) but STOPPED there
+- ❌ Agent showed the content but DIDN'T EDIT IT
+- ❌ Task is INCOMPLETE - user asked to CHANGE it, not just READ it
+- ❌ User has to ask again: "Yes, now change it!"
+- ❌ Frustrating workflow - agent is being lazy
+
+**This is a CRITICAL mistake:** When a user asks you to DO something, you must COMPLETE the entire task, not just the first step!
+
+---
+
 ### Example 2: Not Using Available Tools
 
 **User Request:**
@@ -264,6 +294,50 @@ Can I get this information through tools?
    Agent: "I can set up the database connection. What's the connection string?
            (This is sensitive info I shouldn't have access to)"
    ```
+
+---
+
+## 🎯 Task Completion is MANDATORY
+
+### The Golden Rule: FINISH WHAT YOU START
+
+**If a user asks you to DO something, you MUST complete ALL steps:**
+
+```
+User Request: "Change X to Y"
+
+✅ COMPLETE workflow:
+1. Read file to see X      ← Information gathering
+2. Use edit_file()         ← ACTUALLY DO IT
+3. Confirm "Done! X→Y"     ← Verification
+
+❌ INCOMPLETE workflow:
+1. Read file to see X      ← Information gathering
+2. "I can see X is..."     ← STOPPED - TASK NOT DONE!
+```
+
+### Common Incomplete Task Mistakes
+
+| User Says | Agent Does | Status | Fix |
+|-----------|------------|--------|-----|
+| "Change line 7" | Reads file, shows line 7, STOPS | ❌ INCOMPLETE | Must also call edit_file() |
+| "Run the tests" | Shows test command, STOPS | ❌ INCOMPLETE | Must actually run_tests() |
+| "Format this file" | Shows format would work, STOPS | ❌ INCOMPLETE | Must actually format_file() |
+| "Find all React files" | Says how to search, STOPS | ❌ INCOMPLETE | Must actually search_code() |
+
+### Task Completion Checklist
+
+Before responding "Done!", verify:
+
+- [ ] Did user ask me to READ? → Used read_file() ✅
+- [ ] Did user ask me to CHANGE? → Used edit_file() ✅
+- [ ] Did user ask me to RUN? → Used run_command() ✅
+- [ ] Did user ask me to SEARCH? → Used search_code() ✅
+- [ ] Did I SHOW what I found? ✅
+- [ ] Did I COMPLETE the action? ✅
+- [ ] Did I CONFIRM it's done? ✅
+
+**CRITICAL:** Showing ≠ Doing. Reading ≠ Editing. Finding ≠ Changing.
 
 ---
 

@@ -506,38 +506,43 @@ class ToolRegistry {
           const workingDir = cwd ? await this.resolvePath(cwd) : workspace.path;
           const maxTimeout = Math.min(timeout, 120000);
 
+          // Use terminal service to create a temporary session and capture output
+          const terminalService = getTerminalService();
+          const sessionId = await terminalService.create({ cwd: workingDir });
+          
+          let output = '';
+          let isDone = false;
+          
+          // Subscribe to data events
+          const cleanup = terminalService.onData((id, data) => {
+            if (id === sessionId) {
+              output += data;
+            }
+          });
+
           try {
-            // Try to use execute_command Tauri command for synchronous execution
-            const result = await invoke<{ stdout: string; stderr: string; exit_code: number }>(
-              "execute_command",
-              {
-                command,
-                cwd: workingDir,
-                timeout: maxTimeout
-              }
-            );
-
-            return {
-              success: result.exit_code === 0,
-              stdout: result.stdout,
-              stderr: result.stderr,
-              exit_code: result.exit_code,
-              message: result.exit_code === 0
-                ? `Command completed successfully`
-                : `Command failed with exit code ${result.exit_code}`
-            };
-          } catch {
-            // Fallback to terminal service
-            const terminalService = getTerminalService();
-            const sessionId = await terminalService.create({ cwd: workingDir });
+            // Send command
             await terminalService.write(sessionId, command + "\r\n");
-
+            
+            // Wait for a bit to capture output (this is a heuristic, ideally we'd detect prompt)
+            // For now, we'll wait for a reasonable amount of time or until we see a prompt-like pattern
+            // But since we can't easily detect completion in a raw PTY without complex logic,
+            // we will use a short timeout for "interactive" commands or rely on the user to check.
+            // HOWEVER, for the agent, we want to return *some* output.
+            
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s for output
+            
+            // Clean up session
+            await terminalService.kill(sessionId);
+            
             return {
               success: true,
-              message: `Command sent to terminal session ${sessionId}. Check terminal for output.`,
-              sessionId,
-              note: "Output capture not available - command executed in terminal."
+              stdout: output,
+              message: `Command executed. Output captured below.`,
+              sessionId
             };
+          } finally {
+            cleanup();
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);

@@ -736,3 +736,69 @@ pub async fn replace_in_file(
 
     Ok(count)
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CommandResult {
+    pub stdout: String,
+    pub stderr: String,
+    pub exit_code: i32,
+}
+
+#[tauri::command]
+pub async fn execute_command(
+    command: String,
+    cwd: Option<String>,
+    timeout: Option<u64>,
+) -> Result<CommandResult, String> {
+    use std::process::Stdio;
+    use tokio::io::AsyncReadExt;
+    use tokio::time::{timeout as tokio_timeout, Duration};
+
+    let mut cmd = if cfg!(target_os = "windows") {
+        let mut c = tokio::process::Command::new("cmd");
+        c.args(["/C", &command]);
+        c
+    } else {
+        let mut c = tokio::process::Command::new("sh");
+        c.args(["-c", &command]);
+        c
+    };
+
+    if let Some(dir) = cwd {
+        cmd.current_dir(dir);
+    }
+
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+
+    let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn command: {}", e))?;
+
+    let timeout_duration = Duration::from_millis(timeout.unwrap_or(30000));
+
+    let output_result = tokio_timeout(timeout_duration, child.wait()).await;
+
+    match output_result {
+        Ok(Ok(status)) => {
+            let mut stdout = String::new();
+            let mut stderr = String::new();
+
+            if let Some(mut out) = child.stdout {
+                let _ = out.read_to_string(&mut stdout).await;
+            }
+            if let Some(mut err) = child.stderr {
+                let _ = err.read_to_string(&mut stderr).await;
+            }
+
+            Ok(CommandResult {
+                stdout,
+                stderr,
+                exit_code: status.code().unwrap_or(-1),
+            })
+        }
+        Ok(Err(e)) => Err(format!("Failed to wait for command: {}", e)),
+        Err(_) => {
+            let _ = child.kill().await;
+            Err("Command timed out".to_string())
+        }
+    }
+}
