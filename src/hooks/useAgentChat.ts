@@ -56,26 +56,42 @@ export function useAgentChat() {
         if (chunk.type === 'text' && chunk.content) {
           fullStreamedText += chunk.content;
           setStreamingContent(fullStreamedText);
+        } else if (chunk.type === 'tool_update' && chunk.fullMessage) {
+          // Update the message in the store to reflect tool status changes
+          // We need to find the message ID first. Since we don't have it easily,
+          // we might need to rely on the fact that it's the last message or
+          // use a temporary ID strategy.
+          // For now, let's assume the store handles updates if we pass the full message
+          // But wait, addMessage appends. We need updateMessage.
+          
+          // If the message hasn't been added yet (it's the first tool call), add it.
+          if (!hasAddedStreamedMessage) {
+             agentActions.addMessage(activeSession.id, chunk.fullMessage);
+             hasAddedStreamedMessage = true;
+             setStreamingContent(''); // Clear streaming text as it's now in the message
+          } else {
+             // Update existing message
+             agentActions.updateMessage(activeSession.id, chunk.fullMessage.id, chunk.fullMessage);
+          }
         } else if (chunk.type === 'done' && chunk.fullMessage) {
           // Clear streaming state
           setStreamingContent('');
-          // Add the message to store
-          agentActions.addMessage(activeSession.id, chunk.fullMessage);
-          hasAddedStreamedMessage = true;
+          
+          if (!hasAddedStreamedMessage) {
+            agentActions.addMessage(activeSession.id, chunk.fullMessage);
+            hasAddedStreamedMessage = true;
+          } else {
+             // If we already added the message (e.g. due to tool calls), update it with final content
+             agentActions.updateMessage(activeSession.id, chunk.fullMessage.id, chunk.fullMessage);
+          }
         }
       };
 
       // Send message with streaming
-      const response = await agentServiceRef.current.sendMessage(
+      await agentServiceRef.current.sendMessage(
         activeSession.messages.concat(userMessage),
         handleChunk
       );
-
-      // If response wasn't added via streaming, add it now
-      // This handles both non-streaming responses and the final response after tool execution
-      if (!hasAddedStreamedMessage) {
-        agentActions.addMessage(activeSession.id, response);
-      }
     } catch (error) {
       console.error('Failed to send message:', error);
 

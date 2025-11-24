@@ -91,7 +91,7 @@ export class AgentService {
     // Use streaming if callback provided
     if (onChunk) {
       const response = await this.provider.streamMessage(messages, tools, onChunk);
-      return await this.handleToolCalls(response, messages);
+      return await this.handleToolCalls(response, messages, onChunk);
     } else {
       const response = await this.provider.sendMessage(messages, tools);
       return await this.handleToolCalls(response, messages);
@@ -103,7 +103,8 @@ export class AgentService {
    */
   private async handleToolCalls(
     response: ChatMessage,
-    history: ChatMessage[]
+    history: ChatMessage[],
+    onChunk?: (chunk: StreamChunk) => void
   ): Promise<ChatMessage> {
     if (!response.toolCalls || response.toolCalls.length === 0) {
       return response;
@@ -113,12 +114,17 @@ export class AgentService {
     for (const toolCall of response.toolCalls) {
       try {
         toolCall.status = 'pending';
+        if (onChunk) onChunk({ type: 'tool_update', fullMessage: response });
+
         const result = await toolRegistry.executeTool(toolCall.name, toolCall.arguments);
+        
         toolCall.result = result;
         toolCall.status = 'success';
+        if (onChunk) onChunk({ type: 'tool_update', fullMessage: response });
       } catch (error) {
         toolCall.error = String(error);
         toolCall.status = 'error';
+        if (onChunk) onChunk({ type: 'tool_update', fullMessage: response });
       }
     }
 
@@ -144,11 +150,20 @@ export class AgentService {
     }
 
     try {
-      const finalResponse = await this.provider.sendMessage(
-        [...history, response, toolResultsMessage],
-        [] // No tools on second pass to avoid infinite loops
-      );
-      return finalResponse;
+      if (onChunk) {
+        const finalResponse = await this.provider.streamMessage(
+          [...history, response, toolResultsMessage],
+          [], // No tools on second pass to avoid infinite loops
+          onChunk
+        );
+        return finalResponse;
+      } else {
+        const finalResponse = await this.provider.sendMessage(
+          [...history, response, toolResultsMessage],
+          [] // No tools on second pass to avoid infinite loops
+        );
+        return finalResponse;
+      }
     } catch (error) {
       console.error('Failed to get final response after tool execution:', error);
       // Return the original response with tool results if final call fails

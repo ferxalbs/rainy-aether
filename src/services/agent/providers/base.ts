@@ -13,10 +13,11 @@ export interface AIProviderConfig {
 }
 
 export interface StreamChunk {
-  type: 'text' | 'tool_call' | 'done';
+  type: 'text' | 'tool_call' | 'done' | 'tool_update' | 'error';
   content?: string;
   toolCall?: ToolCall;
   fullMessage?: ChatMessage;
+  error?: string;
 }
 
 export interface AIProvider {

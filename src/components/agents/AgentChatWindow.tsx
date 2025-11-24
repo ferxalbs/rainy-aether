@@ -124,7 +124,7 @@ export function AgentChatWindow() {
                                                     <span>Error: {tool.error}</span>
                                                 </div>
                                             )}
-                                            {tool.status === 'pending' && (
+                                            {(tool.status === 'pending' || !tool.status) && (
                                                 <div className="mt-2 text-muted-foreground flex items-center gap-1">
                                                     <Loader2 className="h-3 w-3 animate-spin" />
                                                     <span>Executing...</span>
