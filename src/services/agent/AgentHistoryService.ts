@@ -1,13 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
-import { join } from '@tauri-apps/api/path';
+import { join, homeDir } from '@tauri-apps/api/path';
 import { AgentSession } from '@/stores/agentStore';
 import { ChatMessage } from '@/types/chat';
-
-const HISTORY_DIR = '.rainy-aether/agent-history';
 
 export class AgentHistoryService {
   private static instance: AgentHistoryService;
   private initialized = false;
+  private historyPath: string = '';
 
   private constructor() {}
 
@@ -22,10 +21,16 @@ export class AgentHistoryService {
     if (this.initialized) return;
 
     try {
+      // Get the home directory path
+      const home = await homeDir();
+      this.historyPath = await join(home, '.rainy-aether', 'agent-history');
+
       // Ensure the history directory exists
-      const exists = await invoke<boolean>('check_path_exists', { path: HISTORY_DIR });
+      // Note: We use absolute path here, so we need to make sure the backend supports it
+      // The backend 'check_path_exists' and 'create_directory' should handle absolute paths
+      const exists = await invoke<boolean>('check_path_exists', { path: this.historyPath });
       if (!exists) {
-        await invoke('create_directory', { path: HISTORY_DIR });
+        await invoke('create_directory', { path: this.historyPath });
       }
       this.initialized = true;
     } catch (error) {
@@ -38,7 +43,7 @@ export class AgentHistoryService {
 
     try {
       const fileName = `${session.id}.json`;
-      const filePath = await join(HISTORY_DIR, fileName);
+      const filePath = await join(this.historyPath, fileName);
       
       const content = JSON.stringify(session, null, 2);
       await invoke('save_file_content', { path: filePath, content });
@@ -52,7 +57,7 @@ export class AgentHistoryService {
 
     try {
       const fileName = `${sessionId}.json`;
-      const filePath = await join(HISTORY_DIR, fileName);
+      const filePath = await join(this.historyPath, fileName);
       
       const content = await invoke<string>('get_file_content', { path: filePath });
       if (!content) return null;
@@ -78,7 +83,7 @@ export class AgentHistoryService {
     if (!this.initialized) await this.initialize();
 
     try {
-      const files = await invoke<any[]>('load_directory_children', { path: HISTORY_DIR });
+      const files = await invoke<any[]>('load_directory_children', { path: this.historyPath });
       const sessions: AgentSession[] = [];
 
       for (const file of files) {
@@ -104,7 +109,7 @@ export class AgentHistoryService {
 
     try {
       const fileName = `${sessionId}.json`;
-      const filePath = await join(HISTORY_DIR, fileName);
+      const filePath = await join(this.historyPath, fileName);
       await invoke('delete_path', { path: filePath });
     } catch (error) {
       console.error(`Failed to delete session ${sessionId}:`, error);

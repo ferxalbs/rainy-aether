@@ -120,6 +120,11 @@ export function AgentChatWindow() {
         }
     };
 
+    const handleSendClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        sendMessage();
+    };
+
     const handleModelChange = (modelId: string) => {
         if (activeSession) {
             agentActions.updateSessionModel(activeSession.id, modelId);
@@ -322,7 +327,7 @@ export function AgentChatWindow() {
                                     "h-8 w-8 ml-2 rounded-lg transition-all",
                                     input.trim() ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" : "bg-muted text-muted-foreground hover:bg-muted/80"
                                 )}
-                                onClick={() => sendMessage()}
+                                onClick={handleSendClick}
                                 disabled={isLoading || !input.trim()}
                             >
                                 <Send className="h-4 w-4" />
