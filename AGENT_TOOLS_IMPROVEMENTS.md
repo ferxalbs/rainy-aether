@@ -2,9 +2,9 @@
 
 > **Major overhaul of the agent tool system** - Implementing surgical editing and powerful development tools
 
-**Date:** November 23, 2025
-**Status:** ✅ Completed
-**Impact:** Critical - Fixes editing workflow and adds professional-grade tools
+**Date:** November 23-24, 2025
+**Status:** ✅ Completed (Including Fallback Strategies)
+**Impact:** Critical - Fixes editing workflow, adds professional-grade tools, and implements intelligent fallback strategies
 
 ---
 
@@ -145,6 +145,17 @@ The agent now receives comprehensive documentation on:
 **Example workflows included:**
 - ✅ Good: Read file automatically → Edit with exact text → Explain changes
 - ❌ Bad: Ask user for content that could be read → Lazy behavior
+
+**Fallback Strategy Rules Added (November 24, 2025):**
+
+After user feedback showing agents giving up when tools fail, we added comprehensive fallback strategies:
+
+- When `search_code` fails → Try `read_file("package.json")` or other config files
+- When `list_files` fails → Try `read_directory_tree` or manual exploration
+- When `run_command` fails → Try alternative commands (pnpm vs npm)
+- **Critical Rule:** Never give up after one tool failure - try 2-3 alternatives first
+
+This fixes the "error bien grande" where agents would say "I can't search, please provide the code" instead of reading package.json to find versions, dependencies, etc.
 
 ---
 

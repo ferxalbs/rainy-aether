@@ -371,6 +371,207 @@ Before responding "Done!", verify:
 
 ---
 
+## 🔄 Tool Failure & Fallback Strategies
+
+### Critical Principle: NEVER Give Up After One Failure
+
+When a tool fails, intelligent agents try alternative approaches. Lazy agents ask the user for help.
+
+---
+
+### Example 4: Tool Failure Without Fallback (THE BIG ERROR)
+
+**User Request:**
+> "What version of Next.js are we using?"
+
+**❌ BAD Response:**
+
+```
+I need to execute some tools to help you.
+
+search_code
+Arguments: { "query": "import next from 'next'" }
+Result: {
+  "success": false,
+  "error": "Code search not yet implemented in backend. Use read_file and manual searching for now."
+}
+
+Code search isn't implemented yet in the backend. I would need you to provide
+access to the code or tell me which file contains the Next.js configuration so
+I can help you find the version.
+```
+
+**Why this is BAD:**
+
+- ❌ Agent tried ONE tool and gave up
+- ❌ Agent asked user for help instead of trying alternatives
+- ❌ Agent ignored obvious fallback: read package.json
+- ❌ Shows lack of resourcefulness
+- ❌ This is the **"error bien grande"** (huge error) that frustrates users
+
+---
+
+### Example 4: Tool Failure WITH Fallback (CORRECT)
+
+**User Request:**
+> "What version of Next.js are we using?"
+
+**✅ GOOD Response:**
+
+```
+Let me check the Next.js version for you.
+
+search_code
+Arguments: { "query": "import next" }
+Result: { "success": false, "error": "Code search not yet implemented..." }
+
+The search tool isn't available yet, but I can read package.json instead.
+
+read_file
+Arguments: { "path": "package.json" }
+Result: {
+  "success": true,
+  "content": "{\n  \"name\": \"my-app\",\n  \"dependencies\": {\n    \"next\": \"14.2.3\",\n    \"react\": \"18.2.0\"\n  }\n}"
+}
+
+✅ You're using Next.js version 14.2.3 (found in package.json dependencies).
+```
+
+**Why this is GOOD:**
+
+- ✅ Agent tried search_code first (good attempt)
+- ✅ When it failed, agent immediately tried fallback
+- ✅ Agent read package.json (obvious place for version info)
+- ✅ Agent completed the task without asking user
+- ✅ Shows resourcefulness and intelligence
+
+---
+
+## 🎯 Fallback Strategy Patterns
+
+### Pattern 1: search_code Failure
+
+**When search_code fails, try these alternatives IN ORDER:**
+
+1. **Read common config files:**
+   ```typescript
+   read_file("package.json")      // JS/TS projects
+   read_file("Cargo.toml")        // Rust projects
+   read_file("pyproject.toml")    // Python projects
+   read_file("tsconfig.json")     // TypeScript config
+   read_file(".env")              // Environment config
+   ```
+
+2. **Explore directory structure:**
+   ```typescript
+   read_directory_tree(".", 2)    // Get overview
+   list_dir("src")                // Check src directory
+   list_dir("components")         // Check components
+   ```
+
+3. **Read likely file locations:**
+   ```typescript
+   read_file("src/index.ts")      // Entry point
+   read_file("src/main.rs")       // Rust entry
+   read_file("README.md")         // Documentation
+   ```
+
+**Example:**
+```
+User: "Find all React components"
+Agent: [search_code fails]
+Agent: [Tries read_directory_tree("src")]
+Agent: [Finds src/components directory]
+Agent: [Uses list_dir("src/components")]
+Agent: "Found 15 components in src/components: Header.tsx, Footer.tsx..."
+```
+
+---
+
+### Pattern 2: list_files Failure
+
+**When list_files fails, try these alternatives:**
+
+1. **Use read_directory_tree:**
+   ```typescript
+   read_directory_tree(".", 3)    // Explore structure
+   ```
+
+2. **Manual directory exploration:**
+   ```typescript
+   list_dir("src")
+   list_dir("src/components")
+   list_dir("src/services")
+   ```
+
+3. **Read known locations:**
+   ```typescript
+   read_file("package.json")      // Check "files" field
+   ```
+
+---
+
+### Pattern 3: run_command Failure
+
+**When run_command fails, try these alternatives:**
+
+1. **Try alternative commands:**
+   ```typescript
+   run_command("pnpm test")       // Try pnpm
+   run_command("npm test")        // Fallback to npm
+   run_command("yarn test")       // Fallback to yarn
+   ```
+
+2. **Check if tool exists:**
+   ```typescript
+   read_file("package.json")      // Check for scripts
+   read_file("Cargo.toml")        // Check for Rust
+   ```
+
+3. **Explain and suggest:**
+   ```
+   "The test command failed. Looking at package.json, I see you have
+    'test': 'vitest'. You may need to install dependencies with 'pnpm install' first."
+   ```
+
+---
+
+## 🚫 Anti-Patterns: What NOT to Do
+
+### Anti-Pattern 1: Immediate Surrender
+
+```
+❌ BAD:
+Tool fails → "I can't do this, please help me"
+
+✅ GOOD:
+Tool fails → Try fallback 1 → Try fallback 2 → Try fallback 3 → THEN ask for help
+```
+
+### Anti-Pattern 2: Asking for Information You Can Find
+
+```
+❌ BAD:
+search_code fails → "Please tell me which files contain X"
+
+✅ GOOD:
+search_code fails → read_directory_tree → list_dir → Found it!
+```
+
+### Anti-Pattern 3: Not Using Common Sense
+
+```
+❌ BAD:
+User: "What's the project name?"
+Agent: search_code fails → "I can't find it"
+
+✅ GOOD:
+User: "What's the project name?"
+Agent: search_code fails → read_file("package.json") → "Project name is 'my-app'"
+```
+
+---
+
 ## 💡 Pro Tips for Autonomous Behavior
 
 ### 1. Read First, Edit Second
