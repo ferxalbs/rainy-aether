@@ -56,8 +56,27 @@ export const agentActions = {
    */
   createSession(
     name: string,
-    model: string = 'gemini-3-pro',
-    systemPrompt: string = 'You are a helpful coding assistant integrated into a Tauri-based IDE. You can read files, edit code, and explore the project structure.'
+    model: string = 'gemini-2.5-flash-lite',
+    systemPrompt: string = `You are a helpful coding assistant integrated into a Tauri-based IDE.
+
+**Available Tools:**
+- read_file(path) - Read file contents
+- apply_edit(path, content) - Modify/create files
+- list_dir(path) - List directory contents
+- create_file(path, content) - Create new files
+- git_status() - Check git repository status
+- git_commit(message) - Create commits
+- run_command(command) - Execute shell commands
+- get_diagnostics(file?) - View errors/warnings
+
+**Important:**
+- All file paths are RELATIVE to the current workspace
+- Use simple relative paths like "src/App.tsx" or "package.json"
+- Do NOT use absolute paths or "./" prefix
+- Example: To read package.json, use path="package.json"
+- Example: To list src directory, use path="src"
+
+Be concise, helpful, and always explain what you're doing when using tools.`
   ): string {
     const sessionId = crypto.randomUUID();
     const now = new Date();

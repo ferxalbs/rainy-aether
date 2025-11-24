@@ -3,6 +3,7 @@ import { getGitService } from "@/services/gitService";
 import { getTerminalService } from "@/services/terminalService";
 import { getMarkerService } from "@/services/markerService";
 import { getIDEState } from "@/stores/ideStore";
+import { join } from "@tauri-apps/api/path";
 
 export interface ToolDefinition {
   name: string;
@@ -22,6 +23,26 @@ class ToolRegistry {
     this.registerDefaultTools();
   }
 
+  /**
+   * Resolve a path relative to the workspace
+   */
+  private async resolvePath(path: string): Promise<string> {
+    const workspace = getIDEState().workspace;
+
+    // If path is already absolute (starts with / or C:\ etc), return as-is
+    if (path.startsWith('/') || /^[a-zA-Z]:/.test(path)) {
+      return path;
+    }
+
+    // If no workspace, return the path as-is (will likely fail, but let backend handle it)
+    if (!workspace) {
+      return path;
+    }
+
+    // Resolve relative to workspace
+    return await join(workspace.path, path);
+  }
+
   private registerDefaultTools() {
     // --- File System Tools ---
     this.registerTool({
@@ -37,9 +58,10 @@ class ToolRegistry {
       execute: async ({ path }) => {
         try {
           if (!path || typeof path !== 'string') {
-            return { error: 'Invalid path parameter' };
+            return { success: false, error: 'Invalid path parameter' };
           }
-          const content = await invoke<string>("get_file_content", { path });
+          const resolvedPath = await this.resolvePath(path);
+          const content = await invoke<string>("get_file_content", { path: resolvedPath });
           return { success: true, content };
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -67,7 +89,8 @@ class ToolRegistry {
           if (content === undefined || content === null) {
             return { success: false, error: 'Content parameter is required' };
           }
-          await invoke("save_file_content", { path, content });
+          const resolvedPath = await this.resolvePath(path);
+          await invoke("save_file_content", { path: resolvedPath, content });
           return { success: true, message: `File '${path}' updated successfully.` };
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -91,7 +114,8 @@ class ToolRegistry {
           if (!path || typeof path !== 'string') {
             return { success: false, error: 'Invalid path parameter' };
           }
-          const children = await invoke<any[]>("load_directory_children", { path });
+          const resolvedPath = await this.resolvePath(path);
+          const children = await invoke<any[]>("load_directory_children", { path: resolvedPath });
           return {
             success: true,
             files: children.map((child) => ({
@@ -123,9 +147,10 @@ class ToolRegistry {
           if (!path || typeof path !== 'string') {
             return { success: false, error: 'Invalid path parameter' };
           }
-          await invoke("create_file", { path });
+          const resolvedPath = await this.resolvePath(path);
+          await invoke("create_file", { path: resolvedPath });
           if (content) {
-            await invoke("save_file_content", { path, content });
+            await invoke("save_file_content", { path: resolvedPath, content });
           }
           return { success: true, message: `File '${path}' created successfully.` };
         } catch (error) {

@@ -15,6 +15,21 @@ import { cn } from "@/lib/utils"
 import { useActiveSession, agentActions } from "@/stores/agentStore"
 import { AVAILABLE_MODELS } from "@/services/agent/providers"
 
+// Helper to safely render tool results
+function renderToolResult(result: unknown): string {
+    if (result === null || result === undefined) {
+        return 'null';
+    }
+    if (typeof result === 'string') {
+        return result;
+    }
+    try {
+        return JSON.stringify(result, null, 2);
+    } catch {
+        return String(result);
+    }
+}
+
 export function AgentChatWindow() {
     const { messages, input, setInput, isLoading, sendMessage, streamingContent } = useAgentChat();
     const activeSession = useActiveSession();
@@ -98,7 +113,7 @@ export function AgentChatWindow() {
                                                     {tool.result && (
                                                         <div className="bg-muted/30 p-2 rounded overflow-x-auto mt-1">
                                                             <div className="text-muted-foreground">Result:</div>
-                                                            <pre>{JSON.stringify(tool.result, null, 2)}</pre>
+                                                            <pre>{renderToolResult(tool.result)}</pre>
                                                         </div>
                                                     )}
                                                 </div>
