@@ -71,13 +71,83 @@ class ToolRegistry {
     });
 
     this.registerTool({
-      name: "apply_edit",
-      description: "Overwrites or modifies a file with new content.",
+      name: "edit_file",
+      description: "Performs surgical edits on a file by replacing specific text. Use this for precise modifications without rewriting the entire file. CRITICAL: You must provide the EXACT text to replace (old_string) and what to replace it with (new_string). Include enough context in old_string to make it unique.",
       parameters: {
         type: "object",
         properties: {
-          path: { type: "string", description: "The relative path of the file to edit." },
-          content: { type: "string", description: "The new content for the file." },
+          path: {
+            type: "string",
+            description: "The relative path of the file to edit."
+          },
+          old_string: {
+            type: "string",
+            description: "The exact text to find and replace. Must be unique in the file. Include surrounding context if needed for uniqueness."
+          },
+          new_string: {
+            type: "string",
+            description: "The new text to replace old_string with. Can be empty string to delete."
+          },
+        },
+        required: ["path", "old_string", "new_string"],
+      },
+      execute: async ({ path, old_string, new_string }) => {
+        try {
+          if (!path || typeof path !== 'string') {
+            return { success: false, error: 'Invalid path parameter' };
+          }
+          if (old_string === undefined || old_string === null) {
+            return { success: false, error: 'old_string parameter is required' };
+          }
+          if (new_string === undefined || new_string === null) {
+            return { success: false, error: 'new_string parameter is required' };
+          }
+
+          const resolvedPath = await this.resolvePath(path);
+
+          // Read current content
+          const currentContent = await invoke<string>("get_file_content", { path: resolvedPath });
+
+          // Check if old_string exists
+          if (!currentContent.includes(old_string)) {
+            return {
+              success: false,
+              error: `The specified old_string was not found in '${path}'. Make sure you're using the exact text from the file.`
+            };
+          }
+
+          // Check if old_string appears multiple times
+          const occurrences = currentContent.split(old_string).length - 1;
+          if (occurrences > 1) {
+            return {
+              success: false,
+              error: `The old_string appears ${occurrences} times in '${path}'. Please provide more context to make it unique.`
+            };
+          }
+
+          // Perform the replacement
+          const newContent = currentContent.replace(old_string, new_string);
+          await invoke("save_file_content", { path: resolvedPath, content: newContent });
+
+          return {
+            success: true,
+            message: `Successfully edited '${path}' - replaced ${old_string.length} characters with ${new_string.length} characters.`
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to edit file '${path}': ${errorMsg}` };
+        }
+      },
+    });
+
+    this.registerTool({
+      name: "write_file",
+      description: "Writes complete new content to a file, replacing all existing content. Use this ONLY for creating new files or complete rewrites. For modifications, use edit_file instead.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: "The relative path of the file to write." },
+          content: { type: "string", description: "The complete new content for the file." },
         },
         required: ["path", "content"],
       },
@@ -91,7 +161,7 @@ class ToolRegistry {
           }
           const resolvedPath = await this.resolvePath(path);
           await invoke("save_file_content", { path: resolvedPath, content });
-          return { success: true, message: `File '${path}' updated successfully.` };
+          return { success: true, message: `File '${path}' written successfully with ${content.length} characters.` };
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
           return { success: false, error: `Failed to write file '${path}': ${errorMsg}` };
@@ -127,6 +197,189 @@ class ToolRegistry {
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
           return { success: false, error: `Failed to list directory '${path}': ${errorMsg}` };
+        }
+      },
+    });
+
+    this.registerTool({
+      name: "read_directory_tree",
+      description: "Gets the complete directory structure as a tree. Useful for understanding project layout.",
+      parameters: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description: "The relative path of the directory (use '.' for workspace root)."
+          },
+          max_depth: {
+            type: "number",
+            description: "Maximum depth to traverse (default: 3, max: 5)."
+          },
+        },
+        required: ["path"],
+      },
+      execute: async ({ path, max_depth = 3 }) => {
+        try {
+          if (!path || typeof path !== 'string') {
+            return { success: false, error: 'Invalid path parameter' };
+          }
+
+          const depth = Math.min(max_depth || 3, 5);
+          const resolvedPath = await this.resolvePath(path);
+
+          const buildTree = async (dirPath: string, currentDepth: number): Promise<any> => {
+            if (currentDepth > depth) return null;
+
+            try {
+              const children = await invoke<any[]>("load_directory_children", { path: dirPath });
+              const tree: any = { directories: [], files: [] };
+
+              for (const child of children) {
+                if (child.is_directory) {
+                  const subtree = await buildTree(child.path, currentDepth + 1);
+                  tree.directories.push({
+                    name: child.name,
+                    path: child.path,
+                    children: subtree
+                  });
+                } else {
+                  tree.files.push({
+                    name: child.name,
+                    path: child.path
+                  });
+                }
+              }
+
+              return tree;
+            } catch {
+              return null;
+            }
+          };
+
+          const tree = await buildTree(resolvedPath, 0);
+          return {
+            success: true,
+            tree,
+            message: `Directory tree for '${path}' (depth: ${depth})`
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to read directory tree: ${errorMsg}` };
+        }
+      },
+    });
+
+    this.registerTool({
+      name: "search_code",
+      description: "Search for code across the workspace using text or regex patterns. Returns matching files and line numbers.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The text or regex pattern to search for."
+          },
+          file_pattern: {
+            type: "string",
+            description: "Optional glob pattern to filter files (e.g., '*.ts', 'src/**/*.tsx')."
+          },
+          is_regex: {
+            type: "boolean",
+            description: "Whether to treat query as a regex pattern (default: false)."
+          },
+          max_results: {
+            type: "number",
+            description: "Maximum number of results to return (default: 50)."
+          },
+        },
+        required: ["query"],
+      },
+      execute: async ({ query, file_pattern, is_regex = false, max_results = 50 }) => {
+        try {
+          if (!query || typeof query !== 'string') {
+            return { success: false, error: 'Query parameter is required' };
+          }
+
+          const workspace = getIDEState().workspace;
+          if (!workspace) {
+            return { success: false, error: 'No workspace open' };
+          }
+
+          // Use ripgrep via Tauri command if available, otherwise fallback to simple search
+          try {
+            // Try to use a search command if available
+            const results = await invoke<any[]>("search_workspace", {
+              path: workspace.path,
+              query,
+              filePattern: file_pattern,
+              isRegex: is_regex,
+              maxResults: max_results
+            });
+
+            return {
+              success: true,
+              results,
+              total: results.length
+            };
+          } catch {
+            // Fallback: manual search through files
+            return {
+              success: false,
+              error: 'Code search not yet implemented in backend. Use read_file and manual searching for now.'
+            };
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Search failed: ${errorMsg}` };
+        }
+      },
+    });
+
+    this.registerTool({
+      name: "list_files",
+      description: "List all files in the workspace matching a pattern. Faster than read_directory_tree for finding specific files.",
+      parameters: {
+        type: "object",
+        properties: {
+          pattern: {
+            type: "string",
+            description: "Glob pattern to match files (e.g., '*.ts', 'src/**/*.tsx', '*.{js,ts}')."
+          },
+        },
+        required: ["pattern"],
+      },
+      execute: async ({ pattern }) => {
+        try {
+          if (!pattern || typeof pattern !== 'string') {
+            return { success: false, error: 'Pattern parameter is required' };
+          }
+
+          const workspace = getIDEState().workspace;
+          if (!workspace) {
+            return { success: false, error: 'No workspace open' };
+          }
+
+          // Try to use glob command if available
+          try {
+            const files = await invoke<string[]>("glob_files", {
+              path: workspace.path,
+              pattern
+            });
+
+            return {
+              success: true,
+              files,
+              total: files.length
+            };
+          } catch {
+            return {
+              success: false,
+              error: 'File globbing not yet implemented in backend. Use list_dir for now.'
+            };
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to list files: ${errorMsg}` };
         }
       },
     });
@@ -220,38 +473,192 @@ class ToolRegistry {
     // --- Terminal Tools ---
     this.registerTool({
       name: "run_command",
-      description: "Run a shell command in the terminal.",
+      description: "Execute a shell command in the workspace. Returns command output. Use this for running build tools, tests, linters, formatters, etc.",
       parameters: {
         type: "object",
         properties: {
-          command: { type: "string", description: "The command to run" },
+          command: {
+            type: "string",
+            description: "The command to execute (e.g., 'npm test', 'pnpm build', 'cargo check')."
+          },
+          cwd: {
+            type: "string",
+            description: "Working directory (relative to workspace). Defaults to workspace root."
+          },
+          timeout: {
+            type: "number",
+            description: "Timeout in milliseconds (default: 30000, max: 120000)."
+          },
         },
         required: ["command"],
       },
-      execute: async ({ command }) => {
+      execute: async ({ command, cwd, timeout = 30000 }) => {
         try {
           if (!command || typeof command !== 'string') {
             return { success: false, error: 'Command parameter is required' };
           }
-          const terminalService = getTerminalService();
+
           const workspace = getIDEState().workspace;
+          if (!workspace) {
+            return { success: false, error: 'No workspace open' };
+          }
 
-          // Create a new session for the command
-          const sessionId = await terminalService.create({
-            cwd: workspace?.path,
-          });
+          const workingDir = cwd ? await this.resolvePath(cwd) : workspace.path;
+          const maxTimeout = Math.min(timeout, 120000);
 
-          // Send command
-          await terminalService.write(sessionId, command + "\r\n");
+          try {
+            // Try to use execute_command Tauri command for synchronous execution
+            const result = await invoke<{ stdout: string; stderr: string; exit_code: number }>(
+              "execute_command",
+              {
+                command,
+                cwd: workingDir,
+                timeout: maxTimeout
+              }
+            );
 
-          return {
-            success: true,
-            message: `Command '${command}' sent to terminal session ${sessionId}. Check terminal panel for output.`,
-            sessionId
-          };
+            return {
+              success: result.exit_code === 0,
+              stdout: result.stdout,
+              stderr: result.stderr,
+              exit_code: result.exit_code,
+              message: result.exit_code === 0
+                ? `Command completed successfully`
+                : `Command failed with exit code ${result.exit_code}`
+            };
+          } catch {
+            // Fallback to terminal service
+            const terminalService = getTerminalService();
+            const sessionId = await terminalService.create({ cwd: workingDir });
+            await terminalService.write(sessionId, command + "\r\n");
+
+            return {
+              success: true,
+              message: `Command sent to terminal session ${sessionId}. Check terminal for output.`,
+              sessionId,
+              note: "Output capture not available - command executed in terminal."
+            };
+          }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          return { success: false, error: `Failed to run command: ${errorMsg}` };
+          return { success: false, error: `Failed to execute command: ${errorMsg}` };
+        }
+      },
+    });
+
+    this.registerTool({
+      name: "run_tests",
+      description: "Run tests in the project. Automatically detects the test runner (npm, pnpm, cargo, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          target: {
+            type: "string",
+            description: "Specific test file or suite to run (optional)."
+          },
+          framework: {
+            type: "string",
+            description: "Test framework override: 'npm', 'pnpm', 'cargo', 'pytest', etc."
+          },
+        },
+        required: [],
+      },
+      execute: async ({ target, framework }) => {
+        try {
+          const workspace = getIDEState().workspace;
+          if (!workspace) {
+            return { success: false, error: 'No workspace open' };
+          }
+
+          // Detect test command
+          let testCommand = '';
+          if (framework) {
+            testCommand = `${framework} test ${target || ''}`;
+          } else {
+            // Auto-detect from workspace
+            try {
+              const packageJson = await invoke<string>("get_file_content", {
+                path: await join(workspace.path, "package.json")
+              });
+              if (packageJson) {
+                const pkg = JSON.parse(packageJson);
+                if (pkg.scripts?.test) {
+                  testCommand = `pnpm test ${target || ''}`;
+                }
+              }
+            } catch {
+              // Try Cargo
+              try {
+                await invoke<string>("get_file_content", {
+                  path: await join(workspace.path, "Cargo.toml")
+                });
+                testCommand = `cargo test ${target || ''}`;
+              } catch {
+                return {
+                  success: false,
+                  error: 'Could not detect test framework. Please specify framework parameter.'
+                };
+              }
+            }
+          }
+
+          // Execute the test command
+          const tool = this.getTool('run_command');
+          if (!tool) {
+            return { success: false, error: 'run_command tool not available' };
+          }
+
+          return await tool.execute({ command: testCommand.trim(), timeout: 120000 });
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to run tests: ${errorMsg}` };
+        }
+      },
+    });
+
+    this.registerTool({
+      name: "format_file",
+      description: "Format a file using the project's formatter (Prettier, rustfmt, etc.).",
+      parameters: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description: "The relative path of the file to format."
+          },
+        },
+        required: ["path"],
+      },
+      execute: async ({ path }) => {
+        try {
+          if (!path || typeof path !== 'string') {
+            return { success: false, error: 'Path parameter is required' };
+          }
+
+          const resolvedPath = await this.resolvePath(path);
+          const ext = path.split('.').pop()?.toLowerCase();
+
+          let formatCommand = '';
+          if (['ts', 'tsx', 'js', 'jsx', 'json', 'css', 'scss', 'html'].includes(ext || '')) {
+            formatCommand = `pnpm prettier --write "${resolvedPath}"`;
+          } else if (['rs'].includes(ext || '')) {
+            formatCommand = `rustfmt "${resolvedPath}"`;
+          } else {
+            return {
+              success: false,
+              error: `No formatter configured for .${ext} files`
+            };
+          }
+
+          const tool = this.getTool('run_command');
+          if (!tool) {
+            return { success: false, error: 'run_command tool not available' };
+          }
+
+          return await tool.execute({ command: formatCommand });
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to format file: ${errorMsg}` };
         }
       },
     });
