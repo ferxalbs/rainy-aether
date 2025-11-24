@@ -1,5 +1,9 @@
-import { AtSign, Image as ImageIcon, Send, Bot, Loader2, Terminal, CheckCircle2, XCircle } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { AtSign, Image as ImageIcon, Send, Bot, Loader2, Terminal, CheckCircle2, XCircle, ChevronDown, ChevronRight } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -30,6 +34,74 @@ function renderToolResult(result: unknown): React.ReactNode {
     }
 }
 
+function ToolCallItem({ tool }: { tool: any }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    return (
+        <div className="w-full bg-card border rounded-md overflow-hidden mt-2 text-sm">
+            <div
+                className="flex items-center justify-between p-2 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex items-center gap-2 text-muted-foreground">
+                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    <Terminal className="h-4 w-4" />
+                    <span className="font-medium text-foreground">{tool.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    {tool.status === 'success' && (
+                        <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Success
+                        </span>
+                    )}
+                    {tool.status === 'error' && (
+                        <span className="text-xs text-red-500 flex items-center gap-1">
+                            <XCircle className="h-3 w-3" />
+                            Error
+                        </span>
+                    )}
+                    {(tool.status === 'pending' || !tool.status) && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Running
+                        </span>
+                    )}
+                </div>
+            </div>
+            
+            {isExpanded && (
+                <div className="p-3 border-t bg-background/50 space-y-3">
+                    <div>
+                        <div className="text-xs font-semibold text-muted-foreground mb-1">Arguments</div>
+                        <div className="bg-muted/30 p-2 rounded overflow-x-auto font-mono text-xs">
+                            <pre>{JSON.stringify(tool.arguments, null, 2)}</pre>
+                        </div>
+                    </div>
+                    
+                    {tool.status === 'success' && tool.result !== undefined && (
+                        <div>
+                            <div className="text-xs font-semibold text-muted-foreground mb-1">Result</div>
+                            <div className="bg-muted/30 p-2 rounded overflow-x-auto font-mono text-xs max-h-[200px]">
+                                <pre>{renderToolResult(tool.result)}</pre>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {tool.status === 'error' && (
+                        <div>
+                            <div className="text-xs font-semibold text-red-500 mb-1">Error Details</div>
+                            <div className="bg-red-500/10 text-red-500 p-2 rounded font-mono text-xs">
+                                {tool.error}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function AgentChatWindow() {
     const { messages, input, setInput, isLoading, sendMessage, streamingContent } = useAgentChat();
     const activeSession = useActiveSession();
@@ -52,6 +124,37 @@ export function AgentChatWindow() {
         if (activeSession) {
             agentActions.updateSessionModel(activeSession.id, modelId);
         }
+    };
+
+    const renderMessageContent = (content: string) => {
+        return (
+            <div className="prose prose-sm dark:prose-invert max-w-none wrap-break-word">
+                <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                        code({ node, inline, className, children, ...props }: any) {
+                            const match = /language-(\w+)/.exec(className || '')
+                            return !inline && match ? (
+                                <SyntaxHighlighter
+                                    style={vscDarkPlus}
+                                    language={match[1]}
+                                    PreTag="div"
+                                    {...props}
+                                >
+                                    {String(children).replace(/\n$/, '')}
+                                </SyntaxHighlighter>
+                            ) : (
+                                <code className={cn("bg-muted px-1.5 py-0.5 rounded font-mono text-sm", className)} {...props}>
+                                    {children}
+                                </code>
+                            )
+                        }
+                    }}
+                >
+                    {content}
+                </ReactMarkdown>
+            </div>
+        );
     };
 
     return (
@@ -81,57 +184,26 @@ export function AgentChatWindow() {
                                     {msg.role === 'user' ? <AtSign className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                                 </div>
                                 <div className={cn(
-                                    "flex flex-col gap-2 max-w-[80%]",
+                                    "flex flex-col gap-2 max-w-[85%]",
                                     msg.role === 'user' ? "items-end" : "items-start"
                                 )}>
                                     <div className={cn(
-                                        "rounded-lg p-3 text-sm",
+                                        "rounded-lg p-4 text-sm shadow-sm",
                                         msg.role === 'user'
                                             ? "bg-primary text-primary-foreground"
-                                            : "bg-muted/50 border"
+                                            : "bg-card border"
                                     )}>
-                                        {msg.content}
+                                        {renderMessageContent(msg.content)}
                                     </div>
                                     
                                     {/* Render Tool Calls */}
-                                    {msg.toolCalls?.map((tool) => (
-                                        <div key={tool.id} className="w-full bg-card border rounded-md p-3 text-xs font-mono mt-1">
-                                            <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                                                <Terminal className="h-3 w-3" />
-                                                <span>Tool: {tool.name}</span>
-                                            </div>
-                                            <div className="bg-muted/30 p-2 rounded overflow-x-auto mb-2">
-                                                <div className="text-muted-foreground">Arguments:</div>
-                                                <pre>{JSON.stringify(tool.arguments, null, 2)}</pre>
-                                            </div>
-                                            {tool.status === 'success' && (
-                                                <div className="mt-2 space-y-1">
-                                                    <div className="text-green-600 dark:text-green-400 flex items-center gap-1">
-                                                        <CheckCircle2 className="h-3 w-3" />
-                                                        <span>Completed successfully</span>
-                                                    </div>
-                                                    {tool.result !== undefined && tool.result !== null && (
-                                                        <div className="bg-muted/30 p-2 rounded overflow-x-auto mt-1">
-                                                            <div className="text-muted-foreground">Result:</div>
-                                                            <pre>{renderToolResult(tool.result)}</pre>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {tool.status === 'error' && (
-                                                <div className="mt-2 text-red-500 flex items-center gap-1">
-                                                    <XCircle className="h-3 w-3" />
-                                                    <span>Error: {tool.error}</span>
-                                                </div>
-                                            )}
-                                            {(tool.status === 'pending' || !tool.status) && (
-                                                <div className="mt-2 text-muted-foreground flex items-center gap-1">
-                                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                                    <span>Executing...</span>
-                                                </div>
-                                            )}
+                                    {msg.toolCalls && msg.toolCalls.length > 0 && (
+                                        <div className="w-full space-y-2">
+                                            {msg.toolCalls.map((tool) => (
+                                                <ToolCallItem key={tool.id} tool={tool} />
+                                            ))}
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -140,14 +212,14 @@ export function AgentChatWindow() {
                                 <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
                                     <Bot className="h-4 w-4" />
                                 </div>
-                                <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-2 max-w-[85%]">
                                     {streamingContent ? (
-                                        <div className="rounded-lg p-3 text-sm bg-muted/50 border max-w-[80%]">
-                                            {streamingContent}
-                                            <span className="inline-block w-1 h-4 bg-foreground animate-pulse ml-1" />
+                                        <div className="rounded-lg p-4 text-sm bg-card border shadow-sm">
+                                            {renderMessageContent(streamingContent)}
+                                            <span className="inline-block w-1 h-4 bg-foreground animate-pulse ml-1 align-middle" />
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                        <div className="flex items-center gap-2 text-muted-foreground text-sm p-2">
                                             <Loader2 className="h-4 w-4 animate-spin" />
                                             Thinking...
                                         </div>
