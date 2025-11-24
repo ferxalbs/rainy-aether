@@ -1,4 +1,4 @@
-
+import { useEffect } from "react"
 import {
     ResizableHandle,
     ResizablePanel,
@@ -7,8 +7,19 @@ import {
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { AgentsSidebar } from "./AgentsSidebar"
 import { AgentChatWindow } from "./AgentChatWindow"
+import { AgentSettingsDialog } from "./AgentSettingsDialog"
+import { useAgentStore, agentActions } from "@/stores/agentStore"
 
 export function AgentsLayout() {
+    const { sessions } = useAgentStore();
+
+    // Create initial session if none exists
+    useEffect(() => {
+        if (sessions.length === 0) {
+            agentActions.createSession("First Agent");
+        }
+    }, [sessions.length]);
+
     return (
         <SidebarProvider className="min-h-0 h-full">
             <div className="h-full w-full overflow-hidden">
@@ -19,8 +30,9 @@ export function AgentsLayout() {
                     <ResizableHandle withHandle />
                     <ResizablePanel defaultSize={80}>
                         <div className="flex flex-col h-full">
-                            <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 bg-background">
+                            <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-4 bg-background">
                                 <span className="font-semibold">Agents</span>
+                                <AgentSettingsDialog />
                             </header>
                             <div className="flex-1 overflow-hidden h-full">
                                 <AgentChatWindow />

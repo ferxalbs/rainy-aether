@@ -1,164 +1,214 @@
-import { ChatMessage, ToolCall } from "@/types/chat";
-import { toolRegistry } from "./ToolRegistry";
+import { invoke } from '@tauri-apps/api/core';
+import { ChatMessage } from '@/types/chat';
+import { toolRegistry } from './ToolRegistry';
+import { AIProvider, StreamChunk, createProvider, ProviderCredentials } from './providers';
 
-// Mock LLM response for now, since we don't have a real API key connected yet.
-// In a real implementation, this would call OpenAI, Anthropic, or Gemini API.
-const MOCK_LLM_DELAY = 1500;
+// ===========================
+// Configuration
+// ===========================
 
 interface AgentConfig {
-  systemPrompt: string;
+  sessionId: string;
   model: string;
+  systemPrompt: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
+// ===========================
+// Agent Service
+// ===========================
+
 export class AgentService {
-  private history: ChatMessage[] = [];
   private config: AgentConfig;
+  private provider: AIProvider | null = null;
+  private credentials: ProviderCredentials = {};
+  private isInitialized = false;
 
   constructor(config: AgentConfig) {
     this.config = config;
-    // Initialize history with system prompt
-    this.history.push({
-      id: "system-init",
-      role: "system",
-      content: config.systemPrompt,
-      timestamp: new Date(),
-    });
   }
 
-  async sendMessage(content: string): Promise<ChatMessage> {
-    // 1. Add user message to history
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content,
-      timestamp: new Date(),
-    };
-    this.history.push(userMessage);
+  /**
+   * Initialize the service by loading API credentials
+   */
+  private async initialize(): Promise<void> {
+    if (this.isInitialized) return;
 
-    // 2. Simulate LLM processing (replace with real API call)
-    // This is where we'd send `this.history` and `toolRegistry.getAllTools()` to the LLM
-    const response = await this.mockLLMProcess(content);
+    try {
+      // Load credentials from Tauri secure storage
+      const geminiKey = await this.loadCredential('gemini_api_key');
+      const groqKey = await this.loadCredential('groq_api_key');
 
-    // 3. Handle Tool Calls if any
-    if (response.toolCalls && response.toolCalls.length > 0) {
-      // Execute tools
-      for (const call of response.toolCalls) {
-        try {
-          call.status = "pending";
-          const result = await toolRegistry.executeTool(call.name, call.arguments);
-          call.result = result;
-          call.status = "success";
-        } catch (error) {
-          call.error = String(error);
-          call.status = "error";
-        }
-      }
+      this.credentials = {
+        geminiApiKey: geminiKey || undefined,
+        groqApiKey: groqKey || undefined,
+      };
 
-      // 4. If tools were called, we'd typically send the results back to the LLM
-      // for a final response. For this mock, we'll just return the response with tool results.
-      // In a real loop:
-      // this.history.push(response);
-      // const finalResponse = await this.callLLM(this.history);
-      // return finalResponse;
+      // Create provider
+      this.provider = createProvider(
+        this.config.model,
+        this.credentials,
+        this.config.temperature,
+        this.config.maxTokens
+      );
+
+      this.isInitialized = true;
+    } catch (error) {
+      console.error('Failed to initialize AgentService:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Load a credential from secure storage
+   */
+  private async loadCredential(providerId: string): Promise<string | null> {
+    try {
+      const value = await invoke<string | null>('agent_get_credential', { providerId });
+      return value;
+    } catch (error) {
+      console.warn(`Failed to load credential ${providerId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Send a message with streaming support
+   */
+  async sendMessage(
+    messages: ChatMessage[],
+    onChunk?: (chunk: StreamChunk) => void
+  ): Promise<ChatMessage> {
+    await this.initialize();
+
+    if (!this.provider) {
+      throw new Error('Provider not initialized. Check API credentials.');
     }
 
-    this.history.push(response);
+    const tools = toolRegistry.getAllTools();
+
+    // Use streaming if callback provided
+    if (onChunk) {
+      const response = await this.provider.streamMessage(messages, tools, onChunk);
+      return await this.handleToolCalls(response, messages);
+    } else {
+      const response = await this.provider.sendMessage(messages, tools);
+      return await this.handleToolCalls(response, messages);
+    }
+  }
+
+  /**
+   * Execute tool calls and optionally get a final response
+   */
+  private async handleToolCalls(
+    response: ChatMessage,
+    _history: ChatMessage[]
+  ): Promise<ChatMessage> {
+    if (!response.toolCalls || response.toolCalls.length === 0) {
+      return response;
+    }
+
+    // Execute all tool calls
+    for (const toolCall of response.toolCalls) {
+      try {
+        toolCall.status = 'pending';
+        const result = await toolRegistry.executeTool(toolCall.name, toolCall.arguments);
+        toolCall.result = result;
+        toolCall.status = 'success';
+      } catch (error) {
+        toolCall.error = String(error);
+        toolCall.status = 'error';
+      }
+    }
+
+    // For now, just return the response with executed tools
+    // In a more advanced implementation, we could send the tool results back to the LLM
+    // for a follow-up response:
+    /*
+    const toolResultsMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'function',
+      content: JSON.stringify(response.toolCalls.map(tc => tc.result)),
+      timestamp: new Date(),
+    };
+
+    const finalResponse = await this.provider.sendMessage([...history, response, toolResultsMessage], []);
+    return finalResponse;
+    */
+
     return response;
   }
 
-  private async mockLLMProcess(userContent: string): Promise<ChatMessage> {
-    await new Promise((resolve) => setTimeout(resolve, MOCK_LLM_DELAY));
-
-    const lowerContent = userContent.toLowerCase();
-    let toolCalls: ToolCall[] | undefined;
-    let content = "I've processed your request.";
-
-    // Simple keyword detection to simulate "intelligence" and tool usage
-    if (lowerContent.includes("read") && lowerContent.includes("file")) {
-      // Extract filename (very naive extraction for demo)
-      const match = userContent.match(/read.*`?([\w./-]+)`?/);
-      const path = match ? match[1] : "src/main.tsx"; // Default fallback
-      
-      toolCalls = [
-        {
-          id: crypto.randomUUID(),
-          name: "read_file",
-          arguments: { path },
-        },
-      ];
-      content = `I'll read the file ${path} for you.`;
-    } else if (lowerContent.includes("edit") || lowerContent.includes("change")) {
-       const match = userContent.match(/edit.*`?([\w./-]+)`?/);
-       const path = match ? match[1] : "src/main.tsx";
-
-       toolCalls = [
-        {
-          id: crypto.randomUUID(),
-          name: "apply_edit",
-          arguments: {
-            path,
-            content: "// Edited by Agent\nconsole.log('Hello from Agent');"
-          },
-        },
-      ];
-      content = `I'm applying changes to ${path}.`;
-    } else if (lowerContent.includes("list")) {
-        toolCalls = [
-            {
-                id: crypto.randomUUID(),
-                name: "list_dir",
-                arguments: { path: "." }
-            }
-        ];
-        content = "I'll list the files in the current directory.";
-    } else if (lowerContent.includes("git") && lowerContent.includes("status")) {
-        toolCalls = [
-            {
-                id: crypto.randomUUID(),
-                name: "git_status",
-                arguments: {}
-            }
-        ];
-        content = "Checking git status...";
-    } else if (lowerContent.includes("run") || lowerContent.includes("command")) {
-        const match = userContent.match(/run.*`?([\w\s-]+)`?/);
-        const command = match ? match[1] : "ls";
-        toolCalls = [
-            {
-                id: crypto.randomUUID(),
-                name: "run_command",
-                arguments: { command }
-            }
-        ];
-        content = `Running command: ${command}`;
-    } else if (lowerContent.includes("error") || lowerContent.includes("problem")) {
-        toolCalls = [
-            {
-                id: crypto.randomUUID(),
-                name: "get_diagnostics",
-                arguments: {}
-            }
-        ];
-        content = "Checking for errors and warnings...";
-    }
-    else {
-        content = "I understand. How else can I help you with your code today?";
-    }
-
-    return {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content,
-      timestamp: new Date(),
-      toolCalls,
-    };
+  /**
+   * Update the model for this service
+   */
+  async updateModel(modelId: string): Promise<void> {
+    this.config.model = modelId;
+    this.isInitialized = false;
+    await this.initialize();
   }
 
-  getHistory(): ChatMessage[] {
-    return this.history;
+  /**
+   * Update temperature
+   */
+  setTemperature(temperature: number): void {
+    this.config.temperature = temperature;
+    this.isInitialized = false;
   }
 
-  clearHistory() {
-    this.history = [this.history[0]]; // Keep system prompt
+  /**
+   * Update max tokens
+   */
+  setMaxTokens(maxTokens: number): void {
+    this.config.maxTokens = maxTokens;
+    this.isInitialized = false;
+  }
+
+  /**
+   * Get current configuration
+   */
+  getConfig(): AgentConfig {
+    return { ...this.config };
+  }
+}
+
+// ===========================
+// Credential Management
+// ===========================
+
+/**
+ * Save an API credential securely
+ */
+export async function saveCredential(providerId: string, apiKey: string): Promise<void> {
+  try {
+    await invoke('agent_store_credential', { providerId, apiKey });
+  } catch (error) {
+    console.error(`Failed to save credential ${providerId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Load an API credential
+ */
+export async function loadCredential(providerId: string): Promise<string | null> {
+  try {
+    return await invoke<string | null>('agent_get_credential', { providerId });
+  } catch (error) {
+    console.warn(`Failed to load credential ${providerId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Delete an API credential
+ */
+export async function deleteCredential(providerId: string): Promise<void> {
+  try {
+    await invoke('agent_delete_credential', { providerId });
+  } catch (error) {
+    console.error(`Failed to delete credential ${providerId}:`, error);
+    throw error;
   }
 }

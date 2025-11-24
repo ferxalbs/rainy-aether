@@ -1,4 +1,4 @@
-import { AtSign, Image as ImageIcon, Send, Bot, Loader2, FileCode, Terminal } from "lucide-react"
+import { AtSign, Image as ImageIcon, Send, Bot, Loader2, Terminal, CheckCircle2, XCircle } from "lucide-react"
 import { useEffect, useRef } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -12,21 +12,30 @@ import {
 } from "@/components/ui/select"
 import { useAgentChat } from "@/hooks/useAgentChat"
 import { cn } from "@/lib/utils"
+import { useActiveSession, agentActions } from "@/stores/agentStore"
+import { AVAILABLE_MODELS } from "@/services/agent/providers"
 
 export function AgentChatWindow() {
-    const { messages, input, setInput, isLoading, sendMessage } = useAgentChat();
+    const { messages, input, setInput, isLoading, sendMessage, streamingContent } = useAgentChat();
+    const activeSession = useActiveSession();
     const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    }, [messages]);
+    }, [messages, streamingContent]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
+        }
+    };
+
+    const handleModelChange = (modelId: string) => {
+        if (activeSession) {
+            agentActions.updateSessionModel(activeSession.id, modelId);
         }
     };
 
@@ -74,20 +83,36 @@ export function AgentChatWindow() {
                                         <div key={tool.id} className="w-full bg-card border rounded-md p-3 text-xs font-mono mt-1">
                                             <div className="flex items-center gap-2 text-muted-foreground mb-2">
                                                 <Terminal className="h-3 w-3" />
-                                                <span>Executing: {tool.name}</span>
+                                                <span>Tool: {tool.name}</span>
                                             </div>
-                                            <div className="bg-muted/30 p-2 rounded overflow-x-auto">
-                                                {JSON.stringify(tool.arguments, null, 2)}
+                                            <div className="bg-muted/30 p-2 rounded overflow-x-auto mb-2">
+                                                <div className="text-muted-foreground">Arguments:</div>
+                                                <pre>{JSON.stringify(tool.arguments, null, 2)}</pre>
                                             </div>
                                             {tool.status === 'success' && (
-                                                <div className="mt-2 text-green-600 dark:text-green-400 flex items-center gap-1">
-                                                    <FileCode className="h-3 w-3" />
-                                                    <span>Completed</span>
+                                                <div className="mt-2 space-y-1">
+                                                    <div className="text-green-600 dark:text-green-400 flex items-center gap-1">
+                                                        <CheckCircle2 className="h-3 w-3" />
+                                                        <span>Completed successfully</span>
+                                                    </div>
+                                                    {tool.result && (
+                                                        <div className="bg-muted/30 p-2 rounded overflow-x-auto mt-1">
+                                                            <div className="text-muted-foreground">Result:</div>
+                                                            <pre>{JSON.stringify(tool.result, null, 2)}</pre>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                             {tool.status === 'error' && (
-                                                <div className="mt-2 text-red-500">
-                                                    Error: {tool.error}
+                                                <div className="mt-2 text-red-500 flex items-center gap-1">
+                                                    <XCircle className="h-3 w-3" />
+                                                    <span>Error: {tool.error}</span>
+                                                </div>
+                                            )}
+                                            {tool.status === 'pending' && (
+                                                <div className="mt-2 text-muted-foreground flex items-center gap-1">
+                                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                                    <span>Executing...</span>
                                                 </div>
                                             )}
                                         </div>
@@ -100,9 +125,18 @@ export function AgentChatWindow() {
                                 <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
                                     <Bot className="h-4 w-4" />
                                 </div>
-                                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Thinking...
+                                <div className="flex flex-col gap-2">
+                                    {streamingContent ? (
+                                        <div className="rounded-lg p-3 text-sm bg-muted/50 border max-w-[80%]">
+                                            {streamingContent}
+                                            <span className="inline-block w-1 h-4 bg-foreground animate-pulse ml-1" />
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Thinking...
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -123,14 +157,19 @@ export function AgentChatWindow() {
 
                     <div className="flex items-center justify-between p-3 border-t bg-muted/20 rounded-b-xl">
                         <div className="flex items-center gap-2">
-                            <Select defaultValue="gemini-3-pro">
-                                <SelectTrigger className="h-8 w-[160px] border-0 bg-background shadow-sm">
+                            <Select
+                                value={activeSession?.model || AVAILABLE_MODELS[0].id}
+                                onValueChange={handleModelChange}
+                            >
+                                <SelectTrigger className="h-8 w-[200px] border-0 bg-background shadow-sm">
                                     <SelectValue placeholder="Select Model" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="gemini-3-pro">4x Gemini 3 Pro</SelectItem>
-                                    <SelectItem value="gpt-4">GPT-4</SelectItem>
-                                    <SelectItem value="claude-3">Claude 3 Opus</SelectItem>
+                                    {AVAILABLE_MODELS.map((model) => (
+                                        <SelectItem key={model.id} value={model.id}>
+                                            {model.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>

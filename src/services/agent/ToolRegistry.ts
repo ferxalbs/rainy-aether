@@ -36,10 +36,14 @@ class ToolRegistry {
       },
       execute: async ({ path }) => {
         try {
+          if (!path || typeof path !== 'string') {
+            return { error: 'Invalid path parameter' };
+          }
           const content = await invoke<string>("get_file_content", { path });
-          return { content };
+          return { success: true, content };
         } catch (error) {
-          return { error: `Failed to read file: ${error}` };
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to read file '${path}': ${errorMsg}` };
         }
       },
     });
@@ -57,10 +61,17 @@ class ToolRegistry {
       },
       execute: async ({ path, content }) => {
         try {
+          if (!path || typeof path !== 'string') {
+            return { success: false, error: 'Invalid path parameter' };
+          }
+          if (content === undefined || content === null) {
+            return { success: false, error: 'Content parameter is required' };
+          }
           await invoke("save_file_content", { path, content });
-          return { success: true, message: `File ${path} updated successfully.` };
+          return { success: true, message: `File '${path}' updated successfully.` };
         } catch (error) {
-          return { error: `Failed to write file: ${error}` };
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to write file '${path}': ${errorMsg}` };
         }
       },
     });
@@ -77,8 +88,12 @@ class ToolRegistry {
       },
       execute: async ({ path }) => {
         try {
+          if (!path || typeof path !== 'string') {
+            return { success: false, error: 'Invalid path parameter' };
+          }
           const children = await invoke<any[]>("load_directory_children", { path });
           return {
+            success: true,
             files: children.map((child) => ({
               name: child.name,
               path: child.path,
@@ -86,7 +101,8 @@ class ToolRegistry {
             })),
           };
         } catch (error) {
-          return { error: `Failed to list directory: ${error}` };
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to list directory '${path}': ${errorMsg}` };
         }
       },
     });
@@ -104,13 +120,17 @@ class ToolRegistry {
       },
       execute: async ({ path, content }) => {
         try {
+          if (!path || typeof path !== 'string') {
+            return { success: false, error: 'Invalid path parameter' };
+          }
           await invoke("create_file", { path });
           if (content) {
             await invoke("save_file_content", { path, content });
           }
-          return { success: true, message: `File ${path} created successfully.` };
+          return { success: true, message: `File '${path}' created successfully.` };
         } catch (error) {
-          return { error: `Failed to create file: ${error}` };
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to create file '${path}': ${errorMsg}` };
         }
       },
     });
@@ -125,10 +145,18 @@ class ToolRegistry {
         required: [],
       },
       execute: async () => {
-        const workspace = getIDEState().workspace;
-        if (!workspace) return { error: "No workspace open" };
-        const gitService = getGitService(workspace.path);
-        return await gitService.getGitStatus();
+        try {
+          const workspace = getIDEState().workspace;
+          if (!workspace) {
+            return { success: false, error: "No workspace open" };
+          }
+          const gitService = getGitService(workspace.path);
+          const status = await gitService.getGitStatus();
+          return { success: true, ...status };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to get git status: ${errorMsg}` };
+        }
       },
     });
 
@@ -143,11 +171,24 @@ class ToolRegistry {
         required: ["message"],
       },
       execute: async ({ message }) => {
-        const workspace = getIDEState().workspace;
-        if (!workspace) return { error: "No workspace open" };
-        const gitService = getGitService(workspace.path);
-        const success = await gitService.commit(message);
-        return { success };
+        try {
+          if (!message || typeof message !== 'string') {
+            return { success: false, error: 'Commit message is required' };
+          }
+          const workspace = getIDEState().workspace;
+          if (!workspace) {
+            return { success: false, error: "No workspace open" };
+          }
+          const gitService = getGitService(workspace.path);
+          const success = await gitService.commit(message);
+          return {
+            success,
+            message: success ? `Committed with message: "${message}"` : 'Commit failed'
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to commit: ${errorMsg}` };
+        }
       },
     });
 
@@ -163,23 +204,29 @@ class ToolRegistry {
         required: ["command"],
       },
       execute: async ({ command }) => {
-        const terminalService = getTerminalService();
-        const workspace = getIDEState().workspace;
         try {
+          if (!command || typeof command !== 'string') {
+            return { success: false, error: 'Command parameter is required' };
+          }
+          const terminalService = getTerminalService();
+          const workspace = getIDEState().workspace;
+
           // Create a new session for the command
           const sessionId = await terminalService.create({
             cwd: workspace?.path,
           });
-          
+
           // Send command
           await terminalService.write(sessionId, command + "\r\n");
-          
-          return { 
-            success: true, 
-            message: `Command '${command}' sent to terminal session ${sessionId}. Check terminal panel for output.` 
+
+          return {
+            success: true,
+            message: `Command '${command}' sent to terminal session ${sessionId}. Check terminal panel for output.`,
+            sessionId
           };
         } catch (error) {
-          return { error: `Failed to run command: ${error}` };
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to run command: ${errorMsg}` };
         }
       },
     });
@@ -196,16 +243,22 @@ class ToolRegistry {
         required: [],
       },
       execute: async ({ file }) => {
-        const markerService = getMarkerService();
-        const markers = markerService.read(file ? { resource: file } : undefined);
-        return {
-          diagnostics: markers.map(m => ({
-            message: m.message,
-            file: m.resource,
-            line: m.startLineNumber,
-            severity: m.severity
-          }))
-        };
+        try {
+          const markerService = getMarkerService();
+          const markers = markerService.read(file ? { resource: file } : undefined);
+          return {
+            success: true,
+            diagnostics: markers.map(m => ({
+              message: m.message,
+              file: m.resource,
+              line: m.startLineNumber,
+              severity: m.severity
+            }))
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to get diagnostics: ${errorMsg}` };
+        }
       },
     });
   }

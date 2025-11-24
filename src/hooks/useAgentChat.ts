@@ -1,73 +1,110 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { AgentService } from '@/services/agent/AgentService';
 import { ChatMessage } from '@/types/chat';
+import {
+  useActiveSession,
+  useAgentLoading,
+  agentActions,
+} from '@/stores/agentStore';
+import { StreamChunk } from '@/services/agent/providers';
 
 export function useAgentChat() {
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [input, setInput] = useState('');
-    
-    // Use a ref to persist the service instance across renders
-    const agentServiceRef = useRef<AgentService | null>(null);
+  const activeSession = useActiveSession();
+  const isStoreLoading = useAgentLoading();
+  const [input, setInput] = useState('');
+  const [streamingContent, setStreamingContent] = useState('');
 
-    useEffect(() => {
-        if (!agentServiceRef.current) {
-            agentServiceRef.current = new AgentService({
-                systemPrompt: "You are a helpful coding assistant integrated into a Tauri-based IDE. You can read files, edit code, and explore the project structure.",
-                model: "gemini-3-pro"
-            });
+  // Use a ref to persist the service instance across renders
+  const agentServiceRef = useRef<AgentService | null>(null);
+
+  // Initialize or update service when active session changes
+  useEffect(() => {
+    if (activeSession) {
+      agentServiceRef.current = new AgentService({
+        sessionId: activeSession.id,
+        model: activeSession.model,
+        systemPrompt: activeSession.systemPrompt,
+      });
+    } else {
+      agentServiceRef.current = null;
+    }
+  }, [activeSession?.id, activeSession?.model, activeSession?.systemPrompt]);
+
+  const sendMessage = useCallback(async () => {
+    if (!input.trim() || !activeSession || !agentServiceRef.current) return;
+
+    const userMessageContent = input;
+    setInput(''); // Clear input immediately
+    agentActions.setLoading(true);
+
+    try {
+      // Add user message to store
+      const userMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: userMessageContent,
+        timestamp: new Date(),
+      };
+      agentActions.addMessage(activeSession.id, userMessage);
+
+      // Track streaming text
+      let fullStreamedText = '';
+
+      // Handle streaming chunks
+      const handleChunk = (chunk: StreamChunk) => {
+        if (chunk.type === 'text' && chunk.content) {
+          fullStreamedText += chunk.content;
+          setStreamingContent(fullStreamedText);
+        } else if (chunk.type === 'done' && chunk.fullMessage) {
+          // Clear streaming state
+          setStreamingContent('');
+          // Add final message to store
+          agentActions.addMessage(activeSession.id, chunk.fullMessage);
         }
-    }, []);
+      };
 
-    const sendMessage = useCallback(async () => {
-        if (!input.trim() || !agentServiceRef.current) return;
+      // Send message with streaming
+      const response = await agentServiceRef.current.sendMessage(
+        activeSession.messages.concat(userMessage),
+        handleChunk
+      );
 
-        const userMessageContent = input;
-        setInput(''); // Clear input immediately
-        setIsLoading(true);
+      // If not streaming or streaming failed, add response directly
+      if (!streamingContent) {
+        agentActions.addMessage(activeSession.id, response);
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
 
-        try {
-            // Optimistically add user message to UI
-            const tempUserMsg: ChatMessage = {
-                id: crypto.randomUUID(),
-                role: 'user',
-                content: userMessageContent,
-                timestamp: new Date()
-            };
-            setMessages(prev => [...prev, tempUserMsg]);
+      // Add error message to chat
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        timestamp: new Date(),
+      };
+      agentActions.addMessage(activeSession.id, errorMessage);
+    } finally {
+      agentActions.setLoading(false);
+      setStreamingContent('');
+    }
+  }, [input, activeSession]);
 
-            const response = await agentServiceRef.current.sendMessage(userMessageContent);
-            
-            // Update messages with the actual history from the service to ensure sync
-            // or just append the response. Appending is smoother for UI.
-            setMessages(prev => [...prev, response]);
-        } catch (error) {
-            console.error("Failed to send message:", error);
-            // Optionally add an error message to the chat
-            setMessages(prev => [...prev, {
-                id: crypto.randomUUID(),
-                role: 'assistant',
-                content: "Sorry, I encountered an error processing your request.",
-                timestamp: new Date()
-            }]);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [input]);
+  const clearChat = useCallback(() => {
+    if (activeSession) {
+      agentActions.clearSession(activeSession.id);
+    }
+  }, [activeSession]);
 
-    const clearChat = useCallback(() => {
-        if (agentServiceRef.current) {
-            agentServiceRef.current.clearHistory();
-            setMessages([]);
-        }
-    }, []);
-
-    return {
-        messages,
-        input,
-        setInput,
-        isLoading,
-        sendMessage,
-        clearChat
-    };
+  return {
+    messages: activeSession?.messages || [],
+    input,
+    setInput,
+    isLoading: isStoreLoading,
+    streamingContent,
+    sendMessage,
+    clearChat,
+  };
 }
