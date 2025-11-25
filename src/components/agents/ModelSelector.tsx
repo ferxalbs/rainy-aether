@@ -74,7 +74,7 @@ export function ModelSelector({ value, onValueChange, className }: ModelSelector
             )}>
                 <SelectValue placeholder="Select Model" />
             </SelectTrigger>
-            <SelectContent className="max-h-[400px] bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1">
+            <SelectContent className="max-h-[400px] bg-zinc-850/20 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl p-1">
                 {/* Gemini Standard Models */}
                 {geminiStandardModels.length > 0 && (
                     <SelectGroup>

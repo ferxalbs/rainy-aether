@@ -175,7 +175,7 @@ export function AgentChatWindow() {
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col pb-4">
+                    <div className="flex flex-col pb-40">
                         {messages.map((msg) => (
                             <div key={msg.id} className={cn(
                                 "flex gap-4 p-6 border-b border-[#27272a]/50 hover:bg-[#27272a]/20 transition-colors group",
@@ -247,7 +247,7 @@ export function AgentChatWindow() {
             </div>
 
             {/* Input Area */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-4xl z-50">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[95%] max-w-4xl z-50">
                 <div className="relative rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl transition-all duration-300 hover:border-white/20 hover:bg-black/50 group">
                     <Textarea
                         value={input}
