@@ -17,16 +17,14 @@ export function AgentsLayout() {
     }, []);
 
     return (
-        <div className="h-full w-full overflow-hidden bg-[#18181b] text-foreground">
+        <div className="h-full w-full overflow-hidden bg-background text-foreground">
             <ResizablePanelGroup direction="horizontal">
-                <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="min-w-[250px] border-r border-[#27272a]">
+                <ResizablePanel defaultSize={16} minSize={12} maxSize={25} className="min-w-[220px] border-r border-border">
                     <AgentsSidebar className="h-full w-full" />
                 </ResizablePanel>
-                <ResizableHandle className="bg-[#27272a] w-[1px]" />
-                <ResizablePanel defaultSize={80}>
+                <ResizableHandle className="bg-border w-px" />
+                <ResizablePanel defaultSize={84}>
                     <div className="flex flex-col h-full">
-                        {/* Header is now part of the chat window or removed to match Cursor's minimal look */}
-                        {/* We'll keep a minimal header or let ChatWindow handle it */}
                         <div className="flex-1 overflow-hidden h-full">
                             <AgentChatWindow />
                         </div>

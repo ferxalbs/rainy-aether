@@ -1,4 +1,4 @@
-import { AtSign, Image as ImageIcon, Send, Bot, Loader2, Terminal, CheckCircle2, XCircle, ChevronDown, ChevronRight, User } from "lucide-react"
+import { AtSign, Image as ImageIcon, Send, Bot, Loader2, Terminal, CheckCircle2, XCircle, ChevronDown, ChevronRight, User, Settings, Sparkles } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -31,9 +31,9 @@ function ToolCallItem({ tool }: { tool: any }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
-        <div className="w-full bg-[#18181b] border border-[#27272a] rounded-md overflow-hidden mt-2 text-sm">
+        <div className="w-full bg-background border border-border rounded-md overflow-hidden mt-2 text-sm">
             <div
-                className="flex items-center justify-between p-2 cursor-pointer hover:bg-[#27272a] transition-colors"
+                className="flex items-center justify-between p-2 cursor-pointer hover:bg-muted transition-colors"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -64,10 +64,10 @@ function ToolCallItem({ tool }: { tool: any }) {
             </div>
 
             {isExpanded && (
-                <div className="p-3 border-t border-[#27272a] bg-[#1e1e1e] space-y-3">
+                <div className="p-3 border-t border-border bg-muted/10 space-y-3">
                     <div>
                         <div className="text-[10px] font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Arguments</div>
-                        <div className="bg-[#18181b] p-2 rounded overflow-x-auto font-mono text-xs text-muted-foreground border border-[#27272a]">
+                        <div className="bg-background p-2 rounded overflow-x-auto font-mono text-xs text-muted-foreground border border-border">
                             <pre>{JSON.stringify(tool.arguments, null, 2)}</pre>
                         </div>
                     </div>
@@ -75,7 +75,7 @@ function ToolCallItem({ tool }: { tool: any }) {
                     {tool.status === 'success' && tool.result !== undefined && (
                         <div>
                             <div className="text-[10px] font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Result</div>
-                            <div className="bg-[#18181b] p-2 rounded overflow-x-auto font-mono text-xs text-muted-foreground border border-[#27272a] max-h-[200px]">
+                            <div className="bg-background p-2 rounded overflow-x-auto font-mono text-xs text-muted-foreground border border-border max-h-[200px]">
                                 <pre>{renderToolResult(tool.result)}</pre>
                             </div>
                         </div>
@@ -158,12 +158,44 @@ export function AgentChatWindow() {
     };
 
     return (
-        <div className="flex flex-col h-full w-full bg-[#18181b] relative">
+        <div className="flex flex-col h-full w-full bg-background relative">
+            {/* Top Bar */}
+            <div className="h-12 border-b border-border bg-muted/20 flex items-center justify-between px-4 shrink-0">
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <div className="h-6 w-6 rounded-md bg-linear-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                            <Sparkles className="h-3.5 w-3.5 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-foreground">
+                            {activeSession?.name || 'Rainy Agent'}
+                        </span>
+                    </div>
+                    <div className="h-4 w-px bg-border" />
+                    <div className="flex items-center gap-2">
+                        <div className="text-xs text-muted-foreground font-mono">
+                            {AVAILABLE_MODELS.find(m => m.id === activeSession?.model)?.name || 'Gemini Flash 2.0 Lite'}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center gap-1">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
+                        onClick={() => {
+                            // Future: Open settings panel
+                        }}
+                    >
+                        <Settings className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+            </div>
+
             <div className="flex-1 overflow-y-auto p-0 scroll-smooth" ref={scrollRef}>
                 {messages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center p-8">
                         <div className="flex flex-col items-center gap-6 text-muted-foreground max-w-md text-center">
-                            <div className="h-12 w-12 rounded-xl bg-[#27272a] flex items-center justify-center">
+                            <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
                                 <Bot className="h-6 w-6 text-foreground" />
                             </div>
                             <div className="space-y-2">
@@ -178,7 +210,7 @@ export function AgentChatWindow() {
                     <div className="flex flex-col pb-40">
                         {messages.map((msg) => (
                             <div key={msg.id} className={cn(
-                                "flex gap-4 p-6 border-b border-[#27272a]/50 hover:bg-[#27272a]/20 transition-colors group",
+                                "flex gap-4 p-6 border-b border-border/50 hover:bg-muted/20 transition-colors group",
                                 msg.role === 'user' ? "bg-transparent" : "bg-transparent"
                             )}>
                                 <div className="shrink-0 mt-1">
@@ -218,7 +250,7 @@ export function AgentChatWindow() {
                             </div>
                         ))}
                         {isLoading && (
-                            <div className="flex gap-4 p-6 border-b border-[#27272a]/50">
+                            <div className="flex gap-4 p-6 border-b border-border/50">
                                 <div className="shrink-0 mt-1">
                                     <div className="h-6 w-6 rounded bg-purple-500/20 flex items-center justify-center">
                                         <Bot className="h-4 w-4 text-purple-400" />

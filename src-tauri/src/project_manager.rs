@@ -7,6 +7,15 @@ use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 use tauri::State;
 use tokio::fs as async_fs;
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
+
+// Helper function to create a gitignore matcher for a given directory
+fn create_gitignore_matcher(path: &Path) -> Gitignore {
+    let mut builder = GitignoreBuilder::new(path);
+    builder.add(".gitignore"); // Look for .gitignore in the given path
+    // Also include global gitignore if desired, though usually project-specific is enough
+    builder.build().unwrap_or_else(|_| Gitignore::empty())
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FileNode {
@@ -20,8 +29,8 @@ pub struct FileNode {
     children_loaded: bool,
 }
 
-// Directories and files to ignore during scanning
-fn should_ignore(name: &str) -> bool {
+// Directories and files to ignore during scanning (hardcoded)
+fn is_hardcoded_ignored(name: &str) -> bool {
     matches!(
         name,
         "node_modules"
@@ -48,11 +57,30 @@ fn should_ignore(name: &str) -> bool {
     )
 }
 
+// Check if a path should be ignored, using gitignore rules and hardcoded ignores
+fn should_ignore(matcher: &Gitignore, path: &Path, is_directory: bool) -> bool {
+    let file_name_str = path
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    if is_hardcoded_ignored(&file_name_str) {
+        return true;
+    }
+
+    // Check against gitignore rules
+    // `matched` returns a `Match` enum. `is_ignore()` tells us if it was ignored.
+    // We pass `is_directory` to `matched` so it can correctly handle directory-specific patterns.
+    matcher.matched(path, is_directory).is_ignore()
+}
+
+
 // Read directory with depth limit and ignore patterns (NON-RECURSIVE for top level)
 fn read_directory_shallow(
     path: &Path,
     max_depth: usize,
     current_depth: usize,
+    matcher: &Gitignore,
 ) -> Result<FileNode, String> {
     let metadata = fs::metadata(path).map_err(|e| e.to_string())?;
     let name = path
@@ -62,7 +90,7 @@ fn read_directory_shallow(
         .to_string();
 
     // Check if this directory should be ignored
-    if should_ignore(&name) && current_depth > 0 {
+    if should_ignore(matcher, path, metadata.is_dir()) && current_depth > 0 {
         return Err("Ignored directory".to_string());
     }
 
@@ -79,12 +107,12 @@ fn read_directory_shallow(
                 .map_err(|e| e.to_string())?
                 .filter_map(|entry| entry.ok())
                 .filter_map(|entry| {
-                    let entry_name = entry.file_name().to_string_lossy().to_string();
-                    // Skip ignored directories at this level
-                    if should_ignore(&entry_name) {
+                    let entry_path = entry.path();
+                    // Skip ignored entries using the new should_ignore
+                    if should_ignore(matcher, &entry_path, entry_path.is_dir()) {
                         return None;
                     }
-                    read_directory_shallow(&entry.path(), max_depth, current_depth + 1).ok()
+                    read_directory_shallow(&entry_path, max_depth, current_depth + 1, matcher).ok()
                 })
                 .collect();
 
@@ -142,9 +170,10 @@ pub fn open_project_dialog() {
 #[tauri::command]
 pub async fn load_project_structure(path: String) -> Result<FileNode, String> {
     let dir_path = PathBuf::from(&path);
+    let matcher = create_gitignore_matcher(&dir_path);
     // Load only 1 level deep initially for maximum performance
     // Frontend can request more levels on-demand by expanding folders
-    read_directory_shallow(&dir_path, 1, 0)
+    read_directory_shallow(&dir_path, 1, 0, &matcher)
 }
 
 // New command to load children of a specific directory on-demand
@@ -157,16 +186,19 @@ pub async fn load_directory_children(path: String) -> Result<Vec<FileNode>, Stri
         return Err("Path is not a directory".to_string());
     }
 
+    let matcher = create_gitignore_matcher(&dir_path); // Create matcher for the current directory
+
     let mut children: Vec<FileNode> = fs::read_dir(&dir_path)
         .map_err(|e| e.to_string())?
         .filter_map(|entry| entry.ok())
         .filter_map(|entry| {
-            let entry_name = entry.file_name().to_string_lossy().to_string();
-            if should_ignore(&entry_name) {
+            let entry_path = entry.path();
+            // Use the new should_ignore with the matcher
+            if should_ignore(&matcher, &entry_path, entry_path.is_dir()) {
                 return None;
             }
-            // Load only immediate children (depth 1)
-            read_directory_shallow(&entry.path(), 1, 0).ok()
+            // Load only immediate children (depth 1) and pass the matcher
+            read_directory_shallow(&entry_path, 1, 0, &matcher).ok()
         })
         .collect();
 
@@ -438,6 +470,7 @@ fn search_in_directory(
     dir: &Path,
     query: &str,
     options: &SearchOptions,
+    matcher: &Gitignore, // New parameter for gitignore rules
     results: &Arc<Mutex<Vec<FileSearchResult>>>,
     current_count: &Arc<Mutex<usize>>,
     max_results: usize,
@@ -467,16 +500,15 @@ fn search_in_directory(
         }
 
         let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
-
-        // Skip ignored directories
-        if should_ignore(&name) {
+        
+        // Skip ignored directories/files using the new should_ignore
+        if should_ignore(matcher, &path, path.is_dir()) {
             return Ok(());
         }
 
         if path.is_dir() {
             // Recurse into subdirectory (this will also use parallel processing)
-            search_in_directory(&path, query, options, results, current_count, max_results)?;
+            search_in_directory(&path, query, options, matcher, results, current_count, max_results)?;
         } else if path.is_file() {
             // Check if we should search this file
             if !should_search_file(&path, &options.include_pattern, &options.exclude_pattern) {
@@ -508,6 +540,7 @@ fn search_in_directory(
                     if *count_guard < max_results {
                         *count_guard += matches.len();
 
+                        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
                         results_guard.push(FileSearchResult {
                             path: path.to_string_lossy().to_string(),
                             name,
@@ -659,12 +692,13 @@ pub async fn search_in_workspace(
     }
 
     let max_results = options.max_results.unwrap_or(1000);
+    let matcher = create_gitignore_matcher(&dir_path); // Create matcher for the workspace root
 
     // Wrap results and count in Arc<Mutex<>> for thread-safe parallel processing
     let results_shared = Arc::new(Mutex::new(Vec::new()));
     let count_shared = Arc::new(Mutex::new(0usize));
 
-    search_in_directory(&dir_path, &query, &options, &results_shared, &count_shared, max_results)?;
+    search_in_directory(&dir_path, &query, &options, &matcher, &results_shared, &count_shared, max_results)?;
 
     // Extract results from Arc<Mutex<>> and sort
     let results = Arc::try_unwrap(results_shared)

@@ -31,6 +31,7 @@ import ExtensionMarketplace from "./ExtensionMarketplace";
 import ExtensionManager from "./ExtensionManager";
 import { initializeUpdateService, startAutoUpdateCheck } from "../../services/updateService";
 import ProblemsPanel from "./ProblemsPanel";
+import { RightSidebar } from "./RightSidebar";
 
 import { useDiffState } from "@/stores/diffStore";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
@@ -491,72 +492,82 @@ const IDE: React.FC = () => {
               <div className="flex flex-1 overflow-hidden">
                 {!isZenMode && <Sidebar />}
                 <div className="flex-1 overflow-hidden">
-                  <ResizablePanelGroup direction="vertical" className="h-full">
-                    <ResizablePanel
-                      id="editor-panel"
-                      order={1}
-                      defaultSize={showBottomPanel ? 70 : 100}
-                      minSize={30}
-                      className="min-h-[200px]"
-                    >
-                      <FileViewer />
-                    </ResizablePanel>
-                    {showBottomPanel && (
-                      <>
-                        <ResizableHandle withHandle />
+                  <ResizablePanelGroup direction="horizontal" className="h-full">
+                    <ResizablePanel defaultSize={80} minSize={50}>
+                      <ResizablePanelGroup direction="vertical" className="h-full">
                         <ResizablePanel
-                          id="bottom-panel"
-                          order={2}
-                          defaultSize={30}
-                          minSize={20}
-                          collapsedSize={0}
-                          collapsible
-                          className="min-h-40"
+                          id="editor-panel"
+                          order={1}
+                          defaultSize={showBottomPanel ? 70 : 100}
+                          minSize={30}
+                          className="min-h-[200px]"
                         >
-                          {/* Panel unificado con Tabs - Terminal, Problems y Diff */}
-                          <Tabs
-                            value={panelState.activeBottomTab}
-                            onValueChange={(value) => panelActions.setActiveTab(value as 'terminal' | 'problems' | 'diff' | 'output')}
-                            className="h-full flex flex-col gap-0"
-                          >
-                            <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8">
-                              <TabsTrigger
-                                value="terminal"
-                                className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                              >
-                                Terminal
-                              </TabsTrigger>
-                              <TabsTrigger
-                                value="problems"
-                                className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                              >
-                                Problems
-                              </TabsTrigger>
-                              <button
-                                type="button"
-                                onClick={() => panelActions.hidePanel()}
-                                className="ml-auto mr-2 p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
-                                aria-label="Close Panel"
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                              </button>
-                            </TabsList>
-
-                            <TabsContent value="terminal" className="flex-1 m-0 h-full">
-                              <TerminalPanel />
-                            </TabsContent>
-
-                            <TabsContent value="problems" className="flex-1 m-0 h-full">
-                              <ProblemsPanel onClose={() => panelActions.hidePanel()} />
-                            </TabsContent>
-
-                          </Tabs>
+                          <FileViewer />
                         </ResizablePanel>
-                      </>
-                    )}
+                        {showBottomPanel && (
+                          <>
+                            <ResizableHandle withHandle />
+                            <ResizablePanel
+                              id="bottom-panel"
+                              order={2}
+                              defaultSize={30}
+                              minSize={20}
+                              collapsedSize={0}
+                              collapsible
+                              className="min-h-40"
+                            >
+                              {/* Panel unificado con Tabs - Terminal, Problems y Diff */}
+                              <Tabs
+                                value={panelState.activeBottomTab}
+                                onValueChange={(value) => panelActions.setActiveTab(value as 'terminal' | 'problems' | 'diff' | 'output')}
+                                className="h-full flex flex-col gap-0"
+                              >
+                                <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8">
+                                  <TabsTrigger
+                                    value="terminal"
+                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                                  >
+                                    Terminal
+                                  </TabsTrigger>
+                                  <TabsTrigger
+                                    value="problems"
+                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                                  >
+                                    Problems
+                                  </TabsTrigger>
+                                  <button
+                                    type="button"
+                                    onClick={() => panelActions.hidePanel()}
+                                    className="ml-auto mr-2 p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
+                                    aria-label="Close Panel"
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                  </button>
+                                </TabsList>
+
+                                <TabsContent value="terminal" className="flex-1 m-0 h-full">
+                                  <TerminalPanel />
+                                </TabsContent>
+
+                                <TabsContent value="problems" className="flex-1 m-0 h-full">
+                                  <ProblemsPanel onClose={() => panelActions.hidePanel()} />
+                                </TabsContent>
+
+                              </Tabs>
+                            </ResizablePanel>
+                          </>
+                        )}
+                      </ResizablePanelGroup>
+                    </ResizablePanel>
+
+                    {/* Right Sidebar for Agent */}
+                    <ResizableHandle withHandle />
+                    <ResizablePanel defaultSize={25} minSize={20} maxSize={45} collapsible collapsedSize={0}>
+                      <RightSidebar />
+                    </ResizablePanel>
                   </ResizablePanelGroup>
                 </div>
               </div>
