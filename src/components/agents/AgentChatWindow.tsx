@@ -247,18 +247,18 @@ export function AgentChatWindow() {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-[#18181b] border-t border-[#27272a]">
-                <div className="mx-auto max-w-4xl relative rounded-lg border border-[#27272a] bg-[#1e1e1e] focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-4xl z-50">
+                <div className="relative rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl transition-all duration-300 hover:border-white/20 hover:bg-black/50 group">
                     <Textarea
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Ask anything..."
-                        className="min-h-[40px] max-h-[200px] w-full resize-none border-0 bg-transparent p-3 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50"
+                        className="min-h-[50px] max-h-[200px] w-full resize-none border-0 bg-transparent p-4 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 text-foreground/90"
                         disabled={isLoading}
                     />
 
-                    <div className="flex items-center justify-between p-2 pl-3 border-t border-[#27272a] bg-[#1e1e1e] rounded-b-lg">
+                    <div className="flex items-center justify-between p-2 pl-4 border-t border-white/5 bg-white/5 rounded-b-2xl">
                         <div className="flex items-center gap-2">
                             <ModelSelector
                                 value={activeSession?.model || AVAILABLE_MODELS[0].id}
@@ -266,28 +266,30 @@ export function AgentChatWindow() {
                             />
                         </div>
 
-                        <div className="flex items-center gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-[#27272a] rounded">
-                                <AtSign className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-1.5">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-lg transition-colors">
+                                <AtSign className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-[#27272a] rounded">
-                                <ImageIcon className="h-3.5 w-3.5" />
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-white/10 rounded-lg transition-colors">
+                                <ImageIcon className="h-4 w-4" />
                             </Button>
                             <Button
                                 size="icon"
                                 className={cn(
-                                    "h-7 w-7 ml-2 rounded transition-all",
-                                    input.trim() ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-[#27272a] text-muted-foreground hover:bg-[#27272a]"
+                                    "h-8 w-8 ml-2 rounded-lg transition-all duration-300 shadow-lg",
+                                    input.trim()
+                                        ? "bg-white text-black hover:bg-white/90 hover:scale-105"
+                                        : "bg-white/10 text-muted-foreground hover:bg-white/20"
                                 )}
                                 onClick={handleSendClick}
                                 disabled={isLoading || !input.trim()}
                             >
-                                <Send className="h-3.5 w-3.5" />
+                                <Send className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
                 </div>
-                <div className="text-center mt-2 text-[10px] text-muted-foreground/40">
+                <div className="text-center mt-3 text-[10px] text-muted-foreground/40 font-mono tracking-widest uppercase">
                     AI can make mistakes. Please review.
                 </div>
             </div>

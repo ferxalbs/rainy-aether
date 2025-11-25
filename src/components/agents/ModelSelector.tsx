@@ -69,27 +69,27 @@ export function ModelSelector({ value, onValueChange, className }: ModelSelector
     return (
         <Select value={value} onValueChange={onValueChange}>
             <SelectTrigger className={cn(
-                "h-7 w-[220px] border-0 bg-background/50 shadow-none text-xs hover:bg-background transition-colors",
+                "h-9 w-[240px] border border-white/10 bg-white/5 backdrop-blur-md shadow-lg text-xs font-medium hover:bg-white/10 hover:border-white/20 transition-all duration-300 rounded-lg text-muted-foreground hover:text-foreground focus:ring-0 focus:ring-offset-0",
                 className
             )}>
                 <SelectValue placeholder="Select Model" />
             </SelectTrigger>
-            <SelectContent className="max-h-[400px]">
+            <SelectContent className="max-h-[400px] bg-black/80 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1">
                 {/* Gemini Standard Models */}
                 {geminiStandardModels.length > 0 && (
                     <SelectGroup>
-                        <SelectLabel className="text-xs font-semibold text-muted-foreground px-2 py-1.5">
+                        <SelectLabel className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider px-2 py-2">
                             Gemini - Standard
                         </SelectLabel>
                         {geminiStandardModels.map((model) => (
                             <SelectItem
                                 key={model.id}
                                 value={model.id}
-                                className="text-xs cursor-pointer"
+                                className="text-xs cursor-pointer rounded-lg focus:bg-white/10 focus:text-white my-0.5"
                             >
                                 <div className="flex items-center gap-2 w-full">
                                     {getModelIcon(model)}
-                                    <span className="flex-1">{model.name}</span>
+                                    <span className="flex-1 font-medium">{model.name}</span>
                                 </div>
                             </SelectItem>
                         ))}
@@ -99,19 +99,19 @@ export function ModelSelector({ value, onValueChange, className }: ModelSelector
                 {/* Gemini Thinking Models */}
                 {geminiThinkingModels.length > 0 && (
                     <SelectGroup>
-                        <SelectLabel className="text-xs font-semibold text-muted-foreground px-2 py-1.5 flex items-center gap-1.5">
-                            <Brain className="h-3.5 w-3.5 text-purple-500" />
+                        <SelectLabel className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider px-2 py-2 flex items-center gap-1.5 mt-2 border-t border-white/5 pt-3">
+                            <Brain className="h-3 w-3 text-purple-500" />
                             Gemini - Thinking Models
                         </SelectLabel>
                         {geminiThinkingModels.map((model) => (
                             <SelectItem
                                 key={model.id}
                                 value={model.id}
-                                className="text-xs cursor-pointer"
+                                className="text-xs cursor-pointer rounded-lg focus:bg-white/10 focus:text-white my-0.5"
                             >
                                 <div className="flex items-center gap-2 w-full">
                                     {getModelIcon(model)}
-                                    <span className="flex-1">{model.name}</span>
+                                    <span className="flex-1 font-medium">{model.name}</span>
                                     {getThinkingBadge(model)}
                                 </div>
                             </SelectItem>
@@ -122,18 +122,18 @@ export function ModelSelector({ value, onValueChange, className }: ModelSelector
                 {/* Groq Models */}
                 {groqModels.length > 0 && (
                     <SelectGroup>
-                        <SelectLabel className="text-xs font-semibold text-muted-foreground px-2 py-1.5">
+                        <SelectLabel className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider px-2 py-2 mt-2 border-t border-white/5 pt-3">
                             Groq
                         </SelectLabel>
                         {groqModels.map((model) => (
                             <SelectItem
                                 key={model.id}
                                 value={model.id}
-                                className="text-xs cursor-pointer"
+                                className="text-xs cursor-pointer rounded-lg focus:bg-white/10 focus:text-white my-0.5"
                             >
                                 <div className="flex items-center gap-2 w-full">
                                     <Zap className="h-3.5 w-3.5 text-green-500" />
-                                    <span className="flex-1">{model.name}</span>
+                                    <span className="flex-1 font-medium">{model.name}</span>
                                 </div>
                             </SelectItem>
                         ))}
@@ -143,18 +143,18 @@ export function ModelSelector({ value, onValueChange, className }: ModelSelector
                 {/* Cerebras Models */}
                 {cerebrasModels.length > 0 && (
                     <SelectGroup>
-                        <SelectLabel className="text-xs font-semibold text-muted-foreground px-2 py-1.5">
+                        <SelectLabel className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider px-2 py-2 mt-2 border-t border-white/5 pt-3">
                             Cerebras
                         </SelectLabel>
                         {cerebrasModels.map((model) => (
                             <SelectItem
                                 key={model.id}
                                 value={model.id}
-                                className="text-xs cursor-pointer"
+                                className="text-xs cursor-pointer rounded-lg focus:bg-white/10 focus:text-white my-0.5"
                             >
                                 <div className="flex items-center gap-2 w-full">
                                     <Zap className="h-3.5 w-3.5 text-orange-500" />
-                                    <span className="flex-1">{model.name}</span>
+                                    <span className="flex-1 font-medium">{model.name}</span>
                                 </div>
                             </SelectItem>
                         ))}
