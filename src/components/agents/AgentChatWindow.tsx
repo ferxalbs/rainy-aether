@@ -7,17 +7,11 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { useAgentChat } from "@/hooks/useAgentChat"
 import { cn } from "@/lib/utils"
 import { useActiveSession, agentActions } from "@/stores/agentStore"
 import { AVAILABLE_MODELS } from "@/services/agent/providers"
+import { ModelSelector } from "./ModelSelector"
 
 // Helper to safely render tool results
 function renderToolResult(result: unknown): React.ReactNode {
@@ -297,21 +291,10 @@ export function AgentChatWindow() {
 
                     <div className="flex items-center justify-between p-2 pl-3 border-t bg-muted/20 rounded-b-xl">
                         <div className="flex items-center gap-2">
-                            <Select
+                            <ModelSelector
                                 value={activeSession?.model || AVAILABLE_MODELS[0].id}
                                 onValueChange={handleModelChange}
-                            >
-                                <SelectTrigger className="h-7 w-[180px] border-0 bg-background/50 shadow-none text-xs hover:bg-background transition-colors">
-                                    <SelectValue placeholder="Select Model" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {AVAILABLE_MODELS.map((model) => (
-                                        <SelectItem key={model.id} value={model.id} className="text-xs">
-                                            {model.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            />
                         </div>
 
                         <div className="flex items-center gap-1">

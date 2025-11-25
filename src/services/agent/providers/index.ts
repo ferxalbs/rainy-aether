@@ -1,41 +1,92 @@
 import { AIProvider, AIProviderConfig } from './base';
-import { GeminiProvider } from './gemini';
+import { GeminiProvider, GeminiThinkingConfig } from './gemini';
 import { GroqProvider } from './groq';
 
 // ===========================
 // Model Configurations
 // ===========================
 
+export type ThinkingMode = 'none' | 'auto' | 'low' | 'high';
+
 export interface ModelConfig {
   id: string;
   name: string;
-  provider: 'gemini' | 'groq';
+  provider: 'gemini' | 'groq' | 'cerebras';
   model: string;
   description?: string;
+  // Thinking capabilities
+  supportsThinking?: boolean;
+  thinkingMode?: ThinkingMode;
+  thinkingConfig?: GeminiThinkingConfig;
+  category?: 'standard' | 'thinking';
 }
 
 export const AVAILABLE_MODELS: ModelConfig[] = [
-  // Gemini Models
-    {
-    id: 'gemini-2.5-flash-lite',
+  // ===========================
+  // Standard Gemini Models (No Thinking)
+  // ===========================
+  {
+    id: 'gemini-flash-lite-latest',
     name: 'Gemini 2.5 Flash Lite',
     provider: 'gemini',
     model: 'gemini-2.5-flash-lite',
     description: 'Fast and efficient Gemini model',
+    category: 'standard',
+    supportsThinking: false,
+    thinkingMode: 'none',
+    thinkingConfig: { thinkingBudget: 0 },
   },
   {
-    id: 'gemini-2.5-flash',
+    id: 'gemini-flash-latest',
     name: 'Gemini 2.5 Flash',
     provider: 'gemini',
     model: 'gemini-2.5-flash',
-    description: 'Latest experimental Gemini model with improved performance',
+    description: 'Latest Gemini 2.5 model with improved performance',
+    category: 'standard',
+    supportsThinking: true,
+    thinkingMode: 'none',
+    thinkingConfig: { thinkingBudget: 0 },
   },
+
+  // ===========================
+  // Gemini Thinking Models - Auto Mode
+  // ===========================
   {
-    id: 'gemini-3-pro-preview',
-    name: 'Gemini 3 Pro Preview',
+    id: 'gemini-flash-thinking-auto',
+    name: 'Gemini 2.5 Flash (Thinking Auto)',
+    provider: 'gemini',
+    model: 'gemini-2.5-flash',
+    description: 'Gemini 2.5 Flash with automatic thinking budget',
+    category: 'thinking',
+    supportsThinking: true,
+    thinkingMode: 'auto',
+    thinkingConfig: { thinkingBudget: -1 },
+  },
+
+  // ===========================
+  // Gemini 3 Pro Thinking Models
+  // ===========================
+  {
+    id: 'gemini-3-pro-thinking-low',
+    name: 'Gemini 3 Pro (Thinking Low)',
     provider: 'gemini',
     model: 'gemini-3-pro-preview',
-    description: 'Powerful Gemini model with large context window',
+    description: 'Gemini 3 Pro with low-depth reasoning',
+    category: 'thinking',
+    supportsThinking: true,
+    thinkingMode: 'low',
+    thinkingConfig: { thinkingLevel: 'LOW' },
+  },
+  {
+    id: 'gemini-3-pro-thinking-high',
+    name: 'Gemini 3 Pro (Thinking High)',
+    provider: 'gemini',
+    model: 'gemini-3-pro-preview',
+    description: 'Gemini 3 Pro with high-depth reasoning',
+    category: 'thinking',
+    supportsThinking: true,
+    thinkingMode: 'high',
+    thinkingConfig: { thinkingLevel: 'HIGH' },
   },
 
   // Groq Models (using Llama and Mixtral)
@@ -47,18 +98,21 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     description: 'Meta Llama 3.3 70B on Groq infrastructure',
   },
   {
-    id: 'llama-3.1-8b',
-    name: 'Llama 3.1 8B (Groq)',
+    id: 'moonshotai/kimi-k2-instruct-0905',
+    name: 'Kimi K2 Instruct 09/05',
     provider: 'groq',
-    model: 'llama-3.1-8b-instant',
-    description: 'Fast Llama 3.1 8B model on Groq',
+    model: 'moonshotai/kimi-k2-instruct-0905',
+    description: 'Kimi K2 Instruct 09/05 on Groq',
   },
+
+  // Cerebras Models
+
   {
-    id: 'mixtral-8x7b',
-    name: 'Mixtral 8x7B (Groq)',
-    provider: 'groq',
-    model: 'mixtral-8x7b-32768',
-    description: 'Mixtral 8x7B with 32K context on Groq',
+    id: 'zai-glm-4.6',
+    name: 'Zai GLM 4.6',
+    provider: 'cerebras',
+    model: 'zai-glm-4.6',
+    description: 'Cerebras Zai GLM 4.6 model',
   },
 ];
 
@@ -99,7 +153,7 @@ export function createProvider(
         throw new Error('Gemini API key not configured');
       }
       config.apiKey = credentials.geminiApiKey;
-      return new GeminiProvider(config);
+      return new GeminiProvider(config, modelConfig.thinkingConfig);
 
     case 'groq':
       if (!credentials.groqApiKey) {

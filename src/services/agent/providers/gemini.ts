@@ -13,12 +13,21 @@ import {
 // Gemini Provider
 // ===========================
 
+export interface GeminiThinkingConfig {
+  // For Gemini 2.5 models: -1 = auto, 0 = disabled
+  thinkingBudget?: number;
+  // For Gemini 3 Pro: 'LOW' | 'HIGH'
+  thinkingLevel?: 'LOW' | 'HIGH';
+}
+
 export class GeminiProvider implements AIProvider {
   private client: GoogleGenAI;
   private config: AIProviderConfig;
+  private thinkingConfig?: GeminiThinkingConfig;
 
-  constructor(config: AIProviderConfig) {
+  constructor(config: AIProviderConfig, thinkingConfig?: GeminiThinkingConfig) {
     this.config = config;
+    this.thinkingConfig = thinkingConfig;
     this.client = new GoogleGenAI({ apiKey: config.apiKey });
   }
 
@@ -69,6 +78,19 @@ export class GeminiProvider implements AIProvider {
           },
         },
       };
+
+      // Add thinking config if available
+      if (this.thinkingConfig) {
+        config.config.thinkingConfig = {};
+
+        if (this.thinkingConfig.thinkingBudget !== undefined) {
+          config.config.thinkingConfig.thinkingBudget = this.thinkingConfig.thinkingBudget;
+        }
+
+        if (this.thinkingConfig.thinkingLevel) {
+          config.config.thinkingConfig.thinkingLevel = this.thinkingConfig.thinkingLevel;
+        }
+      }
 
       // Add tools if available
       if (functionDeclarations.length > 0) {
@@ -127,6 +149,19 @@ export class GeminiProvider implements AIProvider {
           },
         },
       };
+
+      // Add thinking config if available
+      if (this.thinkingConfig) {
+        config.config.thinkingConfig = {};
+
+        if (this.thinkingConfig.thinkingBudget !== undefined) {
+          config.config.thinkingConfig.thinkingBudget = this.thinkingConfig.thinkingBudget;
+        }
+
+        if (this.thinkingConfig.thinkingLevel) {
+          config.config.thinkingConfig.thinkingLevel = this.thinkingConfig.thinkingLevel;
+        }
+      }
 
       // Add tools if available
       if (functionDeclarations.length > 0) {
