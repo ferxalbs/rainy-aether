@@ -316,7 +316,7 @@ const App: React.FC = () => {
   // Show loading screen while initializing or while loading state is active
   // Only show for global context, not workspace context after app is initialized
   const shouldShowLoading = !isInitialized || (loadingState.isLoading && loadingState.loadingContext === 'global');
-  
+
   if (shouldShowLoading) {
     return (
       <ErrorBoundary>
