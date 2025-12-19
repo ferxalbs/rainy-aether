@@ -40,6 +40,17 @@ const App: React.FC = () => {
         // Stage 1: Theme
         loadingActions.startStage('theme');
         await initializeTheme();
+
+        // Platform detection for scrollbars
+        // Mac: use native overlay scrollbars (no custom CSS)
+        // Windows/Linux: use custom thin scrollbars (CSS)
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        if (isMac) {
+          document.body.classList.add('os-mac');
+        } else {
+          document.body.classList.add('os-non-mac');
+        }
+
         loadingActions.completeStage('theme');
 
         // Stage 2: Settings

@@ -674,9 +674,33 @@
   color: var(--text-secondary);
 }
 
-/* Custom Scrollbars - Removed to allow native macOS overlay scrollbars */
-/* On macOS, this allows the native "disappearing" scrollbars to work. */
-/* The color-scheme property in :root handles the dark appearance. */
+/* Custom Scrollbars - Only for non-Mac platforms */
+/* Mac uses native overlay scrollbars (cleaner) */
+body.os-non-mac ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body.os-non-mac ::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+body.os-non-mac ::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 5px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+  opacity: 0.5;
+}
+
+body.os-non-mac ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent-primary);
+  border: 2px solid transparent;
+}
+
+body.os-non-mac ::-webkit-scrollbar-corner {
+  background-color: transparent;
+}
 
 :root {
   color-scheme: dark;
