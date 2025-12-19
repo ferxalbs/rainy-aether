@@ -34,28 +34,57 @@
 }
 
 @keyframes accordion-down {
-  from { height: 0 }
-  to { height: var(--kb-accordion-content-height) }
+  from {
+    height: 0
+  }
+
+  to {
+    height: var(--kb-accordion-content-height)
+  }
 }
 
 @keyframes accordion-up {
-  from { height: var(--kb-accordion-content-height) }
-  to { height: 0 }
+  from {
+    height: var(--kb-accordion-content-height)
+  }
+
+  to {
+    height: 0
+  }
 }
 
 @keyframes collapsible-down {
-  from { height: 0 }
-  to { height: var(--kb-collapsible-content-height) }
+  from {
+    height: 0
+  }
+
+  to {
+    height: var(--kb-collapsible-content-height)
+  }
 }
 
 @keyframes collapsible-up {
-  from { height: var(--kb-collapsible-content-height) }
-  to { height: 0 }
+  from {
+    height: var(--kb-collapsible-content-height)
+  }
+
+  to {
+    height: 0
+  }
 }
 
 @keyframes caret-blink {
-  0%,70%,100% { opacity: 1 }
-  20%,50% { opacity: 0 }
+
+  0%,
+  70%,
+  100% {
+    opacity: 1
+  }
+
+  20%,
+  50% {
+    opacity: 0
+  }
 }
 
 :root {
@@ -120,6 +149,7 @@
   * {
     @apply border-border;
   }
+
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
@@ -167,7 +197,9 @@
   gap: 8px;
 }
 
-.toolbar-left, .toolbar-center, .toolbar-right {
+.toolbar-left,
+.toolbar-center,
+.toolbar-right {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -378,7 +410,8 @@
   font-size: 12px;
 }
 
-.status-left, .status-right {
+.status-left,
+.status-right {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -599,8 +632,16 @@
 }
 
 @keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
+
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .theme-info {
@@ -633,29 +674,12 @@
   color: var(--text-secondary);
 }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
+/* Custom Scrollbars - Removed to allow native macOS overlay scrollbars */
+/* On macOS, this allows the native "disappearing" scrollbars to work. */
+/* The color-scheme property in :root handles the dark appearance. */
 
-::-webkit-scrollbar-track {
-  background-color: var(--bg-secondary);
-  border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: var(--border-color);
-  border-radius: 6px;
-  border: 2px solid var(--bg-secondary);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--accent-primary);
-}
-
-::-webkit-scrollbar-corner {
-  background-color: var(--bg-secondary);
+:root {
+  color-scheme: dark;
 }
 
 /* Firefox scrollbars */

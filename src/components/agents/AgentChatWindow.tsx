@@ -208,7 +208,7 @@ export function AgentChatWindow() {
                     </div>
                 ) : (
                     <div className="flex flex-col pb-40">
-                        {messages.map((msg) => (
+                        {messages.filter(msg => msg.role !== 'system').map((msg) => (
                             <div key={msg.id} className={cn(
                                 "flex gap-4 p-6 border-b border-border/50 hover:bg-muted/20 transition-colors group",
                                 msg.role === 'user' ? "bg-transparent" : "bg-transparent"
