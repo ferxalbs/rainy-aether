@@ -545,9 +545,11 @@ const IDE: React.FC = () => {
                   </div>
 
                   {/* Right sidebar - fixed width */}
-                  <aside className="w-[320px] shrink-0 border-l border-border h-full overflow-hidden">
-                    <RightSidebar />
-                  </aside>
+                  {state().isRightSidebarOpen && (
+                    <aside className="w-[320px] shrink-0 border-l border-border h-full overflow-hidden">
+                      <RightSidebar />
+                    </aside>
+                  )}
                 </div>
               </div>
               {!isZenMode && (

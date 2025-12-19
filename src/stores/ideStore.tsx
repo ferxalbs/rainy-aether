@@ -61,6 +61,7 @@ export interface IDEState {
   recentWorkspaces: Workspace[];
   projectTree: FileNode | null;
   isSidebarOpen: boolean;
+  isRightSidebarOpen: boolean;
   autoSave: boolean;
   isZenMode: boolean;
   sidebarActive: SidebarTab;
@@ -75,6 +76,7 @@ const initialState: IDEState = {
   recentWorkspaces: [],
   projectTree: null,
   isSidebarOpen: true,
+  isRightSidebarOpen: true,
   autoSave: false,
   isZenMode: false,
   sidebarActive: "explorer",
@@ -370,7 +372,7 @@ const toggleSidebar = () => {
   setState((prev) => {
     const next = !prev.isSidebarOpen;
     safeSaveToStore("rainy-coder-sidebar-open", next);
-    
+
     // Trigger Monaco editor layout after sidebar toggle
     setTimeout(() => {
       try {
@@ -380,8 +382,27 @@ const toggleSidebar = () => {
         // Ignore if editor store is not available
       }
     }, 100);
-    
+
     return { ...prev, isSidebarOpen: next };
+  });
+};
+
+const toggleRightSidebar = () => {
+  setState((prev) => {
+    const next = !prev.isRightSidebarOpen;
+    safeSaveToStore("rainy-coder-right-sidebar-open", next);
+
+    // Trigger Monaco editor layout after sidebar toggle
+    setTimeout(() => {
+      try {
+        const { editorActions } = require("./editorStore");
+        editorActions.layout();
+      } catch (error) {
+        // Ignore if editor store is not available
+      }
+    }, 100);
+
+    return { ...prev, isRightSidebarOpen: next };
   });
 };
 
@@ -415,7 +436,7 @@ const toggleZenMode = () => {
   setState((prev) => {
     const next = !prev.isZenMode;
     safeSaveToStore("rainy-coder-zen-mode", next);
-    
+
     // Trigger Monaco editor layout after zen mode toggle
     setTimeout(() => {
       try {
@@ -425,7 +446,7 @@ const toggleZenMode = () => {
         // Ignore if editor store is not available
       }
     }, 100);
-    
+
     return { ...prev, isZenMode: next };
   });
 };
@@ -551,9 +572,9 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
     console.warn("Workspace load already in progress, ignoring duplicate request");
     return;
   }
-  
+
   isLoadingWorkspace = true;
-  
+
   try {
     // Import loading actions and start workspace loading context
     const { loadingActions } = await import("./loadingStore");
@@ -833,7 +854,7 @@ const closeFilesToTheRight = (fileId: string) => {
 
 const setActiveFile = (fileId: string) => {
   setState((prev) => ({ ...prev, activeFileId: fileId }));
-  
+
   // Trigger Monaco editor layout and focus when switching tabs
   setTimeout(() => {
     try {
@@ -1021,11 +1042,11 @@ const closeProject = async () => {
 const loadDirectoryChildren = async (dirPath: string) => {
   try {
     const children = await invoke<FileNode[]>("load_directory_children", { path: dirPath });
-    
+
     // Update the project tree to include the loaded children
     setState((prev) => {
       if (!prev.projectTree) return prev;
-      
+
       const updateNodeChildren = (node: FileNode): FileNode | null => {
         // Found the target node - update it
         if (node.path === dirPath) {
@@ -1035,7 +1056,7 @@ const loadDirectoryChildren = async (dirPath: string) => {
             children_loaded: true,
           };
         }
-        
+
         // If this node has children, search them
         if (node.children) {
           let updated = false;
@@ -1047,7 +1068,7 @@ const loadDirectoryChildren = async (dirPath: string) => {
             }
             return child;
           });
-          
+
           // Only create new object if a child was actually updated
           if (updated) {
             return {
@@ -1056,18 +1077,18 @@ const loadDirectoryChildren = async (dirPath: string) => {
             };
           }
         }
-        
+
         // No changes needed for this node
         return null;
       };
-      
+
       const updatedTree = updateNodeChildren(prev.projectTree);
-      
+
       // Only update state if something actually changed
       if (updatedTree === null) {
         return prev;
       }
-      
+
       return {
         ...prev,
         projectTree: updatedTree,
@@ -1089,6 +1110,7 @@ const ideActions = {
   setProjectTree,
   loadDirectoryChildren,
   toggleSidebar,
+  toggleRightSidebar,
   setSidebarOpen,
   setSidebarActive,
   setAutoSave,

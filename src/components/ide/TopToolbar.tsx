@@ -1,7 +1,9 @@
 import React, { useCallback, useMemo } from "react";
-import { Save, Play, Settings, Palette, Sun, Moon, Menu, Folder } from "lucide-react";
+import { Save, Play, Settings, Palette, Sun, Moon, Menu, Folder, PanelLeft, PanelBottom, PanelRight } from "lucide-react";
 import { useThemeState, toggleDayNight } from "../../stores/themeStore";
 import { useIDEStore } from "../../stores/ideStore";
+import { usePanelState, panelActions } from "../../stores/panelStore";
+import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import "../../css/TopToolbar.css";
 
@@ -12,6 +14,7 @@ interface TopToolbarProps {
 const TopToolbar: React.FC<TopToolbarProps> = ({ onOpenThemeSwitcher }) => {
   const { actions, state } = useIDEStore();
   const theme = useThemeState();
+  const panelState = usePanelState();
 
   const workspaceName = useMemo(() => state().workspace?.name ?? "Rainy Coder IDE", [state]);
 
@@ -125,6 +128,38 @@ const TopToolbar: React.FC<TopToolbarProps> = ({ onOpenThemeSwitcher }) => {
           className="text-secondary"
         >
           <Palette size={16} />
+        </Button>
+
+        <div className="w-px h-6 mx-1 separator" />
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => actions.toggleSidebar()}
+          title="Toggle Sidebar"
+          className={cn("text-secondary", state().isSidebarOpen && "bg-muted text-foreground")}
+        >
+          <PanelLeft size={16} />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => panelActions.togglePanel('terminal')}
+          title="Toggle Panel"
+          className={cn("text-secondary", panelState.isBottomPanelOpen && "bg-muted text-foreground")}
+        >
+          <PanelBottom size={16} />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => actions.toggleRightSidebar()}
+          title="Toggle Agents View"
+          className={cn("text-secondary", state().isRightSidebarOpen && "bg-muted text-foreground")}
+        >
+          <PanelRight size={16} />
         </Button>
       </div>
     </div>
