@@ -11,11 +11,7 @@ import {
 import { X, Columns, SplitSquareVertical, GripVertical } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/cn";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "../ui/resizable";
+// Removed resizable imports - using CSS flexbox
 import {
   Tooltip,
   TooltipContent,
@@ -336,8 +332,8 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
                 {isDragOver
                   ? "Drop file here"
                   : canClose
-                  ? "Drag a tab here or open a file"
-                  : "Select a file to start editing"}
+                    ? "Drag a tab here or open a file"
+                    : "Select a file to start editing"}
               </div>
             </div>
           </div>
@@ -417,29 +413,33 @@ const FileViewer: React.FC = () => {
         onFileSelect={(fileId) => handleFileSelect(group.id, fileId)}
         onFileClose={(fileId) => handleFileClose(group.id, fileId)}
         onContentChange={handleContentChange}
-        onActivate={() => {}}
-        onClose={() => {}}
+        onActivate={() => { }}
+        onClose={() => { }}
         onSplitWithFile={handleSplitWithFile}
         onMoveFile={handleMoveFile}
       />
     );
   }
 
-  // Render multiple groups with resizable panels
+  // Render multiple groups with flex layout
   return (
-    <ResizablePanelGroup
-      direction={groupState.splitDirection}
-      className="h-full"
+    <div
+      className={cn(
+        "h-full flex",
+        groupState.splitDirection === "vertical" ? "flex-col" : "flex-row"
+      )}
     >
       {groupState.groups.map((group, index) => (
         <React.Fragment key={group.id}>
-          {index > 0 && <ResizableHandle withHandle />}
-          <ResizablePanel
-            id={group.id}
-            order={index}
-            defaultSize={100 / groupState.groups.length}
-            minSize={20}
-          >
+          {index > 0 && (
+            <div
+              className={cn(
+                "shrink-0 bg-border",
+                groupState.splitDirection === "vertical" ? "h-px" : "w-px"
+              )}
+            />
+          )}
+          <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
             <EditorGroupPanel
               group={group}
               openFiles={snapshot.openFiles}
@@ -454,10 +454,10 @@ const FileViewer: React.FC = () => {
               onSplitWithFile={handleSplitWithFile}
               onMoveFile={handleMoveFile}
             />
-          </ResizablePanel>
+          </div>
         </React.Fragment>
       ))}
-    </ResizablePanelGroup>
+    </div>
   );
 };
 

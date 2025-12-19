@@ -22,11 +22,7 @@ import { useLoadingState } from "../../stores/loadingStore";
 import { usePanelState, panelActions } from "../../stores/panelStore";
 import LoadingScreen from "../ui/loading-screen";
 import GoToLineDialog from "../ui/go-to-line-dialog";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "../ui/resizable";
+import { cn } from "@/lib/utils";
 import ExtensionMarketplace from "./ExtensionMarketplace";
 import ExtensionManager from "./ExtensionManager";
 import { initializeUpdateService, startAutoUpdateCheck } from "../../services/updateService";
@@ -491,84 +487,67 @@ const IDE: React.FC = () => {
             <>
               <div className="flex flex-1 overflow-hidden">
                 {!isZenMode && <Sidebar />}
-                <div className="flex-1 overflow-hidden">
-                  <ResizablePanelGroup direction="horizontal" className="h-full">
-                    <ResizablePanel defaultSize={80} minSize={50}>
-                      <ResizablePanelGroup direction="vertical" className="h-full">
-                        <ResizablePanel
-                          id="editor-panel"
-                          order={1}
-                          defaultSize={showBottomPanel ? 70 : 100}
-                          minSize={30}
-                          className="min-h-[200px]"
+                <div className="flex-1 flex h-full overflow-hidden">
+                  {/* Main editor area */}
+                  <div className="flex-1 flex flex-col min-w-0 h-full">
+                    {/* Editor panel */}
+                    <div className={cn(
+                      "flex-1 min-h-[200px] overflow-hidden",
+                      showBottomPanel && "max-h-[calc(100%-220px)]"
+                    )}>
+                      <FileViewer />
+                    </div>
+
+                    {/* Bottom panel - Terminal/Problems */}
+                    {showBottomPanel && (
+                      <div className="h-[220px] shrink-0 border-t border-border overflow-hidden">
+                        <Tabs
+                          value={panelState.activeBottomTab}
+                          onValueChange={(value) => panelActions.setActiveTab(value as 'terminal' | 'problems' | 'diff' | 'output')}
+                          className="h-full flex flex-col gap-0"
                         >
-                          <FileViewer />
-                        </ResizablePanel>
-                        {showBottomPanel && (
-                          <>
-                            <ResizableHandle withHandle />
-                            <ResizablePanel
-                              id="bottom-panel"
-                              order={2}
-                              defaultSize={30}
-                              minSize={20}
-                              collapsedSize={0}
-                              collapsible
-                              className="min-h-40"
+                          <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8 shrink-0">
+                            <TabsTrigger
+                              value="terminal"
+                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                             >
-                              {/* Panel unificado con Tabs - Terminal, Problems y Diff */}
-                              <Tabs
-                                value={panelState.activeBottomTab}
-                                onValueChange={(value) => panelActions.setActiveTab(value as 'terminal' | 'problems' | 'diff' | 'output')}
-                                className="h-full flex flex-col gap-0"
-                              >
-                                <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8">
-                                  <TabsTrigger
-                                    value="terminal"
-                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                                  >
-                                    Terminal
-                                  </TabsTrigger>
-                                  <TabsTrigger
-                                    value="problems"
-                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                                  >
-                                    Problems
-                                  </TabsTrigger>
-                                  <button
-                                    type="button"
-                                    onClick={() => panelActions.hidePanel()}
-                                    className="ml-auto mr-2 p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
-                                    aria-label="Close Panel"
-                                  >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <line x1="18" y1="6" x2="6" y2="18"></line>
-                                      <line x1="6" y1="6" x2="18" y2="18"></line>
-                                    </svg>
-                                  </button>
-                                </TabsList>
+                              Terminal
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="problems"
+                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                            >
+                              Problems
+                            </TabsTrigger>
+                            <button
+                              type="button"
+                              onClick={() => panelActions.hidePanel()}
+                              className="ml-auto mr-2 p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
+                              aria-label="Close Panel"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                              </svg>
+                            </button>
+                          </TabsList>
 
-                                <TabsContent value="terminal" className="flex-1 m-0 h-full">
-                                  <TerminalPanel />
-                                </TabsContent>
+                          <TabsContent value="terminal" className="flex-1 m-0 overflow-hidden">
+                            <TerminalPanel />
+                          </TabsContent>
 
-                                <TabsContent value="problems" className="flex-1 m-0 h-full">
-                                  <ProblemsPanel onClose={() => panelActions.hidePanel()} />
-                                </TabsContent>
+                          <TabsContent value="problems" className="flex-1 m-0 overflow-hidden">
+                            <ProblemsPanel onClose={() => panelActions.hidePanel()} />
+                          </TabsContent>
+                        </Tabs>
+                      </div>
+                    )}
+                  </div>
 
-                              </Tabs>
-                            </ResizablePanel>
-                          </>
-                        )}
-                      </ResizablePanelGroup>
-                    </ResizablePanel>
-
-                    {/* Right Sidebar for Agent */}
-                    <ResizableHandle withHandle />
-                    <ResizablePanel defaultSize={25} minSize={20} maxSize={45} collapsible collapsedSize={0}>
-                      <RightSidebar />
-                    </ResizablePanel>
-                  </ResizablePanelGroup>
+                  {/* Right sidebar - fixed width */}
+                  <aside className="w-[320px] shrink-0 border-l border-border h-full overflow-hidden">
+                    <RightSidebar />
+                  </aside>
                 </div>
               </div>
               {!isZenMode && (

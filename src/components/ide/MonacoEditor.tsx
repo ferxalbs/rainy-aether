@@ -185,9 +185,11 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
     monaco.editor.setTheme(themeName);
 
     // Create a proper URI for the model (helps Monaco language services)
+    // Ensure we don't create invalid URIs like file:////path when filename starts with /
+    const normalizedFilename = filename?.startsWith('/') ? filename.slice(1) : filename;
     const modelUri = monaco.Uri.parse(
-      filename
-        ? `file:///${filename}`
+      normalizedFilename
+        ? `file:///${normalizedFilename}`
         : `file:///untitled-${Date.now()}.${language === 'javascript' ? 'ts' : language}`
     );
 
@@ -460,7 +462,7 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
         }
       }, 0);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [container, filename]);
 
   // Expose focus method
@@ -489,7 +491,7 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
 
     // Only update if the change is not coming from the editor itself
     editor.setValue(value);
-    
+
     // Trigger layout and focus after content change
     setTimeout(() => {
       if (editorRef.current && isMountedRef.current) {
@@ -509,9 +511,9 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
     if (model) {
       monaco.editor.setModelLanguage(model, getMonacoLanguage());
     }
-    
+
     editor.updateOptions({ readOnly });
-    
+
     // Trigger layout and focus after language/readOnly change
     setTimeout(() => {
       if (editorRef.current && isMountedRef.current) {
