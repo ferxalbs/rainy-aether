@@ -161,6 +161,9 @@ importers:
       groq-sdk:
         specifier: ^0.37.0
         version: 0.37.0
+      hugeicons-react:
+        specifier: ^0.3.0
+        version: 0.3.0(react@19.2.3)
       inngest:
         specifier: ^3.48.1
         version: 3.48.1(@opentelemetry/core@2.2.0(@opentelemetry/api@1.9.0))(express@5.2.1)(hono@4.11.1)(typescript@5.9.3)(zod@4.2.1)
@@ -3317,6 +3320,12 @@ packages:
   https-proxy-agent@7.0.6:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
+
+  hugeicons-react@0.3.0:
+    resolution: {integrity: sha512-znmC+uX7xVqcIs0q09LvwEvJkjX0U3xgT05BSiRV19farS4lPONOKjYT0JkcQG5cvfV0rXHSEAEVNjbHAu81rg==}
+    deprecated: 'Deprecated. Use @hugeicons/react: https://www.npmjs.com/package/@hugeicons/react'
+    peerDependencies:
+      react: '>=16.0.0'
 
   humanize-ms@1.2.1:
     resolution: {integrity: sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==}
@@ -8461,6 +8470,10 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
+
+  hugeicons-react@0.3.0(react@19.2.3):
+    dependencies:
+      react: 19.2.3
 
   humanize-ms@1.2.1:
     dependencies:

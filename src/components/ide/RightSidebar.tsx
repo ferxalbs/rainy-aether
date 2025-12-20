@@ -9,7 +9,7 @@ export function RightSidebar({ className }: RightSidebarProps) {
     return (
         <div className={cn("h-full w-full flex flex-col bg-background border-l border-border", className)}>
             <div className="flex-1 overflow-hidden">
-                <AgentChatWindow />
+                <AgentChatWindow compact={true} />
             </div>
         </div>
     );
