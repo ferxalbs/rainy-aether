@@ -2,7 +2,10 @@
  * Rainy Agents Server - Hono + Inngest Sidecar
  * 
  * Self-contained server that runs as a Tauri sidecar.
- * Provides Inngest workflow execution endpoints.
+ * Provides:
+ * - Brain API for agent execution
+ * - Tool execution endpoints
+ * - Inngest workflow execution
  */
 
 import { serve } from '@hono/node-server';
@@ -13,11 +16,27 @@ import { serve as serveInngest } from 'inngest/hono';
 import { Inngest, EventSchemas } from 'inngest';
 import type { Context } from 'hono';
 
+// Import brain routes
+import brainRoutes from './routes/brain';
+
 // ===========================
-// Inngest Client (inline)
+// Inngest Client
 // ===========================
 
 type Events = {
+    'brain/task.requested': {
+        data: {
+            taskId: string;
+            task: string;
+            context?: Record<string, unknown>;
+        };
+    };
+    'brain/task.completed': {
+        data: {
+            taskId: string;
+            result: unknown;
+        };
+    };
     'codebase/index.requested': {
         data: {
             rootPath: string;
@@ -35,12 +54,6 @@ type Events = {
             migrationType: string;
         };
     };
-    'rag/index.requested': {
-        data: {
-            projectId: string;
-            rootPath: string;
-        };
-    };
 };
 
 const inngest = new Inngest({
@@ -49,7 +62,7 @@ const inngest = new Inngest({
 });
 
 // ===========================
-// Workflows (inline)
+// Inngest Workflows
 // ===========================
 
 const indexCodebase = inngest.createFunction(
@@ -60,7 +73,7 @@ const indexCodebase = inngest.createFunction(
 
         const fileCount = await step.run('scan-files', async () => {
             console.log(`[${projectId}] Scanning: ${rootPath}`);
-            return 0; // Placeholder - actual impl via IPC
+            return 0;
         });
 
         await step.run('analyze-files', async () => {
@@ -89,21 +102,7 @@ const migrateRepo = inngest.createFunction(
     }
 );
 
-const indexRAG = inngest.createFunction(
-    { id: 'index-rag', retries: 3 },
-    { event: 'rag/index.requested' },
-    async ({ event, step }) => {
-        const { projectId, rootPath } = event.data;
-
-        await step.run('generate-embeddings', async () => {
-            console.log(`Generating embeddings for ${rootPath}`);
-        });
-
-        return { projectId, success: true };
-    }
-);
-
-const allWorkflows = [indexCodebase, migrateRepo, indexRAG];
+const allWorkflows = [indexCodebase, migrateRepo];
 
 // ===========================
 // Hono App
@@ -114,7 +113,7 @@ const app = new Hono();
 // Middleware
 app.use('*', logger());
 app.use('*', cors({
-    origin: ['http://localhost:1420', 'tauri://localhost'],
+    origin: ['http://localhost:1420', 'http://localhost:5173', 'tauri://localhost'],
     credentials: true,
 }));
 
@@ -122,9 +121,13 @@ app.use('*', cors({
 app.get('/health', (c: Context) => c.json({
     status: 'ok',
     server: 'rainy-agents',
-    version: '0.1.0',
+    version: '0.2.0',
     uptime: process.uptime(),
+    features: ['brain', 'tools', 'inngest'],
 }));
+
+// Mount brain routes
+app.route('/api/brain', brainRoutes);
 
 // Inngest endpoint
 app.on(['GET', 'POST', 'PUT'], '/api/inngest', serveInngest({
@@ -132,22 +135,53 @@ app.on(['GET', 'POST', 'PUT'], '/api/inngest', serveInngest({
     functions: allWorkflows,
 }));
 
-// Brain status
+// Legacy brain status (for backwards compatibility)
 app.get('/api/brain/status', (c: Context) => c.json({
     status: 'ready',
-    agents: ['codeAssistant', 'codeReviewer', 'documentationAgent'],
+    agents: ['planner', 'coder', 'reviewer', 'terminal', 'docs'],
     workflows: allWorkflows.map(w => w.id),
+    tools: 18,
 }));
 
-// Start server
+// Root info
+app.get('/', (c: Context) => c.json({
+    name: 'Rainy Agents Server',
+    version: '0.2.0',
+    endpoints: {
+        health: '/health',
+        brain: {
+            execute: 'POST /api/brain/execute',
+            status: 'GET /api/brain/tasks/:id',
+            stream: 'GET /api/brain/tasks/:id/stream',
+            cancel: 'POST /api/brain/tasks/:id/cancel',
+            tools: 'GET /api/brain/tools',
+            tool: 'POST /api/brain/tool',
+            batch: 'POST /api/brain/tools/batch',
+        },
+        inngest: '/api/inngest',
+    },
+}));
+
+// ===========================
+// Start Server
+// ===========================
+
 const port = parseInt(process.env.INNGEST_PORT || '3847', 10);
 
 serve({
     fetch: app.fetch,
     port,
 }, (info: { port: number }) => {
-    console.log(`🧠 Rainy Agents Server running on http://localhost:${info.port}`);
-    console.log(`   Inngest endpoint: http://localhost:${info.port}/api/inngest`);
+    console.log('');
+    console.log('🧠 Rainy Agents Server v0.2.0');
+    console.log('═══════════════════════════════════════');
+    console.log(`   Server:    http://localhost:${info.port}`);
+    console.log(`   Brain:     http://localhost:${info.port}/api/brain`);
+    console.log(`   Inngest:   http://localhost:${info.port}/api/inngest`);
+    console.log(`   Tools:     18 registered`);
+    console.log(`   Agents:    5 specialized`);
+    console.log('═══════════════════════════════════════');
+    console.log('');
 });
 
 export default app;

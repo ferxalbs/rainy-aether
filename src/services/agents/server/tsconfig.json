@@ -7,25 +7,16 @@
             "ES2022"
         ],
         "outDir": "./dist",
-        "rootDir": "..",
+        "rootDir": ".",
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
         "declaration": false,
         "resolveJsonModule": true,
-        "allowSyntheticDefaultImports": true,
-        "baseUrl": "..",
-        "paths": {
-            "@/*": [
-                "../../*"
-            ]
-        }
+        "allowSyntheticDefaultImports": true
     },
     "include": [
-        "./**/*.ts",
-        "../workflows/**/*.ts",
-        "../brain/**/*.ts",
-        "../inngest/**/*.ts"
+        "./**/*.ts"
     ],
     "exclude": [
         "node_modules",
