@@ -11,6 +11,8 @@ mod git_native; // New: Native libgit2 implementation
 mod help_manager;
 mod language_server_manager;
 mod language_server_manager_improved; // New: Improved LSP manager with optimizations
+#[cfg(target_os = "macos")]
+mod menu_manager; // Native macOS menu support
 mod project_manager;
 mod terminal_manager;
 mod update_manager;
@@ -77,6 +79,27 @@ pub fn run() {
     {
         use tauri::Emitter;
         builder = builder.setup(|app| {
+            // macOS-only: Set up native application menu
+            #[cfg(target_os = "macos")]
+            {
+                match menu_manager::build_menu(app.handle()) {
+                    Ok(menu) => {
+                        if let Err(e) = app.set_menu(menu) {
+                            eprintln!("Failed to set macOS menu: {}", e);
+                        }
+
+                        // Handle menu events by emitting to frontend
+                        app.on_menu_event(move |app_handle, event| {
+                            let id = event.id().0.as_str();
+                            let _ = app_handle.emit("menu-action", id);
+                        });
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to build macOS menu: {}", e);
+                    }
+                }
+            }
+
             // Attach plugin following official example, and emit events on press
             app.handle().plugin(
                 tauri_plugin_global_shortcut::Builder::new()

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Menubar,
   MenubarContent,
@@ -19,6 +19,7 @@ import ModeSwitcher from "./ModeSwitcher";
 import { PanelLeft, PanelBottom, PanelRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
+import { useNativeMenuEvents, useNativeMenu, MenuEventHandlers } from "../../hooks/useNativeMenuEvents";
 
 interface MenuBarProps {
   onOpenQuickOpen?: () => void;
@@ -69,6 +70,268 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const cmdKey = isMac ? '⌘' : 'Ctrl';
   const optKey = isMac ? '⌥' : 'Alt';
 
+  // Check if we should use native macOS menu
+  const useNative = useNativeMenu();
+
+  // Set up native menu event handlers (macOS only)
+  const nativeMenuHandlers: MenuEventHandlers = useMemo(() => ({
+    // App menu
+    'app:settings': () => actions.openSettings(),
+
+    // File menu
+    'file:open-project': () => actions.openFolderDialog(),
+    'file:quick-open': handleQuickOpen,
+    'file:close-project': () => actions.closeProject(),
+    'file:new-file': () => actions.createNewFile(),
+    'file:new-file-in-project': async () => {
+      const base = state().workspace?.path;
+      if (!base) return;
+      const name = window.prompt("Enter file name (with extension)", "new-file.txt");
+      if (!name) return;
+      await actions.createFileAt(base, name);
+    },
+    'file:new-folder': async () => {
+      const base = state().workspace?.path;
+      if (!base) return;
+      const name = window.prompt("Enter folder name", "NewFolder");
+      if (!name) return;
+      await actions.createFolderAt(base, name);
+    },
+    'file:close-editor': () => {
+      const active = state().activeFileId;
+      if (active) actions.closeFile(active);
+    },
+    'file:close-all': () => actions.closeAllEditors(),
+    'file:save': () => {
+      const active = state().activeFileId;
+      if (active) actions.saveFile(active);
+    },
+    'file:save-as': () => {
+      const active = state().activeFileId;
+      if (active) actions.saveFileAs(active);
+    },
+    'file:save-all': () => actions.saveAllFiles(),
+    'file:reveal-file': () => actions.revealActiveFile(),
+    'file:reveal-workspace': () => actions.revealWorkspace(),
+    'file:toggle-autosave': () => actions.setAutoSave(!state().autoSave),
+
+    // Edit menu
+    'edit:undo': () => editorActions.undo(),
+    'edit:redo': () => editorActions.redo(),
+    'edit:copy-line-up': () => editorActions.copyLineUp(),
+    'edit:copy-line-down': () => editorActions.copyLineDown(),
+    'edit:move-line-up': () => editorActions.moveLinesUp(),
+    'edit:move-line-down': () => editorActions.moveLinesDown(),
+    'edit:find': () => editorActions.openSearchPanel(),
+    'edit:find-next': () => editorActions.findNext(),
+    'edit:find-previous': () => editorActions.findPrevious(),
+    'edit:replace': () => {
+      editorActions.openSearchPanel();
+      editorActions.replaceAll();
+    },
+    'edit:go-to-line': handleGoToLine,
+    'edit:indent': () => editorActions.indentMore(),
+    'edit:outdent': () => editorActions.indentLess(),
+    'edit:comment-line': () => editorActions.commentLine(),
+    'edit:block-comment': () => editorActions.toggleBlockComment(),
+    'edit:toggle-wrap': () => editorActions.toggleWrap(),
+
+    // View menu
+    'view:command-palette': handleCommandPalette,
+    'view:quick-open': handleQuickOpen,
+    'view:toggle-sidebar': () => actions.toggleSidebar(),
+    'view:toggle-zen-mode': () => actions.toggleZenMode(),
+    'view:toggle-fullscreen': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('window_toggle_fullscreen', { label: null });
+    },
+    'view:toggle-minimap': () => editorActions.toggleMinimap(),
+    'view:toggle-breadcrumbs': () => editorActions.toggleBreadcrumbs(),
+    'view:explorer': () => actions.setSidebarActive("explorer"),
+    'view:search': () => actions.setSidebarActive("search"),
+    'view:git': () => actions.setSidebarActive("git"),
+    'view:extensions': handleExtensionMarketplace,
+    'view:terminal': () => panelActions.togglePanel('terminal'),
+    'view:problems': () => panelActions.togglePanel('problems'),
+    'view:output': () => panelActions.togglePanel('output'),
+    'view:color-theme': handleThemeSwitcher,
+    'view:toggle-theme': async () => {
+      const mod = await import("../../stores/themeStore");
+      await mod.toggleDayNight();
+    },
+
+    // Selection menu
+    'selection:select-all': () => editorActions.selectAll(),
+    'selection:expand': () => editorActions.expandSelection(),
+    'selection:shrink': () => editorActions.shrinkSelection(),
+    'selection:copy-line-up': () => editorActions.copyLinesUp(),
+    'selection:copy-line-down': () => editorActions.copyLinesDown(),
+    'selection:move-line-up': () => editorActions.moveLinesUp(),
+    'selection:move-line-down': () => editorActions.moveLinesDown(),
+    'selection:add-cursor-above': () => editorActions.addCursorAbove(),
+    'selection:add-cursor-below': () => editorActions.addCursorBelow(),
+    'selection:add-next-occurrence': () => editorActions.addSelectionToNextFindMatch(),
+    'selection:select-all-occurrences': () => editorActions.selectAllMatches(),
+    'selection:select-line': () => editorActions.selectLine(),
+    'selection:delete-line': () => editorActions.deleteLines(),
+
+    // Go menu
+    'go:definition': () => editorActions.goToDefinition(),
+    'go:type-definition': () => editorActions.goToTypeDefinition(),
+    'go:references': () => editorActions.goToReferences(),
+    'go:line': handleGoToLine,
+    'go:symbol': () => editorActions.goToSymbol(),
+    'go:file': handleQuickOpen,
+    'go:next-editor': () => actions.activateNextTab(),
+    'go:prev-editor': () => actions.activatePrevTab(),
+    'go:back': () => editorActions.goBack(),
+    'go:forward': () => editorActions.goForward(),
+
+    // Git menu
+    'git:clone': handleCloneDialog,
+    'git:refresh': async () => {
+      const { refreshStatus } = await import("../../stores/gitStore");
+      await refreshStatus();
+    },
+    'git:open-source-control': () => actions.setSidebarActive("git"),
+
+    // Extensions menu
+    'extensions:marketplace': handleExtensionMarketplace,
+    'extensions:manage': handleExtensionManager,
+
+    // Terminal menu
+    'terminal:new': () => terminalActions.createSession({ cwd: state().workspace?.path }),
+    'terminal:kill': () => {
+      const termState = getTerminalState();
+      const split = termState.layout.splits.find(s => s.id === termState.layout.activeSplitId);
+      const termId = split?.activeSessionId;
+      if (termId) terminalActions.removeSession(termId);
+    },
+    'terminal:toggle': () => panelActions.togglePanel('terminal'),
+    'terminal:toggle-search': () => terminalActions.toggleSearch(),
+    'terminal:external': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_system_terminal', { cwd: state().workspace?.path });
+    },
+
+    // Window menu
+    'window:new': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('window_open_new');
+    },
+    'window:toggle-fullscreen': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('window_toggle_fullscreen', { label: null });
+    },
+    'window:center': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('window_center', { label: null });
+    },
+    'window:reload': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('window_reload', { label: null });
+    },
+
+    // Help menu
+    'help:commands': handleCommandPalette,
+    'help:getting-started': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_external_url', {
+        url: 'https://github.com/rainy-aether/rainy-aether#readme'
+      });
+    },
+    'help:documentation': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_external_url', {
+        url: 'https://github.com/rainy-aether/rainy-aether/wiki'
+      });
+    },
+    'help:release-notes': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_external_url', {
+        url: 'https://github.com/rainy-aether/rainy-aether/releases'
+      });
+    },
+    'help:keyboard-shortcuts': handleKeyboardShortcuts,
+    'help:report-issue': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_external_url', {
+        url: 'https://github.com/rainy-aether/rainy-aether/issues/new'
+      });
+    },
+    'help:github': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_external_url', {
+        url: 'https://github.com/rainy-aether/rainy-aether'
+      });
+    },
+    'help:website': async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('open_external_url', {
+        url: 'https://rainyaether.com'
+      });
+    },
+    'help:about': handleAbout,
+  }), [
+    actions, state, handleQuickOpen, handleCommandPalette, handleThemeSwitcher,
+    handleGoToLine, handleExtensionMarketplace, handleExtensionManager,
+    handleCloneDialog, handleKeyboardShortcuts, handleAbout
+  ]);
+
+  // Register native menu event listeners (only active on macOS)
+  useNativeMenuEvents(nativeMenuHandlers);
+
+  // Right-aligned controls (always visible)
+  const RightControls = (
+    <div className="ml-auto flex items-center pr-2 gap-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => actions.toggleSidebar()}
+        title="Toggle Sidebar"
+        className={cn("h-7 w-7 text-secondary p-1", snapshot.isSidebarOpen && "bg-muted text-foreground")}
+      >
+        <PanelLeft size={16} />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => panelActions.togglePanel('terminal')}
+        title="Toggle Panel"
+        className={cn("h-7 w-7 text-secondary p-1", panelState.isBottomPanelOpen && "bg-muted text-foreground")}
+      >
+        <PanelBottom size={16} />
+      </Button>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => actions.toggleRightSidebar()}
+        title="Toggle Agents View"
+        className={cn("h-7 w-7 text-secondary p-1", snapshot.isRightSidebarOpen && "bg-muted text-foreground")}
+      >
+        <PanelRight size={16} />
+      </Button>
+    </div>
+  );
+
+  // On macOS with native menu: render only the mode switcher and panel controls
+  if (useNative) {
+    return (
+      <div className="h-10 border-b border-border flex items-center px-1 bg-background">
+        {/* Mode Switcher */}
+        <div className="flex items-center px-2">
+          <ModeSwitcher />
+        </div>
+
+        {/* Right-aligned Layout Controls */}
+        {RightControls}
+      </div>
+    );
+  }
+
+  // On Windows/Linux: render the full shadcn menu bar
   return (
     <Menubar className="h-10 border-b border-border border-x-0 border-t-0 rounded-none px-1 py-0 gap-1 shadow-none bg-background">
       {/* Mode Switcher */}
@@ -722,37 +985,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       </MenubarMenu>
 
       {/* Right-aligned Layout Controls */}
-      <div className="ml-auto flex items-center pr-2 gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => actions.toggleSidebar()}
-          title="Toggle Sidebar"
-          className={cn("h-7 w-7 text-secondary p-1", snapshot.isSidebarOpen && "bg-muted text-foreground")}
-        >
-          <PanelLeft size={16} />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => panelActions.togglePanel('terminal')}
-          title="Toggle Panel"
-          className={cn("h-7 w-7 text-secondary p-1", panelState.isBottomPanelOpen && "bg-muted text-foreground")}
-        >
-          <PanelBottom size={16} />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => actions.toggleRightSidebar()}
-          title="Toggle Agents View"
-          className={cn("h-7 w-7 text-secondary p-1", snapshot.isRightSidebarOpen && "bg-muted text-foreground")}
-        >
-          <PanelRight size={16} />
-        </Button>
-      </div>
+      {RightControls}
     </Menubar>
   );
 };
