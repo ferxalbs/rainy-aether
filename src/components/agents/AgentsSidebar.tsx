@@ -1,4 +1,4 @@
-import { Plus, Search, Trash2, Edit2, MoreHorizontal } from "lucide-react"
+import { Plus, Search, Trash2, Edit2, MoreHorizontal, Zap, Circle } from "lucide-react"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
@@ -6,12 +6,76 @@ import { formatDistanceToNow } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useSessions, useActiveSession, agentActions } from "@/stores/agentStore"
+import { useAgentServer } from "@/hooks/useAgentServer"
+import { AgentSettingsDialog } from "./AgentSettingsDialog"
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+
+function ServerStatusIndicator() {
+    const { isRunning, isStarting, status } = useAgentServer();
+
+    if (isStarting) {
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1.5">
+                            <Circle className="h-2 w-2 fill-yellow-500 text-yellow-500 animate-pulse" />
+                            <span className="text-[10px] text-yellow-500">Starting...</span>
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                        <p>Agent server is starting...</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
+    }
+
+    if (isRunning) {
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1.5">
+                            <Circle className="h-2 w-2 fill-green-500 text-green-500" />
+                            <span className="text-[10px] text-green-500">Connected</span>
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                        <p>Agent server running on port {status?.port}</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        );
+    }
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5">
+                        <Circle className="h-2 w-2 fill-muted-foreground/50 text-muted-foreground/50" />
+                        <span className="text-[10px] text-muted-foreground/50">Offline</span>
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                    <p>Agent server is not running</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+}
 
 export function AgentsSidebar({ className }: { className?: string }) {
     const sessions = useSessions();
@@ -44,6 +108,18 @@ export function AgentsSidebar({ className }: { className?: string }) {
         <div className={cn("flex flex-col h-full bg-[#18181b] text-foreground border-r border-[#27272a]", className)}>
             {/* Header */}
             <div className="p-3 flex flex-col gap-3">
+                {/* Title and Status */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-purple-400" />
+                        <span className="text-sm font-semibold">Agents</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <ServerStatusIndicator />
+                        <AgentSettingsDialog />
+                    </div>
+                </div>
+
                 <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                     <Input
@@ -93,16 +169,11 @@ export function AgentsSidebar({ className }: { className?: string }) {
                                     <span>
                                         {session.messages.length} msgs
                                     </span>
-                                    {/* Placeholder for file count or other metadata if available */}
-                                    {/* <span>• 2 files</span> */}
                                 </div>
                             </div>
 
                             <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <span className="text-[10px] text-muted-foreground/50 mr-2 whitespace-nowrap">
-                                    {/* We don't have a timestamp in the session object in the store yet, so we'll mock or use what's available. 
-                                        Assuming session might have a createdAt or updatedAt later. For now, static or based on last message.
-                                    */}
                                     {session.messages.length > 0
                                         ? formatDistanceToNow(new Date(session.messages[session.messages.length - 1].timestamp), { addSuffix: false }).replace('about ', '')
                                         : 'Just now'
