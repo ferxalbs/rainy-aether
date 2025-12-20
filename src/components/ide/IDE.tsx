@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import MenuBar from "./MenuBar";
+import AboutDialog from "./AboutDialog";
 
 import Sidebar from "./Sidebar";
 import FileViewer from "./FileViewer";
@@ -47,6 +48,7 @@ const IDE: React.FC = () => {
   const [isExtensionMarketplaceOpen, setIsExtensionMarketplaceOpen] = useState(false);
   const [isExtensionManagerOpen, setIsExtensionManagerOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   // Subscribe to diff state to auto-open diff panel
   const diffState = useDiffState();
@@ -476,6 +478,8 @@ const IDE: React.FC = () => {
             onOpenExtensionMarketplace={() => setIsExtensionMarketplaceOpen(true)}
             onOpenExtensionManager={() => setIsExtensionManagerOpen(true)}
             onOpenCloneDialog={() => setIsCloneDialogOpen(true)}
+            onOpenKeyboardShortcuts={() => console.log('TODO: Keyboard shortcuts')}
+            onOpenAbout={() => setIsAboutOpen(true)}
           />
 
           {/* Conditionally render based on view mode */}
@@ -598,6 +602,12 @@ const IDE: React.FC = () => {
           setIsCloneDialogOpen(false);
           actionsRef.current.loadWorkspace({ name: path.split(/[/\\]/).pop() || path, path, type: "folder" });
         }}
+      />
+
+      {/* About Dialog */}
+      <AboutDialog
+        open={isAboutOpen}
+        onOpenChange={setIsAboutOpen}
       />
 
       {/* Update notification */}
