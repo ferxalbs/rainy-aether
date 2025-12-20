@@ -238,7 +238,18 @@ class ToolRegistry {
             return { success: false, error: 'Invalid path parameter' };
           }
           const resolvedPath = await this.resolvePath(path);
-          const children = await invoke<any[]>("load_directory_children", { path: resolvedPath });
+
+          // Add timeout to prevent hanging
+          const timeoutMs = 10000; // 10 seconds
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`list_dir timed out after ${timeoutMs}ms`)), timeoutMs)
+          );
+
+          const children = await Promise.race([
+            invoke<any[]>("load_directory_children", { path: resolvedPath }),
+            timeoutPromise
+          ]);
+
           return {
             success: true,
             files: children.map((child) => ({
@@ -279,15 +290,31 @@ class ToolRegistry {
 
           const depth = Math.min(max_depth || 3, 5);
           const resolvedPath = await this.resolvePath(path);
+          const startTime = Date.now();
+          const maxDuration = 30000; // 30 seconds total
+
+          const invokeWithTimeout = async <T>(cmd: string, args: any): Promise<T> => {
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('invoke timeout')), 5000)
+            );
+            return Promise.race([invoke<T>(cmd, args), timeoutPromise]);
+          };
 
           const buildTree = async (dirPath: string, currentDepth: number): Promise<any> => {
+            // Check overall timeout
+            if (Date.now() - startTime > maxDuration) {
+              throw new Error('read_directory_tree timed out');
+            }
+
             if (currentDepth > depth) return null;
 
             try {
-              const children = await invoke<any[]>("load_directory_children", { path: dirPath });
+              const children = await invokeWithTimeout<any[]>("load_directory_children", { path: dirPath });
               const tree: any = { directories: [], files: [] };
 
               for (const child of children) {
+                if (Date.now() - startTime > maxDuration) break;
+
                 if (child.is_directory) {
                   const subtree = await buildTree(child.path, currentDepth + 1);
                   tree.directories.push({

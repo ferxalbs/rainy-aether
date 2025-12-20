@@ -1,31 +1,31 @@
 {
-    "name": "rainy-agents-server",
-    "version": "0.1.0",
-    "type": "module",
-    "main": "dist/index.js",
-    "scripts": {
-        "dev": "tsx watch index.ts",
-        "bundle": "esbuild index.ts --bundle --platform=node --target=node20 --outfile=dist/index.cjs --format=cjs --external:@tauri-apps/api",
-        "build:bin": "npx @yao-pkg/pkg dist/index.cjs --targets node20-macos-arm64,node20-macos-x64,node20-linux-x64,node20-win-x64 --output ../../../src-tauri/binaries/rainy-agents-server",
-        "build": "pnpm bundle && pnpm build:bin"
-    },
-    "dependencies": {
-        "@hono/node-server": "^1.19.7",
-        "@inngest/agent-kit": "^0.13.2",
-        "hono": "^4.11.1",
-        "inngest": "^3.48.1"
-    },
-    "devDependencies": {
-        "@types/node": "^20",
-        "@yao-pkg/pkg": "^6.11.0",
-        "esbuild": "^0.27.2",
-        "tsx": "^4.21.0",
-        "typescript": "^5.9.3"
-    },
-    "pkg": {
+  "name": "rainy-agents-server",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "esbuild index.ts --bundle --platform=node --target=node20 --outfile=dist/index.cjs --format=cjs --external:@tauri-apps/api && node --watch dist/index.cjs",
+    "bundle": "esbuild index.ts --bundle --platform=node --target=node20 --outfile=dist/index.cjs --format=cjs --external:@tauri-apps/api",
+    "build:bin": "npx @yao-pkg/pkg dist/index.cjs --targets node20-macos-arm64,node20-macos-x64,node20-linux-x64,node20-win-x64 --output ../../../src-tauri/binaries/rainy-agents-server",
+    "build": "pnpm bundle && pnpm build:bin"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.7",
+    "@inngest/agent-kit": "^0.13.2",
+    "hono": "^4.11.1",
+    "inngest": "^3.48.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@yao-pkg/pkg": "^6.11.0",
+    "esbuild": "^0.27.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "pkg": {
     "targets": [
       "node*-macos-arm64",
-      "node*-macos-x64", 
+      "node*-macos-x64",
       "node*-linux-x64",
       "node*-win-x64"
     ]

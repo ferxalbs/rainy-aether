@@ -12,7 +12,6 @@ export {
     ToolCall,
     ToolExecution,
     ToolCategory,
-    ToolExecutor as ToolExecutorType,
     TOOL_DEFINITIONS,
     getToolByName,
     getToolsByCategory,
@@ -22,7 +21,7 @@ export {
     toOpenAIFunctions,
 } from './schema';
 
-// Executor
+// Executor (ToolExecutor class is here, not in schema)
 export {
     ToolExecutor,
     ExecutorConfig,

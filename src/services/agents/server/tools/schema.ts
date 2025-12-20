@@ -11,7 +11,7 @@
 // Core Types
 // ===========================
 
-export type ToolExecutor = 'tauri' | 'node' | 'hybrid';
+export type ExecutorType = 'tauri' | 'node' | 'hybrid';
 export type ToolCategory = 'read' | 'write' | 'execute' | 'git' | 'analysis';
 
 export interface ToolParameter {
@@ -26,7 +26,7 @@ export interface ToolSchema {
     name: string;
     description: string;
     category: ToolCategory;
-    executor: ToolExecutor;
+    executor: ExecutorType;
 
     // Execution properties
     parallel: boolean;        // Can run with other tools simultaneously
