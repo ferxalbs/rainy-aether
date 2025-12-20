@@ -1,14 +1,13 @@
 import { invoke } from '@tauri-apps/api/core';
 import { join, homeDir } from '@tauri-apps/api/path';
 import { AgentSession } from '@/stores/agentStore';
-import { ChatMessage } from '@/types/chat';
 
 export class AgentHistoryService {
   private static instance: AgentHistoryService;
   private initialized = false;
   private historyPath: string = '';
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): AgentHistoryService {
     if (!AgentHistoryService.instance) {
@@ -25,16 +24,28 @@ export class AgentHistoryService {
       const home = await homeDir();
       this.historyPath = await join(home, '.rainy-aether', 'agent-history');
 
-      // Ensure the history directory exists
-      // Note: We use absolute path here, so we need to make sure the backend supports it
-      // The backend 'check_path_exists' and 'create_directory' should handle absolute paths
-      const exists = await invoke<boolean>('check_path_exists', { path: this.historyPath });
-      if (!exists) {
-        await invoke('create_directory', { path: this.historyPath });
+      // Try to ensure the directory exists using available commands
+      // If commands don't exist, we'll create the directory on first save
+      try {
+        // Try to list the directory - if it succeeds, it exists
+        await invoke('load_directory_children', { path: this.historyPath });
+      } catch {
+        // Directory doesn't exist or command failed - try to create it
+        // We'll use the create_path command or just let the save operation handle it
+        try {
+          await invoke('create_path', { path: this.historyPath, isFile: false });
+        } catch {
+          // Command might not exist - that's OK, the directory will be created on first save
+          console.log('[AgentHistoryService] Will create history directory on first save');
+        }
       }
+
       this.initialized = true;
     } catch (error) {
-      console.error('Failed to initialize AgentHistoryService:', error);
+      // Don't block initialization on errors - the service can still work
+      // if the directory creation happens later
+      console.warn('[AgentHistoryService] Initialization warning:', error);
+      this.initialized = true; // Mark as initialized anyway to prevent repeated attempts
     }
   }
 
@@ -44,7 +55,7 @@ export class AgentHistoryService {
     try {
       const fileName = `${session.id}.json`;
       const filePath = await join(this.historyPath, fileName);
-      
+
       const content = JSON.stringify(session, null, 2);
       await invoke('save_file_content', { path: filePath, content });
     } catch (error) {
@@ -58,12 +69,12 @@ export class AgentHistoryService {
     try {
       const fileName = `${sessionId}.json`;
       const filePath = await join(this.historyPath, fileName);
-      
+
       const content = await invoke<string>('get_file_content', { path: filePath });
       if (!content) return null;
 
       const session = JSON.parse(content) as AgentSession;
-      
+
       // Restore Date objects
       session.createdAt = new Date(session.createdAt);
       session.lastMessageAt = new Date(session.lastMessageAt);

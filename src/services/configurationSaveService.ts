@@ -92,10 +92,9 @@ class ConfigurationSaveService {
    * Save a batch of configuration values for a specific scope
    */
   private async saveBatch(saves: PendingSave[], scope: 'user' | 'workspace'): Promise<void> {
-    const scopeCapitalized = scope === 'user' ? 'User' : 'Workspace';
-
+    // CRITICAL: Rust backend expects lowercase scope ('user' not 'User')
     for (const save of saves) {
-      await this.saveWithRetry(save.key, save.value, scopeCapitalized);
+      await this.saveWithRetry(save.key, save.value, scope);
     }
   }
 
