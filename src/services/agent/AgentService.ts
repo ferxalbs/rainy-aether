@@ -3,6 +3,7 @@ import { ChatMessage } from '@/types/chat';
 import { toolRegistry } from './ToolRegistry';
 import { AIProvider, StreamChunk, createProvider, ProviderCredentials } from './providers';
 import { brainService } from '@/services/BrainService';
+import { getIDEState } from '@/stores/ideStore';
 
 // ===========================
 // Configuration
@@ -137,9 +138,12 @@ export class AgentService {
 
         if (useBrain) {
           // Use sidecar brain service (more reliable, no Tauri hangs)
+          // CRITICAL: Pass the user's workspace, NOT the IDE's install path
+          const workspace = getIDEState().workspace;
           const brainResult = await brainService.executeTool({
             tool: toolCall.name,
             args: toolCall.arguments,
+            workspace: workspace?.path,
           });
           result = brainResult.data ?? { error: brainResult.error };
 

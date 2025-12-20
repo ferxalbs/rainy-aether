@@ -67,10 +67,16 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { execSync, spawn } from 'child_process';
 
-let workspacePath: string = process.cwd();
+// CRITICAL: DO NOT use process.cwd() - that's the IDE's path, not user's project
+let workspacePath: string = '';
 
 export function setWorkspacePath(p: string): void {
+    if (!p) {
+        console.warn('[Bridge] Empty workspace path provided');
+        return;
+    }
     workspacePath = p;
+    console.log(`[Bridge] Workspace set to: ${p}`);
 }
 
 export function getWorkspacePath(): string {
@@ -80,6 +86,9 @@ export function getWorkspacePath(): string {
 function resolvePath(relativePath: string): string {
     if (path.isAbsolute(relativePath)) {
         return relativePath;
+    }
+    if (!workspacePath) {
+        throw new Error('Workspace path not set. Make sure to pass workspace with each request.');
     }
     return path.join(workspacePath, relativePath);
 }
