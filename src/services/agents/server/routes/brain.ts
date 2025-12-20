@@ -1,7 +1,7 @@
 /**
  * Brain Routes
  * 
- * API endpoints for the AgentKit brain.
+ * API endpoints for the AgentKit brain with multi-agent support.
  */
 
 import { Hono } from 'hono';
@@ -13,6 +13,7 @@ import {
     createToolCall,
     toAgentKitTools,
 } from '../tools';
+import { router, getAgentTypes, AgentType } from '../agents';
 
 // ===========================
 // Types
@@ -26,7 +27,7 @@ interface TaskRequest {
         selectedCode?: string;
     };
     options?: {
-        agentType?: 'auto' | 'planner' | 'coder' | 'reviewer' | 'terminal';
+        agentType?: 'auto' | AgentType;
         maxDuration?: number;
         streaming?: boolean;
     };
@@ -44,16 +45,40 @@ interface TaskStatus {
     error?: string;
     startTime: number;
     endTime?: number;
+    agentsUsed?: string[];
 }
 
-// In-memory task storage (replace with Redis/DB in production)
+// In-memory task storage
 const tasks = new Map<string, TaskStatus>();
+
+// Router initialization flag
+let routerInitialized = false;
 
 // ===========================
 // Routes
 // ===========================
 
 const brain = new Hono();
+
+/**
+ * Initialize router (called once)
+ */
+async function ensureRouterInitialized(): Promise<void> {
+    if (routerInitialized) return;
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+        try {
+            await router.initialize(apiKey);
+            routerInitialized = true;
+            console.log('[Brain] Router initialized with Gemini');
+        } catch (e) {
+            console.error('[Brain] Failed to initialize router:', e);
+        }
+    } else {
+        console.log('[Brain] No GEMINI_API_KEY, router disabled');
+    }
+}
 
 /**
  * Execute a task
@@ -67,12 +92,10 @@ brain.post('/execute', async (c: Context) => {
 
     const taskId = `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    // Set workspace if provided
     if (body.context?.workspace) {
         setWorkspacePath(body.context.workspace);
     }
 
-    // Create task status
     const status: TaskStatus = {
         id: taskId,
         status: 'pending',
@@ -81,7 +104,6 @@ brain.post('/execute', async (c: Context) => {
     };
     tasks.set(taskId, status);
 
-    // Execute asynchronously
     executeTask(taskId, body).catch(error => {
         const task = tasks.get(taskId);
         if (task) {
@@ -105,10 +127,7 @@ brain.get('/tasks/:id', (c: Context) => {
     const taskId = c.req.param('id');
     const task = tasks.get(taskId);
 
-    if (!task) {
-        return c.json({ error: 'Task not found' }, 404);
-    }
-
+    if (!task) return c.json({ error: 'Task not found' }, 404);
     return c.json(task);
 });
 
@@ -119,9 +138,7 @@ brain.get('/tasks/:id/stream', (c: Context) => {
     const taskId = c.req.param('id');
     const task = tasks.get(taskId);
 
-    if (!task) {
-        return c.json({ error: 'Task not found' }, 404);
-    }
+    if (!task) return c.json({ error: 'Task not found' }, 404);
 
     return streamSSE(c, async (stream) => {
         let lastStatus = '';
@@ -152,13 +169,10 @@ brain.post('/tasks/:id/cancel', (c: Context) => {
     const taskId = c.req.param('id');
     const task = tasks.get(taskId);
 
-    if (!task) {
-        return c.json({ error: 'Task not found' }, 404);
-    }
+    if (!task) return c.json({ error: 'Task not found' }, 404);
 
     task.status = 'cancelled';
     task.endTime = Date.now();
-
     return c.json({ cancelled: true });
 });
 
@@ -170,18 +184,24 @@ brain.get('/tools', (c: Context) => {
 });
 
 /**
+ * Get available agents
+ */
+brain.get('/agents', (c: Context) => {
+    return c.json({
+        agents: router.listAgents(),
+        types: getAgentTypes(),
+    });
+});
+
+/**
  * Execute a single tool directly
  */
 brain.post('/tool', async (c: Context) => {
     const { tool, args, workspace } = await c.req.json();
 
-    if (!tool) {
-        return c.json({ error: 'Tool name is required' }, 400);
-    }
+    if (!tool) return c.json({ error: 'Tool name is required' }, 400);
 
-    if (workspace) {
-        setWorkspacePath(workspace);
-    }
+    if (workspace) setWorkspacePath(workspace);
 
     const executor = createConfiguredExecutor();
     const call = createToolCall(tool, args || {});
@@ -196,13 +216,9 @@ brain.post('/tool', async (c: Context) => {
 brain.post('/tools/batch', async (c: Context) => {
     const { calls, workspace, options } = await c.req.json();
 
-    if (!Array.isArray(calls)) {
-        return c.json({ error: 'Calls must be an array' }, 400);
-    }
+    if (!Array.isArray(calls)) return c.json({ error: 'Calls must be an array' }, 400);
 
-    if (workspace) {
-        setWorkspacePath(workspace);
-    }
+    if (workspace) setWorkspacePath(workspace);
 
     const executor = createConfiguredExecutor();
     const toolCalls = calls.map((call: any) => createToolCall(call.tool, call.args || {}));
@@ -212,7 +228,7 @@ brain.post('/tools/batch', async (c: Context) => {
 });
 
 // ===========================
-// Task Execution (Simple for now)
+// Task Execution with Agents
 // ===========================
 
 async function executeTask(taskId: string, request: TaskRequest): Promise<void> {
@@ -223,50 +239,76 @@ async function executeTask(taskId: string, request: TaskRequest): Promise<void> 
     task.progress = { current: 0, total: 3, message: 'Analyzing task...' };
 
     try {
-        const executor = createConfiguredExecutor();
+        await ensureRouterInitialized();
 
-        // Step 1: Understand context
+        // If router is available, use multi-agent execution
+        if (routerInitialized) {
+            task.progress = { current: 1, total: 3, message: 'Routing to agent...' };
+
+            const agentType = request.options?.agentType !== 'auto'
+                ? request.options?.agentType as AgentType
+                : undefined;
+
+            const result = await router.execute(
+                {
+                    workspace: request.context?.workspace || process.cwd(),
+                    task: request.task,
+                    files: request.context?.currentFile ? [request.context.currentFile] : undefined,
+                },
+                agentType
+            );
+
+            task.progress = { current: 3, total: 3, message: 'Complete' };
+            task.status = result.success ? 'completed' : 'failed';
+            task.result = {
+                output: result.output,
+                toolsUsed: result.toolsUsed,
+                filesModified: result.filesModified,
+            };
+            task.agentsUsed = result.agentsUsed;
+            task.error = result.error;
+            task.endTime = Date.now();
+            return;
+        }
+
+        // Fallback: Simple tool-based execution
+        const executor = createConfiguredExecutor();
         task.progress = { current: 1, total: 3, message: 'Reading workspace...' };
 
         const workspaceInfo = await executor.execute(createToolCall('get_workspace_info', {}));
         const dirTree = await executor.execute(createToolCall('read_directory_tree', { path: '.', max_depth: 2 }));
 
-        // Step 2: Execute based on task type
-        task.progress = { current: 2, total: 3, message: 'Executing task...' };
+        task.progress = { current: 2, total: 3, message: 'Executing...' };
 
-        // Simple task parsing (will be replaced by LLM in Phase 2)
         const results: any[] = [];
 
-        if (request.task.toLowerCase().includes('create') || request.task.toLowerCase().includes('crea')) {
-            // Extract filename from task (simple regex)
-            const fileMatch = request.task.match(/(?:create|crea)[^\w]*(?:file|archivo)?[^\w]*([a-zA-Z0-9_.-]+\.[a-zA-Z]+)/i);
-            if (fileMatch) {
-                const filename = fileMatch[1];
+        // Simple task parsing
+        if (/create|crea/i.test(request.task)) {
+            const match = request.task.match(/(?:create|crea)[^\w]*(?:file|archivo)?[^\w]*([a-zA-Z0-9_.-]+\.[a-zA-Z]+)/i);
+            if (match) {
                 const result = await executor.execute(createToolCall('create_file', {
-                    path: filename,
-                    content: `// ${filename}\n// Created by Rainy Brain\n\nconsole.log("Hello from ${filename}");\n`,
+                    path: match[1],
+                    content: `// ${match[1]}\n// Created by Rainy Brain\n`,
                 }));
                 results.push(result);
             }
         }
 
-        if (request.task.toLowerCase().includes('read') || request.task.toLowerCase().includes('lee')) {
-            const fileMatch = request.task.match(/(?:read|lee)[^\w]*(?:file|archivo)?[^\w]*([a-zA-Z0-9_./\\-]+)/i);
-            if (fileMatch) {
-                const filename = fileMatch[1];
-                const result = await executor.execute(createToolCall('read_file', { path: filename }));
+        if (/read|lee/i.test(request.task)) {
+            const match = request.task.match(/(?:read|lee)[^\w]*(?:file|archivo)?[^\w]*([a-zA-Z0-9_./\\-]+)/i);
+            if (match) {
+                const result = await executor.execute(createToolCall('read_file', { path: match[1] }));
                 results.push(result);
             }
         }
 
-        // Step 3: Complete
-        task.progress = { current: 3, total: 3, message: 'Task completed' };
+        task.progress = { current: 3, total: 3, message: 'Complete' };
         task.status = 'completed';
         task.result = {
             workspaceInfo: workspaceInfo.result,
             directoryTree: dirTree.result,
             taskResults: results,
-            message: `Task "${request.task}" completed successfully`,
+            message: `Task "${request.task}" completed`,
         };
         task.endTime = Date.now();
 
@@ -278,3 +320,4 @@ async function executeTask(taskId: string, request: TaskRequest): Promise<void> 
 }
 
 export default brain;
+

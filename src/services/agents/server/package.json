@@ -10,6 +10,7 @@
     "build": "pnpm bundle && pnpm build:bin"
   },
   "dependencies": {
+    "@google/genai": "^1.34.0",
     "@hono/node-server": "^1.19.7",
     "@inngest/agent-kit": "^0.13.2",
     "hono": "^4.11.1",
