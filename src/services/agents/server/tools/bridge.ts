@@ -101,6 +101,12 @@ export const toolHandlers: Record<string, ToolHandler> = {
     // --- Workspace Info ---
     get_workspace_info: async (): Promise<ToolResult> => {
         try {
+            if (!workspacePath) {
+                return {
+                    success: false,
+                    error: 'No workspace is set. Please open a project first.'
+                };
+            }
             const name = path.basename(workspacePath);
             return {
                 success: true,
@@ -472,11 +478,46 @@ export const toolHandlers: Record<string, ToolHandler> = {
 // Bridge Setup
 // ===========================
 
+// Tool aliases for LLM compatibility (LLMs sometimes use alternative names)
+const TOOL_ALIASES: Record<string, string> = {
+    'list_files': 'list_dir',
+    'read_dir': 'list_dir',
+    'ls': 'list_dir',
+    'cat': 'read_file',
+    'file_read': 'read_file',
+    'file_write': 'write_file',
+    'file_create': 'create_file',
+    'file_edit': 'edit_file',
+    'file_delete': 'delete_file',
+    'rm': 'delete_file',
+    'grep': 'search_code',
+    'find': 'search_code',
+    'exec': 'run_command',
+    'shell': 'run_command',
+    'test': 'run_tests',
+};
+
+/**
+ * Resolve tool alias to canonical name
+ */
+export function resolveToolAlias(name: string): string {
+    return TOOL_ALIASES[name] || name;
+}
+
 /**
  * Register all tool handlers with an executor
  */
 export function registerToolHandlers(executor: ToolExecutor): void {
+    // Register canonical handlers
     executor.registerHandlers(toolHandlers);
+
+    // Register aliases (pointing to same handlers)
+    for (const [alias, canonical] of Object.entries(TOOL_ALIASES)) {
+        const handler = toolHandlers[canonical];
+        if (handler) {
+            executor.registerHandler(alias, handler);
+        }
+    }
 }
 
 /**
