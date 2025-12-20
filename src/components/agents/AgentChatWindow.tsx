@@ -1,4 +1,4 @@
-import { Image as ImageIcon, Send, Bot, Loader2, User, Settings, Sparkles, Cpu, Paperclip } from "lucide-react"
+import { Image as ImageIcon, Send, Bot, Loader2, User, Sparkles, Cpu, Paperclip } from "lucide-react"
 import { useEffect, useRef } from "react"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -120,34 +120,7 @@ export function AgentChatWindow() {
 
     return (
         <div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
-            {/* Top Bar */}
-            <div className="h-14 border-b border-border bg-background/50 backdrop-blur-sm flex items-center justify-between px-6 shrink-0 z-10">
-                <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-indigo-500/20 flex items-center justify-center border border-purple-500/10">
-                        <Sparkles className="h-4 w-4 text-purple-400" />
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-semibold text-foreground">
-                            {activeSession?.name || 'Rainy Agent'}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                            <span className="flex h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                            <span className="text-[10px] text-muted-foreground font-mono">
-                                {AVAILABLE_MODELS.find(m => m.id === activeSession?.model)?.name || 'Gemini Flash 2.0 Lite'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div className="flex items-center gap-1">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    >
-                        <Settings className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
+            {/* Top Bar removed - moved to AgentsLayout */}
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-0 scroll-smooth" ref={scrollRef}>
