@@ -19,7 +19,11 @@ import {
     Search,
     GitBranch,
     Code2,
-    Play
+    Play,
+    Globe,
+    Cpu,
+    Database,
+    Image as ImageIcon
 } from 'lucide-react';
 import {
     Collapsible,
@@ -59,6 +63,10 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
     'git_diff': GitBranch,
     'git_commit': GitBranch,
     'git_add': GitBranch,
+    'search_web': Globe,
+    'generate_image': ImageIcon,
+    'analyze_code': Cpu,
+    'query_db': Database,
 };
 
 function getToolIcon(toolName: string) {
@@ -67,7 +75,7 @@ function getToolIcon(toolName: string) {
 }
 
 function ToolExecutionItem({ tool, compact }: { tool: ToolExecution; compact?: boolean }) {
-    const [isOpen, setIsOpen] = React.useState(false);
+    const [isOpen, setIsOpen] = React.useState(tool.status === 'running' || tool.status === 'error');
     const Icon = getToolIcon(tool.name);
 
     const getStatusIcon = () => {
@@ -86,30 +94,33 @@ function ToolExecutionItem({ tool, compact }: { tool: ToolExecution; compact?: b
     const getStatusColor = () => {
         switch (tool.status) {
             case 'running':
-                return 'border-blue-500/30 bg-blue-500/5';
+                return 'border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10';
             case 'success':
-                return 'border-green-500/30 bg-green-500/5';
+                return 'border-green-500/30 bg-green-500/5 hover:bg-green-500/10';
             case 'error':
-                return 'border-red-500/30 bg-red-500/5';
+                return 'border-red-500/30 bg-red-500/5 hover:bg-red-500/10';
             default:
-                return 'border-zinc-600/30 bg-zinc-800/50';
+                return 'border-zinc-600/30 bg-zinc-800/50 hover:bg-zinc-800/70';
         }
     };
 
     // Format argument value for display
     const formatArgValue = (value: unknown): string => {
         if (typeof value === 'string') {
-            return value.length > 50 ? value.slice(0, 50) + '...' : value;
+            return value;
         }
         return JSON.stringify(value);
     };
 
     // Get primary argument to show (usually 'path' or 'command')
     const getPrimaryArg = (): string | null => {
-        const primaryKeys = ['path', 'command', 'query', 'message'];
+        const primaryKeys = ['path', 'command', 'query', 'message', 'file_path', 'target_file'];
         for (const key of primaryKeys) {
-            if (tool.arguments[key]) {
-                return formatArgValue(tool.arguments[key]);
+            // Check both snake_case and camelCase or direct match
+            const foundKey = Object.keys(tool.arguments).find(k => k.toLowerCase() === key.replace('_', '').toLowerCase() || k.toLowerCase().includes(key));
+            if (foundKey && tool.arguments[foundKey]) {
+                const val = formatArgValue(tool.arguments[foundKey]);
+                return val.length > 60 ? val.slice(0, 60) + '...' : val;
             }
         }
         return null;
@@ -120,14 +131,14 @@ function ToolExecutionItem({ tool, compact }: { tool: ToolExecution; compact?: b
     if (compact) {
         return (
             <div className={cn(
-                'flex items-center gap-2 px-2 py-1 rounded border text-xs',
+                'flex items-center gap-2 px-2 py-1 rounded-md border text-xs transition-colors',
                 getStatusColor()
             )}>
                 {getStatusIcon()}
-                <Icon className="h-3 w-3 text-zinc-400" />
-                <span className="font-mono text-zinc-300">{tool.name}</span>
+                <Icon className="h-3 w-3 text-muted-foreground" />
+                <span className="font-mono text-foreground/90 font-medium">{tool.name}</span>
                 {primaryArg && (
-                    <span className="text-zinc-500 truncate max-w-[150px]">
+                    <span className="text-muted-foreground truncate max-w-[150px] opacity-70">
                         {primaryArg}
                     </span>
                 )}
@@ -138,74 +149,96 @@ function ToolExecutionItem({ tool, compact }: { tool: ToolExecution; compact?: b
     return (
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <div className={cn(
-                'rounded-lg border overflow-hidden',
+                'rounded-lg border overflow-hidden transition-all duration-200',
                 getStatusColor()
             )}>
                 <CollapsibleTrigger className="w-full">
-                    <div className="flex items-center gap-2 px-3 py-2 hover:bg-zinc-700/20 transition-colors">
-                        {isOpen ? (
-                            <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
-                        ) : (
-                            <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />
-                        )}
-                        {getStatusIcon()}
-                        <Icon className="h-4 w-4 text-zinc-400" />
-                        <span className="font-mono text-sm text-zinc-200">{tool.name}</span>
-                        {primaryArg && (
-                            <span className="text-xs text-zinc-500 truncate flex-1 text-left">
-                                {primaryArg}
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                        <div className="flex items-center justify-center shrink-0">
+                            {getStatusIcon()}
+                        </div>
+
+                        <div className="h-4 w-px bg-border/50 mx-0.5" />
+
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="font-mono text-sm font-medium text-foreground truncate">{tool.name}</span>
+                            {primaryArg && (
+                                <span className="text-xs text-muted-foreground truncate flex-1 text-left opacity-80 font-mono">
+                                    {primaryArg}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span className={cn(
+                                'text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wider',
+                                tool.status === 'running' ? 'bg-blue-500/20 text-blue-400' :
+                                    tool.status === 'success' ? 'bg-green-500/20 text-green-400' :
+                                        tool.status === 'error' ? 'bg-red-500/20 text-red-400' :
+                                            'bg-zinc-500/20 text-zinc-400'
+                            )}>
+                                {tool.status || 'Pending'}
                             </span>
-                        )}
-                        <span className={cn(
-                            'text-xs px-1.5 py-0.5 rounded',
-                            tool.status === 'running' ? 'bg-blue-500/20 text-blue-300' :
-                                tool.status === 'success' ? 'bg-green-500/20 text-green-300' :
-                                    tool.status === 'error' ? 'bg-red-500/20 text-red-300' :
-                                        'bg-zinc-600/20 text-zinc-400'
-                        )}>
-                            {tool.status === 'running' ? 'Running' :
-                                tool.status === 'success' ? 'Success' :
-                                    tool.status === 'error' ? 'Error' : 'Pending'}
-                        </span>
+                            {isOpen ? (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground/70" />
+                            ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground/70" />
+                            )}
+                        </div>
                     </div>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent>
-                    <div className="px-3 py-2 border-t border-zinc-700/30 space-y-2">
-                        {/* Arguments */}
-                        <div>
-                            <p className="text-xs font-medium text-zinc-400 mb-1">Arguments</p>
-                            <pre className="text-xs bg-zinc-900/50 rounded p-2 overflow-x-auto">
-                                <code className="text-zinc-300">
-                                    {JSON.stringify(tool.arguments, null, 2) ?? '{}'}
-                                </code>
-                            </pre>
-                        </div>
+                    <div className="px-3 py-3 border-t border-border/10 space-y-3 bg-black/20">
+                        {/* Arguments Grid */}
+                        {Object.keys(tool.arguments).length > 0 && (
+                            <div className="space-y-1.5">
+                                <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Arguments</p>
+                                <div className="grid gap-2">
+                                    {Object.entries(tool.arguments).map(([key, value]) => (
+                                        <div key={key} className="flex flex-col gap-1 bg-background/30 rounded p-2 border border-white/5">
+                                            <span className="text-xs font-mono text-muted-foreground">{key}</span>
+                                            {typeof value === 'string' && value.includes('\n') ? (
+                                                <pre className="text-xs bg-black/30 p-2 rounded overflow-x-auto text-foreground/90 whitespace-pre-wrap font-mono">
+                                                    {value}
+                                                </pre>
+                                            ) : (
+                                                <code className="text-xs text-foreground/90 font-mono break-all">
+                                                    {JSON.stringify(value)}
+                                                </code>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Result */}
                         {tool.status === 'success' && tool.result && (
-                            <div>
-                                <p className="text-xs font-medium text-zinc-400 mb-1">Result</p>
-                                <pre className="text-xs bg-zinc-900/50 rounded p-2 overflow-x-auto max-h-40">
-                                    <code className="text-green-300">
-                                        {typeof tool.result === 'string'
-                                            ? tool.result.slice(0, 500)
-                                            : JSON.stringify(tool.result, null, 2).slice(0, 500)}
-                                        {(typeof tool.result === 'string' && tool.result.length > 500) ||
-                                            (typeof tool.result !== 'string' && JSON.stringify(tool.result).length > 500)
-                                            ? '...' : ''}
-                                    </code>
-                                </pre>
+                            <div className="space-y-1.5">
+                                <p className="text-[10px] font-semibold text-green-400/60 uppercase tracking-wider">Result</p>
+                                <div className="bg-green-500/5 border border-green-500/10 rounded-md overflow-hidden">
+                                    <pre className="text-xs p-3 overflow-x-auto max-h-60 scrollbar-thin scrollbar-thumb-green-500/20">
+                                        <code className="text-green-300/90 font-mono">
+                                            {typeof tool.result === 'string'
+                                                ? tool.result
+                                                : JSON.stringify(tool.result, null, 2)}
+                                        </code>
+                                    </pre>
+                                </div>
                             </div>
                         )}
 
                         {/* Error */}
                         {tool.status === 'error' && tool.error && (
-                            <div>
-                                <p className="text-xs font-medium text-red-400 mb-1">Error</p>
-                                <pre className="text-xs bg-red-900/20 rounded p-2 text-red-300">
-                                    {tool.error}
-                                </pre>
+                            <div className="space-y-1.5">
+                                <p className="text-[10px] font-semibold text-red-400/60 uppercase tracking-wider">Error</p>
+                                <div className="bg-red-500/5 border border-red-500/10 rounded-md p-3">
+                                    <pre className="text-xs text-red-300 font-mono whitespace-pre-wrap">
+                                        {tool.error}
+                                    </pre>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -218,20 +251,10 @@ function ToolExecutionItem({ tool, compact }: { tool: ToolExecution; compact?: b
 export function ToolExecutionList({ tools, className, compact = false }: ToolExecutionListProps) {
     if (tools.length === 0) return null;
 
-    if (compact) {
-        return (
-            <div className={cn('flex flex-wrap gap-1', className)}>
-                {tools.map((tool, i) => (
-                    <ToolExecutionItem key={i} tool={tool} compact />
-                ))}
-            </div>
-        );
-    }
-
     return (
-        <div className={cn('space-y-2', className)}>
+        <div className={cn('flex flex-col gap-2', className)}>
             {tools.map((tool, i) => (
-                <ToolExecutionItem key={i} tool={tool} />
+                <ToolExecutionItem key={i} tool={tool} compact={compact} />
             ))}
         </div>
     );
