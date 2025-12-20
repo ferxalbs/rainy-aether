@@ -29,9 +29,9 @@ import {
 
 interface ToolExecution {
     name: string;
-    arguments: Record<string, unknown>;
+    arguments: Record<string, any>;
     status: 'pending' | 'running' | 'success' | 'error';
-    result?: unknown;
+    result?: any;
     error?: string;
 }
 
@@ -177,7 +177,7 @@ function ToolExecutionItem({ tool, compact }: { tool: ToolExecution; compact?: b
                             <p className="text-xs font-medium text-zinc-400 mb-1">Arguments</p>
                             <pre className="text-xs bg-zinc-900/50 rounded p-2 overflow-x-auto">
                                 <code className="text-zinc-300">
-                                    {JSON.stringify(tool.arguments, null, 2)}
+                                    {JSON.stringify(tool.arguments, null, 2) ?? '{}'}
                                 </code>
                             </pre>
                         </div>
