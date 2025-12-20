@@ -14,8 +14,11 @@ import {
 import { useIDEStore } from "../../stores/ideStore";
 import { editorActions } from "../../stores/editorStore";
 import { terminalActions, getTerminalState } from "../../stores/terminalStore";
-import { panelActions } from "../../stores/panelStore";
+import { panelActions, usePanelState } from "../../stores/panelStore";
 import ModeSwitcher from "./ModeSwitcher";
+import { PanelLeft, PanelBottom, PanelRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "../ui/button";
 
 interface MenuBarProps {
   onOpenQuickOpen?: () => void;
@@ -42,6 +45,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 }) => {
   const { state, actions } = useIDEStore();
   const snapshot = state();
+  const panelState = usePanelState();
   const recentWorkspaces = snapshot.recentWorkspaces.slice(0, 5);
   const terminalState = getTerminalState();
   const activeSplit = terminalState.layout.splits.find(s => s.id === terminalState.layout.activeSplitId);
@@ -716,6 +720,39 @@ const MenuBar: React.FC<MenuBarProps> = ({
           </MenubarItem>
         </MenubarContent>
       </MenubarMenu>
+
+      {/* Right-aligned Layout Controls */}
+      <div className="ml-auto flex items-center pr-2 gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => actions.toggleSidebar()}
+          title="Toggle Sidebar"
+          className={cn("h-7 w-7 text-secondary p-1", snapshot.isSidebarOpen && "bg-muted text-foreground")}
+        >
+          <PanelLeft size={16} />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => panelActions.togglePanel('terminal')}
+          title="Toggle Panel"
+          className={cn("h-7 w-7 text-secondary p-1", panelState.isBottomPanelOpen && "bg-muted text-foreground")}
+        >
+          <PanelBottom size={16} />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => actions.toggleRightSidebar()}
+          title="Toggle Agents View"
+          className={cn("h-7 w-7 text-secondary p-1", snapshot.isRightSidebarOpen && "bg-muted text-foreground")}
+        >
+          <PanelRight size={16} />
+        </Button>
+      </div>
     </Menubar>
   );
 };
