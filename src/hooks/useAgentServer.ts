@@ -1,15 +1,16 @@
 /**
  * useAgentServer Hook
  * 
- * React hook for managing the agent server connection.
+ * React hook for managing the agent server connection with real HTTP health checks.
+ * Auto-starts the server on mount if not already running.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     AgentServerStatus,
     startAgentServer,
     stopAgentServer,
-    getAgentServerStatus,
+    refreshServerStatus,
     subscribeToServerStatus,
     checkServerHealth,
 } from '@/services/agentServer';
@@ -31,37 +32,53 @@ export function useAgentServer(): UseAgentServerReturn {
     const [isStopping, setIsStopping] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Subscribe to status changes
+    const healthCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const hasAutoStarted = useRef(false);
+
+    // Subscribe to status changes and start health polling
     useEffect(() => {
         const unsubscribe = subscribeToServerStatus(setStatus);
 
-        // Initial status check
-        getAgentServerStatus();
+        // Start health check polling
+        const pollHealth = async () => {
+            const newStatus = await refreshServerStatus();
 
-        return unsubscribe;
-    }, []);
-
-    // Health check polling
-    useEffect(() => {
-        if (!status?.running) return;
-
-        const interval = setInterval(async () => {
-            const isHealthy = await checkServerHealth();
-            if (!isHealthy && status?.running) {
-                // Server went down unexpectedly
-                console.warn('[useAgentServer] Server health check failed');
-                getAgentServerStatus();
+            // Auto-start server if not running and haven't tried already
+            if (!newStatus?.running && !hasAutoStarted.current && !isStarting) {
+                hasAutoStarted.current = true;
+                console.log('[useAgentServer] Server not running, auto-starting...');
+                startAgentServer().catch(err => {
+                    console.warn('[useAgentServer] Auto-start failed:', err);
+                    setError('Auto-start failed. Please start manually.');
+                });
             }
-        }, 10000); // Check every 10 seconds
+        };
 
-        return () => clearInterval(interval);
-    }, [status?.running]);
+        // Initial check
+        pollHealth();
+
+        // Poll every 5 seconds
+        healthCheckIntervalRef.current = setInterval(pollHealth, 5000);
+
+        return () => {
+            unsubscribe();
+            if (healthCheckIntervalRef.current) {
+                clearInterval(healthCheckIntervalRef.current);
+            }
+        };
+    }, []);
 
     const start = useCallback(async () => {
         setIsStarting(true);
         setError(null);
         try {
             await startAgentServer();
+            // Wait a bit and check health
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const isHealthy = await checkServerHealth();
+            if (!isHealthy) {
+                setError('Server started but health check failed. Check console.');
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err));
         } finally {
@@ -74,6 +91,7 @@ export function useAgentServer(): UseAgentServerReturn {
         setError(null);
         try {
             await stopAgentServer();
+            hasAutoStarted.current = false; // Allow auto-start again next time
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err));
         } finally {
@@ -82,7 +100,7 @@ export function useAgentServer(): UseAgentServerReturn {
     }, []);
 
     const refresh = useCallback(async () => {
-        await getAgentServerStatus();
+        await refreshServerStatus();
     }, []);
 
     return {

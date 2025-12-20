@@ -9,6 +9,7 @@
 
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager};
+use tauri_plugin_shell::process::CommandChild;
 
 /// State for the agent server process
 pub struct AgentServerState {
@@ -16,6 +17,8 @@ pub struct AgentServerState {
     pub is_running: Arc<Mutex<bool>>,
     /// Port the server is listening on
     pub port: Arc<Mutex<u16>>,
+    /// Child process handle for stopping
+    pub child: Arc<Mutex<Option<CommandChild>>>,
 }
 
 impl Default for AgentServerState {
@@ -23,6 +26,7 @@ impl Default for AgentServerState {
         Self {
             is_running: Arc::new(Mutex::new(false)),
             port: Arc::new(Mutex::new(3847)),
+            child: Arc::new(Mutex::new(None)),
         }
     }
 }
@@ -45,19 +49,32 @@ pub async fn agent_server_start(app: AppHandle) -> Result<u16, String> {
 
     let port: u16 = 3847;
 
+    // Get the app resource directory for finding the server files
+    let resource_dir = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("Failed to get resource dir: {}", e))?;
+
     // Try to spawn the server
     // In production, use the binary; in dev, use tsx
     #[cfg(debug_assertions)]
     {
-        // Development mode: use npx tsx
+        // Development mode: use pnpm to run the agent server
+        // The command runs from the project root
         let command = app
             .shell()
-            .command("npx")
-            .args(["tsx", "watch", "src/services/agents/server/index.ts"])
+            .command("pnpm")
+            .args(["agent:dev"])
             .env("INNGEST_PORT", port.to_string());
 
         match command.spawn() {
-            Ok(_child) => {
+            Ok((_rx, child)) => {
+                // Store child process for later cleanup
+                {
+                    let mut child_lock = state.child.lock().map_err(|e| e.to_string())?;
+                    *child_lock = Some(child);
+                }
+
                 let mut is_running = state.is_running.lock().map_err(|e| e.to_string())?;
                 *is_running = true;
                 let mut p = state.port.lock().map_err(|e| e.to_string())?;
@@ -73,23 +90,30 @@ pub async fn agent_server_start(app: AppHandle) -> Result<u16, String> {
     #[cfg(not(debug_assertions))]
     {
         // Production mode: use sidecar binary
-        use tauri_plugin_shell::process::CommandEvent;
-
         let sidecar = app
             .shell()
             .sidecar("rainy-agents-server")
             .map_err(|e| format!("Failed to get sidecar: {}", e))?
             .env("INNGEST_PORT", port.to_string());
 
-        let (mut _rx, _child) = sidecar
-            .spawn()
-            .map_err(|e| format!("Failed to spawn sidecar: {}", e))?;
+        match sidecar.spawn() {
+            Ok((_rx, child)) => {
+                // Store child process for later cleanup
+                {
+                    let mut child_lock = state.child.lock().map_err(|e| e.to_string())?;
+                    *child_lock = Some(child);
+                }
 
-        let mut is_running = state.is_running.lock().map_err(|e| e.to_string())?;
-        *is_running = true;
-        let mut p = state.port.lock().map_err(|e| e.to_string())?;
-        *p = port;
-        println!("[AgentServer] Started sidecar on port {}", port);
+                let mut is_running = state.is_running.lock().map_err(|e| e.to_string())?;
+                *is_running = true;
+                let mut p = state.port.lock().map_err(|e| e.to_string())?;
+                *p = port;
+                println!("[AgentServer] Started sidecar on port {}", port);
+            }
+            Err(e) => {
+                return Err(format!("Failed to spawn sidecar: {}", e));
+            }
+        }
     }
 
     Ok(port)
@@ -100,11 +124,18 @@ pub async fn agent_server_start(app: AppHandle) -> Result<u16, String> {
 pub async fn agent_server_stop(app: AppHandle) -> Result<(), String> {
     let state = app.state::<AgentServerState>();
 
+    // Kill the child process if we have one
+    {
+        let mut child_lock = state.child.lock().map_err(|e| e.to_string())?;
+        if let Some(child) = child_lock.take() {
+            if let Err(e) = child.kill() {
+                eprintln!("[AgentServer] Warning: Failed to kill child process: {}", e);
+            }
+        }
+    }
+
     let mut is_running = state.is_running.lock().map_err(|e| e.to_string())?;
     *is_running = false;
-
-    // Note: The child process will be killed when the app exits
-    // For explicit stop, we'd need to track the Child handle
 
     println!("[AgentServer] Stopped");
     Ok(())
@@ -128,14 +159,10 @@ pub fn agent_server_status(app: AppHandle) -> Result<serde_json::Value, String> 
 
 /// Health check for the agent server
 #[tauri::command]
-pub async fn agent_server_health(app: AppHandle) -> Result<bool, String> {
-    let state = app.state::<AgentServerState>();
-    let port = *state.port.lock().map_err(|e| e.to_string())?;
+pub async fn agent_server_health(_app: AppHandle) -> Result<bool, String> {
+    let port: u16 = 3847;
 
-    // Simple HTTP check
-    let url = format!("http://localhost:{}/health", port);
-
-    // Use a simple TCP check since we don't have reqwest
+    // Use a simple TCP check
     match std::net::TcpStream::connect_timeout(
         &format!("127.0.0.1:{}", port).parse().unwrap(),
         std::time::Duration::from_secs(1),

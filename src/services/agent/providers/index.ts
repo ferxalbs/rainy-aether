@@ -11,7 +11,7 @@ export type ThinkingMode = 'none' | 'auto' | 'low' | 'high';
 export interface ModelConfig {
   id: string;
   name: string;
-  provider: 'gemini' | 'groq' | 'cerebras';
+  provider: 'gemini' | 'groq' | 'cerebras' | 'anthropic' | 'openai' | 'enosislabs';
   model: string;
   description?: string;
   // Thinking capabilities
@@ -38,10 +38,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
   {
     id: 'gemini-flash-latest',
-    name: 'Gemini 2.5 Flash',
+    name: 'Gemini 3 Flash',
     provider: 'gemini',
-    model: 'gemini-2.5-flash',
-    description: 'Latest Gemini 2.5 model with improved performance',
+    model: 'gemini-3-flash-preview',
+    description: 'Latest Gemini 3 Flash model with improved performance',
     category: 'standard',
     supportsThinking: true,
     thinkingMode: 'none',
@@ -53,10 +53,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   // ===========================
   {
     id: 'gemini-flash-thinking-auto',
-    name: 'Gemini 2.5 Flash (Thinking Auto)',
+    name: 'Gemini 3 Flash (Dynamic Thinking)',
     provider: 'gemini',
-    model: 'gemini-2.5-flash',
-    description: 'Gemini 2.5 Flash with automatic thinking budget',
+    model: 'gemini-3-flash-preview',
+    description: 'Gemini 3 Flash with dynamic thinking budget',
     category: 'thinking',
     supportsThinking: true,
     thinkingMode: 'auto',
