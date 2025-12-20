@@ -30,7 +30,7 @@ import {
 interface ToolExecution {
     name: string;
     arguments: Record<string, any>;
-    status: 'pending' | 'running' | 'success' | 'error';
+    status?: 'pending' | 'running' | 'success' | 'error';
     result?: any;
     error?: string;
 }

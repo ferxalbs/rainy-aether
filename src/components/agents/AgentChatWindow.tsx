@@ -1,5 +1,5 @@
-import { AtSign, Image as ImageIcon, Send, Bot, Loader2, Terminal, CheckCircle2, XCircle, ChevronDown, ChevronRight, User, Settings, Sparkles } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { AtSign, Image as ImageIcon, Send, Bot, Loader2, User, Settings, Sparkles } from "lucide-react"
+import { useEffect, useRef } from "react"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -11,89 +11,7 @@ import { useActiveSession, agentActions } from "@/stores/agentStore"
 import { AVAILABLE_MODELS } from "@/services/agent/providers"
 import { ModelSelector } from "./ModelSelector"
 import { CodeBlock } from "./CodeBlock"
-
-// Helper to safely render tool results
-function renderToolResult(result: unknown): React.ReactNode {
-    if (result === null || result === undefined) {
-        return 'null';
-    }
-    if (typeof result === 'string') {
-        return result;
-    }
-    try {
-        return JSON.stringify(result, null, 2);
-    } catch {
-        return String(result);
-    }
-}
-
-function ToolCallItem({ tool }: { tool: any }) {
-    const [isExpanded, setIsExpanded] = useState(false);
-
-    return (
-        <div className="w-full bg-background border border-border rounded-md overflow-hidden mt-2 text-sm">
-            <div
-                className="flex items-center justify-between p-2 cursor-pointer hover:bg-muted transition-colors"
-                onClick={() => setIsExpanded(!isExpanded)}
-            >
-                <div className="flex items-center gap-2 text-muted-foreground">
-                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    <Terminal className="h-4 w-4" />
-                    <span className="font-medium text-foreground text-xs">{tool.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    {tool.status === 'success' && (
-                        <span className="text-[10px] text-green-500 flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Success
-                        </span>
-                    )}
-                    {tool.status === 'error' && (
-                        <span className="text-[10px] text-red-500 flex items-center gap-1">
-                            <XCircle className="h-3 w-3" />
-                            Error
-                        </span>
-                    )}
-                    {(tool.status === 'pending' || !tool.status) && (
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            Running
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            {isExpanded && (
-                <div className="p-3 border-t border-border bg-muted/10 space-y-3">
-                    <div>
-                        <div className="text-[10px] font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Arguments</div>
-                        <div className="bg-background p-2 rounded overflow-x-auto font-mono text-xs text-muted-foreground border border-border">
-                            <pre>{JSON.stringify(tool.arguments, null, 2)}</pre>
-                        </div>
-                    </div>
-
-                    {tool.status === 'success' && tool.result !== undefined && (
-                        <div>
-                            <div className="text-[10px] font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Result</div>
-                            <div className="bg-background p-2 rounded overflow-x-auto font-mono text-xs text-muted-foreground border border-border max-h-[200px]">
-                                <pre>{renderToolResult(tool.result)}</pre>
-                            </div>
-                        </div>
-                    )}
-
-                    {tool.status === 'error' && (
-                        <div>
-                            <div className="text-[10px] font-semibold text-red-500 mb-1 uppercase tracking-wider">Error Details</div>
-                            <div className="bg-red-500/10 text-red-500 p-2 rounded font-mono text-xs border border-red-500/20">
-                                {tool.error}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
+import { ToolExecutionList } from "./ToolExecutionList"
 
 export function AgentChatWindow() {
     const { messages, input, setInput, isLoading, sendMessage, streamingContent } = useAgentChat();
@@ -240,11 +158,7 @@ export function AgentChatWindow() {
 
                                     {/* Render Tool Calls */}
                                     {msg.toolCalls && msg.toolCalls.length > 0 && (
-                                        <div className="w-full space-y-2 mt-3">
-                                            {msg.toolCalls.map((tool) => (
-                                                <ToolCallItem key={tool.id} tool={tool} />
-                                            ))}
-                                        </div>
+                                        <ToolExecutionList tools={msg.toolCalls} className="mt-3" />
                                     )}
                                 </div>
                             </div>
