@@ -111,7 +111,7 @@ export class GeminiProvider implements AIProvider {
 
         return createChatMessage(
           'assistant',
-          response.text || 'I need to execute some tools to help you.',
+          response.text || '',
           toolCalls
         );
       }
@@ -175,7 +175,7 @@ export class GeminiProvider implements AIProvider {
 
       for await (const chunk of stream) {
         let chunkText = '';
-        
+
         // Safely extract text to avoid warnings about non-text parts (function calls)
         if (chunk.candidates && chunk.candidates[0] && chunk.candidates[0].content && chunk.candidates[0].content.parts) {
           for (const part of chunk.candidates[0].content.parts) {
@@ -220,7 +220,7 @@ export class GeminiProvider implements AIProvider {
 
       const finalMessage = createChatMessage(
         'assistant',
-        fullText || 'I need to execute some tools to help you.',
+        fullText || '',
         toolCalls.length > 0 ? toolCalls : undefined
       );
 

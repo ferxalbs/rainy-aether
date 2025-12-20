@@ -44,6 +44,39 @@ class ToolRegistry {
   }
 
   private registerDefaultTools() {
+    // --- Workspace Info Tool ---
+    this.registerTool({
+      name: "get_workspace_info",
+      description: "Get information about the current workspace. Returns the workspace path, name, and basic info. Use this first to understand where you are working.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+      },
+      execute: async () => {
+        try {
+          const workspace = getIDEState().workspace;
+          if (!workspace) {
+            return {
+              success: false,
+              error: 'No workspace is currently open. Please open a folder first.'
+            };
+          }
+          return {
+            success: true,
+            workspace: {
+              name: workspace.name,
+              path: workspace.path,
+            },
+            message: `Current workspace: ${workspace.name} at ${workspace.path}`
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to get workspace info: ${errorMsg}` };
+        }
+      },
+    });
+
     // --- File System Tools ---
     this.registerTool({
       name: "read_file",
@@ -117,9 +150,9 @@ class ToolRegistry {
             // Try fuzzy matching or whitespace normalization if exact match fails
             const looseContent = normalizedContent.replace(/\s+/g, ' ');
             const looseOldString = normalizedOldString.replace(/\s+/g, ' ');
-            
+
             if (looseContent.includes(looseOldString)) {
-               return {
+              return {
                 success: false,
                 error: `The text was found but with different whitespace/indentation. Please read the file again to get the exact content.`
               };
@@ -512,7 +545,7 @@ class ToolRegistry {
         },
         required: ["command"],
       },
-      execute: async ({ command, cwd, timeout = 30000 }) => {
+      execute: async ({ command, cwd, timeout: _timeout = 30000 }) => {
         try {
           if (!command || typeof command !== 'string') {
             return { success: false, error: 'Command parameter is required' };
@@ -524,14 +557,14 @@ class ToolRegistry {
           }
 
           const workingDir = cwd ? await this.resolvePath(cwd) : workspace.path;
-          const maxTimeout = Math.min(timeout, 120000);
+          // Note: timeout is available for future use with proper async command handling
 
           // Use terminal service to create a temporary session and capture output
           const terminalService = getTerminalService();
           const sessionId = await terminalService.create({ cwd: workingDir });
-          
+
           let output = '';
-          
+
           // Subscribe to data events
           const cleanup = terminalService.onData((id, data) => {
             if (id === sessionId) {
@@ -542,31 +575,31 @@ class ToolRegistry {
           try {
             // Send command
             await terminalService.write(sessionId, command + "\r\n");
-            
+
             // Wait for output with a smarter timeout strategy
             // We'll wait up to 5 seconds, but return early if we see a prompt or significant pause
             const startTime = Date.now();
             let lastOutputTime = Date.now();
-            
+
             while (Date.now() - startTime < 5000) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-                // If we haven't received output for 1 second and we have some output, assume command finished or paused
-                if (output.length > 0 && Date.now() - lastOutputTime > 1000) {
-                    break;
-                }
-                
-                // Update last output time if output length changed
-                // (This is a simplified check, ideally we'd track actual data events)
+              await new Promise(resolve => setTimeout(resolve, 100));
+
+              // If we haven't received output for 1 second and we have some output, assume command finished or paused
+              if (output.length > 0 && Date.now() - lastOutputTime > 1000) {
+                break;
+              }
+
+              // Update last output time if output length changed
+              // (This is a simplified check, ideally we'd track actual data events)
             }
-            
+
             // Clean up session
             await terminalService.kill(sessionId);
-            
+
             // Filter out ANSI escape codes for cleaner output
             // eslint-disable-next-line no-control-regex
             const cleanOutput = output.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
-            
+
             return {
               success: true,
               stdout: cleanOutput,

@@ -100,13 +100,23 @@ export class AgentService {
 
   /**
    * Execute tool calls and get a final response from the LLM
+   * Supports multiple rounds of tool execution (up to MAX_TOOL_ITERATIONS)
    */
   private async handleToolCalls(
     response: ChatMessage,
     history: ChatMessage[],
-    onChunk?: (chunk: StreamChunk) => void
+    onChunk?: (chunk: StreamChunk) => void,
+    iteration: number = 0
   ): Promise<ChatMessage> {
+    const MAX_TOOL_ITERATIONS = 5;
+
     if (!response.toolCalls || response.toolCalls.length === 0) {
+      return response;
+    }
+
+    if (iteration >= MAX_TOOL_ITERATIONS) {
+      console.warn('[AgentService] Max tool iterations reached, stopping to prevent infinite loop');
+      response.content = response.content || 'I completed several tool operations. Please review the results above.';
       return response;
     }
 
@@ -117,7 +127,7 @@ export class AgentService {
         if (onChunk) onChunk({ type: 'tool_update', fullMessage: response });
 
         const result = await toolRegistry.executeTool(toolCall.name, toolCall.arguments);
-        
+
         toolCall.result = result;
         toolCall.status = 'success';
         if (onChunk) onChunk({ type: 'tool_update', fullMessage: response });
@@ -131,7 +141,10 @@ export class AgentService {
     // Create a message with tool results to send back to the LLM
     const toolResultsContent = response.toolCalls.map(tc => {
       if (tc.status === 'success') {
-        return `Tool ${tc.name} executed successfully:\n${JSON.stringify(tc.result, null, 2)}`;
+        // Truncate very long results to avoid token limits
+        const resultStr = JSON.stringify(tc.result, null, 2);
+        const truncated = resultStr.length > 3000 ? resultStr.slice(0, 3000) + '\n... (truncated)' : resultStr;
+        return `Tool ${tc.name} executed successfully:\n${truncated}`;
       } else {
         return `Tool ${tc.name} failed with error: ${tc.error}`;
       }
@@ -140,33 +153,48 @@ export class AgentService {
     const toolResultsMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: `Tool execution results:\n\n${toolResultsContent}\n\nBased on these results, please provide your response to my original question.`,
+      content: `Tool execution results:\n\n${toolResultsContent}\n\nNow continue with your task. If you need more tools, call them. If you're done, provide a final response summarizing what you did.`,
       timestamp: new Date(),
     };
 
-    // Send tool results back to LLM for final response
+    // Send tool results back to LLM
     if (!this.provider) {
       return response;
     }
 
+    const tools = toolRegistry.getAllTools();
+
     try {
+      let nextResponse: ChatMessage;
+
       if (onChunk) {
-        const finalResponse = await this.provider.streamMessage(
+        nextResponse = await this.provider.streamMessage(
           [...history, response, toolResultsMessage],
-          [], // No tools on second pass to avoid infinite loops
+          tools, // Allow more tool calls in subsequent iterations
           onChunk
         );
-        return finalResponse;
       } else {
-        const finalResponse = await this.provider.sendMessage(
+        nextResponse = await this.provider.sendMessage(
           [...history, response, toolResultsMessage],
-          [] // No tools on second pass to avoid infinite loops
+          tools
         );
-        return finalResponse;
       }
+
+      // If the LLM wants more tool calls, recursively handle them
+      if (nextResponse.toolCalls && nextResponse.toolCalls.length > 0) {
+        return await this.handleToolCalls(
+          nextResponse,
+          [...history, response, toolResultsMessage],
+          onChunk,
+          iteration + 1
+        );
+      }
+
+      return nextResponse;
     } catch (error) {
-      console.error('Failed to get final response after tool execution:', error);
-      // Return the original response with tool results if final call fails
+      console.error('Failed to get response after tool execution:', error);
+      // Return the original response with tool results if call fails
+      response.content = response.content || 'Tool execution completed. Check the results above.';
       return response;
     }
   }
