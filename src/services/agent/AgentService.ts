@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { ChatMessage } from '@/types/chat';
 import { toolRegistry } from './ToolRegistry';
 import { AIProvider, StreamChunk, createProvider, ProviderCredentials } from './providers';
+import { brainService } from '@/services/BrainService';
 
 // ===========================
 // Configuration
@@ -36,6 +37,10 @@ export class AgentService {
     if (this.isInitialized) return;
 
     try {
+      // Check if brain sidecar is available
+      await brainService.checkHealth();
+      console.log(`[AgentService] Brain sidecar: ${brainService.connected ? 'connected' : 'not available, using local tools'}`);
+
       // Load credentials from Tauri secure storage
       const geminiKey = await this.loadCredential('gemini_api_key');
       const groqKey = await this.loadCredential('groq_api_key');
@@ -120,13 +125,31 @@ export class AgentService {
       return response;
     }
 
-    // Execute all tool calls
+    // Execute all tool calls - try BrainService first, fallback to local ToolRegistry
+    const useBrain = brainService.connected;
+
     for (const toolCall of response.toolCalls) {
       try {
         toolCall.status = 'pending';
         if (onChunk) onChunk({ type: 'tool_update', fullMessage: response });
 
-        const result = await toolRegistry.executeTool(toolCall.name, toolCall.arguments);
+        let result: unknown;
+
+        if (useBrain) {
+          // Use sidecar brain service (more reliable, no Tauri hangs)
+          const brainResult = await brainService.executeTool({
+            tool: toolCall.name,
+            args: toolCall.arguments,
+          });
+          result = brainResult.data ?? { error: brainResult.error };
+
+          if (!brainResult.success) {
+            throw new Error(brainResult.error || 'Tool execution failed');
+          }
+        } else {
+          // Fallback to local ToolRegistry (via Tauri)
+          result = await toolRegistry.executeTool(toolCall.name, toolCall.arguments);
+        }
 
         toolCall.result = result;
         toolCall.status = 'success';
