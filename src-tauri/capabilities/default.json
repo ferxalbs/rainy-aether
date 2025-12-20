@@ -3,7 +3,9 @@
   "identifier": "default",
   "description": "Capability for all windows",
   "local": true,
-  "windows": ["*"],
+  "windows": [
+    "*"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-create",
@@ -45,16 +47,33 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        { "path": "$HOME/**" },
-        { "path": "$DESKTOP/**" },
-        { "path": "$DOCUMENT/**" },
-        { "path": "C:/**" },
-        { "path": "D:/**" },
-        { "path": "E:/**" },
-        { "path": "**/*" }
+        {
+          "path": "$HOME/**"
+        },
+        {
+          "path": "$DESKTOP/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "C:/**"
+        },
+        {
+          "path": "D:/**"
+        },
+        {
+          "path": "E:/**"
+        },
+        {
+          "path": "**/*"
+        }
       ]
     },
     "dialog:allow-message",
-    "dialog:allow-save"
+    "dialog:allow-save",
+    "shell:default",
+    "shell:allow-spawn",
+    "shell:allow-execute"
   ]
 }
