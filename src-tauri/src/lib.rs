@@ -86,18 +86,23 @@ pub fn run() {
                     Ok(menu) => {
                         if let Err(e) = app.set_menu(menu) {
                             eprintln!("Failed to set macOS menu: {}", e);
+                        } else {
+                            println!("[MenuManager] ✓ Native macOS menu set successfully");
                         }
-
-                        // Handle menu events by emitting to frontend
-                        app.on_menu_event(move |app_handle, event| {
-                            let id = event.id().0.as_str();
-                            let _ = app_handle.emit("menu-action", id);
-                        });
                     }
                     Err(e) => {
                         eprintln!("Failed to build macOS menu: {}", e);
                     }
                 }
+
+                // Handle menu events by emitting to frontend (outside the match)
+                app.on_menu_event(move |app_handle, event| {
+                    let id = event.id().as_ref();
+                    println!("[MenuManager] Menu action triggered: {}", id);
+                    if let Err(e) = app_handle.emit("menu-action", id) {
+                        eprintln!("[MenuManager] Failed to emit menu action: {}", e);
+                    }
+                });
             }
 
             // Attach plugin following official example, and emit events on press
