@@ -1,3 +1,4 @@
+mod agent_server_manager;
 mod configuration_manager;
 mod credential_manager;
 mod extension_manager;
@@ -16,7 +17,7 @@ mod menu_manager; // Native macOS menu support
 mod project_manager;
 mod terminal_manager;
 mod update_manager;
-mod window_manager;
+mod window_manager; // Inngest/AgentKit sidecar manager
 
 #[tauri::command]
 fn open_windows_terminal(app: tauri::AppHandle, cwd: Option<String>) -> Result<(), String> {
@@ -66,6 +67,7 @@ pub fn run() {
         .manage(terminal_manager::TerminalState::default())
         .manage(language_server_manager::LanguageServerManager::new())
         .manage(language_server_manager_improved::LanguageServerManagerImproved::new())
+        .manage(agent_server_manager::AgentServerState::default())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -469,6 +471,11 @@ pub fn run() {
         font_manager::delete_font_file,
         font_manager::validate_font_file,
         font_manager::get_font_file_info,
+        // Agent server management (Inngest/AgentKit sidecar)
+        agent_server_manager::agent_server_start,
+        agent_server_manager::agent_server_stop,
+        agent_server_manager::agent_server_status,
+        agent_server_manager::agent_server_health,
     ]);
 
     if let Err(error) = builder.run(tauri::generate_context!()) {

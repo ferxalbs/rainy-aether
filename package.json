@@ -9,7 +9,12 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "update-server": "node scripts/update-server.js",
-    "test-update-server": "node scripts/test-update-server.js"
+    "test-update-server": "node scripts/test-update-server.js",
+    "agent:install": "cd src/services/agents/server && pnpm install",
+    "agent:dev": "cd src/services/agents/server && pnpm dev",
+    "agent:bundle": "cd src/services/agents/server && pnpm bundle",
+    "agent:build": "cd src/services/agents/server && pnpm build",
+    "agent:inngest": "npx inngest-cli@latest dev -u http://localhost:3847/api/inngest"
   },
   "dependencies": {
     "@ai-sdk/xai": "^2.0.41",
