@@ -60,7 +60,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     category: 'thinking',
     supportsThinking: true,
     thinkingMode: 'auto',
-    thinkingConfig: { thinkingBudget: -1 },
+    thinkingConfig: { thinkingBudget: -1, includeThoughts: true },
   },
 
   // ===========================
@@ -75,7 +75,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     category: 'thinking',
     supportsThinking: true,
     thinkingMode: 'low',
-    thinkingConfig: { thinkingLevel: 'LOW' },
+    thinkingConfig: { thinkingLevel: 'LOW', includeThoughts: true },
   },
   {
     id: 'gemini-3-pro-thinking-high',
@@ -86,7 +86,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     category: 'thinking',
     supportsThinking: true,
     thinkingMode: 'high',
-    thinkingConfig: { thinkingLevel: 'HIGH' },
+    thinkingConfig: { thinkingLevel: 'HIGH', includeThoughts: true },
   },
 
   // Groq Models (using Llama and Mixtral)

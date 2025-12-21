@@ -23,6 +23,8 @@ export interface GeminiThinkingConfig {
   thinkingBudget?: number;
   // For Gemini 3 Pro: 'LOW' | 'HIGH'
   thinkingLevel?: 'LOW' | 'HIGH';
+  // Whether to include thoughts in response (required to see thinking)
+  includeThoughts?: boolean;
 }
 
 // Shared circuit breaker for all Gemini API calls
@@ -117,6 +119,11 @@ export class GeminiProvider implements AIProvider {
       if (this.thinkingConfig.thinkingLevel) {
         config.config.thinkingConfig.thinkingLevel = this.thinkingConfig.thinkingLevel;
       }
+
+      // Enable thoughts in response
+      if (this.thinkingConfig.includeThoughts) {
+        config.config.thinkingConfig.includeThoughts = true;
+      }
     }
 
     // Add tools if available
@@ -200,6 +207,11 @@ export class GeminiProvider implements AIProvider {
 
       if (this.thinkingConfig.thinkingLevel) {
         config.config.thinkingConfig.thinkingLevel = this.thinkingConfig.thinkingLevel;
+      }
+
+      // Enable thoughts in response
+      if (this.thinkingConfig.includeThoughts) {
+        config.config.thinkingConfig.includeThoughts = true;
       }
     }
 
