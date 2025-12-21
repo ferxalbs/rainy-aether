@@ -90,6 +90,9 @@ export class GeminiProvider implements AIProvider {
     const geminiMessages = this.convertMessagesToGeminiFormat(messages);
     const functionDeclarations = this.convertToolsToGeminiFormat(tools);
 
+    // DEBUG: Log system prompt (first 200 chars)
+    console.log('[GeminiProvider] System prompt preview:', systemPrompt?.substring(0, 200));
+
     // Build the request config
     const config: any = {
       model: this.config.model,
@@ -170,6 +173,9 @@ export class GeminiProvider implements AIProvider {
     const systemPrompt = messages.find((m) => m.role === 'system')?.content;
     const geminiMessages = this.convertMessagesToGeminiFormat(messages);
     const functionDeclarations = this.convertToolsToGeminiFormat(tools);
+
+    // DEBUG: Log system prompt (first 200 chars)
+    console.log('[GeminiProvider] Stream - System prompt preview:', systemPrompt?.substring(0, 200));
 
     // Build the request config
     const config: any = {

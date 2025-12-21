@@ -114,16 +114,16 @@ export class AgentService {
     onChunk?: (chunk: StreamChunk) => void,
     iteration: number = 0
   ): Promise<ChatMessage> {
-    // Allow more iterations for complex tasks - each iteration can have multiple tool calls
-    const MAX_TOOL_ITERATIONS = 200;
+    // Reasonable limit for complex tasks
+    const MAX_TOOL_ITERATIONS = 50;
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
       return response;
     }
 
     if (iteration >= MAX_TOOL_ITERATIONS) {
-      console.warn(`[AgentService] Max tool iterations (${MAX_TOOL_ITERATIONS}) reached, stopping to prevent infinite loop`);
-      response.content = response.content || `I reached the maximum number of tool operations (${MAX_TOOL_ITERATIONS} rounds). Here's what I completed - let me know if you need me to continue.`;
+      console.warn(`[AgentService] Max tool iterations (${MAX_TOOL_ITERATIONS}) reached`);
+      response.content = response.content || `Completed ${MAX_TOOL_ITERATIONS} tool operations. Let me know if you need more.`;
       return response;
     }
 
@@ -181,7 +181,7 @@ export class AgentService {
     const toolResultsMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: `Tool execution results:\n\n${toolResultsContent}\n\nNow continue with your task. If you need more tools, call them. If you're done, provide a final response summarizing what you did.`,
+      content: `Tool execution results:\n\n${toolResultsContent}\n\nIMPORTANT: Respond to the user NOW with your findings. Do NOT call the same tool again. Only use a tool if absolutely necessary for a DIFFERENT purpose.`,
       timestamp: new Date(),
     };
 

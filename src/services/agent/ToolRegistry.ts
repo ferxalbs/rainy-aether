@@ -351,7 +351,18 @@ class ToolRegistry {
 
     this.registerTool({
       name: "search_code",
-      description: "Search for code across the workspace using text or regex patterns. Returns matching files and line numbers.",
+      description: `Search for code using ripgrep (rg). Fast regex-powered search.
+
+⚠️ IMPORTANT USAGE RULES:
+- Call this tool ONCE per search query
+- After getting results, PRESENT THEM TO THE USER
+- Do NOT call again with the same or similar query
+- If search fails, try a different approach (read_file, list_dir)
+
+Examples:
+- search_code({ query: "TODO:" }) - Find all TODOs
+- search_code({ query: "function.*auth", is_regex: true }) - Regex search
+- search_code({ query: "useState", file_pattern: "*.tsx" }) - Filter by file type`,
       parameters: {
         type: "object",
         properties: {
@@ -361,20 +372,40 @@ class ToolRegistry {
           },
           file_pattern: {
             type: "string",
-            description: "Optional glob pattern to filter files (e.g., '*.ts', 'src/**/*.tsx')."
+            description: "Glob pattern to filter files (e.g., '*.ts', '*.{ts,tsx}')."
+          },
+          path: {
+            type: "string",
+            description: "Directory to search in (relative to workspace). Default: entire workspace."
           },
           is_regex: {
             type: "boolean",
-            description: "Whether to treat query as a regex pattern (default: false)."
+            description: "Treat query as regex (default: false, literal search)."
+          },
+          case_sensitive: {
+            type: "boolean",
+            description: "Case sensitive search (default: true)."
+          },
+          context_lines: {
+            type: "number",
+            description: "Number of context lines before/after match (default: 0)."
           },
           max_results: {
             type: "number",
-            description: "Maximum number of results to return (default: 50)."
+            description: "Maximum results to return (default: 50)."
           },
         },
         required: ["query"],
       },
-      execute: async ({ query, file_pattern, is_regex = false, max_results = 50 }) => {
+      execute: async ({
+        query,
+        file_pattern,
+        path = ".",
+        is_regex = false,
+        case_sensitive = true,
+        context_lines = 0,
+        max_results = 50
+      }) => {
         try {
           if (!query || typeof query !== 'string') {
             return { success: false, error: 'Query parameter is required' };
@@ -385,28 +416,113 @@ class ToolRegistry {
             return { success: false, error: 'No workspace open' };
           }
 
-          // Use ripgrep via Tauri command if available, otherwise fallback to simple search
+          // Build ripgrep command
+          const args: string[] = ['rg'];
+
+          // Output format: file:line:content
+          args.push('--line-number');
+          args.push('--no-heading');
+          args.push('--color=never');
+
+          // Max count
+          args.push(`--max-count=${Math.ceil(max_results / 5)}`); // Per file limit
+
+          // Case sensitivity
+          if (!case_sensitive) {
+            args.push('--ignore-case');
+          }
+
+          // Fixed string vs regex
+          if (!is_regex) {
+            args.push('--fixed-strings');
+          }
+
+          // Context lines
+          if (context_lines > 0) {
+            args.push(`--context=${Math.min(context_lines, 5)}`);
+          }
+
+          // File pattern filter
+          if (file_pattern) {
+            args.push(`--glob=${file_pattern}`);
+          }
+
+          // Exclude common non-code directories
+          args.push('--glob=!node_modules');
+          args.push('--glob=!target');
+          args.push('--glob=!dist');
+          args.push('--glob=!.git');
+          args.push('--glob=!*.lock');
+
+          // The search pattern (escaped for shell)
+          const escapedQuery = query.replace(/"/g, '\\"');
+          args.push(`"${escapedQuery}"`);
+
+          // Search path
+          const searchPath = await this.resolvePath(path);
+          args.push(`"${searchPath}"`);
+
+          const command = args.join(' ');
+
+          // Execute via run_command
+          const terminalService = getTerminalService();
+          const sessionId = await terminalService.create({ cwd: workspace.path });
+
+          let output = '';
+          const cleanup = terminalService.onData((id, data) => {
+            if (id === sessionId) {
+              output += data;
+            }
+          });
+
           try {
-            // Try to use a search command if available
-            const results = await invoke<any[]>("search_workspace", {
-              path: workspace.path,
-              query,
-              filePattern: file_pattern,
-              isRegex: is_regex,
-              maxResults: max_results
-            });
+            await terminalService.write(sessionId, command + "\r\n");
+
+            // Wait for output
+            const startTime = Date.now();
+            while (Date.now() - startTime < 5000) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+              if (output.length > 100 && Date.now() - startTime > 500) break;
+            }
+
+            await terminalService.kill(sessionId);
+
+            // Parse ripgrep output
+            // eslint-disable-next-line no-control-regex
+            const cleanOutput = output.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+            const lines = cleanOutput.split('\n').filter(l => l.includes(':'));
+
+            const results: Array<{ file: string; line: number; content: string }> = [];
+
+            for (const line of lines.slice(0, max_results)) {
+              // Format: file:line:content
+              const match = line.match(/^([^:]+):(\d+):(.*)$/);
+              if (match) {
+                results.push({
+                  file: match[1].replace(workspace.path, '.'),
+                  line: parseInt(match[2], 10),
+                  content: match[3].trim()
+                });
+              }
+            }
+
+            if (results.length === 0) {
+              return {
+                success: true,
+                message: `No matches found for "${query}"`,
+                results: [],
+                total: 0
+              };
+            }
 
             return {
               success: true,
               results,
-              total: results.length
+              total: results.length,
+              message: `Found ${results.length} matches for "${query}"`
             };
-          } catch {
-            // Fallback: manual search through files
-            return {
-              success: false,
-              error: 'Code search not yet implemented in backend. Use read_file and manual searching for now.'
-            };
+          } finally {
+            cleanup();
           }
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
