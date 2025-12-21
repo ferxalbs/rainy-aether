@@ -8,6 +8,11 @@ import {
   createChatMessage,
   generateMessageId,
 } from './base';
+import {
+  withResilience,
+  CircuitBreaker,
+  ResilientOptions
+} from './retryUtils';
 
 // ===========================
 // Gemini Provider
@@ -19,6 +24,26 @@ export interface GeminiThinkingConfig {
   // For Gemini 3 Pro: 'LOW' | 'HIGH'
   thinkingLevel?: 'LOW' | 'HIGH';
 }
+
+// Shared circuit breaker for all Gemini API calls
+const geminiCircuitBreaker = new CircuitBreaker({
+  failureThreshold: 3,
+  resetTimeoutMs: 30000,
+  onOpen: () => console.warn('[GeminiProvider] Circuit breaker OPEN - pausing requests'),
+  onClose: () => console.log('[GeminiProvider] Circuit breaker CLOSED - resuming requests'),
+});
+
+// Default resilience options for Gemini API calls
+const GEMINI_RESILIENCE_OPTIONS: ResilientOptions = {
+  maxRetries: 3,
+  baseDelayMs: 1500,
+  maxDelayMs: 30000,
+  timeoutMs: 60000, // 60 second timeout per attempt
+  circuitBreaker: geminiCircuitBreaker,
+  onRetry: (attempt, error, nextDelay) => {
+    console.warn(`[GeminiProvider] Retry ${attempt}: ${error.message}. Next attempt in ${nextDelay}ms`);
+  },
+};
 
 export class GeminiProvider implements AIProvider {
   private client: GoogleGenAI;
@@ -55,49 +80,53 @@ export class GeminiProvider implements AIProvider {
   }
 
   /**
-   * Send a non-streaming message
+   * Send a non-streaming message with retry logic
    */
   async sendMessage(
     messages: ChatMessage[],
     tools: ToolDefinition[]
   ): Promise<ChatMessage> {
-    try {
-      const systemPrompt = messages.find((m) => m.role === 'system')?.content;
-      const geminiMessages = this.convertMessagesToGeminiFormat(messages);
-      const functionDeclarations = this.convertToolsToGeminiFormat(tools);
+    const systemPrompt = messages.find((m) => m.role === 'system')?.content;
+    const geminiMessages = this.convertMessagesToGeminiFormat(messages);
+    const functionDeclarations = this.convertToolsToGeminiFormat(tools);
 
-      // Build the request config
-      const config: any = {
-        model: this.config.model,
-        contents: geminiMessages,
-        systemInstruction: systemPrompt,
-        config: {
-          generationConfig: {
-            temperature: this.config.temperature || 0.7,
-            maxOutputTokens: this.config.maxTokens || 2048,
-          },
+    // Build the request config
+    const config: any = {
+      model: this.config.model,
+      contents: geminiMessages,
+      systemInstruction: systemPrompt,
+      config: {
+        generationConfig: {
+          temperature: this.config.temperature || 0.7,
+          maxOutputTokens: this.config.maxTokens || 2048,
         },
-      };
+      },
+    };
 
-      // Add thinking config if available
-      if (this.thinkingConfig) {
-        config.config.thinkingConfig = {};
+    // Add thinking config if available
+    if (this.thinkingConfig) {
+      config.config.thinkingConfig = {};
 
-        if (this.thinkingConfig.thinkingBudget !== undefined) {
-          config.config.thinkingConfig.thinkingBudget = this.thinkingConfig.thinkingBudget;
-        }
-
-        if (this.thinkingConfig.thinkingLevel) {
-          config.config.thinkingConfig.thinkingLevel = this.thinkingConfig.thinkingLevel;
-        }
+      if (this.thinkingConfig.thinkingBudget !== undefined) {
+        config.config.thinkingConfig.thinkingBudget = this.thinkingConfig.thinkingBudget;
       }
 
-      // Add tools if available
-      if (functionDeclarations.length > 0) {
-        config.config.tools = [{ functionDeclarations }];
+      if (this.thinkingConfig.thinkingLevel) {
+        config.config.thinkingConfig.thinkingLevel = this.thinkingConfig.thinkingLevel;
       }
+    }
 
-      const response = await this.client.models.generateContent(config);
+    // Add tools if available
+    if (functionDeclarations.length > 0) {
+      config.config.tools = [{ functionDeclarations }];
+    }
+
+    try {
+      // Wrap API call with retry and circuit breaker
+      const response = await withResilience(
+        () => this.client.models.generateContent(config),
+        GEMINI_RESILIENCE_OPTIONS
+      );
 
       // Check for function calls
       const functionCalls = response.functionCalls;
@@ -119,56 +148,70 @@ export class GeminiProvider implements AIProvider {
       // Regular text response
       return createChatMessage('assistant', response.text || '');
     } catch (error) {
-      console.error('Gemini API error:', error);
-      throw new Error(`Gemini API failed: ${error}`);
+      console.error('[GeminiProvider] API error after retries:', error);
+
+      // Return a user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Circuit breaker')) {
+        throw new Error('Service temporarily unavailable. Please try again in a few seconds.');
+      }
+      throw new Error(`Gemini API failed: ${errorMessage}`);
     }
   }
 
   /**
-   * Send a streaming message
+   * Send a streaming message with retry logic
    */
   async streamMessage(
     messages: ChatMessage[],
     tools: ToolDefinition[],
     onChunk: (chunk: StreamChunk) => void
   ): Promise<ChatMessage> {
-    try {
-      const systemPrompt = messages.find((m) => m.role === 'system')?.content;
-      const geminiMessages = this.convertMessagesToGeminiFormat(messages);
-      const functionDeclarations = this.convertToolsToGeminiFormat(tools);
+    const systemPrompt = messages.find((m) => m.role === 'system')?.content;
+    const geminiMessages = this.convertMessagesToGeminiFormat(messages);
+    const functionDeclarations = this.convertToolsToGeminiFormat(tools);
 
-      // Build the request config
-      const config: any = {
-        model: this.config.model,
-        contents: geminiMessages,
-        systemInstruction: systemPrompt,
-        config: {
-          generationConfig: {
-            temperature: this.config.temperature || 0.7,
-            maxOutputTokens: this.config.maxTokens || 2048,
-          },
+    // Build the request config
+    const config: any = {
+      model: this.config.model,
+      contents: geminiMessages,
+      systemInstruction: systemPrompt,
+      config: {
+        generationConfig: {
+          temperature: this.config.temperature || 0.7,
+          maxOutputTokens: this.config.maxTokens || 2048,
         },
-      };
+      },
+    };
 
-      // Add thinking config if available
-      if (this.thinkingConfig) {
-        config.config.thinkingConfig = {};
+    // Add thinking config if available
+    if (this.thinkingConfig) {
+      config.config.thinkingConfig = {};
 
-        if (this.thinkingConfig.thinkingBudget !== undefined) {
-          config.config.thinkingConfig.thinkingBudget = this.thinkingConfig.thinkingBudget;
-        }
-
-        if (this.thinkingConfig.thinkingLevel) {
-          config.config.thinkingConfig.thinkingLevel = this.thinkingConfig.thinkingLevel;
-        }
+      if (this.thinkingConfig.thinkingBudget !== undefined) {
+        config.config.thinkingConfig.thinkingBudget = this.thinkingConfig.thinkingBudget;
       }
 
-      // Add tools if available
-      if (functionDeclarations.length > 0) {
-        config.config.tools = [{ functionDeclarations }];
+      if (this.thinkingConfig.thinkingLevel) {
+        config.config.thinkingConfig.thinkingLevel = this.thinkingConfig.thinkingLevel;
       }
+    }
 
-      const stream = await this.client.models.generateContentStream(config);
+    // Add tools if available
+    if (functionDeclarations.length > 0) {
+      config.config.tools = [{ functionDeclarations }];
+    }
+
+    try {
+      // Wrap the stream creation with retry (not the iteration)
+      const stream = await withResilience(
+        () => this.client.models.generateContentStream(config),
+        {
+          ...GEMINI_RESILIENCE_OPTIONS,
+          // Shorter timeout for stream initialization
+          timeoutMs: 30000,
+        }
+      );
 
       let fullText = '';
       let toolCalls: ToolCall[] = [];
@@ -231,8 +274,14 @@ export class GeminiProvider implements AIProvider {
 
       return finalMessage;
     } catch (error) {
-      console.error('Gemini streaming error:', error);
-      throw new Error(`Gemini streaming failed: ${error}`);
+      console.error('[GeminiProvider] Streaming error after retries:', error);
+
+      // Return a user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Circuit breaker')) {
+        throw new Error('Service temporarily unavailable. Please try again in a few seconds.');
+      }
+      throw new Error(`Gemini streaming failed: ${errorMessage}`);
     }
   }
 }
