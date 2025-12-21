@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { AgentService } from '@/services/agent/AgentService';
 import { ChatMessage } from '@/types/chat';
 import {
@@ -11,7 +11,9 @@ import { StreamChunk } from '@/services/agent/providers';
 export function useAgentChat() {
   const activeSession = useActiveSession();
   const isStoreLoading = useAgentLoading();
-  const [input, setInput] = useState('');
+
+  // Use local state for input - isolated from store updates
+  const [input, setInputState] = useState('');
   const [streamingContent, setStreamingContent] = useState('');
 
   // Use a ref to persist the service instance across renders
@@ -35,11 +37,23 @@ export function useAgentChat() {
     }
   }, [sessionId, sessionModel, sessionSystemPrompt]);
 
-  const sendMessage = useCallback(async () => {
-    if (!input.trim() || !activeSession || !agentServiceRef.current) return;
+  // Memoize setInput to prevent unnecessary re-renders
+  const setInput = useCallback((value: string) => {
+    setInputState(value);
+  }, []);
 
-    const userMessageContent = input;
-    setInput(''); // Clear input immediately
+  // Cache messages to avoid re-creating array on every render
+  const messages = useMemo(() => {
+    return activeSession?.messages || [];
+  }, [activeSession?.messages]);
+
+  // sendMessage now accepts an optional message parameter for direct sending
+  const sendMessage = useCallback(async (directMessage?: string) => {
+    const messageToSend = directMessage || input;
+    if (!messageToSend.trim() || !activeSession || !agentServiceRef.current) return;
+
+    const userMessageContent = messageToSend.trim();
+    setInputState(''); // Clear input immediately
     agentActions.setLoading(true);
 
     try {
@@ -122,7 +136,7 @@ export function useAgentChat() {
   }, [activeSession]);
 
   return {
-    messages: activeSession?.messages || [],
+    messages,
     input,
     setInput,
     isLoading: isStoreLoading,

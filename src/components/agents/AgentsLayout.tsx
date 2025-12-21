@@ -32,8 +32,8 @@ export function AgentsLayout() {
             {/* Sidebar - uses transform for GPU-accelerated animation */}
             <aside
                 className={cn(
-                    "h-full shrink-0 border-r border-border transition-[width,transform] duration-200 ease-out will-change-transform",
-                    isSidebarOpen ? "w-[280px]" : "w-0"
+                    "h-full shrink-0 border-r border-border transition-[width,transform] duration-200 ease-out will-change-transform overflow-hidden",
+                    isSidebarOpen ? "w-[280px]" : "w-0 border-r-0"
                 )}
                 style={{
                     transform: isSidebarOpen ? 'translateX(0)' : `translateX(-${SIDEBAR_WIDTH}px)`,

@@ -1,10 +1,9 @@
 import { Send, Bot, Loader2, User, Sparkles, Cpu } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, memo, useCallback, useState } from "react"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { useAgentChat } from "@/hooks/useAgentChat"
 import { cn } from "@/lib/utils"
 import { useActiveSession, agentActions } from "@/stores/agentStore"
@@ -25,8 +24,163 @@ export interface AgentChatWindowProps {
     compact?: boolean;
 }
 
+// ============================================
+// ISOLATED INPUT COMPONENT - CRITICAL FOR PERF
+// Uses uncontrolled input to avoid re-renders
+// ============================================
+interface ChatInputAreaProps {
+    compact: boolean;
+    isLoading: boolean;
+    onSend: (message: string) => void;
+    activeSessionId?: string;
+    activeSessionModel?: string;
+}
+
+const ChatInputArea = memo(function ChatInputArea({
+    compact,
+    isLoading,
+    onSend,
+    activeSessionId,
+    activeSessionModel
+}: ChatInputAreaProps) {
+    // Use uncontrolled input with ref - NO STATE = NO RE-RENDERS
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+    const [hasContent, setHasContent] = useState(false);
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const value = inputRef.current?.value.trim() || '';
+            if (value && !isLoading) {
+                onSend(value);
+                if (inputRef.current) {
+                    inputRef.current.value = '';
+                    setHasContent(false);
+                }
+            }
+        }
+    }, [isLoading, onSend]);
+
+    const handleSendClick = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        const value = inputRef.current?.value.trim() || '';
+        if (value && !isLoading) {
+            onSend(value);
+            if (inputRef.current) {
+                inputRef.current.value = '';
+                setHasContent(false);
+            }
+        }
+    }, [isLoading, onSend]);
+
+    const handleInput = useCallback(() => {
+        const hasText = !!(inputRef.current?.value.trim());
+        if (hasText !== hasContent) {
+            setHasContent(hasText);
+        }
+    }, [hasContent]);
+
+    const handleModelChange = useCallback((modelId: string) => {
+        if (activeSessionId) {
+            agentActions.updateSessionModel(activeSessionId, modelId);
+        }
+    }, [activeSessionId]);
+
+    return (
+        <div className={cn("shrink-0 p-4 bg-background", compact && "p-2")}>
+            <div className="max-w-4xl mx-auto w-full relative">
+                <div className={cn(
+                    "relative rounded-xl border border-border bg-muted/30 focus-within:bg-muted/40 focus-within:border-primary/20 transition-all duration-200 shadow-sm",
+                    compact && "rounded-lg"
+                )}>
+                    <textarea
+                        ref={inputRef}
+                        onKeyDown={handleKeyDown}
+                        onInput={handleInput}
+                        placeholder={compact ? "Ask anything..." : "Ask, search, or make anything..."}
+                        className={cn(
+                            "min-h-[52px] max-h-[200px] w-full resize-none border-0 bg-transparent px-4 py-3.5 text-base focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none placeholder:text-muted-foreground/40 text-foreground/90 leading-relaxed scrollbar-hide",
+                            compact && "min-h-[44px] px-3 py-2.5 text-sm"
+                        )}
+                        disabled={isLoading}
+                    />
+
+                    {/* Bottom Actions Bar */}
+                    <div className={cn("flex items-center justify-between px-2 pb-2", compact && "px-1 pb-1")}>
+                        <div className="flex items-center gap-1">
+                            {/* Auto / Model Selector */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-background/50 hover:text-foreground transition-all group text-xs font-medium text-muted-foreground/70">
+                                        <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+                                        {!compact && (
+                                            <span className="group-hover:text-primary transition-colors">
+                                                {activeSessionModel ? (AVAILABLE_MODELS.find(m => m.id === activeSessionModel)?.name || 'Auto') : 'Auto'}
+                                            </span>
+                                        )}
+                                        <ChevronDown className="h-3 w-3 opacity-50" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-[200px]">
+                                    <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Select Agent Mode</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {AVAILABLE_MODELS.map((model) => (
+                                        <DropdownMenuItem
+                                            key={model.id}
+                                            onClick={() => handleModelChange(model.id)}
+                                            className="flex items-center justify-between cursor-pointer"
+                                        >
+                                            <span>{model.name}</span>
+                                            {activeSessionModel === model.id && (
+                                                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                            )}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            {/* Web Search Toggle */}
+                            <button className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-background/50 hover:text-foreground transition-all group text-xs font-medium text-muted-foreground/70">
+                                <Globe className="h-3.5 w-3.5 group-hover:text-blue-400 transition-colors" />
+                                {!compact && <span>Search</span>}
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <Button
+                                size="icon"
+                                className={cn(
+                                    "h-7 w-7 rounded-full transition-all duration-300 shadow-sm",
+                                    hasContent
+                                        ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
+                                        : "bg-muted text-muted-foreground hover:bg-muted/80 opacity-50 cursor-not-allowed",
+                                    compact && "h-6 w-6"
+                                )}
+                                onClick={handleSendClick}
+                                disabled={isLoading || !hasContent}
+                            >
+                                {isLoading ? (
+                                    <div className="h-2 w-2 bg-current rounded-full" />
+                                ) : (
+                                    <Send className="h-3.5 w-3.5" />
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                {!compact && (
+                    <div className="text-center mt-2 flex items-center justify-center gap-1.5 opacity-40 hover:opacity-100 transition-opacity">
+                        <span className="text-[10px] text-muted-foreground font-medium">Rainy Agent can make mistakes. Check important info.</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+});
+
 export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
-    const { messages, input, setInput, isLoading, sendMessage, streamingContent } = useAgentChat();
+    const { messages, isLoading, sendMessage, streamingContent } = useAgentChat();
     const activeSession = useActiveSession();
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -38,23 +192,12 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
         }
     }, [messages, streamingContent]);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    };
-
-    const handleSendClick = (e: React.MouseEvent) => {
-        e.preventDefault();
-        sendMessage();
-    };
-
-    const handleModelChange = (modelId: string) => {
+    // Callback for sending messages from the isolated input
+    const handleSend = useCallback((message: string) => {
         if (activeSession) {
-            agentActions.updateSessionModel(activeSession.id, modelId);
+            sendMessage(message);
         }
-    };
+    }, [activeSession, sendMessage]);
 
     const renderMessageContent = (content: string) => {
         return (
@@ -133,13 +276,17 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
         );
     };
 
+    // Filter out system messages for display
+    const displayMessages = messages.filter(msg => msg.role !== 'system');
+    const hasUserMessages = displayMessages.length > 0;
+
     return (
         <div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
             {/* Top Bar removed - moved to AgentsLayout */}
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-0 scroll-smooth" ref={scrollRef}>
-                {messages.length === 0 ? (
+                {!hasUserMessages ? (
                     <div className={cn("h-full flex flex-col items-center justify-center p-8", compact && "p-4")}>
                         <div className={cn("flex flex-col items-center gap-6 max-w-lg text-center animate-in fade-in zoom-in-95 duration-500", compact && "gap-4")}>
                             <div className={cn(
@@ -171,7 +318,7 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                                         <button
                                             key={i}
                                             className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-white/5 hover:bg-muted/50 hover:border-white/10 transition-all text-sm text-muted-foreground hover:text-foreground text-left group"
-                                            onClick={() => setInput(item.label)}
+                                            onClick={() => handleSend(item.label)}
                                         >
                                             <div className="p-2 rounded-lg bg-background/50 group-hover:bg-background transition-colors">
                                                 {/* @ts-ignore - Lucide icon compatibility */}
@@ -186,7 +333,7 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                     </div>
                 ) : (
                     <div className="flex flex-col gap-0 min-h-full">
-                        {messages.filter(msg => msg.role !== 'system').map((msg) => (
+                        {displayMessages.map((msg) => (
                             <div key={msg.id} className={cn(
                                 "flex gap-6 px-6 py-8 border-b border-border/40 group transition-colors",
                                 compact && "gap-3 px-3 py-4",
@@ -259,97 +406,14 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                 )}
             </div>
 
-            {/* Input Area */}
-            <div className={cn("shrink-0 p-4 bg-background", compact && "p-2")}>
-                <div className="max-w-4xl mx-auto w-full relative">
-                    <div className={cn(
-                        "relative rounded-xl border border-border bg-muted/30 focus-within:bg-muted/40 focus-within:border-primary/20 transition-all duration-200 shadow-sm",
-                        compact && "rounded-lg"
-                    )}>
-
-                        <Textarea
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder={compact ? "Ask anything..." : "Ask, search, or make anything..."}
-                            className={cn(
-                                "min-h-[52px] max-h-[200px] w-full resize-none border-0 bg-transparent px-4 py-3.5 text-base focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/40 text-foreground/90 leading-relaxed scrollbar-hide",
-                                compact && "min-h-[44px] px-3 py-2.5 text-sm"
-                            )}
-                            disabled={isLoading}
-                        />
-
-                        {/* Bottom Actions Bar */}
-                        <div className={cn("flex items-center justify-between px-2 pb-2", compact && "px-1 pb-1")}>
-                            <div className="flex items-center gap-1">
-                                {/* Auto / Model Selector */}
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-background/50 hover:text-foreground transition-all group text-xs font-medium text-muted-foreground/70">
-                                            <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-                                            {!compact && (
-                                                <span className="group-hover:text-primary transition-colors">
-                                                    {activeSession ? (AVAILABLE_MODELS.find(m => m.id === activeSession.model)?.name || 'Auto') : 'Auto'}
-                                                </span>
-                                            )}
-                                            <ChevronDown className="h-3 w-3 opacity-50" />
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" className="w-[200px]">
-                                        <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Select Agent Mode</DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        {AVAILABLE_MODELS.map((model) => (
-                                            <DropdownMenuItem
-                                                key={model.id}
-                                                onClick={() => handleModelChange(model.id)}
-                                                className="flex items-center justify-between cursor-pointer"
-                                            >
-                                                <span>{model.name}</span>
-                                                {activeSession?.model === model.id && (
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                                                )}
-                                            </DropdownMenuItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-
-                                {/* Web Search Toggle */}
-                                <button className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-background/50 hover:text-foreground transition-all group text-xs font-medium text-muted-foreground/70">
-                                    <Globe className="h-3.5 w-3.5 group-hover:text-blue-400 transition-colors" />
-                                    {!compact && <span>Search</span>}
-                                </button>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    size="icon"
-                                    className={cn(
-                                        "h-7 w-7 rounded-full transition-all duration-300 shadow-sm",
-                                        input.trim()
-                                            ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
-                                            : "bg-muted text-muted-foreground hover:bg-muted/80 opacity-50 cursor-not-allowed",
-                                        compact && "h-6 w-6"
-                                    )}
-                                    onClick={handleSendClick}
-                                    disabled={isLoading || !input.trim()}
-                                >
-                                    {isLoading ? (
-                                        <div className="h-2 w-2 bg-current rounded-full" />
-                                    ) : (
-                                        <Send className="h-3.5 w-3.5" />
-                                    )}
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {!compact && (
-                        <div className="text-center mt-2 flex items-center justify-center gap-1.5 opacity-40 hover:opacity-100 transition-opacity">
-                            <span className="text-[10px] text-muted-foreground font-medium">Rainy Agent can make mistakes. Check important info.</span>
-                        </div>
-                    )}
-                </div>
-            </div>
+            {/* Input Area - ISOLATED COMPONENT FOR PERFORMANCE */}
+            <ChatInputArea
+                compact={compact}
+                isLoading={isLoading}
+                onSend={handleSend}
+                activeSessionId={activeSession?.id}
+                activeSessionModel={activeSession?.model}
+            />
         </div>
     )
 }
