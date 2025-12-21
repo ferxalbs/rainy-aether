@@ -13,7 +13,7 @@ export interface AIProviderConfig {
 }
 
 export interface StreamChunk {
-  type: "text" | "tool_call" | "done" | "tool_update" | "error";
+  type: "text" | "thought" | "tool_call" | "done" | "tool_update" | "error";
   content?: string;
   toolCall?: ToolCall;
   fullMessage?: ChatMessage;
@@ -92,7 +92,8 @@ export function generateMessageId(): string {
 export function createChatMessage(
   role: "user" | "assistant" | "system",
   content: string,
-  toolCalls?: ToolCall[]
+  toolCalls?: ToolCall[],
+  thoughts?: string
 ): ChatMessage {
   return {
     id: generateMessageId(),
@@ -100,5 +101,6 @@ export function createChatMessage(
     content,
     timestamp: new Date(),
     toolCalls,
+    thoughts,
   };
 }

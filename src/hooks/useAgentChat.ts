@@ -15,6 +15,7 @@ export function useAgentChat() {
   // Use local state for input - isolated from store updates
   const [input, setInputState] = useState('');
   const [streamingContent, setStreamingContent] = useState('');
+  const [streamingThoughts, setStreamingThoughts] = useState('');
 
   // Use a ref to persist the service instance across renders
   const agentServiceRef = useRef<AgentService | null>(null);
@@ -66,13 +67,18 @@ export function useAgentChat() {
       };
       agentActions.addMessage(activeSession.id, userMessage);
 
-      // Track streaming text and added messages
+      // Track streaming text, thoughts, and added messages
       let fullStreamedText = '';
+      let fullStreamedThoughts = '';
       const addedMessageIds = new Set<string>();
 
       // Handle streaming chunks
       const handleChunk = (chunk: StreamChunk) => {
-        if (chunk.type === 'text' && chunk.content) {
+        if (chunk.type === 'thought' && chunk.content) {
+          // Capture thinking content
+          fullStreamedThoughts += chunk.content;
+          setStreamingThoughts(fullStreamedThoughts);
+        } else if (chunk.type === 'text' && chunk.content) {
           fullStreamedText += chunk.content;
           setStreamingContent(fullStreamedText);
         } else if (chunk.type === 'tool_update' && chunk.fullMessage) {
@@ -81,7 +87,9 @@ export function useAgentChat() {
             agentActions.addMessage(activeSession.id, chunk.fullMessage);
             addedMessageIds.add(chunk.fullMessage.id);
             setStreamingContent(''); // Clear streaming text as it's now in the message
+            setStreamingThoughts(''); // Clear thoughts too
             fullStreamedText = '';
+            fullStreamedThoughts = '';
           } else {
             // Update existing message
             agentActions.updateMessage(activeSession.id, chunk.fullMessage.id, chunk.fullMessage);
@@ -89,7 +97,9 @@ export function useAgentChat() {
         } else if (chunk.type === 'done' && chunk.fullMessage) {
           // Clear streaming state
           setStreamingContent('');
+          setStreamingThoughts('');
           fullStreamedText = ''; // Reset text buffer for next message (if any)
+          fullStreamedThoughts = '';
 
           if (!addedMessageIds.has(chunk.fullMessage.id)) {
             agentActions.addMessage(activeSession.id, chunk.fullMessage);
@@ -141,6 +151,7 @@ export function useAgentChat() {
     setInput,
     isLoading: isStoreLoading,
     streamingContent,
+    streamingThoughts,
     sendMessage,
     clearChat,
   };

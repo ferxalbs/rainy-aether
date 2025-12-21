@@ -1,4 +1,4 @@
-import { Send, Bot, Loader2, User, Sparkles, Cpu } from "lucide-react"
+import { Send, Bot, Loader2, User, Sparkles, Cpu, ChevronRight, Brain } from "lucide-react"
 import { useEffect, useRef, memo, useCallback, useState } from "react"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -171,7 +171,6 @@ const ChatInputArea = memo(function ChatInputArea({
 
                 {!compact && (
                     <div className="text-center mt-2 flex items-center justify-center gap-1.5 opacity-40 hover:opacity-100 transition-opacity">
-                        <span className="text-[10px] text-muted-foreground font-medium">Rainy Agent can make mistakes. Check important info.</span>
                     </div>
                 )}
             </div>
@@ -179,8 +178,56 @@ const ChatInputArea = memo(function ChatInputArea({
     );
 });
 
+// ============================================
+// THINKING ACCORDION - Collapsible thoughts
+// ============================================
+interface ThinkingAccordionProps {
+    thoughts: string;
+    isStreaming?: boolean;
+    compact?: boolean;
+}
+
+const ThinkingAccordion = memo(function ThinkingAccordion({ thoughts, isStreaming, compact }: ThinkingAccordionProps) {
+    const [isOpen, setIsOpen] = useState(false);
+
+    if (!thoughts) return null;
+
+    return (
+        <div className={cn(
+            "border border-purple-500/20 rounded-lg overflow-hidden mb-3 bg-purple-500/5",
+            compact && "mb-2"
+        )}>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-300 hover:bg-purple-500/10 transition-colors"
+            >
+                <ChevronRight className={cn(
+                    "h-3 w-3 transition-transform duration-200",
+                    isOpen && "rotate-90"
+                )} />
+                <Brain className="h-3 w-3" />
+                <span className="font-medium">Thinking</span>
+                {isStreaming && (
+                    <span className="ml-auto flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span className="text-purple-400/70">Processing...</span>
+                    </span>
+                )}
+            </button>
+            {isOpen && (
+                <div className={cn(
+                    "px-3 py-2 text-xs text-purple-300/80 border-t border-purple-500/20 bg-purple-500/5 whitespace-pre-wrap max-h-60 overflow-y-auto",
+                    compact && "text-[10px]"
+                )}>
+                    {thoughts}
+                </div>
+            )}
+        </div>
+    );
+});
+
 export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
-    const { messages, isLoading, sendMessage, streamingContent } = useAgentChat();
+    const { messages, isLoading, sendMessage, streamingContent, streamingThoughts } = useAgentChat();
     const activeSession = useActiveSession();
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -363,6 +410,10 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                                     </div>
 
                                     <div className="text-sm text-foreground/90 leading-relaxed font-normal">
+                                        {/* Show stored thoughts in accordion */}
+                                        {msg.thoughts && (
+                                            <ThinkingAccordion thoughts={msg.thoughts} compact={compact} />
+                                        )}
                                         {renderMessageContent(msg.content)}
                                     </div>
 
@@ -387,17 +438,20 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                                     <div className="flex items-center gap-2 mb-0">
                                         <span className="font-semibold text-sm text-foreground">Rainy Agent</span>
                                     </div>
+                                    {streamingThoughts && (
+                                        <ThinkingAccordion thoughts={streamingThoughts} isStreaming={true} compact={compact} />
+                                    )}
                                     {streamingContent ? (
                                         <div className="text-sm text-foreground/90 leading-relaxed">
                                             {renderMessageContent(streamingContent)}
                                             <span className="inline-block w-1.5 h-4 bg-purple-500 animate-pulse ml-1 align-middle" />
                                         </div>
-                                    ) : (
+                                    ) : !streamingThoughts ? (
                                         <div className="flex items-center gap-2 text-muted-foreground text-sm">
                                             <Loader2 className="h-3 w-3 animate-spin" />
                                             <span className="text-xs">Thinking...</span>
                                         </div>
-                                    )}
+                                    ) : null}
                                 </div>
                             </div>
                         )}

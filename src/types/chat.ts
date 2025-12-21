@@ -34,6 +34,9 @@ export interface ChatMessage {
   /** Optional tool calls made during message generation */
   toolCalls?: ToolCall[];
 
+  /** Optional thinking/reasoning content (Gemini only) */
+  thoughts?: string;
+
   /** Optional metadata for custom data and extensions */
   metadata?: Record<string, unknown>;
 }

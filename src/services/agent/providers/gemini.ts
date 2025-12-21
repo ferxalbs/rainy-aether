@@ -220,15 +220,20 @@ export class GeminiProvider implements AIProvider {
       );
 
       let fullText = '';
+      let fullThoughts = '';
       let toolCalls: ToolCall[] = [];
 
       for await (const chunk of stream) {
         let chunkText = '';
+        let chunkThought = '';
 
-        // Safely extract text to avoid warnings about non-text parts (function calls)
+        // Safely extract text and thoughts from parts
         if (chunk.candidates && chunk.candidates[0] && chunk.candidates[0].content && chunk.candidates[0].content.parts) {
           for (const part of chunk.candidates[0].content.parts) {
-            if (part.text) {
+            // Check if this is a thought part (Gemini thinking)
+            if ((part as any).thought === true && part.text) {
+              chunkThought += part.text;
+            } else if (part.text) {
               chunkText += part.text;
             }
           }
@@ -241,6 +246,16 @@ export class GeminiProvider implements AIProvider {
           }
         }
 
+        // Emit thought chunks
+        if (chunkThought) {
+          fullThoughts += chunkThought;
+          onChunk({
+            type: 'thought',
+            content: chunkThought,
+          });
+        }
+
+        // Emit text chunks
         if (chunkText) {
           fullText += chunkText;
           onChunk({
@@ -270,7 +285,8 @@ export class GeminiProvider implements AIProvider {
       const finalMessage = createChatMessage(
         'assistant',
         fullText || '',
-        toolCalls.length > 0 ? toolCalls : undefined
+        toolCalls.length > 0 ? toolCalls : undefined,
+        fullThoughts || undefined
       );
 
       onChunk({
