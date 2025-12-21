@@ -17,18 +17,23 @@ export function useAgentChat() {
   // Use a ref to persist the service instance across renders
   const agentServiceRef = useRef<AgentService | null>(null);
 
+  // Cache values for stable dependencies
+  const sessionId = activeSession?.id;
+  const sessionModel = activeSession?.model;
+  const sessionSystemPrompt = activeSession?.systemPrompt;
+
   // Initialize or update service when active session changes
   useEffect(() => {
-    if (activeSession) {
+    if (sessionId && sessionModel && sessionSystemPrompt) {
       agentServiceRef.current = new AgentService({
-        sessionId: activeSession.id,
-        model: activeSession.model,
-        systemPrompt: activeSession.systemPrompt,
+        sessionId,
+        model: sessionModel,
+        systemPrompt: sessionSystemPrompt,
       });
     } else {
       agentServiceRef.current = null;
     }
-  }, [activeSession?.id, activeSession?.model, activeSession?.systemPrompt]);
+  }, [sessionId, sessionModel, sessionSystemPrompt]);
 
   const sendMessage = useCallback(async () => {
     if (!input.trim() || !activeSession || !agentServiceRef.current) return;
@@ -59,25 +64,25 @@ export function useAgentChat() {
         } else if (chunk.type === 'tool_update' && chunk.fullMessage) {
           // Update the message in the store to reflect tool status changes
           if (!addedMessageIds.has(chunk.fullMessage.id)) {
-             agentActions.addMessage(activeSession.id, chunk.fullMessage);
-             addedMessageIds.add(chunk.fullMessage.id);
-             setStreamingContent(''); // Clear streaming text as it's now in the message
-             fullStreamedText = '';
+            agentActions.addMessage(activeSession.id, chunk.fullMessage);
+            addedMessageIds.add(chunk.fullMessage.id);
+            setStreamingContent(''); // Clear streaming text as it's now in the message
+            fullStreamedText = '';
           } else {
-             // Update existing message
-             agentActions.updateMessage(activeSession.id, chunk.fullMessage.id, chunk.fullMessage);
+            // Update existing message
+            agentActions.updateMessage(activeSession.id, chunk.fullMessage.id, chunk.fullMessage);
           }
         } else if (chunk.type === 'done' && chunk.fullMessage) {
           // Clear streaming state
           setStreamingContent('');
           fullStreamedText = ''; // Reset text buffer for next message (if any)
-          
+
           if (!addedMessageIds.has(chunk.fullMessage.id)) {
             agentActions.addMessage(activeSession.id, chunk.fullMessage);
             addedMessageIds.add(chunk.fullMessage.id);
           } else {
-             // If we already added the message (e.g. due to tool calls), update it with final content
-             agentActions.updateMessage(activeSession.id, chunk.fullMessage.id, chunk.fullMessage);
+            // If we already added the message (e.g. due to tool calls), update it with final content
+            agentActions.updateMessage(activeSession.id, chunk.fullMessage.id, chunk.fullMessage);
           }
         }
       };
@@ -99,9 +104,8 @@ export function useAgentChat() {
       const errorMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `Sorry, I encountered an error: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : String(error)
+          }`,
         timestamp: new Date(),
       };
       agentActions.addMessage(activeSession.id, errorMessage);

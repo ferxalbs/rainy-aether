@@ -40,6 +40,32 @@ const notifyListeners = () => {
   listeners.forEach((listener) => listener());
 };
 
+// ===========================
+// Debounced Save System
+// ===========================
+
+const pendingSaves = new Map<string, ReturnType<typeof setTimeout>>();
+const DEBOUNCE_MS = 300;
+
+const debouncedSaveSession = (session: AgentSession) => {
+  // Cancel any pending save for this session
+  const pending = pendingSaves.get(session.id);
+  if (pending) {
+    clearTimeout(pending);
+  }
+
+  // Schedule a new save
+  const timeoutId = setTimeout(() => {
+    pendingSaves.delete(session.id);
+    // Fire and forget - don't block on I/O
+    agentHistoryService.saveSession(session).catch(err => {
+      console.warn('[AgentStore] Background save failed:', err);
+    });
+  }, DEBOUNCE_MS);
+
+  pendingSaves.set(session.id, timeoutId);
+};
+
 const setState = (updater: (prev: AgentState) => AgentState) => {
   const next = updater(currentState);
   currentState = next;
@@ -296,8 +322,9 @@ Be autonomous, proactive, task-completing, and RESOURCEFUL. Don't just gather in
       }),
     }));
 
+    // Use debounced save to avoid blocking UI
     if (updatedSession) {
-      agentHistoryService.saveSession(updatedSession);
+      debouncedSaveSession(updatedSession);
     }
   },
 
@@ -323,8 +350,9 @@ Be autonomous, proactive, task-completing, and RESOURCEFUL. Don't just gather in
       }),
     }));
 
+    // Use debounced save to avoid blocking UI
     if (updatedSession) {
-      agentHistoryService.saveSession(updatedSession);
+      debouncedSaveSession(updatedSession);
     }
   },
 
@@ -449,10 +477,15 @@ export function useAgentStore(): AgentState {
 
 /**
  * Hook to get the active session
+ * Returns the current active session from the store
  */
 export function useActiveSession(): AgentSession | undefined {
   const state = useAgentStore();
-  if (!state.activeSessionId) return undefined;
+
+  if (!state.activeSessionId) {
+    return undefined;
+  }
+
   return state.sessions.find((s) => s.id === state.activeSessionId);
 }
 
