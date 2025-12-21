@@ -114,15 +114,16 @@ export class AgentService {
     onChunk?: (chunk: StreamChunk) => void,
     iteration: number = 0
   ): Promise<ChatMessage> {
-    const MAX_TOOL_ITERATIONS = 5;
+    // Allow more iterations for complex tasks - each iteration can have multiple tool calls
+    const MAX_TOOL_ITERATIONS = 200;
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
       return response;
     }
 
     if (iteration >= MAX_TOOL_ITERATIONS) {
-      console.warn('[AgentService] Max tool iterations reached, stopping to prevent infinite loop');
-      response.content = response.content || 'I completed several tool operations. Please review the results above.';
+      console.warn(`[AgentService] Max tool iterations (${MAX_TOOL_ITERATIONS}) reached, stopping to prevent infinite loop`);
+      response.content = response.content || `I reached the maximum number of tool operations (${MAX_TOOL_ITERATIONS} rounds). Here's what I completed - let me know if you need me to continue.`;
       return response;
     }
 
