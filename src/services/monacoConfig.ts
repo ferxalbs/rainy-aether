@@ -29,9 +29,7 @@ export function configureMonaco() {
     module: monaco.typescript.ModuleKind.ESNext,
     noEmit: true,
     esModuleInterop: true,
-    jsx: monaco.typescript.JsxEmit.React,
-    jsxFactory: 'React.createElement',
-    reactNamespace: 'React',
+    jsx: monaco.typescript.JsxEmit.ReactJSX, // React 17+ new transform (matches tsconfig)
     allowJs: true,
     skipLibCheck: true,
     resolveJsonModule: true,
@@ -51,9 +49,7 @@ export function configureMonaco() {
     module: monaco.typescript.ModuleKind.ESNext,
     noEmit: true,
     esModuleInterop: true,
-    jsx: monaco.typescript.JsxEmit.React,
-    jsxFactory: 'React.createElement',
-    reactNamespace: 'React',
+    jsx: monaco.typescript.JsxEmit.ReactJSX, // React 17+ new transform (matches tsconfig)
     allowJs: true,
     skipLibCheck: true,
     resolveJsonModule: true,
@@ -68,16 +64,16 @@ export function configureMonaco() {
     noSemanticValidation: false,
     noSyntaxValidation: false,
     diagnosticCodesToIgnore: [
-      // Only ignore errors that truly don't apply in editor context
-      2307, // Cannot find module (common in editors without full project context)
+      // Only ignore errors that truly don't apply without full project context
+      2307, // Cannot find module (unavoidable without node_modules resolution)
       7016, // Could not find declaration file for module
-      // Additional noise filters for better editor experience
-      2305, // Module has no exported member
-      2339, // Property does not exist on type (often false positive)
-      2322, // Type is not assignable (too aggressive in editor)
-      80001, // File is a CommonJS module
-      80005, // 'require' call may be converted to an import
-      80006, // This may be converted to an async function
+      // React-specific false positives with new JSX transform
+      2708, // Cannot use namespace 'React' as a value (false positive with react-jsx)
+      1259, // Module can only be default-imported using esModuleInterop (React types issue)
+      // Note: Real errors that ARE now shown:
+      // 2305 - Module has no exported member
+      // 2339 - Property does not exist on type
+      // 2322 - Type is not assignable
     ],
   });
 
@@ -85,15 +81,11 @@ export function configureMonaco() {
     noSemanticValidation: false,
     noSyntaxValidation: false,
     diagnosticCodesToIgnore: [
-      2307, // Cannot find module
+      // Only ignore errors that truly don't apply without full project context
+      2307, // Cannot find module (unavoidable without node_modules resolution)
       7016, // Could not find declaration file for module
-      // Additional noise filters for better editor experience
-      2305, // Module has no exported member
-      2339, // Property does not exist on type (often false positive)
-      2322, // Type is not assignable (too aggressive in editor)
-      80001, // File is a CommonJS module
-      80005, // 'require' call may be converted to an import
-      80006, // This may be converted to an async function
+      2708, // Cannot use namespace as a value (React false positive)
+      1259, // Module default-import issue (React types)
     ],
   });
 

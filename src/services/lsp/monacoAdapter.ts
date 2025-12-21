@@ -32,8 +32,9 @@ export function registerLSPWithMonaco(): void {
       lspService.updateDocument(uri, newContent, model.getVersionId());
     });
 
-    // Track Monaco's built-in TypeScript/JavaScript diagnostics
-    if (languageId === 'typescript' || languageId === 'javascript') {
+    // Track Monaco's built-in diagnostics for supported languages
+    const languagesWithDiagnostics = ['typescript', 'javascript', 'json', 'css', 'html'];
+    if (languagesWithDiagnostics.includes(languageId)) {
       registerMonacoDiagnosticTracking(model);
     }
   });
@@ -67,13 +68,6 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
 
   // Function to check if diagnostic should be shown
   const shouldShowDiagnostic = (marker: monaco.editor.IMarker): boolean => {
-    // Filter by code - codes are now centralized in monacoConfig.ts
-    const code = typeof marker.code === 'string'
-      ? parseInt(marker.code, 10)
-      : typeof marker.code === 'object' && marker.code?.value
-      ? parseInt(marker.code.value.toString(), 10)
-      : null;
-
     // Only show errors and warnings, skip hints and info in Problems panel
     if (marker.severity < monaco.MarkerSeverity.Warning) {
       return false;
@@ -82,20 +76,14 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
     // Filter out some common false positives by message pattern
     const message = marker.message.toLowerCase();
 
-    // Skip node_modules errors
+    // Skip node_modules errors (usually from external library definitions)
     if (message.includes('node_modules')) {
       return false;
     }
 
-    // Skip "cannot find module" variations
-    if (message.includes('cannot find module') || message.includes('could not find')) {
-      return false;
-    }
-
-    // Skip implicit any for now (too noisy)
-    if (message.includes('implicitly has') && message.includes('any')) {
-      return false;
-    }
+    // Note: Previously filtered out these real errors - now showing them:
+    // - "cannot find module" - let Monaco's built-in filtering handle this
+    // - "implicitly has type 'any'" - real TypeScript issue, user should fix
 
     return true;
   };
@@ -123,8 +111,8 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
       const severity = marker.severity === monaco.MarkerSeverity.Error
         ? DiagnosticSeverity.Error
         : marker.severity === monaco.MarkerSeverity.Warning
-        ? DiagnosticSeverity.Warning
-        : DiagnosticSeverity.Info;
+          ? DiagnosticSeverity.Warning
+          : DiagnosticSeverity.Info;
 
       diagnosticService.addDiagnostic({
         id: `monaco-${uriString}-${index}`,
@@ -152,7 +140,7 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
     syncTimeout = window.setTimeout(() => {
       syncDiagnostics();
       syncTimeout = null;
-    }, 300); // Debounce 300ms for faster feedback
+    }, 150); // Reduced debounce to 150ms for faster feedback
   };
 
   // Register event listeners
@@ -189,12 +177,11 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
   });
 
   // Initial sync after a delay to let Monaco compute diagnostics
-  // Longer delay for initial sync to reduce false positives
   setTimeout(() => {
     if (!isDisposed) {
       syncDiagnostics();
     }
-  }, 1500); // 1.5s initial delay for more accurate diagnostics
+  }, 500); // Reduced from 1.5s to 500ms for faster initial feedback
 }
 
 /**

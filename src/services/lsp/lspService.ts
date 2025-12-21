@@ -202,20 +202,33 @@ export function getLSPService(): LSPService {
 
 /**
  * Initialize LSP service with default language servers
+ * 
+ * NOTE: We intentionally DO NOT auto-start an external TypeScript language server.
+ * Monaco Editor includes an excellent built-in TypeScript language service (same as VS Code).
+ * External LSP servers are reserved for languages not supported by Monaco:
+ * - rust-analyzer for Rust
+ * - pylsp for Python
+ * - gopls for Go
+ * - etc.
+ * 
+ * The LSP infrastructure is kept in place for future expansion.
  */
 export async function initializeLSP(): Promise<void> {
-  const service = getLSPService();
+  // DO NOT auto-register TypeScript server - Monaco handles this natively and better
+  // The external typescript-language-server would:
+  // 1. Require the user to install it globally
+  // 2. Compete with Monaco's built-in TS service
+  // 3. Cause confusion with duplicate diagnostics
 
-  // Register TypeScript/JavaScript language server
-  // Note: For now, we rely on Monaco's built-in TS support
-  // In the future, we can add a proper TS language server via Tauri
-  await service.registerServer({
-    id: 'typescript',
-    name: 'TypeScript Language Server',
-    languages: ['ts', 'tsx', 'js', 'jsx'],
-    command: 'typescript-language-server', // Will be implemented in Tauri
-    args: ['--stdio'],
-  });
+  // Future: Register language servers for non-TS languages here
+  // Example for Rust (when ready):
+  // await service.registerServer({
+  //   id: 'rust',
+  //   name: 'Rust Analyzer',
+  //   languages: ['rs'],
+  //   command: 'rust-analyzer',
+  //   args: [],
+  // });
 
-  console.info('[LSP] LSP service initialized');
+  console.info('[LSP] LSP service initialized (using Monaco built-in for TS/JS)');
 }
