@@ -115,7 +115,7 @@ export class AgentService {
     iteration: number = 0
   ): Promise<ChatMessage> {
     // Reasonable limit for complex tasks
-    const MAX_TOOL_ITERATIONS = 50;
+    const MAX_TOOL_ITERATIONS = 150;
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
       return response;
@@ -198,7 +198,7 @@ export class AgentService {
       if (onChunk) {
         nextResponse = await this.provider.streamMessage(
           [...history, response, toolResultsMessage],
-          tools, // Allow more tool calls in subsequent iterations
+          tools,
           onChunk
         );
       } else {
