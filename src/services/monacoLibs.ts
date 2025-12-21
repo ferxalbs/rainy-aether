@@ -792,6 +792,7 @@ export function addMonacoExtraLibs() {
   const utilTypes = `
     declare module 'clsx' {
       export default function clsx(...args: any[]): string;
+      export function clsx(...args: any[]): string;
     }
     
     declare module 'tailwind-merge' {
@@ -799,14 +800,100 @@ export function addMonacoExtraLibs() {
     }
     
     declare module 'lucide-react' {
-      export const ChevronRight: any;
-      export const ChevronDown: any;
-      export const File: any;
-      export const Folder: any;
-      export const FolderOpen: any;
-      // Add more as needed
-      const icons: Record<string, any>;
+      import * as React from 'react';
+      export interface LucideIcon extends React.FC<React.SVGProps<SVGSVGElement> & { size?: number | string }> {}
+      export const ChevronRight: LucideIcon;
+      export const ChevronDown: LucideIcon;
+      export const ChevronLeft: LucideIcon;
+      export const ChevronUp: LucideIcon;
+      export const File: LucideIcon;
+      export const Folder: LucideIcon;
+      export const FolderOpen: LucideIcon;
+      export const Search: LucideIcon;
+      export const Settings: LucideIcon;
+      export const X: LucideIcon;
+      export const Plus: LucideIcon;
+      export const Minus: LucideIcon;
+      export const Check: LucideIcon;
+      export const Copy: LucideIcon;
+      export const Trash: LucideIcon;
+      export const Edit: LucideIcon;
+      export const Save: LucideIcon;
+      export const Loader2: LucideIcon;
+      export const AlertCircle: LucideIcon;
+      export const Info: LucideIcon;
+      // Generic fallback for any icon
+      const icons: Record<string, LucideIcon>;
       export default icons;
+    }
+    
+    declare module 'sonner' {
+      export function toast(message: string, options?: any): void;
+      export namespace toast {
+        function success(message: string, options?: any): void;
+        function error(message: string, options?: any): void;
+        function warning(message: string, options?: any): void;
+        function info(message: string, options?: any): void;
+        function loading(message: string, options?: any): void;
+        function dismiss(id?: string): void;
+      }
+      export function Toaster(props?: any): JSX.Element;
+    }
+    
+    declare module 'date-fns' {
+      export function format(date: Date | number, formatStr: string): string;
+      export function parseISO(dateString: string): Date;
+      export function formatDistance(date: Date | number, baseDate: Date | number): string;
+      export function addDays(date: Date | number, amount: number): Date;
+      export function subDays(date: Date | number, amount: number): Date;
+      export function isAfter(date: Date | number, dateToCompare: Date | number): boolean;
+      export function isBefore(date: Date | number, dateToCompare: Date | number): boolean;
+    }
+    
+    declare module 'zod' {
+      export const z: {
+        string(): any;
+        number(): any;
+        boolean(): any;
+        object(shape: any): any;
+        array(schema: any): any;
+        enum(values: readonly string[]): any;
+        optional(schema: any): any;
+        nullable(schema: any): any;
+        infer<T extends any>(schema: T): any;
+      };
+      export type infer<T extends any> = any;
+    }
+    
+    declare module 'next/link' {
+      import * as React from 'react';
+      export interface LinkProps {
+        href: string | { pathname: string; query?: Record<string, string> };
+        children?: React.ReactNode;
+        className?: string;
+        target?: string;
+        rel?: string;
+      }
+      export default function Link(props: LinkProps): JSX.Element;
+    }
+    
+    declare module 'next/image' {
+      import * as React from 'react';
+      export interface ImageProps {
+        src: string;
+        alt: string;
+        width?: number;
+        height?: number;
+        fill?: boolean;
+        className?: string;
+        priority?: boolean;
+      }
+      export default function Image(props: ImageProps): JSX.Element;
+    }
+    
+    declare module '@radix-ui/react-*' {
+      const component: any;
+      export default component;
     }
   `;
 

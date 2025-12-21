@@ -244,12 +244,16 @@ class ProjectContextService {
       monacoOptions.typeRoots = compilerOptions.typeRoots;
     }
 
-    // Base URL and paths (Monaco doesn't directly support these, but we can log them)
+    // Base URL and paths support for path aliases
     if (compilerOptions.baseUrl) {
-      console.info('[ProjectContext] BaseURL from tsconfig:', compilerOptions.baseUrl);
+      monacoOptions.baseUrl = compilerOptions.baseUrl;
+      console.info('[ProjectContext] Applied baseUrl from tsconfig:', compilerOptions.baseUrl);
     }
+
+    // Path mappings (e.g., "@/*" -> ["./src/*"])
     if (compilerOptions.paths) {
-      console.info('[ProjectContext] Path mappings from tsconfig:', compilerOptions.paths);
+      monacoOptions.paths = compilerOptions.paths;
+      console.info('[ProjectContext] Applied path mappings from tsconfig:', Object.keys(compilerOptions.paths));
     }
 
     // Apply to TypeScript defaults

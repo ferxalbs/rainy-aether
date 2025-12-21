@@ -104,25 +104,36 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
         d.source === DiagnosticSource.Monaco && d.file === uriString)
       .forEach((d: { id: string }) => diagnosticService.removeDiagnostic(d.id));
 
-    // Filter and add new diagnostics
+    // Filter and add new diagnostics with deduplication
     const relevantMarkers = markers.filter(shouldShowDiagnostic);
+    const seenIds = new Set<string>();
 
-    relevantMarkers.forEach((marker, index) => {
+    relevantMarkers.forEach((marker) => {
       const severity = marker.severity === monaco.MarkerSeverity.Error
         ? DiagnosticSeverity.Error
         : marker.severity === monaco.MarkerSeverity.Warning
           ? DiagnosticSeverity.Warning
           : DiagnosticSeverity.Info;
 
+      // Generate unique ID based on content (prevents duplicates)
+      const codeStr = marker.code?.toString() || '';
+      const diagnosticId = `monaco-${uriString}-${marker.startLineNumber}-${marker.startColumn}-${codeStr}`;
+
+      // Skip if we've already added this diagnostic (deduplication)
+      if (seenIds.has(diagnosticId)) {
+        return;
+      }
+      seenIds.add(diagnosticId);
+
       diagnosticService.addDiagnostic({
-        id: `monaco-${uriString}-${index}`,
+        id: diagnosticId,
         source: DiagnosticSource.Monaco,
         severity,
         message: marker.message,
         file: uriString,
         line: marker.startLineNumber,
         column: marker.startColumn,
-        code: marker.code?.toString(),
+        code: codeStr,
       });
     });
   };
