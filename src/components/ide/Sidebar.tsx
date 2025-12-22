@@ -1,5 +1,5 @@
 import React from "react";
-import { Folder, GitCommit, Bot, Search } from "lucide-react";
+import { Folder, GitCommit, Bot, Search, Settings } from "lucide-react";
 
 import { useIDEStore } from "../../stores/ideStore";
 import ProjectExplorer from "./ProjectExplorer";
@@ -20,7 +20,7 @@ interface ActivityButtonProps {
   active?: boolean;
   onClick?: () => void;
   label: string;
-  icon: React.ComponentType<{ size?: number | string }>;
+  icon: React.ComponentType<{ size?: number | string; strokeWidth?: number; className?: string }>;
 }
 
 const ActivityButton: React.FC<ActivityButtonProps> = ({ active, onClick, label, icon: Icon }) => (
@@ -29,23 +29,30 @@ const ActivityButton: React.FC<ActivityButtonProps> = ({ active, onClick, label,
       <TooltipTrigger asChild>
         <button
           className={cn(
-            "group relative flex h-12 w-12 items-center justify-center rounded-lg transition-colors hover:bg-muted/50",
-            active
-              ? "bg-muted text-foreground"
-              : "text-muted-foreground hover:bg-muted/50"
+            "group relative flex h-10 w-10 items-center justify-center rounded-md transition-all duration-200",
+            // Default state
+            "text-muted-foreground/70 hover:text-foreground hover:bg-white/10 dark:hover:bg-white/5",
+            // Active state
+            active && "bg-white/15 dark:bg-white/10 text-primary font-medium"
           )}
           onClick={onClick}
           aria-label={label}
         >
-          <Icon size={20} />
+          {active && (
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
+          )}
+          <Icon size={20} strokeWidth={1.5} className="transition-transform duration-200 group-hover:scale-110" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="right" align="center" className="px-2 py-1 text-xs">
+      <TooltipContent side="right" align="center" className="px-2 py-1 text-xs font-medium backdrop-blur-md bg-popover/80 border-border/50">
         {label}
       </TooltipContent>
     </Tooltip>
   </TooltipProvider>
 );
+
+const SIDEBAR_MIN_WIDTH = 240;
+const SIDEBAR_MAX_WIDTH = 400;
 
 const Sidebar: React.FC = () => {
   const { state, actions } = useIDEStore();
@@ -53,6 +60,41 @@ const Sidebar: React.FC = () => {
   const activeTab = snapshot.sidebarActive;
   const isOpen = snapshot.isSidebarOpen;
   const webviewPanels = useWebviewPanels();
+
+  // Resize state
+  const [sidebarWidth, setSidebarWidth] = React.useState(280);
+  const [isResizing, setIsResizing] = React.useState(false);
+  const sidebarRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      document.body.style.userSelect = 'none';
+      const newWidth = Math.max(SIDEBAR_MIN_WIDTH, Math.min(e.clientX, SIDEBAR_MAX_WIDTH));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing) {
+        setIsResizing(false);
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto'; // Restore selection
+      }
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+  }, [isResizing]);
 
   // Helper to check if a tab is a webview tab
   const isWebviewTab = (tab: string): boolean => {
@@ -65,58 +107,117 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full border-r ">
-      {/* Activity Bar - Always visible */}
-      <div className="flex flex-col items-center py-2 bg-sidebar border-r border-sidebar-border">
-        {/* Built-in panels */}
+    <div
+      ref={sidebarRef}
+      className={cn(
+        "flex h-full relative group select-none z-40",
+        "bg-sidebar/30 backdrop-blur-md border-r border-sidebar-border/30", // Native glass feel
+        !isResizing && "transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]"
+      )}
+      style={{ width: isOpen ? sidebarWidth : 56 }}
+    >
+      {/* Activity Bar */}
+      <div className="flex flex-col items-center py-4 h-full w-14 shrink-0 border-r border-sidebar-border/20 bg-transparent gap-2">
+
+        {/* Logo / Brand Area */}
+        <div className="mb-4 flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 shadow-inner ring-1 ring-white/10">
+          <Bot size={18} className="text-primary/90" />
+        </div>
+
+        {/* Navigation */}
         <ActivityButton
           icon={Folder}
           label="Explorer"
           active={activeTab === "explorer"}
-          onClick={() => actions.setSidebarActive("explorer")}
+          onClick={() => {
+            if (activeTab === "explorer" && isOpen) {
+              actions.setSidebarOpen(false);
+            } else {
+              actions.setSidebarActive("explorer");
+              if (!isOpen) actions.setSidebarOpen(true);
+            }
+          }}
         />
         <ActivityButton
           icon={Search}
           label="Search"
           active={activeTab === "search"}
-          onClick={() => actions.setSidebarActive("search")}
+          onClick={() => {
+            if (activeTab === "search" && isOpen) {
+              actions.setSidebarOpen(false);
+            } else {
+              actions.setSidebarActive("search");
+              if (!isOpen) actions.setSidebarOpen(true);
+            }
+          }}
         />
         <ActivityButton
           icon={GitCommit}
           label="Git"
           active={activeTab === "git"}
-          onClick={() => actions.setSidebarActive("git")}
+          onClick={() => {
+            if (activeTab === "git" && isOpen) {
+              actions.setSidebarOpen(false);
+            } else {
+              actions.setSidebarActive("git");
+              if (!isOpen) actions.setSidebarOpen(true);
+            }
+          }}
         />
 
-        {/* Separator */}
+        {/* Dynamic Panels Separator */}
         {webviewPanels.length > 0 && (
-          <div className="w-8 h-px bg-border my-2" />
+          <div className="w-6 h-px bg-border/20 my-2" />
         )}
 
         {/* Dynamic webview panels */}
         {webviewPanels.map((panel) => (
           <ActivityButton
             key={panel.viewId}
-            icon={Bot} // Default icon, can be customized per panel
+            icon={Bot}
             label={panel.title}
             active={activeTab === `webview:${panel.viewId}`}
-            onClick={() => actions.setSidebarActive(`webview:${panel.viewId}` as any)}
+            onClick={() => {
+              const target = `webview:${panel.viewId}` as any;
+              if (activeTab === target && isOpen) {
+                actions.setSidebarOpen(false);
+              } else {
+                actions.setSidebarActive(target);
+                if (!isOpen) actions.setSidebarOpen(true);
+              }
+            }}
           />
         ))}
+
+        {/* Bottom Section */}
+        <div className="mt-auto flex flex-col gap-2 pb-4 items-center w-full">
+          <div className="w-6 h-px bg-border/20 mb-2" />
+          <ActivityButton
+            icon={Settings}
+            label="Settings"
+            onClick={() => actions.openSettings()}
+          />
+        </div>
       </div>
 
-      {/* Content Panel - Conditionally visible */}
+      {/* Content Panel */}
       {isOpen && (
-        <div className="w-64 bg-sidebar flex flex-col rounded-r-lg">
+        <div className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden">
           {activeTab === "explorer" && <ProjectExplorer />}
           {activeTab === "search" && <GlobalSearch />}
           {activeTab === "git" && <GitHistoryPanel />}
-
-          {/* Render webview panels */}
           {isWebviewTab(activeTab) && (
             <WebviewSidebarContainer viewId={getWebviewId(activeTab)} />
           )}
         </div>
+      )}
+
+      {/* Resize Handle */}
+      {isOpen && (
+        <div
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 z-50 transition-colors"
+          onMouseDown={() => setIsResizing(true)}
+        />
       )}
     </div>
   );

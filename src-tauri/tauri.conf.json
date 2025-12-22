@@ -24,12 +24,21 @@
         "maximizable": true,
         "minimizable": true,
         "closable": true,
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#00000000",
+        "transparent": true,
+        "windowEffects": {
+          "effects": [
+            "sidebar"
+          ],
+          "state": "active",
+          "radius": 24
+        }
       }
     ],
     "security": {
       "csp": null
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,

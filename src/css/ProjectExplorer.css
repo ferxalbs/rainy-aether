@@ -1,10 +1,10 @@
 .project-explorer {
-  background-color: var(--bg-sidebar);
+  background-color: transparent;
   border-right: 1px solid var(--border-color);
 }
 
 .project-explorer-header {
-  background-color: var(--bg-tertiary);
+  background-color: transparent;
   border-color: var(--border-color);
 }
 
