@@ -80,6 +80,7 @@ export function configureMonaco() {
       1192, // Module has no default export
       1261, // Default export of module has or is using private name
       2497, // This module can only be referenced with ECMAScript imports
+      2614, // Module has no exported member. Did you mean default import?
 
       // Type resolution issues for external libraries
       2339, // Property does not exist on type (often false positive for untyped libs)
@@ -101,7 +102,7 @@ export function configureMonaco() {
       // React/JSX false positives
       2708, 1259, 2686,
       // Import/Export issues
-      1192, 1261, 2497,
+      1192, 1261, 2497, 2614,
       // Type resolution for external libs
       2339, 2345,
     ],
