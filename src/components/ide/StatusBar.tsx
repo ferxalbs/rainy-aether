@@ -353,6 +353,36 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     const model = editor.getModel();
     if (!model) return;
 
+    // Handle "auto" mode - detect language from file extension
+    if (languageId === 'auto') {
+      // Get the URI and detect language from extension
+      const uri = model.uri;
+      const detectedLanguages = monaco.languages.getLanguages();
+      const extension = uri.path.split('.').pop()?.toLowerCase() || '';
+
+      // Find matching language by extension
+      let detectedLang = 'plaintext';
+      for (const lang of detectedLanguages) {
+        if (lang.extensions?.some(ext => ext.toLowerCase().replace('.', '') === extension)) {
+          detectedLang = lang.id;
+          break;
+        }
+      }
+
+      // Set the detected language
+      monaco.editor.setModelLanguage(model, detectedLang);
+
+      // Update state - show "Auto" in the UI but use detected language internally
+      setEditorInfo((prev) => ({
+        ...prev,
+        language: 'Auto',
+      }));
+
+      // Update LSP status with the actual detected language
+      lspStatusActions.setActiveLanguage(detectedLang);
+      return;
+    }
+
     // Set language mode in Monaco
     monaco.editor.setModelLanguage(model, languageId);
 
@@ -361,6 +391,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       ...prev,
       language: getLanguageDisplayName(languageId),
     }));
+
+    // Update LSP status
+    lspStatusActions.setActiveLanguage(languageId);
   };
 
   // Handle EOL change
