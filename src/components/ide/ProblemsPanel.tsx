@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { XCircle, AlertCircle, Info, Lightbulb, X, Search, Filter, ChevronDown, ChevronRight } from 'lucide-react';
+import { XCircle, AlertCircle, Info, Lightbulb, X, Search, Filter, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
 import { getMarkerService, IMarker, MarkerSeverity } from '../../services/markerService';
 import { editorActions } from '../../stores/editorStore';
 import { useSettingsState } from '../../stores/settingsStore';
 import { useCurrentProblem } from './CurrentProblemIndicator';
 import { getCodeActionService } from '../../services/codeActionService';
 import { cn } from '@/lib/cn';
+
+// Maximum message length before truncation
+const MAX_MESSAGE_LENGTH = 120;
 
 interface ProblemsPanelProps {
   onClose?: () => void;
@@ -19,6 +22,7 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
   const [selectedOwners, setSelectedOwners] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(new Set());
+  const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
   const listRef = useRef<HTMLDivElement>(null);
   const settings = useSettingsState();
   const currentProblem = useCurrentProblem();
@@ -315,6 +319,43 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
     );
   };
 
+  // Generate unique marker key
+  const getMarkerKey = (marker: IMarker, idx: number): string => {
+    return `${marker.resource}-${marker.startLineNumber}-${marker.startColumn}-${idx}`;
+  };
+
+  // Toggle expanded message
+  const toggleMessageExpanded = (key: string) => {
+    setExpandedMessages(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  // Get TypeScript error documentation URL
+  const getErrorDocUrl = (code: string | { value: string }): string | null => {
+    const codeValue = typeof code === 'string' ? code : code.value;
+    // TypeScript errors start with 'TS' or are numeric
+    if (codeValue.startsWith('TS') || /^\d+$/.test(codeValue)) {
+      const numericCode = codeValue.replace('TS', '');
+      return `https://typescript.tv/errors/#ts${numericCode}`;
+    }
+    return null;
+  };
+
+  // Format message with truncation
+  const formatMessage = (message: string, isExpanded: boolean): { text: string; truncated: boolean } => {
+    if (message.length <= MAX_MESSAGE_LENGTH || isExpanded) {
+      return { text: message, truncated: false };
+    }
+    return { text: message.substring(0, MAX_MESSAGE_LENGTH) + '...', truncated: true };
+  };
+
   return (
     <div
       className={cn("flex flex-col h-full bg-background border-t border-border", className)}
@@ -510,14 +551,66 @@ const ProblemsPanel: React.FC<ProblemsPanelProps> = ({ onClose, className }) => 
 
                           {/* Content */}
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-sm">{marker.message}</span>
-                              {marker.code && (
-                                <span className="text-xs text-muted-foreground">
-                                  [{typeof marker.code === 'string' ? marker.code : marker.code.value}]
-                                </span>
-                              )}
-                            </div>
+                            {(() => {
+                              const markerKey = getMarkerKey(marker, idx);
+                              const isExpanded = expandedMessages.has(markerKey);
+                              const { text: displayMessage, truncated } = formatMessage(marker.message, isExpanded);
+                              const errorDocUrl = marker.code ? getErrorDocUrl(marker.code) : null;
+
+                              return (
+                                <>
+                                  <div className="flex items-start gap-2 mb-1">
+                                    <span className="text-sm leading-relaxed">
+                                      {displayMessage}
+                                      {truncated && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleMessageExpanded(markerKey);
+                                          }}
+                                          className="ml-1 text-primary hover:underline text-xs"
+                                        >
+                                          Show more
+                                        </button>
+                                      )}
+                                      {isExpanded && marker.message.length > MAX_MESSAGE_LENGTH && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleMessageExpanded(markerKey);
+                                          }}
+                                          className="ml-1 text-primary hover:underline text-xs"
+                                        >
+                                          Show less
+                                        </button>
+                                      )}
+                                    </span>
+                                  </div>
+
+                                  {/* Error code as link (for TypeScript errors) */}
+                                  {marker.code && (
+                                    <div className="flex items-center gap-1 mb-1">
+                                      {errorDocUrl ? (
+                                        <a
+                                          href={errorDocUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-400 hover:underline"
+                                        >
+                                          {typeof marker.code === 'string' ? marker.code : marker.code.value}
+                                          <ExternalLink size={10} />
+                                        </a>
+                                      ) : (
+                                        <span className="text-xs text-muted-foreground">
+                                          [{typeof marker.code === 'string' ? marker.code : marker.code.value}]
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
 
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               {/* Owner badge */}

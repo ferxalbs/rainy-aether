@@ -6,6 +6,7 @@ import { getCurrentTheme } from '../../stores/themeStore';
 import { getGitService, GitStatus } from '../../services/gitService';
 import { getMarkerService, MarkerStatistics } from '../../services/markerService';
 import { useNotificationStats } from '../../stores/notificationStore';
+import { useLSPStatusStore, getLSPStatusDisplay, hasMonacoBuiltinSupport, lspStatusActions } from '../../stores/lspStatusStore';
 import { IStatusBarEntry } from '@/types/statusbar';
 import { StatusBarItem } from './StatusBarItem';
 import { useCurrentProblemStatusBarEntry } from './CurrentProblemIndicator';
@@ -79,6 +80,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const [platformName, setPlatformName] = useState<string>('');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const notificationStats = useNotificationStats();
+  const lspStatusState = useLSPStatusStore();
 
   // Get current problem at cursor (if enabled in settings)
   const currentProblemEntry = useCurrentProblemStatusBarEntry();
@@ -160,11 +162,11 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     if (!selection || selection.isEmpty()) {
       return '';
     }
-    
+
     const lineCount = selection.endLineNumber - selection.startLineNumber + 1;
-    const charCount = Math.abs(selection.startColumn - selection.endColumn) + 
-                     (lineCount - 1) * 100; // Approximate
-    
+    const charCount = Math.abs(selection.startColumn - selection.endColumn) +
+      (lineCount - 1) * 100; // Approximate
+
     if (lineCount === 1) {
       return `${charCount} selected`;
     } else {
@@ -185,8 +187,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       if (!position) return;
 
       const options = model.getOptions();
+      const languageId = model.getLanguageId();
       setEditorInfo({
-        language: getLanguageDisplayName(model.getLanguageId()),
+        language: getLanguageDisplayName(languageId),
         encoding: 'UTF-8', // Could be enhanced to detect actual encoding
         line: position.lineNumber,
         column: position.column,
@@ -194,6 +197,9 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
         spaces: options.insertSpaces ? (options.tabSize as number) : 0,
         tabSize: options.tabSize as number
       });
+
+      // Update LSP status store with current language
+      lspStatusActions.setActiveLanguage(languageId);
     } catch (error) {
       console.debug('[StatusBar] Failed to update editor info:', error);
     }
@@ -458,6 +464,51 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       order: 2,
       position: 'right'
     },
+    // LSP Status indicator
+    (() => {
+      const currentLanguageId = lspStatusState.activeLanguage;
+      if (!currentLanguageId) return null;
+
+      // Check if Monaco has built-in support for this language
+      if (hasMonacoBuiltinSupport(currentLanguageId)) {
+        return {
+          id: 'lsp-status',
+          name: 'Language Server Status',
+          text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+          tooltip: `IntelliSense: Monaco built-in (${getLanguageDisplayName(currentLanguageId)})`,
+          ariaLabel: 'IntelliSense active',
+          kind: 'prominent' as const,
+          order: 2.5,
+          position: 'right' as const
+        };
+      }
+
+      // Check for external LSP server
+      const serverInfo = lspStatusActions.getServerForLanguage(currentLanguageId);
+      if (serverInfo) {
+        const display = getLSPStatusDisplay(serverInfo);
+        const iconSvg = display.icon === 'check'
+          ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+          : display.icon === 'loading'
+            ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>'
+            : display.icon === 'error'
+              ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>'
+              : '';
+
+        return {
+          id: 'lsp-status',
+          name: 'Language Server Status',
+          text: iconSvg + (display.label ? ` ${display.label}` : ''),
+          tooltip: display.tooltip,
+          ariaLabel: display.tooltip,
+          kind: display.icon === 'error' ? 'error' as const : 'standard' as const,
+          order: 2.5,
+          position: 'right' as const
+        };
+      }
+
+      return null;
+    })(),
     // Cursor position
     {
       id: 'position',
@@ -570,16 +621,16 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
                 item.id === 'help'
                   ? (helpButtonRef as React.RefObject<HTMLDivElement>)
                   : item.id === 'notifications'
-                  ? (notificationButtonRef as React.RefObject<HTMLDivElement>)
-                  : item.id === 'theme'
-                  ? (themeButtonRef as React.RefObject<HTMLDivElement>)
-                  : item.id === 'encoding'
-                  ? (encodingButtonRef as React.RefObject<HTMLDivElement>)
-                  : item.id === 'language'
-                  ? (languageButtonRef as React.RefObject<HTMLDivElement>)
-                  : item.id === 'eol'
-                  ? (eolButtonRef as React.RefObject<HTMLDivElement>)
-                  : undefined
+                    ? (notificationButtonRef as React.RefObject<HTMLDivElement>)
+                    : item.id === 'theme'
+                      ? (themeButtonRef as React.RefObject<HTMLDivElement>)
+                      : item.id === 'encoding'
+                        ? (encodingButtonRef as React.RefObject<HTMLDivElement>)
+                        : item.id === 'language'
+                          ? (languageButtonRef as React.RefObject<HTMLDivElement>)
+                          : item.id === 'eol'
+                            ? (eolButtonRef as React.RefObject<HTMLDivElement>)
+                            : undefined
               }
             >
               <StatusBarItem entry={item} />
