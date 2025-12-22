@@ -1,8 +1,9 @@
 import React, { useMemo, useEffect, useState, useCallback } from "react";
+import * as monaco from "monaco-editor";
 import { useIDEStore, OpenFile } from "../../stores/ideStore";
 import MonacoEditor from "./MonacoEditor";
 import Breadcrumbs from "./Breadcrumbs";
-import { editorState } from "../../stores/editorStore";
+import EditorErrorBoundary from "./EditorErrorBoundary";
 import {
   useEditorGroupState,
   editorGroupActions,
@@ -11,7 +12,6 @@ import {
 import { X, Columns, SplitSquareVertical, GripVertical } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/cn";
-// Removed resizable imports - using CSS flexbox
 import {
   Tooltip,
   TooltipContent,
@@ -195,6 +195,7 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
   onMoveFile,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [groupEditor, setGroupEditor] = useState<monaco.editor.IStandaloneCodeEditor | null>(null);
   const dragCounterRef = React.useRef(0);
 
   const groupFiles = useMemo(() => {
@@ -306,8 +307,12 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
         )}
       </div>
 
-      {/* Breadcrumbs */}
-      {groupFiles.length > 0 && <Breadcrumbs editor={editorState.view} />}
+      {/* Breadcrumbs - wrapped in error boundary for crash protection */}
+      {groupFiles.length > 0 && (
+        <EditorErrorBoundary>
+          <Breadcrumbs editor={groupEditor} />
+        </EditorErrorBoundary>
+      )}
 
       {/* Editor content */}
       <div className="flex-1 overflow-hidden">
@@ -317,6 +322,7 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
             language={getLanguageFromFile(activeFile.name)}
             filename={activeFile.path || activeFile.name}
             onChange={(value: string) => onContentChange(activeFile.id, value)}
+            onEditorReady={setGroupEditor}
           />
         ) : (
           <div

@@ -16,11 +16,29 @@ export interface SymbolNode {
 }
 
 /**
+ * Check if a model is still valid (not disposed)
+ */
+function isModelValid(model: monaco.editor.ITextModel | null | undefined): model is monaco.editor.ITextModel {
+  if (!model) return false;
+  try {
+    // isDisposed() is the reliable way to check
+    return !model.isDisposed();
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Extract document symbols from Monaco editor model
  */
 export async function getDocumentSymbols(
-  model: monaco.editor.ITextModel
+  model: monaco.editor.ITextModel | null | undefined
 ): Promise<SymbolNode[]> {
+  // Guard: check if model is valid before proceeding
+  if (!isModelValid(model)) {
+    return [];
+  }
+
   const languageId = model.getLanguageId();
 
   try {
@@ -39,16 +57,41 @@ export async function getDocumentSymbols(
 
 /**
  * Get symbols from TypeScript/JavaScript using Monaco's TS worker
+ * Includes retry logic for transient failures
  */
 async function getTypeScriptSymbols(
-  model: monaco.editor.ITextModel
+  model: monaco.editor.ITextModel,
+  retryCount = 0
 ): Promise<SymbolNode[]> {
+  const MAX_RETRIES = 2;
+
   try {
+    // Guard: check model is still valid before async operations
+    if (!isModelValid(model)) {
+      return [];
+    }
+
     const worker = await monaco.typescript.getTypeScriptWorker();
+
+    // Guard: check again after await
+    if (!isModelValid(model)) {
+      return [];
+    }
+
     const client = await worker(model.uri);
+
+    // Guard: check again after second await
+    if (!isModelValid(model)) {
+      return [];
+    }
 
     // Get navigation tree (this is how VS Code gets symbols)
     const navigationTree = await (client as any).getNavigationTree(model.uri.toString());
+
+    // Final guard before processing
+    if (!isModelValid(model)) {
+      return [];
+    }
 
     if (!navigationTree || !navigationTree.childItems) {
       return [];
@@ -57,8 +100,15 @@ async function getTypeScriptSymbols(
     // Convert navigation tree to our symbol format
     return convertNavigationTree(navigationTree.childItems, model);
   } catch (error) {
+    // Retry on transient failures
+    if (retryCount < MAX_RETRIES && isModelValid(model)) {
+      console.debug(`[SymbolService] Retrying TypeScript symbols (attempt ${retryCount + 1})`);
+      await new Promise(resolve => setTimeout(resolve, 100 * (retryCount + 1)));
+      return getTypeScriptSymbols(model, retryCount + 1);
+    }
+
     console.warn('[SymbolService] TypeScript worker failed, falling back to patterns:', error);
-    return getPatternBasedSymbols(model);
+    return isModelValid(model) ? getPatternBasedSymbols(model) : [];
   }
 }
 
@@ -180,6 +230,34 @@ function getPatternBasedSymbols(
       const typeMatch = line.match(/(?:export\s+)?type\s+(\w+)/);
       if (typeMatch) {
         symbols.push(createSymbol(typeMatch[1], monaco.languages.SymbolKind.Interface, lineNumber, line));
+        return;
+      }
+
+      // React functional components (const Foo: React.FC = ...)
+      const reactFCMatch = line.match(/(?:export\s+)?const\s+(\w+)\s*:\s*React\.FC/);
+      if (reactFCMatch) {
+        symbols.push(createSymbol(reactFCMatch[1], monaco.languages.SymbolKind.Function, lineNumber, line));
+        return;
+      }
+
+      // React.memo wrapped components
+      const memoMatch = line.match(/(?:export\s+)?const\s+(\w+)\s*=\s*(?:React\.)?memo\s*\(/);
+      if (memoMatch) {
+        symbols.push(createSymbol(memoMatch[1], monaco.languages.SymbolKind.Function, lineNumber, line));
+        return;
+      }
+
+      // React.forwardRef components
+      const forwardRefMatch = line.match(/(?:export\s+)?const\s+(\w+)\s*=\s*(?:React\.)?forwardRef/);
+      if (forwardRefMatch) {
+        symbols.push(createSymbol(forwardRefMatch[1], monaco.languages.SymbolKind.Function, lineNumber, line));
+        return;
+      }
+
+      // Export default function Component()
+      const exportDefaultFuncMatch = line.match(/export\s+default\s+function\s+(\w+)/);
+      if (exportDefaultFuncMatch) {
+        symbols.push(createSymbol(exportDefaultFuncMatch[1], monaco.languages.SymbolKind.Function, lineNumber, line));
         return;
       }
     }

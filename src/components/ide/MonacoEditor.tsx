@@ -18,6 +18,7 @@ interface MonacoEditorProps {
   onChange?: (value: string) => void;
   readOnly?: boolean;
   filename?: string; // Optional filename for better language detection
+  onEditorReady?: (editor: monaco.editor.IStandaloneCodeEditor) => void; // Callback when editor is ready
 }
 
 const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
@@ -26,6 +27,7 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
   onChange,
   readOnly = false,
   filename,
+  onEditorReady,
 }) => {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -426,6 +428,9 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
         editorActions.setWrapEnabled(next);
       },
     });
+
+    // Notify parent component that editor is ready
+    onEditorReady?.(editor);
 
     // Handle content changes
     const disposable = editor.onDidChangeModelContent((event) => {

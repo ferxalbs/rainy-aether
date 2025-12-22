@@ -83,7 +83,7 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
   // Update path based on cursor position (fast operation using cached symbols)
   const updatePath = useCallback((currentSymbols: SymbolNode[]) => {
     if (!editor) return;
-    
+
     const position = editor.getPosition();
     if (position && currentSymbols.length > 0) {
       const path = findSymbolPathAtPosition(currentSymbols, position);
@@ -98,7 +98,7 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
     if (!editor) return;
 
     const model = editor.getModel();
-    if (!model) return;
+    if (!model || model.isDisposed()) return;
 
     setIsLoading(true);
     try {
@@ -110,7 +110,7 @@ const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ editor, className }) => {
       // Get symbols from Monaco's DocumentSymbolProvider
       const newSymbols = await getDocumentSymbols(model);
       setSymbols(newSymbols);
-      
+
       // Update path immediately with new symbols
       updatePath(newSymbols);
     } catch (error) {
