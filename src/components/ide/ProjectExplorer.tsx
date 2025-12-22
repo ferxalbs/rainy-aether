@@ -138,10 +138,12 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
     <div>
       <div
         className={cn(
-          "w-full h-7 px-2 flex items-center text-left font-normal cursor-pointer rounded-md",
-          isSelected ? "bg-muted" : "hover:bg-muted",
+          "w-full h-6 px-1.5 flex items-center text-left font-normal cursor-pointer rounded-sm transition-colors duration-100",
+          isSelected
+            ? "bg-accent/50 text-accent-foreground"
+            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
         )}
-        style={{ paddingLeft: `${level * 16 + 8}px` }}
+        style={{ paddingLeft: `${level * 12 + 4}px` }}
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
         onContextMenu={handleContextMenu}
@@ -150,19 +152,17 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
         {showChevron && (
           <>
             {isOpen ? (
-              <ChevronDown size={14} className="mr-1 opacity-80" />
+              <ChevronDown size={12} className="mr-1 opacity-60 shrink-0" />
             ) : (
-              <ChevronRight size={14} className="mr-1 opacity-80" />
+              <ChevronRight size={12} className="mr-1 opacity-60 shrink-0" />
             )}
           </>
         )}
-        {!showChevron && <div className="w-4 mr-1" />}
-        <div className="mr-2">
-          <RenderIcon icon={icon} size={16} />
+        {!showChevron && <div className="w-3 mr-1 shrink-0" />}
+        <div className="mr-1.5 shrink-0">
+          <RenderIcon icon={icon} size={14} />
         </div>
-        <div className="flex-1 truncate text-sm file-node-name">
-          <span>{node.name}</span>
-        </div>
+        <span className="flex-1 truncate text-[13px] leading-tight">{node.name}</span>
       </div>
       {node.is_directory && isOpen && node.children && node.children.length > 0 && (
         <div>
@@ -189,6 +189,7 @@ const FileNodeComponent = memo(FileNodeComponentInternal, (prevProps, nextProps)
     prevProps.node.path === nextProps.node.path &&
     prevProps.node.name === nextProps.node.name &&
     prevProps.node.is_directory === nextProps.node.is_directory &&
+    prevProps.node.children_loaded === nextProps.node.children_loaded &&
     prevProps.selectedPath === nextProps.selectedPath &&
     prevProps.level === nextProps.level &&
     prevProps.node.children?.length === nextProps.node.children?.length
@@ -284,34 +285,36 @@ const ProjectExplorerInternal: React.FC = () => {
   }, [projectRoot]);
 
   return (
-    <div className="flex flex-col h-full rounded-r-lg">
-      <div className="p-3">
+    <div className="flex flex-col h-full">
+      <div className="px-3 py-2 border-b border-border/20">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm uppercase tracking-wide">Project</h3>
-          <div className="flex items-center gap-1">
-            <Button size="icon" variant="ghost" title="New File" onClick={handleNewFile}>
-              <FilePlus size={16} />
+          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Explorer</span>
+          <div className="flex items-center gap-0.5">
+            <Button size="icon" variant="ghost" className="h-6 w-6" title="New File" onClick={handleNewFile}>
+              <FilePlus size={14} className="text-muted-foreground" />
             </Button>
-            <Button size="icon" variant="ghost" title="New Folder" onClick={handleNewFolder}>
-              <FolderPlus size={16} />
+            <Button size="icon" variant="ghost" className="h-6 w-6" title="New Folder" onClick={handleNewFolder}>
+              <FolderPlus size={14} className="text-muted-foreground" />
             </Button>
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto px-1 py-1">
         {projectRoot ? (
           <>
             {/* Show folder name as header */}
             <div
               className={cn(
-                "w-full h-7 px-2 flex items-center text-left font-semibold cursor-pointer rounded-md mb-1",
-                selectedPath === projectRoot.path ? "bg-muted" : "hover:bg-muted",
+                "w-full h-6 px-1.5 flex items-center text-left font-medium cursor-pointer rounded-sm mb-0.5 transition-colors duration-100",
+                selectedPath === projectRoot.path
+                  ? "bg-accent/50 text-accent-foreground"
+                  : "text-foreground hover:bg-muted/50",
               )}
               onClick={() => setSelectedPath(projectRoot.path)}
               onContextMenu={(event) => handleContextMenuOpen(event, projectRoot)}
             >
-              <FolderOpen size={16} className="mr-2" style={{ color: "var(--accent-primary)" }} />
-              <span className="text-sm truncate">{projectRoot.name}</span>
+              <FolderOpen size={14} className="mr-1.5 shrink-0" style={{ color: "var(--accent-primary)" }} />
+              <span className="text-[13px] truncate">{projectRoot.name}</span>
             </div>
             {/* Show children directly without nesting the root folder */}
             {projectRoot.children && projectRoot.children.length > 0 && (
