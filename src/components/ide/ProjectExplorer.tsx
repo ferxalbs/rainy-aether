@@ -138,7 +138,7 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
     <div>
       <div
         className={cn(
-          "w-full h-6 px-1.5 flex items-center text-left font-normal cursor-pointer rounded-sm transition-colors duration-100",
+          "w-full h-7 px-1.5 flex items-center text-left font-normal cursor-pointer rounded-sm transition-colors duration-100",
           isSelected
             ? "bg-accent/50 text-accent-foreground"
             : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
@@ -152,17 +152,17 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
         {showChevron && (
           <>
             {isOpen ? (
-              <ChevronDown size={12} className="mr-1 opacity-60 shrink-0" />
+              <ChevronDown size={14} className="mr-1 opacity-60 shrink-0" />
             ) : (
-              <ChevronRight size={12} className="mr-1 opacity-60 shrink-0" />
+              <ChevronRight size={14} className="mr-1 opacity-60 shrink-0" />
             )}
           </>
         )}
-        {!showChevron && <div className="w-3 mr-1 shrink-0" />}
+        {!showChevron && <div className="w-3.5 mr-1 shrink-0" />}
         <div className="mr-1.5 shrink-0">
-          <RenderIcon icon={icon} size={14} />
+          <RenderIcon icon={icon} size={16} />
         </div>
-        <span className="flex-1 truncate text-[13px] leading-tight">{node.name}</span>
+        <span className="flex-1 truncate text-sm">{node.name}</span>
       </div>
       {node.is_directory && isOpen && node.children && node.children.length > 0 && (
         <div>
@@ -288,7 +288,7 @@ const ProjectExplorerInternal: React.FC = () => {
     <div className="flex flex-col h-full">
       <div className="px-3 py-2 border-b border-border/20">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Explorer</span>
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Explorer</span>
           <div className="flex items-center gap-0.5">
             <Button size="icon" variant="ghost" className="h-6 w-6" title="New File" onClick={handleNewFile}>
               <FilePlus size={14} className="text-muted-foreground" />
@@ -305,7 +305,7 @@ const ProjectExplorerInternal: React.FC = () => {
             {/* Show folder name as header */}
             <div
               className={cn(
-                "w-full h-6 px-1.5 flex items-center text-left font-medium cursor-pointer rounded-sm mb-0.5 transition-colors duration-100",
+                "w-full h-7 px-1.5 flex items-center text-left font-medium cursor-pointer rounded-sm mb-0.5 transition-colors duration-100",
                 selectedPath === projectRoot.path
                   ? "bg-accent/50 text-accent-foreground"
                   : "text-foreground hover:bg-muted/50",
@@ -313,8 +313,8 @@ const ProjectExplorerInternal: React.FC = () => {
               onClick={() => setSelectedPath(projectRoot.path)}
               onContextMenu={(event) => handleContextMenuOpen(event, projectRoot)}
             >
-              <FolderOpen size={14} className="mr-1.5 shrink-0" style={{ color: "var(--accent-primary)" }} />
-              <span className="text-[13px] truncate">{projectRoot.name}</span>
+              <FolderOpen size={16} className="mr-1.5 shrink-0" style={{ color: "var(--accent-primary)" }} />
+              <span className="text-sm truncate">{projectRoot.name}</span>
             </div>
             {/* Show children directly without nesting the root folder */}
             {projectRoot.children && projectRoot.children.length > 0 && (
