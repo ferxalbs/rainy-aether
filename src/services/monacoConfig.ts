@@ -64,16 +64,31 @@ export function configureMonaco() {
     noSemanticValidation: false,
     noSyntaxValidation: false,
     diagnosticCodesToIgnore: [
-      // Only ignore errors that truly don't apply without full project context
-      2307, // Cannot find module (unavoidable without node_modules resolution)
-      7016, // Could not find declaration file for module
-      // React-specific false positives with new JSX transform
+      // Module resolution errors (unavoidable without full node_modules)
+      2307, // Cannot find module 'X' or its corresponding type declarations
+      2306, // File is not a module
+      2792, // Cannot find module 'X'. Did you mean to set moduleResolution?
+      7016, // Could not find declaration file for module 'X'
+      1479, // The current file is a CommonJS module whose imports will produce 'require'
+
+      // React/JSX specific false positives
       2708, // Cannot use namespace 'React' as a value (false positive with react-jsx)
-      1259, // Module can only be default-imported using esModuleInterop (React types issue)
-      // Note: Real errors that ARE now shown:
-      // 2305 - Module has no exported member
-      // 2339 - Property does not exist on type
-      // 2322 - Type is not assignable
+      1259, // Module can only be default-imported using esModuleInterop
+      2686, // 'React' refers to a UMD global
+
+      // Import/Export resolution issues
+      1192, // Module has no default export
+      1261, // Default export of module has or is using private name
+      2497, // This module can only be referenced with ECMAScript imports
+
+      // Type resolution issues for external libraries
+      2339, // Property does not exist on type (often false positive for untyped libs)
+      2345, // Argument of type 'X' is not assignable
+
+      // Note: We keep these enabled as they catch real bugs:
+      // 2305 - Module has no exported member (real export typos)
+      // 2322 - Type is not assignable (real type mismatches) 
+      // 2304 - Cannot find name (real undefined variables)
     ],
   });
 
@@ -81,11 +96,14 @@ export function configureMonaco() {
     noSemanticValidation: false,
     noSyntaxValidation: false,
     diagnosticCodesToIgnore: [
-      // Only ignore errors that truly don't apply without full project context
-      2307, // Cannot find module (unavoidable without node_modules resolution)
-      7016, // Could not find declaration file for module
-      2708, // Cannot use namespace as a value (React false positive)
-      1259, // Module default-import issue (React types)
+      // Module resolution errors
+      2307, 2306, 2792, 7016, 1479,
+      // React/JSX false positives
+      2708, 1259, 2686,
+      // Import/Export issues
+      1192, 1261, 2497,
+      // Type resolution for external libs
+      2339, 2345,
     ],
   });
 
