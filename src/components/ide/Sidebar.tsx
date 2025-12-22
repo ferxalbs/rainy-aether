@@ -44,7 +44,7 @@ const ActivityButton: React.FC<ActivityButtonProps> = ({ active, onClick, label,
           <Icon size={20} strokeWidth={1.5} className="transition-transform duration-200 group-hover:scale-110" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="right" align="center" className="px-2 py-1 text-xs font-medium backdrop-blur-md bg-popover/80 border-border/50">
+      <TooltipContent side="right">
         {label}
       </TooltipContent>
     </Tooltip>
@@ -117,12 +117,7 @@ const Sidebar: React.FC = () => {
       style={{ width: isOpen ? sidebarWidth : 56 }}
     >
       {/* Activity Bar */}
-      <div className="flex flex-col items-center py-4 h-full w-14 shrink-0 border-r border-sidebar-border/20 bg-transparent gap-2">
-
-        {/* Logo / Brand Area */}
-        <div className="mb-4 flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 shadow-inner ring-1 ring-white/10">
-          <Bot size={18} className="text-primary/90" />
-        </div>
+      <div className="flex flex-col items-center py-3 h-full w-14 shrink-0 border-r border-sidebar-border/20 bg-transparent gap-1">
 
         {/* Navigation */}
         <ActivityButton
