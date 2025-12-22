@@ -94,7 +94,7 @@ export class ConnectionManager {
 
     try {
       // Start the language server via Tauri backend (using improved implementation)
-      const result = await invoke<{ success: boolean; sessionId?: number; error?: string }>('lsp_start_server_improved', {
+      const result = await invoke<{ success: boolean; sessionId?: number; error?: string }>('lsp_start_server', {
         params: {
           serverId: this.serverId,
           command: options.command,
@@ -137,7 +137,7 @@ export class ConnectionManager {
       this.protocol.cancelAllRequests();
 
       // Stop the language server (using improved implementation)
-      await invoke('lsp_stop_server_improved', { serverId: this.serverId });
+      await invoke('lsp_stop_server', { serverId: this.serverId });
 
       // Clean up event listeners
       await this.cleanupEventListeners();
@@ -258,7 +258,7 @@ export class ConnectionManager {
   private async sendToServer(message: JSONRPCMessage): Promise<void> {
     try {
       const serialized = this.protocol.serializeMessage(message);
-      await invoke('lsp_send_message_improved', {
+      await invoke('lsp_send_message', {
         serverId: this.serverId,
         message: serialized,
       });

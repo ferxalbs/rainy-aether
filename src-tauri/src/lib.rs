@@ -11,7 +11,6 @@ mod git_manager;
 mod git_native; // New: Native libgit2 implementation
 mod help_manager;
 mod language_server_manager;
-mod language_server_manager_improved; // New: Improved LSP manager with optimizations
 #[cfg(target_os = "macos")]
 mod menu_manager; // Native macOS menu support
 mod project_manager;
@@ -66,7 +65,6 @@ pub fn run() {
         })
         .manage(terminal_manager::TerminalState::default())
         .manage(language_server_manager::LanguageServerManager::new())
-        .manage(language_server_manager_improved::LanguageServerManagerImproved::new())
         .manage(agent_server_manager::AgentServerState::default())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
@@ -445,13 +443,7 @@ pub fn run() {
         language_server_manager::lsp_start_server,
         language_server_manager::lsp_stop_server,
         language_server_manager::lsp_send_message,
-        language_server_manager::lsp_is_server_running,
-        language_server_manager::lsp_get_running_servers,
-        // Language Server Protocol (Improved)
-        language_server_manager_improved::lsp_start_server_improved,
-        language_server_manager_improved::lsp_stop_server_improved,
-        language_server_manager_improved::lsp_send_message_improved,
-        language_server_manager_improved::lsp_get_stats,
+        language_server_manager::lsp_get_stats,
         // Configuration management
         configuration_manager::load_user_configuration,
         configuration_manager::load_workspace_configuration,
