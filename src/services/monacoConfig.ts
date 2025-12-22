@@ -85,11 +85,12 @@ export function configureMonaco() {
       // Type resolution issues for external libraries
       2339, // Property does not exist on type (often false positive for untyped libs)
       2345, // Argument of type 'X' is not assignable
+      2322, // Type 'X' is not assignable to type 'Y' (JSX prop type mismatches)
+      2769, // No overload matches this call (JSX component props)
+      2559, // Type 'X' has no properties in common with type 'Y'
 
-      // Note: We keep these enabled as they catch real bugs:
-      // 2305 - Module has no exported member (real export typos)
-      // 2322 - Type is not assignable (real type mismatches) 
-      // 2304 - Cannot find name (real undefined variables)
+      // Note: Syntax errors and undefined variables are still shown
+      // 2304 - Cannot find name (undefined variables)
     ],
   });
 
@@ -104,7 +105,7 @@ export function configureMonaco() {
       // Import/Export issues
       1192, 1261, 2497, 2614,
       // Type resolution for external libs
-      2339, 2345,
+      2339, 2345, 2322, 2769, 2559,
     ],
   });
 
