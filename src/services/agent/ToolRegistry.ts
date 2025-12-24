@@ -4,6 +4,7 @@ import { getTerminalService } from "@/services/terminalService";
 import { getMarkerService } from "@/services/markerService";
 import { getIDEState, ideActions } from "@/stores/ideStore";
 import { inlineDiffActions } from "@/stores/inlineDiffStore";
+import { computeLineDiff, diffToInlineChanges } from "@/services/inlineDiff/lineDiff";
 import { join } from "@tauri-apps/api/path";
 
 export interface ToolDefinition {
@@ -283,11 +284,9 @@ After calling this tool, the user will see the changes highlighted in the editor
             await new Promise(resolve => setTimeout(resolve, 300));
           }
 
-          // Count changes for statistics
-          const originalLines = originalContent.split('\n');
-          const newLines = new_content.split('\n');
-          const addedLines = newLines.filter((l: string) => !originalLines.includes(l)).length;
-          const removedLines = originalLines.filter((l: string) => !newLines.includes(l)).length;
+          // Compute line-by-line differences
+          const diffResult = computeLineDiff(originalContent, new_content);
+          const inlineChanges = diffToInlineChanges(diffResult);
 
           // Start inline diff session
           inlineDiffActions.startInlineDiff({
@@ -298,18 +297,10 @@ After calling this tool, the user will see the changes highlighted in the editor
             description,
           });
 
-          // Create a single change entry representing the full file change
-          inlineDiffActions.streamChange({
-            type: 'replace',
-            range: {
-              startLine: 1,
-              startColumn: 1,
-              endLine: originalLines.length || 1,
-              endColumn: Number.MAX_SAFE_INTEGER,
-            },
-            newText: new_content,
-            oldText: originalContent,
-          });
+          // Stream each individual line change for proper visualization
+          for (const change of inlineChanges) {
+            inlineDiffActions.streamChange(change);
+          }
 
           // Finish streaming
           inlineDiffActions.finishStreaming();
@@ -317,10 +308,11 @@ After calling this tool, the user will see the changes highlighted in the editor
           return {
             success: true,
             status: 'pending_approval',
-            message: `Changes proposed for '${path}'. +${addedLines} lines, -${removedLines} lines. User must accept (Cmd/Ctrl+Enter) or reject (Escape).`,
+            message: `Changes proposed for '${path}'. +${diffResult.additions} lines, -${diffResult.deletions} lines, ~${diffResult.modifications} modified. User must accept (Cmd/Ctrl+Enter) or reject (Escape).`,
             path: resolvedPath,
-            additions: addedLines,
-            deletions: removedLines,
+            additions: diffResult.additions,
+            deletions: diffResult.deletions,
+            modifications: diffResult.modifications,
             description,
             hint: 'Changes are highlighted in the editor. Press Cmd/Ctrl+Enter to accept or Escape to reject.',
           };

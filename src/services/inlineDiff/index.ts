@@ -5,3 +5,5 @@
  */
 
 export { InlineDiffController, createInlineDiffController } from './InlineDiffController';
+export { computeLineDiff, diffToInlineChanges } from './lineDiff';
+export type { LineDiff, DiffResult } from './lineDiff';
