@@ -174,7 +174,7 @@ const SettingsPage = () => {
   // Render Advanced Settings view
   if (currentView === "advanced") {
     return (
-      <div className="h-screen flex flex-col bg-background text-foreground">
+      <div className="flex-1 h-full min-h-0 flex flex-col bg-background text-foreground">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -204,7 +204,7 @@ const SettingsPage = () => {
   // Render Font Settings view
   if (currentView === "fonts") {
     return (
-      <div className="h-screen flex flex-col bg-background text-foreground">
+      <div className="flex-1 h-full min-h-0 flex flex-col bg-background text-foreground">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -232,7 +232,7 @@ const SettingsPage = () => {
   }
 
   return (
-    <div className="h-screen flex bg-background text-foreground">
+    <div className="flex-1 h-full min-h-0 flex bg-background text-foreground">
       {/* Sidebar */}
       <div className="w-64 border-r p-4 space-y-2">
         <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Preferences</div>

@@ -464,24 +464,24 @@ const IDE: React.FC = () => {
           <LoadingScreen stages={loadingState.stages} context={loadingState.loadingContext} />
         </div>
       )}
+      <MenuBar
+        onOpenQuickOpen={() => setIsQuickOpenOpen(true)}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenThemeSwitcher={() => setIsThemeSwitcherOpen(true)}
+        onOpenGoToLine={() => setIsGoToLineOpen(true)}
+        onOpenExtensionMarketplace={() => setIsExtensionMarketplaceOpen(true)}
+        onOpenExtensionManager={() => setIsExtensionManagerOpen(true)}
+        onOpenCloneDialog={() => setIsCloneDialogOpen(true)}
+        onOpenKeyboardShortcuts={() => console.log('TODO: Keyboard shortcuts')}
+        onOpenAbout={() => setIsAboutOpen(true)}
+      />
+
       {currentView === "startup" && <StartupPage />}
 
       {currentView === "settings" && <SettingsPage />}
 
       {currentView === "editor" && (
         <>
-          <MenuBar
-            onOpenQuickOpen={() => setIsQuickOpenOpen(true)}
-            onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-            onOpenThemeSwitcher={() => setIsThemeSwitcherOpen(true)}
-            onOpenGoToLine={() => setIsGoToLineOpen(true)}
-            onOpenExtensionMarketplace={() => setIsExtensionMarketplaceOpen(true)}
-            onOpenExtensionManager={() => setIsExtensionManagerOpen(true)}
-            onOpenCloneDialog={() => setIsCloneDialogOpen(true)}
-            onOpenKeyboardShortcuts={() => console.log('TODO: Keyboard shortcuts')}
-            onOpenAbout={() => setIsAboutOpen(true)}
-          />
-
           {/* Conditionally render based on view mode */}
           {viewMode === "agents" ? (
             <div className="flex flex-1 min-h-0 overflow-hidden">

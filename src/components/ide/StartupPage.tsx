@@ -81,7 +81,7 @@ const StartupPage: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex-1 h-full overflow-auto bg-background text-foreground">
       <div className="max-w-6xl mx-auto p-8 pt-12">
         {/* Header */}
         <div className="mb-12 text-center">
