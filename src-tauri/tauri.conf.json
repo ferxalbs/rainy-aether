@@ -17,15 +17,17 @@
         "height": 800,
         "minWidth": 800,
         "minHeight": 600,
-        "decorations": false,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "visible": true,
         "center": true,
         "resizable": true,
         "maximizable": true,
         "minimizable": true,
         "closable": true,
-        "transparent": true,
-        "backgroundColor": "#00000000"
+        "transparent": false,
+        "backgroundColor": "#020617"
       }
     ],
     "security": {

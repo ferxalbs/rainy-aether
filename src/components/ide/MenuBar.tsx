@@ -318,12 +318,15 @@ const MenuBar: React.FC<MenuBarProps> = ({
   );
 
   // On macOS with native menu: render only the mode switcher and panel controls
+  // Native traffic lights are handled by titleBarStyle: "Overlay" - we just need left padding
   if (useNative) {
     return (
       <div
-        className="h-10 border-b border-border flex items-center px-1 bg-background select-none"
+        className="h-10 border-b border-border flex items-center bg-background select-none"
+        data-tauri-drag-region
       >
-        <WindowControls />
+        {/* Left padding for native macOS traffic lights (approx 78px) */}
+        <div className="w-[78px] shrink-0" data-tauri-drag-region />
 
         {/* Mode Switcher */}
         <div className="flex items-center px-2">

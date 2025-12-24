@@ -111,7 +111,7 @@ const Sidebar: React.FC = () => {
       ref={sidebarRef}
       className={cn(
         "flex h-full relative group select-none z-40",
-        "bg-sidebar/30 backdrop-blur-md border-r border-sidebar-border/30", // Native glass feel
+        "bg-[var(--bg-sidebar)] border-r border-sidebar-border", // Solid background using explicit variable
         !isResizing && "transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]"
       )}
       style={{ width: isOpen ? sidebarWidth : 56 }}
