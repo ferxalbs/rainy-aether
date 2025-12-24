@@ -293,6 +293,7 @@ pub fn run() {
         git::history::git_diff_commit,
         git::history::git_diff_commit_file,
         git::history::git_unpushed,
+        git::history::git_sync_status,
         // Branch operations
         git::branch::git_branches,
         git::branch::git_get_current_branch,

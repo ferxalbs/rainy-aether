@@ -429,16 +429,62 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       order: 2,
       position: 'left'
     },
-    {
-      id: 'sync',
-      name: 'Sync',
-      text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Sync',
-      tooltip: 'Sync changes',
-      ariaLabel: 'Sync changes',
-      onClick: () => console.log('Sync clicked'),
-      order: 3,
-      position: 'left'
-    },
+    // Sync status - show ahead/behind or "No Remote" if not configured
+    (() => {
+      // No remote configured
+      if (!gitStatus.hasRemote && gitStatus.branch) {
+        return {
+          id: 'sync',
+          name: 'Sync',
+          text: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> No Remote',
+          tooltip: 'No remote configured. Click to add a remote repository.',
+          ariaLabel: 'No remote configured',
+          onClick: () => window.dispatchEvent(new CustomEvent("git:open-remote-config")),
+          kind: 'warning' as const,
+          order: 3,
+          position: 'left' as const
+        };
+      }
+
+      const ahead = gitStatus.ahead || 0;
+      const behind = gitStatus.behind || 0;
+
+      // Show arrows with counts
+      const aheadStr = ahead > 0 ? `${ahead}↑` : '';
+      const behindStr = behind > 0 ? `${behind}↓` : '';
+      const syncText = ahead === 0 && behind === 0
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>' // Checkmark
+        : `${behindStr}${behind > 0 && ahead > 0 ? ' ' : ''}${aheadStr}`;
+
+      const tooltip = ahead === 0 && behind === 0
+        ? 'Synced with remote'
+        : `${ahead > 0 ? `${ahead} commit${ahead !== 1 ? 's' : ''} to push` : ''}${ahead > 0 && behind > 0 ? ', ' : ''}${behind > 0 ? `${behind} commit${behind !== 1 ? 's' : ''} to pull` : ''}`;
+
+      return {
+        id: 'sync',
+        name: 'Sync',
+        text: syncText,
+        tooltip,
+        ariaLabel: tooltip,
+        onClick: async () => {
+          // If behind, pull first; if ahead, push
+          if (behind > 0) {
+            try {
+              const { pull } = await import('@/stores/gitStore');
+              await pull();
+            } catch { /* Error handled in gitStore */ }
+          } else if (ahead > 0) {
+            try {
+              const { push } = await import('@/stores/gitStore');
+              await push();
+            } catch { /* Error handled in gitStore */ }
+          }
+        },
+        kind: ahead > 0 || behind > 0 ? 'prominent' as const : 'standard' as const,
+        order: 3,
+        position: 'left' as const
+      };
+    })(),
 
     // Right side items
     // Network status

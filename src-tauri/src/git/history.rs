@@ -58,6 +58,118 @@ pub fn git_log(path: String, max_count: Option<u32>) -> Result<Vec<CommitInfo>, 
     Ok(commits)
 }
 
+/// Sync status for status bar - returns ahead/behind counts
+#[derive(serde::Serialize)]
+pub struct SyncStatus {
+    pub ahead: u32,
+    pub behind: u32,
+    pub has_remote: bool,
+    pub branch: Option<String>,
+    pub remote: Option<String>,
+}
+
+/// Get sync status (ahead/behind remote)
+#[tauri::command]
+pub fn git_sync_status(path: String) -> Result<SyncStatus, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+
+    // Get HEAD
+    let head = match repo.head() {
+        Ok(h) => h,
+        Err(_) => {
+            return Ok(SyncStatus {
+                ahead: 0,
+                behind: 0,
+                has_remote: false,
+                branch: None,
+                remote: None,
+            });
+        }
+    };
+
+    let branch_name = head.shorthand().map(|s| s.to_string());
+
+    // Check if we have a remote
+    let remotes = repo.remotes().map_err(|e| GitError::from(e))?;
+    if remotes.is_empty() {
+        return Ok(SyncStatus {
+            ahead: 0,
+            behind: 0,
+            has_remote: false,
+            branch: branch_name,
+            remote: None,
+        });
+    }
+
+    // Get branch name for upstream lookup
+    let branch = match &branch_name {
+        Some(b) => b,
+        None => {
+            return Ok(SyncStatus {
+                ahead: 0,
+                behind: 0,
+                has_remote: !remotes.is_empty(),
+                branch: None,
+                remote: None,
+            });
+        }
+    };
+
+    // Try to find upstream
+    let upstream_name = format!("refs/remotes/origin/{}", branch);
+    let upstream = match repo.find_reference(&upstream_name) {
+        Ok(r) => r,
+        Err(_) => {
+            return Ok(SyncStatus {
+                ahead: 0,
+                behind: 0,
+                has_remote: true,
+                branch: branch_name,
+                remote: Some("origin".to_string()),
+            });
+        }
+    };
+
+    let head_oid = match head.target() {
+        Some(oid) => oid,
+        None => {
+            return Ok(SyncStatus {
+                ahead: 0,
+                behind: 0,
+                has_remote: true,
+                branch: branch_name,
+                remote: Some("origin".to_string()),
+            });
+        }
+    };
+
+    let upstream_oid = match upstream.target() {
+        Some(oid) => oid,
+        None => {
+            return Ok(SyncStatus {
+                ahead: 0,
+                behind: 0,
+                has_remote: true,
+                branch: branch_name,
+                remote: Some("origin".to_string()),
+            });
+        }
+    };
+
+    // Get ahead/behind using graph_ahead_behind
+    let (ahead, behind) = repo
+        .graph_ahead_behind(head_oid, upstream_oid)
+        .unwrap_or((0, 0));
+
+    Ok(SyncStatus {
+        ahead: ahead as u32,
+        behind: behind as u32,
+        has_remote: true,
+        branch: branch_name,
+        remote: Some("origin".to_string()),
+    })
+}
+
 /// Get list of unpushed commits
 #[tauri::command]
 pub fn git_unpushed(path: String) -> Result<Vec<String>, String> {
