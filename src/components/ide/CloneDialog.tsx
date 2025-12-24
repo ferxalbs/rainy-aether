@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { GitBranch, FolderOpen, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,37 @@ interface CloneDialogProps {
   onSuccess?: (path: string) => void;
 }
 
+/**
+ * Extract repository name from Git URL
+ * Examples:
+ * - https://github.com/user/repo.git -> repo
+ * - git@github.com:user/repo.git -> repo
+ * - https://github.com/user/repo -> repo
+ */
+function extractRepoName(url: string): string {
+  if (!url.trim()) return "";
+
+  try {
+    // Remove trailing .git if present
+    let cleanUrl = url.trim().replace(/\.git$/, "");
+
+    // Handle SSH URLs (git@github.com:user/repo)
+    if (cleanUrl.includes("@") && cleanUrl.includes(":")) {
+      const parts = cleanUrl.split(":");
+      if (parts.length > 1) {
+        const pathParts = parts[1].split("/");
+        return pathParts[pathParts.length - 1] || "";
+      }
+    }
+
+    // Handle HTTPS URLs
+    const urlParts = cleanUrl.split("/");
+    return urlParts[urlParts.length - 1] || "";
+  } catch {
+    return "";
+  }
+}
+
 const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIsOpen, onClose, onSuccess }) => {
   const [uncontrolledIsOpen, setUncontrolledIsOpen] = useState(false);
 
@@ -34,17 +65,27 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
   const [branch, setBranch] = useState("");
   const [depth, setDepth] = useState("");
   const [useDepth, setUseDepth] = useState(false);
-  
+
   const { isCloning, cloneProgress } = useGitState();
+
+  // Extract repo name from URL
+  const repoName = useMemo(() => extractRepoName(url), [url]);
+
+  // Full destination path (folder + repo name)
+  const fullDestination = useMemo(() => {
+    if (!destination.trim() || !repoName) return "";
+    const sep = destination.includes("\\") ? "\\" : "/";
+    return `${destination.replace(/[/\\]$/, "")}${sep}${repoName}`;
+  }, [destination, repoName]);
 
   const handleBrowseDestination = useCallback(async () => {
     try {
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Select Clone Destination",
+        title: "Select Parent Folder for Clone",
       });
-      
+
       if (selected && typeof selected === 'string') {
         setDestination(selected);
       }
@@ -54,7 +95,7 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
   }, []);
 
   const handleClone = useCallback(async () => {
-    if (!url.trim() || !destination.trim()) {
+    if (!url.trim() || !fullDestination.trim()) {
       return;
     }
 
@@ -62,11 +103,11 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
       const depthNum = useDepth && depth ? parseInt(depth) : undefined;
       await cloneRepository(
         url.trim(),
-        destination.trim(),
+        fullDestination.trim(), // Use the full path with repo name
         branch.trim() || undefined,
         depthNum
       );
-      
+
       // Reset form
       setUrl("");
       setDestination("");
@@ -74,14 +115,14 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
       setDepth("");
       setUseDepth(false);
       setIsOpen(false);
-      
+
       if (onSuccess) {
-        onSuccess(destination.trim());
+        onSuccess(fullDestination.trim());
       }
     } catch (error) {
       console.error('Failed to clone repository:', error);
     }
-  }, [url, destination, branch, depth, useDepth, onSuccess]);
+  }, [url, fullDestination, branch, depth, useDepth, onSuccess, setIsOpen]);
 
   const defaultTrigger = (
     <Button variant="outline" size="sm" className="gap-2">
@@ -107,7 +148,7 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
             Clone a remote repository to your local machine
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           {/* Repository URL */}
           <div className="space-y-2">
@@ -130,7 +171,7 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
             <div className="flex gap-2">
               <Input
                 id="clone-dest"
-                placeholder="/path/to/destination"
+                placeholder="/path/to/projects"
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 disabled={isCloning}
@@ -145,6 +186,16 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
                 <FolderOpen className="size-4" />
               </Button>
             </div>
+            {fullDestination && (
+              <p className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded font-mono">
+                → {fullDestination}
+              </p>
+            )}
+            {!fullDestination && destination && !repoName && (
+              <p className="text-xs text-yellow-600 dark:text-yellow-500">
+                Enter a repository URL to see the full destination path
+              </p>
+            )}
           </div>
 
           {/* Branch */}
@@ -182,7 +233,7 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
                 {useDepth ? "Enabled" : "Disabled"}
               </Button>
             </div>
-            
+
             {useDepth && (
               <div className="space-y-2">
                 <Label htmlFor="depth-input">Depth</Label>
