@@ -128,7 +128,9 @@ export class AgentService {
     }
 
     // Execute all tool calls - try BrainService first, fallback to local ToolRegistry
+    // IMPORTANT: Some tools MUST run locally (apply_file_diff needs frontend state)
     const useBrain = brainService.connected;
+    const LOCAL_ONLY_TOOLS = ['apply_file_diff']; // Tools that need frontend React state
 
     for (const toolCall of response.toolCalls) {
       try {
@@ -137,7 +139,10 @@ export class AgentService {
 
         let result: unknown;
 
-        if (useBrain) {
+        // Force local execution for tools that need frontend state
+        const forceLocal = LOCAL_ONLY_TOOLS.includes(toolCall.name);
+
+        if (useBrain && !forceLocal) {
           // Use sidecar brain service (more reliable, no Tauri hangs)
           // CRITICAL: Pass the user's workspace, NOT the IDE's install path
           const workspace = getIDEState().workspace;
@@ -152,7 +157,7 @@ export class AgentService {
             throw new Error(brainResult.error || 'Tool execution failed');
           }
         } else {
-          // Fallback to local ToolRegistry (via Tauri)
+          // Use local ToolRegistry (for frontend-only tools or when brain not connected)
           result = await toolRegistry.executeTool(toolCall.name, toolCall.arguments);
         }
 

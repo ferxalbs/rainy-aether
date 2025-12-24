@@ -214,44 +214,65 @@ async function acceptAllChanges(): Promise<void> {
     const changes = state.pendingChanges;
 
     try {
-        // Build the modified content by applying all changes
+        // For a full file replacement, we use the newText from the first (and typically only) change
+        let newContent: string;
+
+        if (changes.length === 1 && changes[0].type === 'replace') {
+            // Full file replacement
+            newContent = changes[0].newText;
+        } else {
+            // Multiple granular changes - apply them to the editor model
+            const editor = editorActions.getCurrentEditor();
+            if (editor) {
+                const model = editor.getModel();
+                if (model) {
+                    // Apply changes in reverse order (from bottom to top) to preserve line numbers
+                    const sortedChanges = [...changes].sort((a, b) =>
+                        b.range.startLine - a.range.startLine || b.range.startColumn - a.range.startColumn
+                    );
+
+                    // Use Monaco's edit operations to apply changes
+                    const edits = sortedChanges.map(change => ({
+                        range: {
+                            startLineNumber: change.range.startLine,
+                            startColumn: change.range.startColumn,
+                            endLineNumber: change.range.endLine,
+                            endColumn: change.range.endColumn,
+                        },
+                        text: change.type === 'delete' ? '' : change.newText,
+                    }));
+
+                    // Apply all edits at once
+                    model.pushEditOperations([], edits, () => null);
+                    newContent = model.getValue();
+                } else {
+                    throw new Error('No model available');
+                }
+            } else {
+                throw new Error('No editor available');
+            }
+        }
+
+        // Save the file
+        await invoke('save_file_content', {
+            path: session.fileUri,
+            content: newContent,
+        });
+
+        // Update the editor with the new content
         const editor = editorActions.getCurrentEditor();
         if (editor) {
             const model = editor.getModel();
-            if (model) {
-                // Apply changes in reverse order (from bottom to top) to preserve line numbers
-                const sortedChanges = [...changes].sort((a, b) =>
-                    b.range.startLine - a.range.startLine || b.range.startColumn - a.range.startColumn
-                );
-
-                // Use Monaco's edit operations to apply changes
-                const edits = sortedChanges.map(change => ({
-                    range: {
-                        startLineNumber: change.range.startLine,
-                        startColumn: change.range.startColumn,
-                        endLineNumber: change.range.endLine,
-                        endColumn: change.range.endColumn,
-                    },
-                    text: change.type === 'delete' ? '' : change.newText,
-                }));
-
-                // Apply all edits at once
-                model.pushEditOperations([], edits, () => null);
-
-                // Save the file
-                const newContent = model.getValue();
-                await invoke('save_file_content', {
-                    path: session.fileUri,
-                    content: newContent,
-                });
-
-                // Update IDE state
-                const openFiles = ideActions.getState().openFiles;
-                const openFile = openFiles.find(f => f.path === session.fileUri);
-                if (openFile) {
-                    ideActions.updateFileContent(openFile.id, newContent);
-                }
+            if (model && model.getValue() !== newContent) {
+                model.setValue(newContent);
             }
+        }
+
+        // Update IDE state
+        const openFiles = ideActions.getState().openFiles;
+        const openFile = openFiles.find(f => f.path === session.fileUri);
+        if (openFile) {
+            ideActions.updateFileContent(openFile.id, newContent);
         }
 
         console.log(`[inlineDiffStore] Accepted ${changes.length} changes for ${session.fileUri}`);
