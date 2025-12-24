@@ -28,6 +28,7 @@ import {
   pull,
   useGitState,
   Commit,
+  showGitError,
 } from "@/stores/gitStore";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -49,10 +50,12 @@ import DiffViewer from "./DiffViewer";
 import CommitDiffViewer from "./CommitDiffViewer";
 import BranchManager from "./BranchManager";
 import StashManager from "./StashManager";
+import RemoteConfigDialog from "./RemoteConfigDialog";
 
 const GitHistoryPanel: React.FC = () => {
   const [message, setMessage] = useState("");
   const [stageAll, setStageAll] = useState(true);
+  const [remoteDialogOpen, setRemoteDialogOpen] = useState(false);
 
   const [diffViewer, setDiffViewer] = useState<{ filePath: string; diff: string; staged: boolean } | null>(null);
   const [commitDiffViewer, setCommitDiffViewer] = useState<Commit | null>(null);
@@ -108,7 +111,7 @@ const GitHistoryPanel: React.FC = () => {
       const diff = await getFileDiff(filePath, staged);
       setDiffViewer({ filePath, diff, staged });
     } catch (error) {
-      console.error('Failed to get diff:', error);
+      showGitError(error);
     }
   }, []);
 
@@ -119,17 +122,24 @@ const GitHistoryPanel: React.FC = () => {
   const handlePush = useCallback(async () => {
     try {
       await push();
-    } catch (error) {
-      console.error('Failed to push:', error);
+    } catch {
+      // Error already shown by gitStore
     }
   }, []);
 
   const handlePull = useCallback(async () => {
     try {
       await pull();
-    } catch (error) {
-      console.error('Failed to pull:', error);
+    } catch {
+      // Error already shown by gitStore
     }
+  }, []);
+
+  // Listen for remote config dialog event
+  useEffect(() => {
+    const handleOpenRemoteConfig = () => setRemoteDialogOpen(true);
+    window.addEventListener("git:open-remote-config", handleOpenRemoteConfig);
+    return () => window.removeEventListener("git:open-remote-config", handleOpenRemoteConfig);
   }, []);
 
   const isStaged = (code: string) => {
@@ -387,6 +397,12 @@ const GitHistoryPanel: React.FC = () => {
             onClose={() => setCommitDiffViewer(null)}
           />
         )}
+
+        {/* Remote Configuration Dialog */}
+        <RemoteConfigDialog
+          open={remoteDialogOpen}
+          onOpenChange={setRemoteDialogOpen}
+        />
       </div>
     </TooltipProvider>
   );

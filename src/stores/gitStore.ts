@@ -1,5 +1,98 @@
 import { useSyncExternalStore } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { toastActions } from "./toastStore";
+
+/**
+ * Translate Git errors into user-friendly messages
+ */
+function getGitErrorMessage(error: unknown): { title: string; message?: string; action?: string } {
+  const errorStr = String(error).toLowerCase();
+
+  // Remote not configured
+  if (errorStr.includes("remote") && (errorStr.includes("not exist") || errorStr.includes("not found"))) {
+    return {
+      title: "No Remote Configured",
+      message: "Add a remote repository URL to push your changes (e.g., GitHub, GitLab).",
+      action: "addRemote"
+    };
+  }
+
+  // Authentication errors
+  if (errorStr.includes("authentication") || errorStr.includes("auth") || errorStr.includes("permission denied")) {
+    return {
+      title: "Authentication Failed",
+      message: "Check your SSH keys or credentials for the remote repository."
+    };
+  }
+
+  // Network errors
+  if (errorStr.includes("network") || errorStr.includes("connection") || errorStr.includes("could not resolve")) {
+    return {
+      title: "Connection Failed",
+      message: "Check your internet connection and try again."
+    };
+  }
+
+  // Merge conflicts
+  if (errorStr.includes("conflict")) {
+    return {
+      title: "Merge Conflicts",
+      message: "Resolve conflicts in the affected files before continuing."
+    };
+  }
+
+  // Nothing to commit
+  if (errorStr.includes("nothing to commit") || errorStr.includes("no changes")) {
+    return {
+      title: "Nothing to Commit",
+      message: "There are no staged changes to commit."
+    };
+  }
+
+  // Detached HEAD
+  if (errorStr.includes("detached head")) {
+    return {
+      title: "Detached HEAD",
+      message: "Create a branch to save your changes."
+    };
+  }
+
+  // Default error
+  return {
+    title: "Git Error",
+    message: String(error)
+  };
+}
+
+/**
+ * Show a Git error as a toast notification
+ */
+export function showGitError(error: unknown) {
+  const { title, message, action } = getGitErrorMessage(error);
+
+  const toastOptions: Parameters<typeof toastActions.error>[2] = {};
+
+  // Add action button if applicable
+  if (action === "addRemote") {
+    toastOptions.action = {
+      label: "Configure Remote",
+      onClick: () => {
+        // Emit event to open remote config dialog
+        window.dispatchEvent(new CustomEvent("git:open-remote-config"));
+      }
+    };
+    toastOptions.duration = 0; // Persist until dismissed
+  }
+
+  toastActions.error(title, message, toastOptions);
+}
+
+/**
+ * Show a Git success message
+ */
+export function showGitSuccess(message: string) {
+  toastActions.success("Git", message);
+}
 
 // Debounce timers for git operations
 let refreshStatusTimer: ReturnType<typeof setTimeout> | null = null;
@@ -288,9 +381,14 @@ export async function commit(message: string, stageAll = true) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
 
-  // Note: Tauri converts Rust snake_case params to camelCase in JS
-  await invoke<string>("git_commit", { path: wsPath, message, stageAll });
-  await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
+  try {
+    await invoke<string>("git_commit", { path: wsPath, message, stageAll });
+    await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
+    showGitSuccess("Changes committed successfully");
+  } catch (error) {
+    showGitError(error);
+    throw error;
+  }
 }
 
 export async function stageFile(filePath: string) {
@@ -315,9 +413,13 @@ export async function discardChanges(filePath: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
 
-  // Note: Tauri converts Rust snake_case params to camelCase in JS
-  await invoke<string>("git_discard_changes", { path: wsPath, filePath });
-  await Promise.all([refreshStatus(), refreshHistory()]);
+  try {
+    await invoke<string>("git_discard_changes", { path: wsPath, filePath });
+    await Promise.all([refreshStatus(), refreshHistory()]);
+  } catch (error) {
+    showGitError(error);
+    throw error;
+  }
 }
 
 export async function checkoutBranch(branchName: string) {
@@ -342,16 +444,28 @@ export async function push(remote?: string, branch?: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
 
-  await invoke<string>("git_push", { path: wsPath, remote, branch });
-  await Promise.all([refreshHistory(), refreshBranches()]);
+  try {
+    await invoke<string>("git_push", { path: wsPath, remote, branch });
+    await Promise.all([refreshHistory(), refreshBranches()]);
+    showGitSuccess("Pushed to remote successfully");
+  } catch (error) {
+    showGitError(error);
+    throw error;
+  }
 }
 
 export async function pull(remote?: string, branch?: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
 
-  await invoke<string>("git_pull", { path: wsPath, remote, branch });
-  await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
+  try {
+    await invoke<string>("git_pull", { path: wsPath, remote, branch });
+    await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
+    showGitSuccess("Pulled from remote successfully");
+  } catch (error) {
+    showGitError(error);
+    throw error;
+  }
 }
 
 export async function stashPush(message?: string) {
@@ -376,6 +490,31 @@ export async function getFileDiff(filePath: string, staged = false) {
 
   // Use native implementation for instant diff viewing (10x faster)
   return await invoke<string>("git_diff_file", { path: wsPath, filePath, staged });
+}
+
+/**
+ * List all configured remotes
+ */
+export async function listRemotes(): Promise<Remote[]> {
+  const wsPath = git.workspacePath;
+  if (!wsPath) return [];
+
+  try {
+    const remotes = await invoke<Remote[]>("git_list_remotes", { path: wsPath });
+    updateGitState({ remotes });
+    return remotes;
+  } catch (error) {
+    console.error("Failed to list remotes:", error);
+    return [];
+  }
+}
+
+/**
+ * Check if any remote is configured
+ */
+export async function hasRemote(): Promise<boolean> {
+  const remotes = await listRemotes();
+  return remotes.length > 0;
 }
 
 export function isRepo() {
@@ -467,16 +606,28 @@ export async function addRemote(name: string, url: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
 
-  await invoke<string>("git_add_remote", { path: wsPath, name, url });
-  await refreshRemotes();
+  try {
+    await invoke<string>("git_add_remote", { path: wsPath, name, url });
+    await refreshRemotes();
+    showGitSuccess(`Remote '${name}' added successfully`);
+  } catch (error) {
+    showGitError(error);
+    throw error;
+  }
 }
 
 export async function removeRemote(name: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
 
-  await invoke<string>("git_remove_remote", { path: wsPath, name });
-  await refreshRemotes();
+  try {
+    await invoke<string>("git_remove_remote", { path: wsPath, name });
+    await refreshRemotes();
+    showGitSuccess(`Remote '${name}' removed`);
+  } catch (error) {
+    showGitError(error);
+    throw error;
+  }
 }
 
 export async function renameRemote(oldName: string, newName: string) {
