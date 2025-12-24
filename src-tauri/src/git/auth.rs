@@ -1,11 +1,10 @@
-//! Git Authentication System
+//! Git Authentication
 //!
 //! Provides authentication callbacks for remote Git operations using libgit2.
 //! Supports multiple authentication methods:
 //! - SSH keys (~/.ssh/id_rsa, ~/.ssh/id_ed25519)
 //! - SSH agent
 //! - Git credential helper
-//! - Username/Password (HTTPS)
 //! - Default credentials
 
 use git2::{Cred, CredentialType, FetchOptions, PushOptions, RemoteCallbacks};
@@ -25,15 +24,8 @@ impl AuthCallbacks {
         let mut callbacks = RemoteCallbacks::new();
 
         callbacks.credentials(|url, username, allowed| {
-            // Debug logging (can be removed in production)
-            eprintln!(
-                "Auth callback: url={}, username={:?}, allowed={:?}",
-                url, username, allowed
-            );
-
             // Try SSH key authentication
             if allowed.contains(CredentialType::SSH_KEY) {
-                // Try multiple SSH key paths
                 let home = std::env::var("HOME")
                     .or_else(|_| std::env::var("USERPROFILE"))
                     .unwrap_or_else(|_| ".".to_string());
@@ -41,20 +33,18 @@ impl AuthCallbacks {
                 let ssh_dir = Path::new(&home).join(".ssh");
 
                 // Try common SSH key names
-                let key_names = vec!["id_rsa", "id_ed25519", "id_ecdsa", "id_dsa"];
+                let key_names = ["id_rsa", "id_ed25519", "id_ecdsa"];
 
                 for key_name in key_names {
                     let private_key = ssh_dir.join(key_name);
                     let public_key = ssh_dir.join(format!("{}.pub", key_name));
 
                     if private_key.exists() {
-                        eprintln!("Trying SSH key: {:?}", private_key);
-
                         let result = Cred::ssh_key(
                             username.unwrap_or("git"),
                             Some(&public_key),
                             &private_key,
-                            None, // No passphrase for now
+                            None,
                         );
 
                         if result.is_ok() {
@@ -66,7 +56,6 @@ impl AuthCallbacks {
 
             // Try SSH agent
             if allowed.contains(CredentialType::SSH_KEY) {
-                eprintln!("Trying SSH agent");
                 let result = Cred::ssh_key_from_agent(username.unwrap_or("git"));
                 if result.is_ok() {
                     return result;
@@ -75,7 +64,6 @@ impl AuthCallbacks {
 
             // Try default credentials (for HTTPS with credential helper)
             if allowed.contains(CredentialType::DEFAULT) {
-                eprintln!("Trying default credentials");
                 let result = Cred::default();
                 if result.is_ok() {
                     return result;
@@ -84,9 +72,6 @@ impl AuthCallbacks {
 
             // Try credential helper (for HTTPS)
             if allowed.contains(CredentialType::USER_PASS_PLAINTEXT) {
-                eprintln!("Trying credential helper");
-
-                // Try to use git credential helper
                 if let Ok(config) = git2::Config::open_default() {
                     let result = Cred::credential_helper(&config, url, username);
                     if result.is_ok() {
@@ -95,14 +80,11 @@ impl AuthCallbacks {
                 }
             }
 
-            // Try username from memory (for subsequent attempts)
+            // Try username from memory
             if allowed.contains(CredentialType::USERNAME) {
-                eprintln!("Providing username only");
                 return Cred::username(username.unwrap_or("git"));
             }
 
-            // All methods failed
-            eprintln!("All authentication methods failed");
             Err(git2::Error::from_str(
                 "No valid authentication method available",
             ))
@@ -131,14 +113,12 @@ impl AuthCallbacks {
         F: FnMut(git2::Progress) -> bool + 'static,
     {
         let mut callbacks = Self::create_callbacks();
-
         callbacks.transfer_progress(on_progress);
-
         callbacks
     }
 }
 
-/// Create fetch options with authentication callbacks and progress reporting
+/// Create fetch options with authentication and progress
 pub fn fetch_options_with_progress<F>(on_progress: F) -> FetchOptions<'static>
 where
     F: FnMut(git2::Progress) -> bool + 'static,
@@ -148,7 +128,7 @@ where
     opts
 }
 
-/// Create push options with authentication callbacks and progress reporting
+/// Create push options with authentication and progress
 pub fn push_options_with_progress<F>(on_progress: F) -> PushOptions<'static>
 where
     F: FnMut(git2::Progress) -> bool + 'static,

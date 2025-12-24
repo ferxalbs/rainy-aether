@@ -157,7 +157,7 @@ export function refreshRepoDetection() {
   const wsPath = git.workspacePath;
   if (!wsPath) return;
   // Use native implementation to avoid CMD window flashing on Windows
-  invoke<boolean>("git_is_repo_native", { path: wsPath })
+  invoke<boolean>("git_is_repo", { path: wsPath })
     .then((ok: boolean) => updateGitState({ isRepo: ok }))
     .catch(() => updateGitState({ isRepo: false }));
 }
@@ -193,8 +193,8 @@ export async function refreshHistory(maxCount = 100, debounce = true, targetPath
 
     // Use native implementation to fix crashes when viewing commits
     const [commits, unpushed]: [Commit[], string[]] = await Promise.all([
-      invoke<Commit[]>("git_log_native", { path: wsPath, maxCount: maxCount }),
-      invoke<string[]>("git_unpushed_native", { path: wsPath }),
+      invoke<Commit[]>("git_log", { path: wsPath, maxCount: maxCount }),
+      invoke<string[]>("git_unpushed", { path: wsPath }),
     ]);
     updateGitState({
       commits,
@@ -229,7 +229,7 @@ export async function refreshStatus(debounce = true) {
     }
 
     // Use native implementation for better performance (6-8x faster)
-    const entries = await invoke<StatusEntry[]>("git_status_native", { path: wsPath });
+    const entries = await invoke<StatusEntry[]>("git_status", { path: wsPath });
     updateGitState({ status: entries });
   } catch (error) {
     console.error('Failed to refresh git status:', error);
@@ -257,7 +257,7 @@ export async function refreshBranches(debounce = true) {
     }
 
     // Use native implementation for better performance (7.5x faster)
-    const branches = await invoke<Branch[]>("git_branches_native", { path: wsPath });
+    const branches = await invoke<Branch[]>("git_branches", { path: wsPath });
     const currentBranch = branches.find(b => b.current)?.name;
     updateGitState({ branches, currentBranch });
   } catch (error) {
@@ -325,7 +325,7 @@ export async function checkoutBranch(branchName: string) {
   if (!wsPath) throw new Error("No workspace open");
 
   // Use native implementation for faster branch switching
-  await invoke<string>("git_checkout_branch_native", { path: wsPath, branchName });
+  await invoke<string>("git_checkout_branch", { path: wsPath, branchName });
   await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
 }
 
@@ -334,14 +334,14 @@ export async function createBranch(branchName: string) {
   if (!wsPath) throw new Error("No workspace open");
 
   // Use native implementation for faster branch creation
-  await invoke<string>("git_create_branch_native", { path: wsPath, branchName });
+  await invoke<string>("git_create_branch", { path: wsPath, branchName });
   await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
 }
 
 export async function push(remote?: string, branch?: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_push", { path: wsPath, remote, branch });
   await Promise.all([refreshHistory(), refreshBranches()]);
 }
@@ -349,7 +349,7 @@ export async function push(remote?: string, branch?: string) {
 export async function pull(remote?: string, branch?: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_pull", { path: wsPath, remote, branch });
   await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
 }
@@ -357,7 +357,7 @@ export async function pull(remote?: string, branch?: string) {
 export async function stashPush(message?: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_stash_push", { path: wsPath, message });
   await Promise.all([refreshStatus(), refreshStashes()]);
 }
@@ -365,7 +365,7 @@ export async function stashPush(message?: string) {
 export async function stashPop(stash?: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_stash_pop", { path: wsPath, stash });
   await Promise.all([refreshStatus(), refreshStashes()]);
 }
@@ -375,7 +375,7 @@ export async function getFileDiff(filePath: string, staged = false) {
   if (!wsPath) throw new Error("No workspace open");
 
   // Use native implementation for instant diff viewing (10x faster)
-  return await invoke<string>("git_diff_file_native", { path: wsPath, filePath, staged });
+  return await invoke<string>("git_diff_file", { path: wsPath, filePath, staged });
 }
 
 export function isRepo() {
@@ -466,7 +466,7 @@ export async function refreshRemotes() {
 export async function addRemote(name: string, url: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_add_remote", { path: wsPath, name, url });
   await refreshRemotes();
 }
@@ -474,7 +474,7 @@ export async function addRemote(name: string, url: string) {
 export async function removeRemote(name: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_remove_remote", { path: wsPath, name });
   await refreshRemotes();
 }
@@ -482,7 +482,7 @@ export async function removeRemote(name: string) {
 export async function renameRemote(oldName: string, newName: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   // Note: Tauri converts Rust snake_case params to camelCase in JS
   await invoke<string>("git_rename_remote", { path: wsPath, oldName, newName });
   await refreshRemotes();
@@ -491,7 +491,7 @@ export async function renameRemote(oldName: string, newName: string) {
 export async function setRemoteUrl(name: string, url: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_set_remote_url", { path: wsPath, name, url });
   await refreshRemotes();
 }
@@ -499,7 +499,7 @@ export async function setRemoteUrl(name: string, url: string) {
 export async function fetch(remote?: string, prune = false) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_fetch", { path: wsPath, remote, prune });
   await Promise.all([refreshHistory(), refreshBranches()]);
 }
@@ -507,7 +507,7 @@ export async function fetch(remote?: string, prune = false) {
 export async function fetchAll(prune = false) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_fetch_all", { path: wsPath, prune });
   await Promise.all([refreshHistory(), refreshBranches()]);
 }
@@ -519,7 +519,7 @@ export async function fetchAll(prune = false) {
 export async function merge(branch: string, noFf = false) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   updateGitState({ isMerging: true });
   try {
     await invoke<string>("git_merge", { path: wsPath, branch, no_ff: noFf });
@@ -535,7 +535,7 @@ export async function merge(branch: string, noFf = false) {
 export async function mergeAbort() {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_merge_abort", { path: wsPath });
   updateGitState({ isMerging: false });
   await Promise.all([refreshStatus(), refreshConflicts()]);
@@ -544,7 +544,7 @@ export async function mergeAbort() {
 export async function rebase(branch: string, interactive = false) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   updateGitState({ isRebasing: true });
   try {
     await invoke<string>("git_rebase", { path: wsPath, branch, interactive });
@@ -560,7 +560,7 @@ export async function rebase(branch: string, interactive = false) {
 export async function rebaseAbort() {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_rebase_abort", { path: wsPath });
   updateGitState({ isRebasing: false });
   await refreshStatus();
@@ -569,7 +569,7 @@ export async function rebaseAbort() {
 export async function rebaseContinue() {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_rebase_continue", { path: wsPath });
   await Promise.all([refreshStatus(), refreshHistory()]);
 }
@@ -577,7 +577,7 @@ export async function rebaseContinue() {
 export async function rebaseSkip() {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_rebase_skip", { path: wsPath });
   await refreshStatus();
 }
@@ -659,7 +659,7 @@ export async function refreshTags() {
 export async function createTag(name: string, message?: string, commit?: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_create_tag", { path: wsPath, name, message, commit });
   await refreshTags();
 }
@@ -667,7 +667,7 @@ export async function createTag(name: string, message?: string, commit?: string)
 export async function deleteTag(name: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_delete_tag", { path: wsPath, name });
   await refreshTags();
 }
@@ -675,14 +675,14 @@ export async function deleteTag(name: string) {
 export async function pushTag(name: string, remote?: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_push_tag", { path: wsPath, name, remote });
 }
 
 export async function pushAllTags(remote?: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_push_all_tags", { path: wsPath, remote });
 }
 
@@ -693,7 +693,7 @@ export async function pushAllTags(remote?: string) {
 export async function getDiffFiles(from?: string, to?: string, staged = false) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   return await invoke<FileDiff[]>("git_diff_files", { path: wsPath, from, to, staged });
 }
 
@@ -713,7 +713,7 @@ export async function getCommitDiff(
 
   // Use native implementation with lazy loading support
   // metadata_only mode: only loads file paths and stats, no diff content (10-20x faster for large commits)
-  return await invoke<FileDiff[]>("git_diff_commit_native", {
+  return await invoke<FileDiff[]>("git_diff_commit", {
     path: wsPath,
     commit,
     metadataOnly,
@@ -737,7 +737,7 @@ export async function getCommitFileDiff(
   if (!wsPath) throw new Error("No workspace open");
 
   // Use native implementation for single file diff (instant loading)
-  return await invoke<string>("git_diff_commit_file_native", {
+  return await invoke<string>("git_diff_commit_file", {
     path: wsPath,
     commit,
     filePath,
@@ -778,7 +778,7 @@ export async function renameBranch(oldName: string, newName: string) {
 export async function setUpstream(remote: string, branch: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_set_upstream", { path: wsPath, remote, branch });
   await refreshBranches();
 }
@@ -790,7 +790,7 @@ export async function setUpstream(remote: string, branch: string) {
 export async function amendCommit(message?: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_amend_commit", { path: wsPath, message });
   await Promise.all([refreshHistory(), refreshStatus()]);
 }
@@ -798,7 +798,7 @@ export async function amendCommit(message?: string) {
 export async function resetCommit(commit: string, mode: 'soft' | 'mixed' | 'hard') {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_reset", { path: wsPath, commit, mode });
   await Promise.all([refreshHistory(), refreshStatus()]);
 }
@@ -806,7 +806,7 @@ export async function resetCommit(commit: string, mode: 'soft' | 'mixed' | 'hard
 export async function revertCommit(commit: string, noCommit = false) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_revert", { path: wsPath, commit, no_commit: noCommit });
   await Promise.all([refreshHistory(), refreshStatus()]);
 }
@@ -814,7 +814,7 @@ export async function revertCommit(commit: string, noCommit = false) {
 export async function cherryPick(commit: string, noCommit = false) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   await invoke<string>("git_cherry_pick", { path: wsPath, commit, no_commit: noCommit });
   await Promise.all([refreshHistory(), refreshStatus()]);
 }
@@ -826,7 +826,7 @@ export async function cherryPick(commit: string, noCommit = false) {
 export async function stageFiles(filePaths: string[]) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   // Note: Tauri converts Rust snake_case params to camelCase in JS
   await invoke<string>("git_stage_files", { path: wsPath, filePaths });
   await refreshStatus();
@@ -835,7 +835,7 @@ export async function stageFiles(filePaths: string[]) {
 export async function unstageFiles(filePaths: string[]) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   // Note: Tauri converts Rust snake_case params to camelCase in JS
   await invoke<string>("git_unstage_files", { path: wsPath, filePaths });
   await refreshStatus();
@@ -844,7 +844,7 @@ export async function unstageFiles(filePaths: string[]) {
 export async function discardFiles(filePaths: string[]) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   // Note: Tauri converts Rust snake_case params to camelCase in JS
   await invoke<string>("git_discard_files", { path: wsPath, filePaths });
   await refreshStatus();
@@ -892,14 +892,14 @@ export function getSelectedFiles() {
 export async function getRepoInfo() {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   return await invoke<any>("git_get_repo_info", { path: wsPath });
 }
 
 export async function getConfig(key: string) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
-  
+
   return await invoke<string>("git_get_config", { path: wsPath, key });
 }
 

@@ -5,10 +5,7 @@ mod extension_manager;
 mod extension_registry;
 mod file_operations;
 mod font_manager;
-mod git_auth; // New: Authentication for remote operations
-mod git_config; // New: Feature flags for gradual migration
-mod git_manager;
-mod git_native; // New: Native libgit2 implementation
+mod git; // Modular native Git implementation
 mod help_manager;
 mod language_server_manager;
 #[cfg(target_os = "macos")]
@@ -278,53 +275,58 @@ pub fn run() {
         terminal_manager::terminal_list_sessions,
         terminal_manager::terminal_get_profiles,
         terminal_manager::terminal_init_profiles,
-        // Git integration
-        git_manager::git_is_repo,
-        git_manager::git_log,
-        git_manager::git_show_files,
-        git_manager::git_diff,
-        git_manager::git_status,
-        git_manager::git_commit,
-        git_manager::git_unpushed,
-        git_manager::git_branches,
-        git_manager::git_checkout_branch,
-        git_manager::git_create_branch,
-        git_manager::git_stage_file,
-        git_manager::git_unstage_file,
-        git_manager::git_discard_changes,
-        git_manager::git_diff_file,
-        git_manager::git_push,
-        git_manager::git_pull,
-        git_manager::git_stash_list,
-        git_manager::git_stash_push,
-        git_manager::git_stash_pop,
-        // New commands for status bar integration
-        git_manager::git_get_status,
-        git_manager::git_get_current_branch,
-        git_manager::git_get_commit_info,
-        git_manager::git_stage_all,
-        git_manager::git_unstage_all,
-        git_manager::git_switch_branch,
-        git_manager::git_get_branches,
-        // Clone & Remote operations
-        git_manager::git_clone,
-        git_manager::git_list_remotes,
-        git_manager::git_add_remote,
-        git_manager::git_remove_remote,
-        git_manager::git_rename_remote,
-        git_manager::git_set_remote_url,
-        git_manager::git_fetch,
-        git_manager::git_fetch_all,
-        // Merge & Rebase operations
-        git_manager::git_merge,
-        git_manager::git_merge_abort,
-        git_manager::git_rebase,
-        git_manager::git_rebase_abort,
-        git_manager::git_rebase_continue,
-        git_manager::git_rebase_skip,
-        // Conflict resolution
-        // git_manager::git_get_conflicts,
-        git_manager::git_resolve_conflict,
+        // Git integration - Native libgit2 implementation
+        // Status operations
+        git::status::git_is_repo,
+        git::status::git_status,
+        git::status::git_stage_file,
+        git::status::git_stage_all,
+        git::status::git_unstage_file,
+        git::status::git_unstage_all,
+        git::status::git_discard_changes,
+        git::status::git_discard_files,
+        // History operations
+        git::history::git_log,
+        git::history::git_show_files,
+        git::history::git_diff,
+        git::history::git_diff_file,
+        git::history::git_diff_commit,
+        git::history::git_diff_commit_file,
+        git::history::git_unpushed,
+        // Branch operations
+        git::branch::git_branches,
+        git::branch::git_get_current_branch,
+        git::branch::git_create_branch,
+        git::branch::git_delete_branch,
+        git::branch::git_checkout_branch,
+        git::branch::git_rename_branch,
+        // Commit operations
+        git::commit::git_commit,
+        git::commit::git_amend_commit,
+        git::commit::git_reset,
+        git::commit::git_revert,
+        git::commit::git_cherry_pick,
+        // Remote operations
+        git::remote::git_push,
+        git::remote::git_pull,
+        git::remote::git_fetch,
+        git::remote::git_clone,
+        git::remote::git_list_remotes,
+        git::remote::git_add_remote,
+        git::remote::git_remove_remote,
+        git::remote::git_set_remote_url,
+        // Stash operations
+        git::stash::git_stash_list,
+        git::stash::git_stash_push,
+        git::stash::git_stash_pop,
+        // Merge & Conflict operations
+        git::merge::git_merge,
+        git::merge::git_merge_abort,
+        git::merge::git_list_conflicts,
+        git::merge::git_get_conflict_content,
+        git::merge::git_resolve_conflict,
+        git::merge::git_accept_ours,
+        git::merge::git_accept_theirs,
         // Agent credential management
         credential_manager::agent_store_credential,
         credential_manager::agent_get_credential,
@@ -338,81 +340,6 @@ pub fn run() {
         file_operations::tool_rename_file,
         file_operations::tool_copy_file,
         file_operations::tool_batch_read_files,
-        git_manager::git_list_conflicts,
-        git_manager::git_get_conflict_content,
-        git_manager::git_resolve_conflict,
-        git_manager::git_accept_ours,
-        git_manager::git_accept_theirs,
-        // Tag operations
-        git_manager::git_list_tags,
-        git_manager::git_create_tag,
-        git_manager::git_delete_tag,
-        git_manager::git_push_tag,
-        git_manager::git_push_all_tags,
-        // Enhanced diff operations
-        git_manager::git_diff_files,
-        git_manager::git_diff_commit,
-        git_manager::git_diff_between_commits,
-        // Enhanced branch operations
-        git_manager::git_delete_branch,
-        git_manager::git_rename_branch,
-        git_manager::git_set_upstream,
-        // Enhanced commit operations
-        git_manager::git_amend_commit,
-        git_manager::git_reset,
-        git_manager::git_revert,
-        git_manager::git_cherry_pick,
-        // Enhanced file operations
-        git_manager::git_stage_files,
-        git_manager::git_unstage_files,
-        git_manager::git_discard_files,
-        git_manager::git_show_file,
-        // Repository info
-        git_manager::git_get_config,
-        git_manager::git_set_config,
-        git_manager::git_get_repo_info,
-        // Native Git implementation (libgit2)
-        git_native::git_is_repo_native,
-        git_native::git_status_native,
-        git_native::git_get_current_branch_native,
-        git_native::git_log_native,
-        git_native::git_branches_native,
-        git_native::git_create_branch_native,
-        git_native::git_checkout_branch_native,
-        git_native::git_show_files_native,
-        git_native::git_diff_native,
-        git_native::git_unpushed_native,
-        git_native::git_diff_commit_native,
-        git_native::git_diff_commit_file_native,
-        git_native::git_diff_file_native,
-        // Phase 3: Native Git write operations
-        git_native::git_stage_file_native,
-        git_native::git_stage_all_native,
-        git_native::git_unstage_file_native,
-        git_native::git_unstage_all_native,
-        git_native::git_commit_native,
-        git_native::git_stash_list_native,
-        git_native::git_stash_push_native,
-        git_native::git_stash_pop_native,
-        // Phase 4: Native Git remote operations
-        git_native::git_clone_native,
-        git_native::git_push_native,
-        git_native::git_pull_native,
-        git_native::git_fetch_native,
-        // Phase 5: Native Git advanced operations
-        git_native::git_merge_native,
-        git_native::git_merge_abort_native,
-        git_native::git_list_conflicts_native,
-        git_native::git_get_conflict_content_native,
-        git_native::git_resolve_conflict_native,
-        git_native::git_accept_ours_native,
-        git_native::git_accept_theirs_native,
-        git_native::git_delete_branch_native,
-        // Git configuration and feature flags
-        git_config::git_get_native_config,
-        git_config::git_set_use_native,
-        git_config::git_enable_native_operation,
-        git_config::git_disable_native_operation,
         // Extension management
         extension_manager::load_installed_extensions,
         extension_manager::save_installed_extensions,
