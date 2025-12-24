@@ -51,8 +51,8 @@ const ActivityButton: React.FC<ActivityButtonProps> = ({ active, onClick, label,
   </TooltipProvider>
 );
 
-const SIDEBAR_MIN_WIDTH = 240;
-const SIDEBAR_MAX_WIDTH = 400;
+const SIDEBAR_MIN_WIDTH = 260;
+const SIDEBAR_MAX_WIDTH = 450;
 
 const Sidebar: React.FC = () => {
   const { state, actions } = useIDEStore();
@@ -62,7 +62,7 @@ const Sidebar: React.FC = () => {
   const webviewPanels = useWebviewPanels();
 
   // Resize state
-  const [sidebarWidth, setSidebarWidth] = React.useState(280);
+  const [sidebarWidth, setSidebarWidth] = React.useState(335);
   const [isResizing, setIsResizing] = React.useState(false);
   const sidebarRef = React.useRef<HTMLDivElement>(null);
 

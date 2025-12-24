@@ -30,7 +30,7 @@ const StashManager: React.FC<StashManagerProps> = ({ trigger }) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [stashMessage, setStashMessage] = useState("");
   const [isStashing, setIsStashing] = useState(false);
-  
+
   const { stashes, loadingStashes } = useGitState();
 
   const handleStashPush = useCallback(async () => {
@@ -55,9 +55,14 @@ const StashManager: React.FC<StashManagerProps> = ({ trigger }) => {
   }, []);
 
   const defaultTrigger = (
-    <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground">
-      <Archive className="size-4" />
-      Stash
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+      title="Manage stashes"
+    >
+      <Archive className="size-3.5" />
+      <span className="text-xs font-medium">Stash</span>
     </Button>
   );
 
@@ -98,7 +103,7 @@ const StashManager: React.FC<StashManagerProps> = ({ trigger }) => {
               </div>
             )}
           </div>
-          
+
           <div className="border-t border-border">
             <DialogTrigger asChild>
               <DropdownMenuItem

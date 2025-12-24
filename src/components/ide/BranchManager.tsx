@@ -32,12 +32,12 @@ const BranchManager: React.FC<BranchManagerProps> = ({ trigger }) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newBranchName, setNewBranchName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  
+
   const { branches, currentBranch, loadingBranches } = useGitState();
 
   const handleCreateBranch = useCallback(async () => {
     if (!newBranchName.trim()) return;
-    
+
     setIsCreating(true);
     try {
       await createBranch(newBranchName.trim());
@@ -59,9 +59,14 @@ const BranchManager: React.FC<BranchManagerProps> = ({ trigger }) => {
   }, []);
 
   const defaultTrigger = (
-    <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground">
-      <GitBranch className="size-4" />
-      {currentBranch || "No branch"}
+    <Button
+      variant="ghost"
+      size="sm"
+      className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+      title="Switch active branch"
+    >
+      <GitBranch className="size-3.5" />
+      <span className="text-xs font-medium max-w-[100px] truncate">{currentBranch || "No branch"}</span>
     </Button>
   );
 
@@ -111,7 +116,7 @@ const BranchManager: React.FC<BranchManagerProps> = ({ trigger }) => {
               </div>
             )}
           </div>
-          
+
           <div className="border-t border-border">
             <DialogTrigger asChild>
               <DropdownMenuItem

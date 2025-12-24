@@ -40,17 +40,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+
 import { Badge } from "@/components/ui/badge";
 // Removed resizable imports - using CSS flexbox
 import DiffViewer from "./DiffViewer";
@@ -61,7 +53,7 @@ import StashManager from "./StashManager";
 const GitHistoryPanel: React.FC = () => {
   const [message, setMessage] = useState("");
   const [stageAll, setStageAll] = useState(true);
-  const [openSections, setOpenSections] = useState<string[]>(["changes", "graph"]);
+
   const [diffViewer, setDiffViewer] = useState<{ filePath: string; diff: string; staged: boolean } | null>(null);
   const [commitDiffViewer, setCommitDiffViewer] = useState<Commit | null>(null);
 
@@ -154,88 +146,70 @@ const GitHistoryPanel: React.FC = () => {
     return <Eye className="size-3 text-muted-foreground" />;
   };
 
-  const setSectionOpen = useCallback((section: string, isOpen: boolean) => {
-    setOpenSections((prev) => {
-      const next = new Set(prev);
-      if (isOpen) {
-        next.add(section);
-      } else {
-        next.delete(section);
-      }
-      return Array.from(next);
-    });
-  }, []);
+
 
   return (
     <TooltipProvider>
-      <div className="flex h-full flex-col bg-background">
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <div className="flex items-center gap-2">
-            <GitCommitVertical className="size-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold">Source Control</h2>
+      <div className="flex h-full flex-col bg-background text-sm">
+        {/* Minimal Header */}
+        <div className="flex items-center justify-between border-b border-border p-2 gap-2 h-10 shrink-0">
+          <div className="flex items-center gap-1 min-w-0 flex-1">
             <BranchManager />
             <StashManager />
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center">
             <Button
               variant="ghost"
-              size="sm"
-              className="gap-1 text-muted-foreground"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
               onClick={handlePull}
               title="Pull"
             >
-              <ArrowDown className="size-4" />
+              <ArrowDown className="size-3.5" />
             </Button>
             <Button
               variant="ghost"
-              size="sm"
-              className="gap-1 text-muted-foreground"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
               onClick={handlePush}
               title="Push"
             >
-              <ArrowUp className="size-4" />
+              <ArrowUp className="size-3.5" />
             </Button>
             <Button
               variant="ghost"
-              size="sm"
-              className="gap-1 text-muted-foreground"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
               onClick={handleRefresh}
+              title="Refresh"
             >
-              <RefreshCcw className="size-4" />
-              Refresh
+              <RefreshCcw className="size-3.5" />
             </Button>
           </div>
         </div>
 
         {repoDetected ? (
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <div className="space-y-3 border-b border-border px-3 py-4">
+          <>
+            {/* Commit Area */}
+            <div className="p-3 border-b border-border bg-muted/5 shrink-0">
               <Textarea
-                placeholder="Commit message"
+                placeholder="Message..."
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
+                className="min-h-[70px] text-xs resize-none bg-background mb-2 focus-visible:ring-1"
               />
 
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Switch checked={stageAll} onCheckedChange={setStageAll} />
-                  Stage all changes
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                  <Switch checked={stageAll} onCheckedChange={setStageAll} className="scale-75 origin-left" />
+                  <span>Stage all</span>
                 </label>
 
-                <div className="ml-auto flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setMessage("")}
-                    className="text-muted-foreground"
-                  >
-                    Cancel
-                  </Button>
-
+                <div className="flex items-center gap-1">
                   <div className="flex rounded-md shadow-sm">
                     <Button
                       size="sm"
-                      className="rounded-r-none"
+                      className="h-7 px-3 text-xs rounded-r-none"
                       onClick={handleCommitConfirm}
                       disabled={!message.trim()}
                     >
@@ -246,25 +220,18 @@ const GitHistoryPanel: React.FC = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="rounded-l-none border-l-0 px-2"
+                          className="h-7 px-1.5 rounded-l-none border-l-0"
                           aria-label="Commit options"
                           disabled={!message.trim()}
                         >
-                          <ChevronDown className="size-4" />
+                          <ChevronDown className="size-3" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="min-w-48">
-                        <DropdownMenuItem
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            handleCommitConfirm();
-                          }}
-                        >
+                      <DropdownMenuContent align="end" className="min-w-[140px]">
+                        <DropdownMenuItem onSelect={handleCommitConfirm}>
                           Commit
                         </DropdownMenuItem>
-                        <DropdownMenuItem disabled>Commit (amend)</DropdownMenuItem>
                         <DropdownMenuItem disabled>Commit & Push</DropdownMenuItem>
-                        <DropdownMenuItem disabled>Commit & Sync</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -272,228 +239,138 @@ const GitHistoryPanel: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex flex-1 flex-col gap-4 overflow-hidden px-3 py-4">
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border/60 bg-card text-card-foreground shadow-sm">
-                  <Accordion
-                    type="single"
-                    collapsible
-                    value={openSections.includes("changes") ? "changes" : undefined}
-                    onValueChange={(value) =>
-                      setSectionOpen("changes", Boolean(value))
-                    }
-                    className="flex h-full flex-col"
-                  >
-                    <AccordionItem value="changes" className="border-b">
-                      <AccordionTrigger className="px-4 py-3 text-sm font-semibold">
-                        <div className="flex w-full items-center justify-between">
-                          <span>Changes</span>
-                          <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-                            {changes.length > 0 ? (
-                              <Badge
-                                variant="outline"
-                                className="border-border bg-background/80 px-2 py-0 text-[11px] font-medium"
-                              >
-                                {changes.length}
-                              </Badge>
-                            ) : (
-                              "No changes"
-                            )}
-                          </span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="flex-1 overflow-hidden px-4">
-                        {changes.length > 0 ? (
-                          <div className="custom-scrollbar -mx-1 max-h-[320px] overflow-auto pr-1">
-                            <ul className="flex flex-col gap-2 text-sm">
-                              {changes.map((entry) => {
-                                const staged = isStaged(entry.code);
-                                const untracked = isUntracked(entry.code);
+            {/* Content Lists */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
 
-                                return (
-                                  <li
-                                    key={`${entry.code}-${entry.path}`}
-                                    className="group rounded-md border border-border/60 bg-background/90 shadow-xs transition-colors hover:bg-accent/30"
-                                  >
-                                    <div className="flex items-center gap-3 px-3 py-2">
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        {getStatusIcon(entry.code)}
-                                        <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground min-w-fit">
-                                          {entry.code}
-                                        </span>
-                                        <span className="truncate text-sm text-foreground">
-                                          {entry.path}
-                                        </span>
-                                      </div>
-
-                                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-6 px-2 text-xs"
-                                          onClick={() => handleViewDiff(entry.path, staged)}
-                                          title="View diff"
-                                        >
-                                          <Eye className="size-3" />
-                                        </Button>
-
-                                        {!untracked && (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 px-2 text-xs"
-                                            onClick={() => handleDiscardChanges(entry.path)}
-                                            title="Discard changes"
-                                          >
-                                            <RotateCcw className="size-3" />
-                                          </Button>
-                                        )}
-
-                                        {staged ? (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 px-2 text-xs text-green-600"
-                                            onClick={() => handleUnstageFile(entry.path)}
-                                            title="Unstage"
-                                          >
-                                            <EyeOff className="size-3" />
-                                          </Button>
-                                        ) : (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 px-2 text-xs text-blue-600"
-                                            onClick={() => handleStageFile(entry.path)}
-                                            title="Stage"
-                                          >
-                                            <Check className="size-3" />
-                                          </Button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
-                        ) : (
-                          <div className="py-6 text-center text-xs text-muted-foreground">
-                            No changes detected.
-                          </div>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </div>
+              {/* Changes Section */}
+              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <span>Changes</span>
+                {changes.length > 0 && (
+                  <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-mono">
+                    {changes.length}
+                  </Badge>
+                )}
               </div>
-              <div className="flex-1 min-h-0 overflow-hidden">
-                <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border/60 bg-card text-card-foreground shadow-sm">
-                  <Accordion
-                    type="single"
-                    collapsible
-                    value={openSections.includes("graph") ? "graph" : undefined}
-                    onValueChange={(value) => setSectionOpen("graph", Boolean(value))}
-                    className="flex h-full flex-col"
-                  >
-                    <AccordionItem value="graph" className="border-b">
-                      <AccordionTrigger className="px-4 py-3 text-sm font-semibold">
-                        <div className="flex w-full items-center justify-between">
-                          <span>Graph</span>
-                          <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-                            {loadingHistory ? (
-                              <span className="inline-flex items-center gap-1">
-                                <Loader2 className="size-3 animate-spin" />
-                                Updating…
+
+              <div className="px-2 py-2">
+                {changes.length > 0 ? (
+                  <ul className="flex flex-col gap-0.5">
+                    {changes.map((entry) => {
+                      const staged = isStaged(entry.code);
+                      const untracked = isUntracked(entry.code);
+                      return (
+                        <li key={`${entry.code}-${entry.path}`} className="group relative flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors">
+                          <div className="flex shrink-0 items-center justify-center w-4">
+                            {getStatusIcon(entry.code)}
+                          </div>
+                          <span className="truncate text-xs text-foreground flex-1 cursor-pointer" onClick={() => handleViewDiff(entry.path, staged)}>
+                            {entry.path}
+                          </span>
+
+                          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 bg-background/80 shadow-sm rounded-sm backdrop-blur-[2px]">
+                            {staged ? (
+                              <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-green-600" onClick={() => handleUnstageFile(entry.path)} title="Unstage">
+                                <EyeOff className="size-3" />
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-blue-600" onClick={() => handleStageFile(entry.path)} title="Stage">
+                                <Check className="size-3" />
+                              </Button>
+                            )}
+                            {!untracked && (
+                              <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-destructive" onClick={() => handleDiscardChanges(entry.path)} title="Discard">
+                                <RotateCcw className="size-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div className="py-4 text-center text-xs text-muted-foreground italic">
+                    No changes detected
+                  </div>
+                )}
+              </div>
+
+              {/* History Section */}
+              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-y border-border px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-2">
+                <span>History</span>
+                <span className="text-[10px] font-normal normal-case opacity-70">
+                  {loadingHistory ? "Updating..." : `${history.length} commits`}
+                </span>
+              </div>
+
+              <div className="px-2 py-2 pb-4">
+                {loadingHistory && history.length === 0 ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : history.length > 0 ? (
+                  <ul className="relative flex flex-col gap-0 border-l border-border/50 ml-3 pl-3">
+                    {history.map((commit) => {
+                      const isSelected = selected === commit.hash;
+                      const isUnpushed = unpushedHashes.has(commit.hash);
+                      return (
+                        <li
+                          key={commit.hash}
+                          className={cn(
+                            "relative py-3 cursor-pointer group transition-all",
+                            isSelected && ""
+                          )}
+                          onClick={() => {
+                            selectCommit(commit.hash);
+                            handleViewCommitDiff(commit);
+                          }}
+                        >
+                          {/* Timeline dot */}
+                          <div className={cn(
+                            "absolute -left-[16.5px] top-4 size-2 rounded-full border border-background ring-1 ring-border/50 transition-colors bg-muted",
+                            isSelected ? "bg-primary ring-primary" :
+                              isUnpushed ? "bg-amber-500 ring-amber-500" : "bg-muted-foreground/40"
+                          )} />
+
+                          <div className={cn("rounded-md p-2 -my-2 transition-colors", isSelected ? "bg-accent/40" : "hover:bg-muted/30")}>
+                            <div className="flex items-start justify-between gap-2">
+                              <span className={cn("text-xs font-medium leading-tight line-clamp-2", isSelected ? "text-primary" : "text-foreground")}>
+                                {commit.message}
                               </span>
-                            ) : (
-                              `${history.length} commits`
-                            )}
-                          </span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="flex-1 overflow-hidden px-4">
-                        {history.length === 0 ? (
-                          <div className="flex h-full items-center justify-center py-10 text-xs text-muted-foreground">
-                            {loadingHistory ? "Loading history…" : "No commits recorded."}
+                              <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">{commit.date}</span>
+                            </div>
+                            <div className="mt-1 flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">{commit.author}</span>
+                              {isUnpushed && (
+                                <Badge variant="outline" className="h-3.5 px-1 py-0 text-[9px] border-amber-500/30 text-amber-600 bg-amber-500/5">
+                                  Unpushed
+                                </Badge>
+                              )}
+                            </div>
                           </div>
-                        ) : (
-                          <div className="custom-scrollbar -mx-1 max-h-[360px] overflow-auto pr-1">
-                            <ul className="relative flex flex-col gap-3 pl-5">
-                              {history.map((commit, index) => {
-                                const isSelected = selected === commit.hash;
-                                const isUnpushed = unpushedHashes.has(commit.hash);
-
-                                return (
-                                  <li
-                                    key={commit.hash}
-                                    className={cn(
-                                      "group relative cursor-pointer rounded-lg border border-transparent bg-muted/20 px-4 py-3 transition-all hover:bg-muted/40",
-                                      isSelected && "border-ring bg-accent/50 shadow-sm"
-                                    )}
-                                    onClick={() => {
-                                      selectCommit(commit.hash);
-                                      handleViewCommitDiff(commit);
-                                    }}
-                                  >
-                                    <span
-                                      className={cn(
-                                        "absolute -left-[26px] top-4 size-3 rounded-full border-2 border-background transition-colors",
-                                        isSelected
-                                          ? "bg-primary"
-                                          : isUnpushed
-                                            ? "bg-amber-500"
-                                            : "bg-muted-foreground"
-                                      )}
-                                    />
-                                    {index !== history.length - 1 && (
-                                      <span className="absolute -left-[22px] top-4 h-[calc(100%+12px)] w-px bg-border" />
-                                    )}
-
-                                    <div className="flex items-center gap-2 text-sm font-medium">
-                                      <span className="flex-1 truncate text-left text-foreground">
-                                        {commit.message}
-                                      </span>
-                                      <Tooltip>
-                                        <TooltipTrigger asChild>
-                                          <Eye className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>Click to view commit changes</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                      {isUnpushed && (
-                                        <Badge variant="secondary" className="bg-amber-500/15 text-amber-700 dark:text-amber-300">
-                                          Unpushed
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                      <span className="font-medium text-foreground/80">
-                                        {commit.author}
-                                      </span>
-                                      <span>{commit.date}</span>
-                                    </div>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div className="py-4 text-center text-xs text-muted-foreground italic">
+                    No history found
+                  </div>
+                )}
               </div>
+
             </div>
-          </div>
+          </>
         ) : (
-          <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            This project is not a Git repository.
+          <div className="flex flex-1 items-center justify-center flex-col gap-2 p-6 text-center text-muted-foreground">
+            <div className="size-12 rounded-full bg-muted/30 flex items-center justify-center">
+              <GitCommitVertical className="size-6 opacity-50" />
+            </div>
+            <p className="text-sm">No repository open</p>
+            <p className="text-xs opacity-70">Open a folder with a Git repository to see source control.</p>
           </div>
         )}
 
-        {/* Diff Viewer Modal */}
+        {/* Modals */}
         {diffViewer && (
           <DiffViewer
             filePath={diffViewer.filePath}
@@ -503,8 +380,6 @@ const GitHistoryPanel: React.FC = () => {
             onClose={() => setDiffViewer(null)}
           />
         )}
-
-        {/* Commit Diff Viewer Modal */}
         {commitDiffViewer && (
           <CommitDiffViewer
             commit={commitDiffViewer}
@@ -513,7 +388,7 @@ const GitHistoryPanel: React.FC = () => {
           />
         )}
       </div>
-    </TooltipProvider >
+    </TooltipProvider>
   );
 };
 
