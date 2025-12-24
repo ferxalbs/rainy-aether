@@ -10,7 +10,7 @@
 import { useSyncExternalStore } from "react";
 import { loadFromStore, saveToStore } from "./app-store";
 
-export type BottomPanelTab = 'terminal' | 'problems' | 'output' | 'diff';
+export type BottomPanelTab = 'terminal' | 'problems' | 'output' | 'diff' | 'preview';
 
 interface PanelState {
   isBottomPanelOpen: boolean;

@@ -28,6 +28,7 @@ import ExtensionMarketplace from "./ExtensionMarketplace";
 import ExtensionManager from "./ExtensionManager";
 import { initializeUpdateService, startAutoUpdateCheck } from "../../services/updateService";
 import ProblemsPanel from "./ProblemsPanel";
+import PreviewBrowserPanel from "./PreviewBrowserPanel";
 import { RightSidebar } from "./RightSidebar";
 
 import { useDiffState } from "@/stores/diffStore";
@@ -507,7 +508,7 @@ const IDE: React.FC = () => {
                       <div className="h-[220px] shrink-0 border-t border-border overflow-hidden">
                         <Tabs
                           value={panelState.activeBottomTab}
-                          onValueChange={(value) => panelActions.setActiveTab(value as 'terminal' | 'problems' | 'diff' | 'output')}
+                          onValueChange={(value) => panelActions.setActiveTab(value as 'terminal' | 'problems' | 'diff' | 'output' | 'preview')}
                           className="h-full flex flex-col gap-0"
                         >
                           <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8 shrink-0">
@@ -522,6 +523,12 @@ const IDE: React.FC = () => {
                               className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                             >
                               Problems
+                            </TabsTrigger>
+                            <TabsTrigger
+                              value="preview"
+                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                            >
+                              Preview
                             </TabsTrigger>
                             <button
                               type="button"
@@ -542,6 +549,10 @@ const IDE: React.FC = () => {
 
                           <TabsContent value="problems" className="flex-1 m-0 overflow-hidden">
                             <ProblemsPanel onClose={() => panelActions.hidePanel()} />
+                          </TabsContent>
+
+                          <TabsContent value="preview" className="flex-1 m-0 overflow-hidden">
+                            <PreviewBrowserPanel onClose={() => panelActions.hidePanel()} />
                           </TabsContent>
                         </Tabs>
                       </div>

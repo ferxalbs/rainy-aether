@@ -1,4 +1,5 @@
 mod agent_server_manager;
+mod browser_manager; // Integrated browser preview
 mod configuration_manager;
 mod credential_manager;
 mod extension_manager;
@@ -63,6 +64,7 @@ pub fn run() {
         .manage(terminal_manager::TerminalState::default())
         .manage(language_server_manager::LanguageServerManager::new())
         .manage(agent_server_manager::AgentServerState::default())
+        .manage(browser_manager::BrowserManagerState::new())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -396,6 +398,17 @@ pub fn run() {
         agent_server_manager::agent_server_stop,
         agent_server_manager::agent_server_status,
         agent_server_manager::agent_server_health,
+        // Browser preview management
+        browser_manager::browser_open_preview,
+        browser_manager::browser_navigate,
+        browser_manager::browser_back,
+        browser_manager::browser_forward,
+        browser_manager::browser_reload,
+        browser_manager::browser_close,
+        browser_manager::browser_get_state,
+        browser_manager::browser_list_instances,
+        browser_manager::browser_set_title,
+        browser_manager::browser_set_loading,
     ]);
 
     if let Err(error) = builder.run(tauri::generate_context!()) {
