@@ -8,6 +8,7 @@
 import { createAgent } from '@inngest/agent-kit';
 import { readFileTool, searchCodeTool } from '../tools/fileTools';
 import { gitStatusTool } from '../tools/terminalTools';
+import { applyFileDiffTool } from '../tools/applyFileDiffTool';
 
 export const codeReviewerAgent = createAgent({
     name: 'Code Reviewer',
@@ -40,12 +41,21 @@ Provide reviews in this structure:
 - **Summary**: One-line overview
 - **Issues Found**: Categorized list of issues
 - **Suggestions**: Specific improvements with code examples
-- **Positive Notes**: What's done well`,
+- **Positive Notes**: What's done well
+
+## Making Changes
+When you identify issues that need fixing, use the apply_file_diff tool to propose
+changes directly in the editor. The user will see a visual preview with:
+- Green highlighting for additions
+- Red highlighting for deletions
+
+The user can accept (Cmd/Ctrl+Enter) or reject (Escape) your proposed changes.`,
 
     tools: [
         readFileTool,
         searchCodeTool,
         gitStatusTool,
+        applyFileDiffTool,
     ],
 });
 

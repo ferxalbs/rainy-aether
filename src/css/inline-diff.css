@@ -1,0 +1,288 @@
+/**
+ * Inline Diff CSS Styles
+ *
+ * Styles for inline diff decorations in Monaco editor.
+ * Uses CSS variables for theme compatibility.
+ */
+
+/* ============================================================================
+   Line Decorations
+   ============================================================================ */
+
+/* Insert decoration - green background */
+.inline-diff-insert {
+    background-color: rgba(40, 167, 69, 0.18) !important;
+    border-left: 3px solid #28a745 !important;
+}
+
+/* Delete decoration - red background with strikethrough */
+.inline-diff-delete {
+    background-color: rgba(220, 53, 69, 0.15) !important;
+    border-left: 3px solid #dc3545 !important;
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+/* Replace decoration - yellow/amber background */
+.inline-diff-replace {
+    background-color: rgba(255, 193, 7, 0.15) !important;
+    border-left: 3px solid #ffc107 !important;
+}
+
+/* Streaming line indicator */
+.inline-diff-streaming {
+    background-color: rgba(255, 193, 7, 0.12) !important;
+    animation: inline-diff-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes inline-diff-pulse {
+
+    0%,
+    100% {
+        background-color: rgba(255, 193, 7, 0.12);
+    }
+
+    50% {
+        background-color: rgba(255, 193, 7, 0.25);
+    }
+}
+
+/* ============================================================================
+   Glyph Margin Icons
+   ============================================================================ */
+
+.inline-diff-glyph-insert {
+    background-color: #28a745;
+    border-radius: 2px;
+    margin-left: 3px;
+    width: 10px !important;
+}
+
+.inline-diff-glyph-insert::before {
+    content: '+';
+    color: white;
+    font-weight: bold;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.inline-diff-glyph-delete {
+    background-color: #dc3545;
+    border-radius: 2px;
+    margin-left: 3px;
+    width: 10px !important;
+}
+
+.inline-diff-glyph-delete::before {
+    content: '-';
+    color: white;
+    font-weight: bold;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.inline-diff-glyph-replace {
+    background-color: #ffc107;
+    border-radius: 2px;
+    margin-left: 3px;
+    width: 10px !important;
+}
+
+.inline-diff-glyph-replace::before {
+    content: '~';
+    color: #000;
+    font-weight: bold;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+/* ============================================================================
+   Inline Diff Widget
+   ============================================================================ */
+
+.inline-diff-widget {
+    position: absolute;
+    top: 8px;
+    right: 16px;
+    z-index: 1000;
+    background: var(--bg-secondary, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    padding: 10px 14px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+    min-width: 220px;
+    max-width: 300px;
+    backdrop-filter: blur(8px);
+}
+
+.inline-diff-widget-streaming {
+    border-color: var(--accent-primary, #007acc);
+    animation: widget-glow 2s ease-in-out infinite;
+}
+
+@keyframes widget-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    50% {
+        box-shadow: 0 4px 24px rgba(0, 122, 204, 0.3);
+    }
+}
+
+.inline-diff-widget-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.inline-diff-widget-agent {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+    color: var(--text-primary, #e0e0e0);
+}
+
+.inline-diff-widget-agent-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--accent-primary, #007acc);
+}
+
+.inline-diff-widget-streaming-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--accent-primary, #007acc);
+}
+
+.inline-diff-widget-streaming-dot {
+    width: 6px;
+    height: 6px;
+    background-color: var(--accent-primary, #007acc);
+    border-radius: 50%;
+    animation: streaming-dot 1s ease-in-out infinite;
+}
+
+@keyframes streaming-dot {
+
+    0%,
+    100% {
+        opacity: 0.3;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.inline-diff-widget-stats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-secondary, #999);
+}
+
+.inline-diff-widget-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.inline-diff-widget-stat-add {
+    color: #28a745;
+}
+
+.inline-diff-widget-stat-delete {
+    color: #dc3545;
+}
+
+.inline-diff-widget-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.inline-diff-widget-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: none;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.inline-diff-widget-btn-accept {
+    background-color: #28a745;
+    color: white;
+}
+
+.inline-diff-widget-btn-accept:hover {
+    background-color: #218838;
+}
+
+.inline-diff-widget-btn-reject {
+    background-color: transparent;
+    border: 1px solid var(--border-color, #333);
+    color: var(--text-primary, #e0e0e0);
+}
+
+.inline-diff-widget-btn-reject:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.inline-diff-widget-shortcuts {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    font-size: 10px;
+    color: var(--text-tertiary, #666);
+    margin-top: 2px;
+}
+
+.inline-diff-widget-shortcut {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.inline-diff-widget-shortcut kbd {
+    display: inline-block;
+    padding: 1px 4px;
+    font-size: 9px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    line-height: 1.2;
+    color: var(--text-secondary, #999);
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}

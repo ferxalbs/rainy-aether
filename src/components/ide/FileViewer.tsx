@@ -4,11 +4,16 @@ import { useIDEStore, OpenFile } from "../../stores/ideStore";
 import MonacoEditor from "./MonacoEditor";
 import Breadcrumbs from "./Breadcrumbs";
 import EditorErrorBoundary from "./EditorErrorBoundary";
+import InlineDiffWidget from "./InlineDiffWidget";
 import {
   useEditorGroupState,
   editorGroupActions,
   EditorGroup,
 } from "../../stores/editorGroupStore";
+import {
+  useInlineDiffState,
+  inlineDiffActions,
+} from "../../stores/inlineDiffStore";
 import { X, Columns, SplitSquareVertical, GripVertical } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/cn";
@@ -26,6 +31,7 @@ import {
   ContextMenuTrigger,
 } from "../ui/context-menu";
 import "../../css/FileViewer.css";
+import "../../css/inline-diff.css";
 
 type SupportedLanguage = "javascript" | "html" | "css" | "markdown" | "rust" | undefined;
 
@@ -208,6 +214,34 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
     return groupFiles.find((f) => f.id === group.activeFileId) ?? null;
   }, [groupFiles, group.activeFileId]);
 
+  // Get inline diff state for this group's active file
+  const inlineDiffState = useInlineDiffState();
+  const showInlineDiff = activeFile &&
+    inlineDiffState.activeSession?.fileUri === activeFile.path;
+
+  // Handle inline diff keyboard shortcuts
+  useEffect(() => {
+    if (!showInlineDiff) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Accept: Cmd/Ctrl+Enter
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        e.stopPropagation();
+        inlineDiffActions.acceptAllChanges();
+      }
+      // Reject: Escape
+      else if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        inlineDiffActions.rejectAllChanges();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [showInlineDiff]);
+
   const otherGroups = useMemo(() => {
     return allGroups.filter((g) => g.id !== group.id);
   }, [allGroups, group.id]);
@@ -315,15 +349,30 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
       )}
 
       {/* Editor content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden relative">
         {activeFile ? (
-          <MonacoEditor
-            value={activeFile.content}
-            language={getLanguageFromFile(activeFile.name)}
-            filename={activeFile.path || activeFile.name}
-            onChange={(value: string) => onContentChange(activeFile.id, value)}
-            onEditorReady={setGroupEditor}
-          />
+          <>
+            <MonacoEditor
+              value={activeFile.content}
+              language={getLanguageFromFile(activeFile.name)}
+              filename={activeFile.path || activeFile.name}
+              onChange={(value: string) => onContentChange(activeFile.id, value)}
+              onEditorReady={setGroupEditor}
+            />
+            {/* Inline Diff Widget */}
+            {showInlineDiff && (
+              <InlineDiffWidget
+                isVisible={true}
+                isStreaming={inlineDiffState.isStreaming}
+                additions={inlineDiffState.stats.additions}
+                deletions={inlineDiffState.stats.deletions}
+                agentName={inlineDiffState.activeSession?.agentName || 'AI Agent'}
+                description={inlineDiffState.activeSession?.description}
+                onAccept={() => inlineDiffActions.acceptAllChanges()}
+                onReject={() => inlineDiffActions.rejectAllChanges()}
+              />
+            )}
+          </>
         ) : (
           <div
             className={cn(

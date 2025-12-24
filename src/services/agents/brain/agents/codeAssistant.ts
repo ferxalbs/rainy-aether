@@ -14,6 +14,7 @@ import {
     searchCodeTool,
 } from '../tools/fileTools';
 import { runCommandTool } from '../tools/terminalTools';
+import { applyFileDiffTool } from '../tools/applyFileDiffTool';
 
 export const codeAssistantAgent = createAgent({
     name: 'Code Assistant',
@@ -38,7 +39,8 @@ export const codeAssistantAgent = createAgent({
 - Use search_code to find relevant code before making changes
 - Use list_directory to explore project structure
 - Use edit_file for targeted modifications
-- Use write_file only for new files or complete rewrites`,
+- Use write_file only for new files or complete rewrites
+- Use apply_file_diff to propose changes with visual preview that user can accept/reject`,
 
     tools: [
         readFileTool,
@@ -47,6 +49,7 @@ export const codeAssistantAgent = createAgent({
         listDirectoryTool,
         searchCodeTool,
         runCommandTool,
+        applyFileDiffTool,
     ],
 });
 
