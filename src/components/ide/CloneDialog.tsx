@@ -68,8 +68,23 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
 
   const { isCloning, cloneProgress } = useGitState();
 
-  // Extract repo name from URL
-  const repoName = useMemo(() => extractRepoName(url), [url]);
+  /**
+   * Sanitize URL - removes common prefixes if user pastes full git command
+   * e.g., "git clone https://github.com/user/repo.git" -> "https://github.com/user/repo.git"
+   */
+  const sanitizedUrl = useMemo(() => {
+    let cleanUrl = url.trim();
+    // Remove "git clone " prefix if present
+    if (cleanUrl.toLowerCase().startsWith("git clone ")) {
+      cleanUrl = cleanUrl.substring(10).trim();
+    }
+    // Remove any leading/trailing quotes
+    cleanUrl = cleanUrl.replace(/^["']|["']$/g, "");
+    return cleanUrl;
+  }, [url]);
+
+  // Extract repo name from sanitized URL
+  const repoName = useMemo(() => extractRepoName(sanitizedUrl), [sanitizedUrl]);
 
   // Full destination path (folder + repo name)
   const fullDestination = useMemo(() => {
@@ -95,14 +110,14 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
   }, []);
 
   const handleClone = useCallback(async () => {
-    if (!url.trim() || !fullDestination.trim()) {
+    if (!sanitizedUrl || !fullDestination.trim()) {
       return;
     }
 
     try {
       const depthNum = useDepth && depth ? parseInt(depth) : undefined;
       await cloneRepository(
-        url.trim(),
+        sanitizedUrl, // Use sanitized URL (strips "git clone " prefix)
         fullDestination.trim(), // Use the full path with repo name
         branch.trim() || undefined,
         depthNum
@@ -122,7 +137,7 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
     } catch (error) {
       console.error('Failed to clone repository:', error);
     }
-  }, [url, fullDestination, branch, depth, useDepth, onSuccess, setIsOpen]);
+  }, [sanitizedUrl, fullDestination, branch, depth, useDepth, onSuccess, setIsOpen]);
 
   const defaultTrigger = (
     <Button variant="outline" size="sm" className="gap-2">
@@ -160,6 +175,11 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
               onChange={(e) => setUrl(e.target.value)}
               disabled={isCloning}
             />
+            {url.toLowerCase().startsWith("git clone ") && (
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                ✓ "git clone " prefix will be removed automatically
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               HTTPS, SSH, or Git protocol URL
             </p>
@@ -278,7 +298,7 @@ const CloneDialog: React.FC<CloneDialogProps> = ({ trigger, isOpen: controlledIs
             </Button>
             <Button
               onClick={handleClone}
-              disabled={!url.trim() || !destination.trim() || isCloning}
+              disabled={!sanitizedUrl || !destination.trim() || isCloning}
             >
               {isCloning ? (
                 <>
