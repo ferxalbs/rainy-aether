@@ -196,13 +196,9 @@ pub fn git_clone(
 
     let mut builder = git2::build::RepoBuilder::new();
 
-    // Set up fetch options with auth
-    let mut fetch_opts = AuthCallbacks::fetch_options();
-
-    // Set up progress callback
+    // Set up fetch options with BOTH auth and progress callbacks
     let window_clone = window.clone();
-    let mut callbacks = git2::RemoteCallbacks::new();
-    callbacks.transfer_progress(move |progress| {
+    let fetch_opts = AuthCallbacks::fetch_options_with_progress(move |progress| {
         let percent = if progress.total_objects() > 0 {
             ((progress.received_objects() as f64 / progress.total_objects() as f64) * 100.0) as u32
         } else {
@@ -224,7 +220,6 @@ pub fn git_clone(
         true
     });
 
-    fetch_opts.remote_callbacks(callbacks);
     builder.fetch_options(fetch_opts);
 
     // Set branch if specified
