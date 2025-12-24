@@ -5,7 +5,7 @@
 use super::auth::AuthCallbacks;
 use super::error::GitError;
 use super::types::{CloneProgress, RemoteInfo};
-use git2::{AutotagOption, FetchOptions, Repository};
+use git2::{AutotagOption, Repository};
 
 /// Push to remote repository
 #[tauri::command]
@@ -190,7 +190,7 @@ pub fn git_clone(
     url: String,
     destination: String,
     branch: Option<String>,
-    depth: Option<u32>,
+    _depth: Option<u32>,
 ) -> Result<String, String> {
     use tauri::Emitter;
 

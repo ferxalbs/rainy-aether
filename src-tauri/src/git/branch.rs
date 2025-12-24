@@ -82,14 +82,13 @@ pub fn git_create_branch(path: String, branch_name: String) -> Result<String, St
 pub fn git_delete_branch(
     path: String,
     branch_name: String,
-    force: Option<bool>,
+    _force: Option<bool>,
 ) -> Result<String, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
     let mut branch = repo
         .find_branch(&branch_name, BranchType::Local)
         .map_err(|e| GitError::from(e))?;
 
-    // Check if it's the current branch
     if branch.is_head() {
         return Err("Cannot delete the current branch".to_string());
     }
@@ -104,7 +103,6 @@ pub fn git_delete_branch(
 pub fn git_checkout_branch(path: String, branch_name: String) -> Result<String, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
 
-    // Find the branch
     let branch = repo
         .find_branch(&branch_name, BranchType::Local)
         .map_err(|e| GitError::from(e))?;
@@ -112,14 +110,12 @@ pub fn git_checkout_branch(path: String, branch_name: String) -> Result<String, 
     let reference = branch.into_reference();
     let tree = reference.peel_to_tree().map_err(|e| GitError::from(e))?;
 
-    // Checkout the tree
     let mut checkout_opts = git2::build::CheckoutBuilder::new();
     checkout_opts.safe();
 
     repo.checkout_tree(tree.as_object(), Some(&mut checkout_opts))
         .map_err(|e| GitError::from(e))?;
 
-    // Set HEAD to the branch
     let refname = format!("refs/heads/{}", branch_name);
     repo.set_head(&refname).map_err(|e| GitError::from(e))?;
 

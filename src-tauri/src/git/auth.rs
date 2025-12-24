@@ -1,11 +1,7 @@
 //! Git Authentication
 //!
 //! Provides authentication callbacks for remote Git operations using libgit2.
-//! Supports multiple authentication methods:
-//! - SSH keys (~/.ssh/id_rsa, ~/.ssh/id_ed25519)
-//! - SSH agent
-//! - Git credential helper
-//! - Default credentials
+//! Supports: SSH keys, SSH agent, Git credential helper, default credentials.
 
 use git2::{Cred, CredentialType, FetchOptions, PushOptions, RemoteCallbacks};
 use std::path::Path;
@@ -14,12 +10,6 @@ pub struct AuthCallbacks;
 
 impl AuthCallbacks {
     /// Create remote callbacks with authentication support
-    ///
-    /// Tries authentication methods in this order:
-    /// 1. SSH key from ~/.ssh directory
-    /// 2. SSH agent
-    /// 3. Git credential helper
-    /// 4. Default credentials
     pub fn create_callbacks<'a>() -> RemoteCallbacks<'a> {
         let mut callbacks = RemoteCallbacks::new();
 
@@ -31,8 +21,6 @@ impl AuthCallbacks {
                     .unwrap_or_else(|_| ".".to_string());
 
                 let ssh_dir = Path::new(&home).join(".ssh");
-
-                // Try common SSH key names
                 let key_names = ["id_rsa", "id_ed25519", "id_ecdsa"];
 
                 for key_name in key_names {
@@ -46,7 +34,6 @@ impl AuthCallbacks {
                             &private_key,
                             None,
                         );
-
                         if result.is_ok() {
                             return result;
                         }
@@ -62,7 +49,7 @@ impl AuthCallbacks {
                 }
             }
 
-            // Try default credentials (for HTTPS with credential helper)
+            // Try default credentials
             if allowed.contains(CredentialType::DEFAULT) {
                 let result = Cred::default();
                 if result.is_ok() {
@@ -70,7 +57,7 @@ impl AuthCallbacks {
                 }
             }
 
-            // Try credential helper (for HTTPS)
+            // Try credential helper
             if allowed.contains(CredentialType::USER_PASS_PLAINTEXT) {
                 if let Ok(config) = git2::Config::open_default() {
                     let result = Cred::credential_helper(&config, url, username);
@@ -80,7 +67,6 @@ impl AuthCallbacks {
                 }
             }
 
-            // Try username from memory
             if allowed.contains(CredentialType::USERNAME) {
                 return Cred::username(username.unwrap_or("git"));
             }
@@ -106,34 +92,4 @@ impl AuthCallbacks {
         opts.remote_callbacks(Self::create_callbacks());
         opts
     }
-
-    /// Create callbacks with progress reporting
-    pub fn create_callbacks_with_progress<F>(mut on_progress: F) -> RemoteCallbacks<'static>
-    where
-        F: FnMut(git2::Progress) -> bool + 'static,
-    {
-        let mut callbacks = Self::create_callbacks();
-        callbacks.transfer_progress(on_progress);
-        callbacks
-    }
-}
-
-/// Create fetch options with authentication and progress
-pub fn fetch_options_with_progress<F>(on_progress: F) -> FetchOptions<'static>
-where
-    F: FnMut(git2::Progress) -> bool + 'static,
-{
-    let mut opts = FetchOptions::new();
-    opts.remote_callbacks(AuthCallbacks::create_callbacks_with_progress(on_progress));
-    opts
-}
-
-/// Create push options with authentication and progress
-pub fn push_options_with_progress<F>(on_progress: F) -> PushOptions<'static>
-where
-    F: FnMut(git2::Progress) -> bool + 'static,
-{
-    let mut opts = PushOptions::new();
-    opts.remote_callbacks(AuthCallbacks::create_callbacks_with_progress(on_progress));
-    opts
 }

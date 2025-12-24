@@ -20,7 +20,7 @@ pub fn git_merge(path: String, branch: String, no_ff: Option<bool>) -> Result<St
         .map_err(|e| GitError::from(e))?;
 
     // Perform merge analysis
-    let (analysis, preference) = repo
+    let (analysis, _preference) = repo
         .merge_analysis(&[&annotated])
         .map_err(|e| GitError::from(e))?;
 

@@ -256,7 +256,7 @@ pub fn git_diff_commit(
         .diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)
         .map_err(|e| GitError::from(e))?;
 
-    let stats = diff.stats().map_err(|e| GitError::from(e))?;
+    let _stats = diff.stats().map_err(|e| GitError::from(e))?;
     let metadata_only = metadata_only.unwrap_or(false);
     let max_lines = max_lines_per_file.unwrap_or(500);
 

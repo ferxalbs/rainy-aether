@@ -75,26 +75,3 @@ pub struct ConflictContent {
     pub theirs: String,
     pub base: String,
 }
-
-/// Tag information
-#[derive(Serialize, Debug, Clone)]
-pub struct TagInfo {
-    pub name: String,
-    pub commit: String,
-    pub message: Option<String>,
-    pub tagger: Option<String>,
-    pub date: Option<String>,
-}
-
-/// Git status summary (for status bar)
-#[derive(Serialize, Debug, Clone)]
-pub struct GitStatusSummary {
-    pub branch: Option<String>,
-    pub ahead: Option<u32>,
-    pub behind: Option<u32>,
-    pub staged: u32,
-    pub modified: u32,
-    pub untracked: u32,
-    pub conflicts: u32,
-    pub clean: bool,
-}

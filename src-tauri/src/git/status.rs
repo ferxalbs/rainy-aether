@@ -117,7 +117,7 @@ pub fn git_unstage_file(path: String, file_path: String) -> Result<String, Strin
     // Get HEAD commit
     let head = repo.head().map_err(|e| GitError::from(e))?;
     let head_commit = head.peel_to_commit().map_err(|e| GitError::from(e))?;
-    let head_tree = head_commit.tree().map_err(|e| GitError::from(e))?;
+    let _head_tree = head_commit.tree().map_err(|e| GitError::from(e))?;
 
     // Reset the file in the index to match HEAD
     repo.reset_default(Some(&head_commit.as_object()), [file_path.as_str()])

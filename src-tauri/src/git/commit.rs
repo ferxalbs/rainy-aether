@@ -3,7 +3,7 @@
 //! Native libgit2 implementation for commit, amend, reset, and revert.
 
 use super::error::GitError;
-use git2::{Repository, Signature};
+use git2::Repository;
 
 /// Create a commit
 #[tauri::command]
@@ -97,8 +97,8 @@ pub fn git_revert(path: String, commit: String, no_commit: Option<bool>) -> Resu
     let oid = git2::Oid::from_str(&commit).map_err(|e| GitError::from(e))?;
     let commit_obj = repo.find_commit(oid).map_err(|e| GitError::from(e))?;
 
-    // Get parent
-    let parent = commit_obj.parent(0).map_err(|e| GitError::from(e))?;
+    // Get parent (unused in revert logic)
+    let _parent = commit_obj.parent(0).map_err(|e| GitError::from(e))?;
 
     // Perform the revert by cherrypicking in reverse
     let mut opts = git2::CherrypickOptions::new();
