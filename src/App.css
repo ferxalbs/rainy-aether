@@ -151,7 +151,7 @@
   }
 
   body {
-    background-color: transparent;
+    background-color: var(--bg-primary);
     color: var(--text-primary);
     margin: 0;
     padding: 0;
@@ -182,7 +182,7 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: transparent;
+  background-color: var(--bg-primary);
   color: var(--text-primary);
 }
 

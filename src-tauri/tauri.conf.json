@@ -24,15 +24,7 @@
         "maximizable": true,
         "minimizable": true,
         "closable": true,
-        "backgroundColor": "#00000000",
-        "transparent": true,
-        "windowEffects": {
-          "effects": [
-            "sidebar"
-          ],
-          "state": "active",
-          "radius": 24
-        }
+        "backgroundColor": "#020617"
       }
     ],
     "security": {

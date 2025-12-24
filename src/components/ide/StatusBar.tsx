@@ -626,11 +626,13 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
 
   return (
     <>
-      <div className={cn(
-        "flex items-stretch justify-between text-xs border-t",
-        "bg-background text-foreground border-border",
-        "h-6 select-none overflow-hidden"
-      )}>
+      <div
+        className={cn(
+          "flex items-stretch justify-between text-xs border-t",
+          "bg-background text-foreground border-border",
+          "h-6 select-none overflow-hidden"
+        )}
+      >
         {/* Left side items */}
         <div className="flex items-stretch shrink-0">
           {leftItems.map(item => (
