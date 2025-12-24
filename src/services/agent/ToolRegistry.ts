@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { getGitService } from "@/services/gitService";
 import { getTerminalService } from "@/services/terminalService";
 import { getMarkerService } from "@/services/markerService";
-import { getIDEState } from "@/stores/ideStore";
+import { getIDEState, ideActions } from "@/stores/ideStore";
+import { inlineDiffActions } from "@/stores/inlineDiffStore";
 import { join } from "@tauri-apps/api/path";
 
 export interface ToolDefinition {
@@ -218,6 +219,116 @@ class ToolRegistry {
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
           return { success: false, error: `Failed to write file '${path}': ${errorMsg}` };
+        }
+      },
+    });
+
+    // --- Apply File Diff Tool ---
+    // This tool shows a visual preview in the editor before applying changes
+    this.registerTool({
+      name: "apply_file_diff",
+      description: `Apply changes to a file with VISUAL PREVIEW in the editor. Shows green highlighting for additions, red for deletions. User can accept (Cmd/Ctrl+Enter) or reject (Escape) changes.
+
+USE THIS TOOL when making code modifications that the user should review before applying.
+This provides a better user experience than edit_file or write_file as changes are previewed first.
+
+After calling this tool, the user will see the changes highlighted in the editor and must accept or reject them.`,
+      parameters: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description: "The relative path of the file to edit."
+          },
+          new_content: {
+            type: "string",
+            description: "The complete new content for the file."
+          },
+          description: {
+            type: "string",
+            description: "Brief description of what the changes accomplish."
+          },
+        },
+        required: ["path", "new_content"],
+      },
+      execute: async ({ path, new_content, description }) => {
+        try {
+          if (!path || typeof path !== 'string') {
+            return { success: false, error: 'Invalid path parameter' };
+          }
+          if (new_content === undefined || new_content === null) {
+            return { success: false, error: 'new_content parameter is required' };
+          }
+
+          const resolvedPath = await this.resolvePath(path);
+
+          // Read original content
+          let originalContent = '';
+          try {
+            originalContent = await invoke<string>("get_file_content", { path: resolvedPath });
+          } catch {
+            // File might not exist, that's okay for new files
+            originalContent = '';
+          }
+
+          // Check if file is open, if not open it
+          const openFiles = getIDEState().openFiles;
+          const isFileOpen = openFiles.some(f => f.path === resolvedPath);
+
+          if (!isFileOpen) {
+            // Open the file first
+            const fileName = path.split('/').pop() || path;
+            await ideActions.openFile({ path: resolvedPath, name: fileName, is_directory: false, children: [] });
+            // Wait for editor to load
+            await new Promise(resolve => setTimeout(resolve, 300));
+          }
+
+          // Count changes for statistics
+          const originalLines = originalContent.split('\n');
+          const newLines = new_content.split('\n');
+          const addedLines = newLines.filter((l: string) => !originalLines.includes(l)).length;
+          const removedLines = originalLines.filter((l: string) => !newLines.includes(l)).length;
+
+          // Start inline diff session
+          inlineDiffActions.startInlineDiff({
+            fileUri: resolvedPath,
+            agentId: 'rainy-agent',
+            agentName: 'Rainy Agent',
+            originalContent,
+            description,
+          });
+
+          // Create a single change entry representing the full file change
+          inlineDiffActions.streamChange({
+            type: 'replace',
+            range: {
+              startLine: 1,
+              startColumn: 1,
+              endLine: originalLines.length || 1,
+              endColumn: Number.MAX_SAFE_INTEGER,
+            },
+            newText: new_content,
+            oldText: originalContent,
+          });
+
+          // Finish streaming
+          inlineDiffActions.finishStreaming();
+
+          return {
+            success: true,
+            status: 'pending_approval',
+            message: `Changes proposed for '${path}'. +${addedLines} lines, -${removedLines} lines. User must accept (Cmd/Ctrl+Enter) or reject (Escape).`,
+            path: resolvedPath,
+            additions: addedLines,
+            deletions: removedLines,
+            description,
+            hint: 'Changes are highlighted in the editor. Press Cmd/Ctrl+Enter to accept or Escape to reject.',
+          };
+        } catch (error) {
+          // Clean up on error
+          inlineDiffActions.clearSession();
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to apply diff to '${path}': ${errorMsg}` };
         }
       },
     });

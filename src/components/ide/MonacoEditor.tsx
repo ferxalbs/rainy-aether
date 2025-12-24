@@ -3,6 +3,8 @@ import * as monaco from 'monaco-editor';
 import { editorActions } from '../../stores/editorStore';
 import { getCurrentTheme, subscribeToThemeChanges } from '../../stores/themeStore';
 import { getSettingsState } from '../../stores/settingsStore';
+import { subscribeToInlineDiff, inlineDiffActions } from '../../stores/inlineDiffStore';
+import { InlineDiffController } from '../../services/inlineDiff';
 import { configureMonaco, getLanguageFromFilename } from '../../services/monacoConfig';
 import { configurationService } from '../../services/configurationService';
 import { applyEditorConfiguration } from '../../services/editorConfigurationService';
@@ -34,6 +36,7 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
   const onChangeRef = useRef<typeof onChange>(onChange);
   const themeRef = useRef(getCurrentTheme());
   const isMountedRef = useRef(false);
+  const inlineDiffControllerRef = useRef<InlineDiffController | null>(null);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -527,6 +530,52 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
       }
     }, 50);
   }, [getMonacoLanguage, readOnly]);
+
+  // Inline Diff Decorations Effect
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !filename) return;
+
+    // Subscribe to inline diff store changes
+    const unsubscribe = subscribeToInlineDiff(() => {
+      const diffState = inlineDiffActions.getState();
+
+      // Check if this editor's file has an active diff session
+      if (!diffState.activeSession || diffState.activeSession.fileUri !== filename) {
+        // Clear decorations if no active session for this file
+        if (inlineDiffControllerRef.current) {
+          inlineDiffControllerRef.current.clearDecorations();
+        }
+        return;
+      }
+
+      // Create controller if not exists
+      if (!inlineDiffControllerRef.current) {
+        inlineDiffControllerRef.current = new InlineDiffController(editor);
+      }
+
+      // Apply decorations for pending changes
+      if (diffState.pendingChanges.length > 0) {
+        inlineDiffControllerRef.current.applyDiffDecorations(diffState.pendingChanges);
+      }
+
+      // Show streaming highlight if still streaming
+      if (diffState.isStreaming && diffState.pendingChanges.length > 0) {
+        const lastChange = diffState.pendingChanges[diffState.pendingChanges.length - 1];
+        inlineDiffControllerRef.current.highlightStreamingLine(lastChange.range.endLine);
+      } else {
+        inlineDiffControllerRef.current?.clearStreamingHighlight();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      if (inlineDiffControllerRef.current) {
+        inlineDiffControllerRef.current.dispose();
+        inlineDiffControllerRef.current = null;
+      }
+    };
+  }, [filename]);
 
   return (
     <div
