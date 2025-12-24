@@ -236,8 +236,21 @@ export const PreviewBrowserPanel: React.FC<PreviewBrowserPanelProps> = ({
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium text-foreground truncate">
-                                        {instance.title || 'Preview'}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-medium text-foreground truncate">
+                                            {instance.title || 'Preview'}
+                                        </span>
+                                        {/* Status indicator */}
+                                        <span className={cn(
+                                            'px-1.5 py-0.5 text-[10px] font-medium rounded',
+                                            instance.connectionStatus === 'connected' && 'bg-green-500/20 text-green-500',
+                                            instance.connectionStatus === 'connecting' && 'bg-yellow-500/20 text-yellow-500',
+                                            instance.connectionStatus === 'disconnected' && 'bg-orange-500/20 text-orange-500',
+                                            instance.connectionStatus === 'failed' && 'bg-red-500/20 text-red-500',
+                                            instance.connectionStatus === 'closed' && 'bg-muted text-muted-foreground'
+                                        )}>
+                                            {instance.connectionStatus}
+                                        </span>
                                     </div>
                                     <div className="text-xs text-muted-foreground truncate">{instance.url}</div>
                                 </div>
@@ -270,21 +283,48 @@ export const PreviewBrowserPanel: React.FC<PreviewBrowserPanelProps> = ({
             {/* Status Bar */}
             {activeInstance && (
                 <div className="flex items-center gap-2 px-3 py-1.5 border-t border-border text-xs text-muted-foreground bg-muted/20">
-                    <span className="flex items-center gap-1">
-                        {activeInstance.isLoading ? (
+                    <span className="flex items-center gap-1.5">
+                        {activeInstance.connectionStatus === 'connecting' && (
                             <>
-                                <Loader2 size={10} className="animate-spin" />
-                                Loading...
+                                <Loader2 size={10} className="animate-spin text-yellow-500" />
+                                <span className="text-yellow-500">Connecting...</span>
                             </>
-                        ) : (
+                        )}
+                        {activeInstance.connectionStatus === 'connected' && (
                             <>
                                 <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                Ready
+                                <span className="text-green-500">Connected</span>
                             </>
+                        )}
+                        {activeInstance.connectionStatus === 'disconnected' && (
+                            <>
+                                <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                                <span className="text-orange-500">Disconnected</span>
+                            </>
+                        )}
+                        {activeInstance.connectionStatus === 'failed' && (
+                            <>
+                                <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                <span className="text-red-500">Failed</span>
+                            </>
+                        )}
+                        {activeInstance.connectionStatus === 'closed' && (
+                            <>
+                                <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                                <span>Closed</span>
+                            </>
+                        )}
+                        {activeInstance.isLoading && activeInstance.connectionStatus !== 'connecting' && (
+                            <Loader2 size={10} className="animate-spin ml-1" />
                         )}
                     </span>
                     <span className="text-muted-foreground/50">•</span>
                     <span className="truncate flex-1">{activeInstance.url}</span>
+                    {activeInstance.errorMessage && (
+                        <span className="text-red-400 truncate max-w-[200px]" title={activeInstance.errorMessage}>
+                            {activeInstance.errorMessage}
+                        </span>
+                    )}
                 </div>
             )}
         </div>

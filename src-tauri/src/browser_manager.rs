@@ -8,6 +8,23 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindowBuilder};
 
+/// Connection status for browser previews
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ConnectionStatus {
+    Connecting,
+    Connected,
+    Disconnected,
+    Failed,
+    Closed,
+}
+
+impl Default for ConnectionStatus {
+    fn default() -> Self {
+        ConnectionStatus::Connecting
+    }
+}
+
 /// Browser instance state
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BrowserState {
@@ -17,6 +34,9 @@ pub struct BrowserState {
     pub is_loading: bool,
     pub can_go_back: bool,
     pub can_go_forward: bool,
+    pub connection_status: ConnectionStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
 }
 
 /// Managed state for all browser instances
@@ -75,9 +95,11 @@ pub async fn browser_open_preview(
         id: id.clone(),
         url: url.clone(),
         title: format!("Preview - {}", url),
-        is_loading: true,
+        is_loading: false, // Window created, page loading handled by webview
         can_go_back: false,
         can_go_forward: false,
+        connection_status: ConnectionStatus::Connected, // Window created successfully = connected
+        error_message: None,
     };
 
     // Store initial state
@@ -136,9 +158,11 @@ pub async fn browser_navigate(
         id: window_id.clone(),
         url: url.clone(),
         title: format!("Preview - {}", url),
-        is_loading: true,
+        is_loading: false,
         can_go_back,
         can_go_forward,
+        connection_status: ConnectionStatus::Connected,
+        error_message: None,
     };
 
     // Update stored state
@@ -198,6 +222,8 @@ pub async fn browser_back(app: AppHandle, window_id: String) -> Result<BrowserSt
         is_loading: true,
         can_go_back: new_index > 0,
         can_go_forward: new_index < stack_len - 1,
+        connection_status: ConnectionStatus::Connected,
+        error_message: None,
     };
 
     // Update stored state
@@ -254,6 +280,8 @@ pub async fn browser_forward(app: AppHandle, window_id: String) -> Result<Browse
         is_loading: true,
         can_go_back: new_index > 0,
         can_go_forward: new_index < stack_len - 1,
+        connection_status: ConnectionStatus::Connected,
+        error_message: None,
     };
 
     if let Some(state_manager) = app.try_state::<BrowserManagerState>() {
@@ -386,6 +414,50 @@ pub fn browser_set_loading(
             "browser:loaded"
         },
         &window_id,
+    );
+
+    Ok(())
+}
+
+/// Set connection status of a browser window
+#[tauri::command]
+pub fn browser_set_status(
+    app: AppHandle,
+    window_id: String,
+    status: String,
+    error_message: Option<String>,
+) -> Result<(), String> {
+    let connection_status = match status.as_str() {
+        "connecting" => ConnectionStatus::Connecting,
+        "connected" => ConnectionStatus::Connected,
+        "disconnected" => ConnectionStatus::Disconnected,
+        "failed" => ConnectionStatus::Failed,
+        "closed" => ConnectionStatus::Closed,
+        _ => return Err(format!("Invalid status: {}", status)),
+    };
+
+    if let Some(state_manager) = app.try_state::<BrowserManagerState>() {
+        if let Ok(mut instances) = state_manager.instances.lock() {
+            if let Some(state) = instances.get_mut(&window_id) {
+                state.connection_status = connection_status.clone();
+                state.error_message = error_message.clone();
+
+                // If connected, not loading anymore
+                if connection_status == ConnectionStatus::Connected {
+                    state.is_loading = false;
+                }
+            }
+        }
+    }
+
+    // Emit status change event with full state
+    let _ = app.emit(
+        "browser:status_changed",
+        serde_json::json!({
+            "id": window_id,
+            "status": status,
+            "error_message": error_message,
+        }),
     );
 
     Ok(())

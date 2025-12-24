@@ -409,6 +409,7 @@ pub fn run() {
         browser_manager::browser_list_instances,
         browser_manager::browser_set_title,
         browser_manager::browser_set_loading,
+        browser_manager::browser_set_status,
     ]);
 
     if let Err(error) = builder.run(tauri::generate_context!()) {

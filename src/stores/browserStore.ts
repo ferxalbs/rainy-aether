@@ -11,6 +11,9 @@ import { useSyncExternalStore } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
+/** Connection status for browser instances */
+export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'failed' | 'closed';
+
 /** Browser instance state (mirrors Rust BrowserState) */
 export interface BrowserInstance {
     id: string;
@@ -19,6 +22,8 @@ export interface BrowserInstance {
     isLoading: boolean;
     canGoBack: boolean;
     canGoForward: boolean;
+    connectionStatus: ConnectionStatus;
+    errorMessage?: string;
 }
 
 /** Browser store state */
@@ -74,6 +79,8 @@ function convertInstance(raw: {
     is_loading: boolean;
     can_go_back: boolean;
     can_go_forward: boolean;
+    connection_status?: string;
+    error_message?: string;
 }): BrowserInstance {
     return {
         id: raw.id,
@@ -82,6 +89,8 @@ function convertInstance(raw: {
         isLoading: raw.is_loading,
         canGoBack: raw.can_go_back,
         canGoForward: raw.can_go_forward,
+        connectionStatus: (raw.connection_status as ConnectionStatus) || 'connecting',
+        errorMessage: raw.error_message,
     };
 }
 
@@ -317,7 +326,25 @@ async function initialize(): Promise<void> {
             const instances = new Map(state.instances);
             const instance = instances.get(id);
             if (instance) {
-                instances.set(id, { ...instance, isLoading: false });
+                instances.set(id, { ...instance, isLoading: false, connectionStatus: 'connected' });
+            }
+            return { ...state, instances };
+        });
+    });
+
+    // Listen for status changes
+    listen<{ id: string; status: string; error_message?: string }>('browser:status_changed', (event) => {
+        const { id, status, error_message } = event.payload;
+        setState((state) => {
+            const instances = new Map(state.instances);
+            const instance = instances.get(id);
+            if (instance) {
+                instances.set(id, {
+                    ...instance,
+                    connectionStatus: status as ConnectionStatus,
+                    errorMessage: error_message,
+                    isLoading: status === 'connecting',
+                });
             }
             return { ...state, instances };
         });
