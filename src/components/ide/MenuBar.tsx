@@ -322,14 +322,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
   if (useNative) {
     return (
       <div
-        className="h-10 border-b border-border flex items-center bg-background select-none"
+        className="h-[38px] border-b border-border flex items-center bg-background select-none"
         data-tauri-drag-region
       >
-        {/* Left padding for native macOS traffic lights (approx 78px) */}
-        <div className="w-[78px] shrink-0" data-tauri-drag-region />
+        {/* Left padding for native macOS traffic lights */}
+        <div className="w-[72px] shrink-0 h-full" data-tauri-drag-region />
 
-        {/* Mode Switcher */}
-        <div className="flex items-center px-2">
+        {/* Mode Switcher - wrapped for proper centering */}
+        <div className="flex items-center h-full">
           <ModeSwitcher />
         </div>
 
