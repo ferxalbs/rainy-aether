@@ -1,159 +1,184 @@
-import React, { useState, useCallback, useEffect } from "react";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { addRemote, listRemotes, removeRemote, Remote, useGitState } from "@/stores/gitStore";
-import { Trash2, Plus, ExternalLink } from "lucide-react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { addRemote } from "@/stores/gitStore";
+import { cn } from "@/lib/utils";
 
 interface RemoteConfigDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
 }
 
+/**
+ * VS Code-style quick input for adding remotes
+ * Appears centered at top like VS Code command palette
+ */
 const RemoteConfigDialog: React.FC<RemoteConfigDialogProps> = ({
     open,
     onOpenChange,
 }) => {
-    const [name, setName] = useState("origin");
-    const [url, setUrl] = useState("");
-    const [isAdding, setIsAdding] = useState(false);
-    const { remotes } = useGitState();
+    const [step, setStep] = useState<1 | 2>(1);
+    const [remoteName, setRemoteName] = useState("origin");
+    const [remoteUrl, setRemoteUrl] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
 
+    // Reset state when opening
     useEffect(() => {
         if (open) {
-            listRemotes();
+            setStep(1);
+            setRemoteName("origin");
+            setRemoteUrl("");
+            setIsSubmitting(false);
+            setTimeout(() => inputRef.current?.focus(), 50);
         }
     }, [open]);
 
-    const handleAddRemote = useCallback(async () => {
-        if (!name.trim() || !url.trim()) return;
+    // Focus input when step changes
+    useEffect(() => {
+        if (open) {
+            setTimeout(() => {
+                inputRef.current?.focus();
+                inputRef.current?.select();
+            }, 50);
+        }
+    }, [step, open]);
 
-        setIsAdding(true);
-        try {
-            await addRemote(name.trim(), url.trim());
-            setName("origin");
-            setUrl("");
+    const handleKeyDown = useCallback(async (e: React.KeyboardEvent) => {
+        if (e.key === 'Escape') {
             onOpenChange(false);
-        } catch {
-            // Error is already handled by showGitError
-        } finally {
-            setIsAdding(false);
+            return;
         }
-    }, [name, url, onOpenChange]);
 
-    const handleRemoveRemote = useCallback(async (remoteName: string) => {
-        try {
-            await removeRemote(remoteName);
-        } catch {
-            // Error is already handled by showGitError
+        if (e.key === 'Enter') {
+            e.preventDefault();
+
+            if (step === 1) {
+                if (remoteName.trim()) {
+                    setStep(2);
+                }
+            } else {
+                if (remoteUrl.trim() && !isSubmitting) {
+                    setIsSubmitting(true);
+                    try {
+                        await addRemote(remoteName.trim(), remoteUrl.trim());
+                        onOpenChange(false);
+                    } catch {
+                        // Error shown by gitStore
+                        setIsSubmitting(false);
+                    }
+                }
+            }
         }
-    }, []);
+    }, [step, remoteName, remoteUrl, isSubmitting, onOpenChange]);
+
+    if (!open) return null;
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Configure Git Remote</DialogTitle>
-                    <DialogDescription>
-                        Add a remote repository URL to push and pull your changes.
-                    </DialogDescription>
-                </DialogHeader>
+        <>
+            {/* Backdrop with blur */}
+            <div
+                className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-in fade-in-0 duration-150"
+                onClick={() => onOpenChange(false)}
+            />
 
-                {/* Existing remotes */}
-                {remotes.length > 0 && (
-                    <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground uppercase">Configured Remotes</Label>
-                        <div className="space-y-1">
-                            {remotes.map((remote: Remote) => (
-                                <div
-                                    key={remote.name}
-                                    className="flex items-center justify-between p-2 rounded-md bg-muted/50 text-sm"
-                                >
-                                    <div className="min-w-0 flex-1">
-                                        <span className="font-medium">{remote.name}</span>
-                                        <p className="text-xs text-muted-foreground truncate">{remote.fetch_url}</p>
-                                    </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-                                        onClick={() => handleRemoveRemote(remote.name)}
-                                    >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                </div>
-                            ))}
+            {/* Quick input - positioned at top center like VS Code */}
+            <div className={cn(
+                "fixed z-50 w-[90vw] sm:w-[70vw] md:w-[50vw] lg:w-[40vw] max-w-[500px] min-w-[280px]",
+                "top-[12%] left-1/2 -translate-x-1/2",
+                "animate-in fade-in-0 slide-in-from-top-2 duration-200"
+            )}>
+                <div className={cn(
+                    "bg-popover/95 backdrop-blur-xl border border-border/60 rounded-lg shadow-2xl",
+                    "ring-1 ring-white/5"
+                )}>
+                    {/* Step indicator */}
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-border/40">
+                        <div className={cn(
+                            "flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-medium",
+                            step === 1
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground"
+                        )}>
+                            1
                         </div>
+                        <div className="w-6 h-px bg-border/60" />
+                        <div className={cn(
+                            "flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-medium",
+                            step === 2
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted text-muted-foreground"
+                        )}>
+                            2
+                        </div>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                            {step === 1 ? "Remote name" : "Repository URL"}
+                        </span>
                     </div>
-                )}
 
-                {/* Add new remote form */}
-                <div className="space-y-4 py-2">
-                    <div className="space-y-2">
-                        <Label htmlFor="remote-name">Remote Name</Label>
-                        <Input
-                            id="remote-name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="origin"
-                            className="h-9"
+                    {/* Label */}
+                    <div className="px-3 pt-3 pb-1">
+                        <label className="text-sm font-medium text-foreground">
+                            {step === 1
+                                ? "Enter remote name"
+                                : `Enter URL for "${remoteName}"`
+                            }
+                        </label>
+                    </div>
+
+                    {/* Input */}
+                    <div className="px-3 pb-3">
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={step === 1 ? remoteName : remoteUrl}
+                            onChange={(e) => step === 1 ? setRemoteName(e.target.value) : setRemoteUrl(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder={step === 1 ? "origin" : "https://github.com/user/repo.git"}
+                            disabled={isSubmitting}
+                            className={cn(
+                                "w-full px-3 py-2 text-sm rounded-md",
+                                "bg-background/80 border border-border/60",
+                                "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50",
+                                "placeholder:text-muted-foreground/50 transition-all",
+                                isSubmitting && "opacity-50 cursor-not-allowed"
+                            )}
+                            autoComplete="off"
+                            spellCheck={false}
                         />
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="remote-url">Repository URL</Label>
-                        <Input
-                            id="remote-url"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            placeholder="https://github.com/user/repo.git"
-                            className="h-9"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            Supports HTTPS or SSH URLs (e.g., git@github.com:user/repo.git)
-                        </p>
+
+                    {/* Hints for URL step */}
+                    {step === 2 && (
+                        <div className="px-3 pb-3 pt-0">
+                            <div className="text-[11px] text-muted-foreground/70 space-y-0.5">
+                                <div className="font-medium text-muted-foreground mb-1">Supported formats:</div>
+                                <div className="pl-2">• https://github.com/user/repo.git</div>
+                                <div className="pl-2">• git@github.com:user/repo.git</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between px-3 py-2 border-t border-border/40 bg-muted/30 rounded-b-lg">
+                        <div className="text-[11px] text-muted-foreground">
+                            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Enter</kbd>
+                            <span className="ml-1">{step === 1 ? "Next" : "Add remote"}</span>
+                            <span className="mx-2">•</span>
+                            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Esc</kbd>
+                            <span className="ml-1">Cancel</span>
+                        </div>
+                        {isSubmitting && (
+                            <div className="text-xs text-muted-foreground">Adding...</div>
+                        )}
                     </div>
                 </div>
-
-                <DialogFooter className="gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => onOpenChange(false)}
-                        className="h-8"
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleAddRemote}
-                        disabled={!name.trim() || !url.trim() || isAdding}
-                        className="h-8 gap-1.5"
-                    >
-                        <Plus className="h-3.5 w-3.5" />
-                        Add Remote
-                    </Button>
-                </DialogFooter>
-
-                <div className="pt-2 border-t">
-                    <a
-                        href="https://docs.github.com/en/get-started/getting-started-with-git/about-remote-repositories"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-                    >
-                        Learn more about remote repositories
-                        <ExternalLink className="h-3 w-3" />
-                    </a>
-                </div>
-            </DialogContent>
-        </Dialog>
+            </div>
+        </>
     );
 };
 
 export default RemoteConfigDialog;
+
+// Legacy export for compatibility
+export function setupRemoteConfigListener(): () => void {
+    return () => { };
+}

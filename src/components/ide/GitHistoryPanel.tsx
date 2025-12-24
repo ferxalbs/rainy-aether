@@ -135,7 +135,7 @@ const GitHistoryPanel: React.FC = () => {
     }
   }, []);
 
-  // Listen for remote config dialog event
+  // Listen for remote config event
   useEffect(() => {
     const handleOpenRemoteConfig = () => setRemoteDialogOpen(true);
     window.addEventListener("git:open-remote-config", handleOpenRemoteConfig);
