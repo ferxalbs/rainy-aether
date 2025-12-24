@@ -239,16 +239,8 @@ async function goForward(id: string): Promise<void> {
 async function reload(id: string): Promise<void> {
     try {
         await invoke('browser_reload', { windowId: id });
-
-        // Mark as loading
-        setState((state) => {
-            const instances = new Map(state.instances);
-            const instance = instances.get(id);
-            if (instance) {
-                instances.set(id, { ...instance, isLoading: true });
-            }
-            return { ...state, instances };
-        });
+        // Note: We don't change isLoading state here because we can't detect
+        // when the native webview reload completes. The webview handles this internally.
     } catch (error) {
         console.error('[browserStore] Reload failed:', error);
     }
