@@ -28,44 +28,38 @@ export class InlineDiffController {
     applyDiffDecorations(changes: InlineDiffChange[]): void {
         if (this.disposed) return;
 
+        const model = this.editor.getModel();
+        if (!model) return;
+
+        const lineCount = model.getLineCount();
         const decorations: monaco.editor.IModelDeltaDecoration[] = [];
 
         for (const change of changes) {
             const options = this.getDecorationOptions(change);
 
+            // Validate and clamp line numbers to model bounds
+            const startLine = Math.max(1, Math.min(change.range.startLine, lineCount));
+            const endLine = Math.max(startLine, Math.min(change.range.endLine, lineCount));
+
+            // Get safe column values
+            const endColumn = model.getLineMaxColumn(endLine);
+
             decorations.push({
                 range: new monaco.Range(
-                    change.range.startLine,
-                    change.range.startColumn,
-                    change.range.endLine,
-                    change.range.endColumn
+                    startLine,
+                    1,
+                    endLine,
+                    endColumn
                 ),
                 options,
             });
-
-            // For replacements, show both old and new text
-            if (change.type === 'replace') {
-                // Add a glyph marker for the change
-                decorations.push({
-                    range: new monaco.Range(
-                        change.range.startLine,
-                        1,
-                        change.range.startLine,
-                        1
-                    ),
-                    options: {
-                        glyphMarginClassName: 'inline-diff-glyph-replace',
-                        glyphMarginHoverMessage: { value: `**Replace:** \`${change.oldText.substring(0, 50)}...\` → \`${change.newText.substring(0, 50)}...\`` },
-                    },
-                });
-            }
         }
 
-        // Apply decorations
-        const model = this.editor.getModel();
-        if (model) {
+        // Apply decorations (don't call setDecorationIds to avoid infinite loop!)
+        try {
             this.decorations = this.editor.deltaDecorations(this.decorations, decorations);
-            inlineDiffActions.setDecorationIds(this.decorations);
+        } catch (error) {
+            console.error('[InlineDiffController] Error applying decorations:', error);
         }
     }
 

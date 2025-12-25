@@ -240,6 +240,9 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
       // Line numbers
       lineNumbers: lineNumbers as 'on' | 'off' | 'relative' | 'interval',
 
+      // Glyph margin (required for inline diff decorations)
+      glyphMargin: true,
+
       // Minimap settings
       minimap: {
         enabled: minimapEnabled,
@@ -536,15 +539,29 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
     const editor = editorRef.current;
     if (!editor || !filename) return;
 
+    // Track last applied change count to avoid redundant applications
+    let lastAppliedCount = -1;
+
     // Subscribe to inline diff store changes
     const unsubscribe = subscribeToInlineDiff(() => {
       const diffState = inlineDiffActions.getState();
 
       // Check if this editor's file has an active diff session
-      if (!diffState.activeSession || diffState.activeSession.fileUri !== filename) {
+      const sessionFileUri = diffState.activeSession?.fileUri || '';
+      const filenameNormalized = filename.replace(/\\/g, '/');
+      const sessionNormalized = sessionFileUri.replace(/\\/g, '/');
+
+      const isMatch =
+        sessionNormalized === filenameNormalized ||
+        sessionNormalized.endsWith(`/${filenameNormalized}`) ||
+        filenameNormalized.endsWith(`/${sessionNormalized.split('/').pop() || ''}`) ||
+        sessionNormalized.split('/').pop() === filenameNormalized.split('/').pop();
+
+      if (!diffState.activeSession || !isMatch) {
         // Clear decorations if no active session for this file
         if (inlineDiffControllerRef.current) {
           inlineDiffControllerRef.current.clearDecorations();
+          lastAppliedCount = -1;
         }
         return;
       }
@@ -554,14 +571,16 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
         inlineDiffControllerRef.current = new InlineDiffController(editor);
       }
 
-      // Apply decorations for pending changes
-      if (diffState.pendingChanges.length > 0) {
+      // Only apply decorations if count changed (avoid redundant applications)
+      const currentCount = diffState.pendingChanges.length;
+      if (currentCount > 0 && currentCount !== lastAppliedCount) {
         inlineDiffControllerRef.current.applyDiffDecorations(diffState.pendingChanges);
+        lastAppliedCount = currentCount;
       }
 
       // Show streaming highlight if still streaming
-      if (diffState.isStreaming && diffState.pendingChanges.length > 0) {
-        const lastChange = diffState.pendingChanges[diffState.pendingChanges.length - 1];
+      if (diffState.isStreaming && currentCount > 0) {
+        const lastChange = diffState.pendingChanges[currentCount - 1];
         inlineDiffControllerRef.current.highlightStreamingLine(lastChange.range.endLine);
       } else {
         inlineDiffControllerRef.current?.clearStreamingHighlight();
@@ -575,7 +594,7 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
         inlineDiffControllerRef.current = null;
       }
     };
-  }, [filename]);
+  }, [filename, container]);
 
   return (
     <div

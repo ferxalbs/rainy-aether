@@ -92,7 +92,13 @@ let cachedSnapshot: InlineDiffState = { ...state };
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
-    listeners.forEach(listener => listener());
+    listeners.forEach(listener => {
+        try {
+            listener();
+        } catch (e) {
+            console.error('[inlineDiffStore] Listener error:', e);
+        }
+    });
 }
 
 function setState(updater: (prev: InlineDiffState) => InlineDiffState) {
