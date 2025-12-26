@@ -185,6 +185,22 @@ class ToolRegistry {
           const newContent = normalizedContent.replace(normalizedOldString, new_string);
           await invoke("save_file_content", { path: resolvedPath, content: newContent });
 
+          // IMPORTANT: Update Monaco editor if this file is open
+          // This ensures the editor shows the latest content
+          const editor = editorActions.getCurrentEditor();
+          if (editor) {
+            const model = editor.getModel();
+            const openFiles = getIDEState().openFiles;
+            const isFileOpen = openFiles.some(f => f.path === resolvedPath);
+            if (model && isFileOpen) {
+              // Update editor content to match disk
+              const currentValue = model.getValue();
+              if (currentValue !== newContent) {
+                model.setValue(newContent);
+              }
+            }
+          }
+
           return {
             success: true,
             message: `Successfully edited '${path}' - replaced ${old_string.length} characters with ${new_string.length} characters.`
@@ -217,6 +233,21 @@ class ToolRegistry {
           }
           const resolvedPath = await this.resolvePath(path);
           await invoke("save_file_content", { path: resolvedPath, content });
+
+          // IMPORTANT: Update Monaco editor if this file is open
+          const editor = editorActions.getCurrentEditor();
+          if (editor) {
+            const model = editor.getModel();
+            const openFiles = getIDEState().openFiles;
+            const isFileOpen = openFiles.some(f => f.path === resolvedPath);
+            if (model && isFileOpen) {
+              const currentValue = model.getValue();
+              if (currentValue !== content) {
+                model.setValue(content);
+              }
+            }
+          }
+
           return { success: true, message: `File '${path}' written successfully with ${content.length} characters.` };
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
