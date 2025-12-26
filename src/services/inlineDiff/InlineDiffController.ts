@@ -22,7 +22,6 @@ export class InlineDiffController {
     // Debounce state for decoration updates
     private pendingDecorations: monaco.editor.IModelDeltaDecoration[] | null = null;
     private decorationUpdateTimer: ReturnType<typeof setTimeout> | null = null;
-    private lastAppliedChangesHash = '';
 
     constructor(editor: monaco.editor.IStandaloneCodeEditor) {
         this.editor = editor;
@@ -31,26 +30,16 @@ export class InlineDiffController {
         this.streamingDecorations = this.editor.createDecorationsCollection([]);
     }
 
-    /**
-     * Compute a simple hash of changes to detect if we need to update
-     */
-    private computeChangesHash(changes: InlineDiffChange[]): string {
-        return `${changes.length}:${changes.map(c => `${c.range.startLine}-${c.range.endLine}-${c.type}`).join(',')}`;
-    }
 
     /**
      * Apply diff decorations to show pending changes
-     * Uses debouncing to prevent excessive decoration updates
+     * Uses Monaco's efficient createDecorationsCollection
      */
     applyDiffDecorations(changes: InlineDiffChange[]): void {
         if (this.disposed || !this.decorationsCollection) return;
 
-        // Fast hash check - skip if changes haven't changed
-        const changesHash = this.computeChangesHash(changes);
-        if (changesHash === this.lastAppliedChangesHash) {
-            return;
-        }
-        this.lastAppliedChangesHash = changesHash;
+        // Always apply decorations - Monaco's collection.set() is efficient
+        // The previous hash-based skip caused issues when content changed via setValue
 
         const model = this.editor.getModel();
         if (!model) return;
@@ -257,7 +246,6 @@ export class InlineDiffController {
 
         this.decorationsCollection?.clear();
         this.streamingDecorations?.clear();
-        this.lastAppliedChangesHash = '';
         this.lastStreamingLine = -1;
         inlineDiffActions.setDecorationIds([]);
     }
