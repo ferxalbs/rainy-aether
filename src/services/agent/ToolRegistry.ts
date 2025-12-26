@@ -3,6 +3,7 @@ import { getGitService } from "@/services/gitService";
 import { getTerminalService } from "@/services/terminalService";
 import { getMarkerService } from "@/services/markerService";
 import { getIDEState, ideActions } from "@/stores/ideStore";
+import { editorActions } from "@/stores/editorStore";
 import { inlineDiffActions } from "@/stores/inlineDiffStore";
 import { computeLineDiff, diffToInlineChanges } from "@/services/inlineDiff/lineDiff";
 import { join } from "@tauri-apps/api/path";
@@ -284,11 +285,7 @@ After calling this tool, the user will see the changes highlighted in the editor
             await new Promise(resolve => setTimeout(resolve, 300));
           }
 
-          // Compute line-by-line differences
-          const diffResult = computeLineDiff(originalContent, new_content);
-          const inlineChanges = diffToInlineChanges(diffResult);
-
-          // Start inline diff session
+          // Start inline diff session FIRST (stores original content for rejection)
           inlineDiffActions.startInlineDiff({
             fileUri: resolvedPath,
             agentId: 'rainy-agent',
@@ -297,7 +294,21 @@ After calling this tool, the user will see the changes highlighted in the editor
             description,
           });
 
-          // Stream ALL changes in single batched update (prevents N re-renders for N-line diffs)
+          // Set the new content in the editor BEFORE computing/applying decorations
+          // This way decorations will match the content the user sees
+          const editor = editorActions.getCurrentEditor();
+          if (editor) {
+            const model = editor.getModel();
+            if (model) {
+              model.setValue(new_content);
+            }
+          }
+
+          // NOW compute line-by-line differences (for decoration purposes only)
+          const diffResult = computeLineDiff(originalContent, new_content);
+          const inlineChanges = diffToInlineChanges(diffResult);
+
+          // Stream changes to apply decorations (now they match the new content)
           inlineDiffActions.streamChangesBatch(inlineChanges);
 
           // Finish streaming

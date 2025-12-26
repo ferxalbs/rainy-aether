@@ -258,6 +258,7 @@ function finishStreaming(): void {
 
 /**
  * Accept all pending changes and apply them to the file
+ * Note: Content is already previewed in the editor, we just need to save it
  */
 async function acceptAllChanges(): Promise<void> {
     if (!state.activeSession) {
@@ -266,46 +267,21 @@ async function acceptAllChanges(): Promise<void> {
     }
 
     const session = state.activeSession;
-    const changes = state.pendingChanges;
 
     try {
-        // For a full file replacement, we use the newText from the first (and typically only) change
+        // Get current content from editor (it's already showing the new content)
+        const editor = editorActions.getCurrentEditor();
         let newContent: string;
 
-        if (changes.length === 1 && changes[0].type === 'replace') {
-            // Full file replacement
-            newContent = changes[0].newText;
-        } else {
-            // Multiple granular changes - apply them to the editor model
-            const editor = editorActions.getCurrentEditor();
-            if (editor) {
-                const model = editor.getModel();
-                if (model) {
-                    // Apply changes in reverse order (from bottom to top) to preserve line numbers
-                    const sortedChanges = [...changes].sort((a, b) =>
-                        b.range.startLine - a.range.startLine || b.range.startColumn - a.range.startColumn
-                    );
-
-                    // Use Monaco's edit operations to apply changes
-                    const edits = sortedChanges.map(change => ({
-                        range: {
-                            startLineNumber: change.range.startLine,
-                            startColumn: change.range.startColumn,
-                            endLineNumber: change.range.endLine,
-                            endColumn: change.range.endColumn,
-                        },
-                        text: change.type === 'delete' ? '' : change.newText,
-                    }));
-
-                    // Apply all edits at once
-                    model.pushEditOperations([], edits, () => null);
-                    newContent = model.getValue();
-                } else {
-                    throw new Error('No model available');
-                }
+        if (editor) {
+            const model = editor.getModel();
+            if (model) {
+                newContent = model.getValue();
             } else {
-                throw new Error('No editor available');
+                throw new Error('No model available');
             }
+        } else {
+            throw new Error('No editor available');
         }
 
         // Save the file
@@ -314,15 +290,6 @@ async function acceptAllChanges(): Promise<void> {
             content: newContent,
         });
 
-        // Update the editor with the new content
-        const editor = editorActions.getCurrentEditor();
-        if (editor) {
-            const model = editor.getModel();
-            if (model && model.getValue() !== newContent) {
-                model.setValue(newContent);
-            }
-        }
-
         // Update IDE state
         const openFiles = ideActions.getState().openFiles;
         const openFile = openFiles.find(f => f.path === session.fileUri);
@@ -330,7 +297,7 @@ async function acceptAllChanges(): Promise<void> {
             ideActions.updateFileContent(openFile.id, newContent);
         }
 
-        console.log(`[inlineDiffStore] Accepted ${changes.length} changes for ${session.fileUri}`);
+        console.log(`[inlineDiffStore] Accepted changes for ${session.fileUri}`);
     } catch (error) {
         console.error('[inlineDiffStore] Error accepting changes:', error);
         throw error;
