@@ -5,7 +5,7 @@
  * Provides real-time streaming of changes with visual green/red diff highlighting.
  */
 
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore, useRef, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { editorActions } from './editorStore';
 import { ideActions } from './ideStore';
@@ -91,13 +91,23 @@ let state: InlineDiffState = {
 let cachedSnapshot: InlineDiffState = { ...state };
 const listeners = new Set<() => void>();
 
+// Microtask batching for listener notifications
+let notifyScheduled = false;
+
 function notifyListeners() {
-    listeners.forEach(listener => {
-        try {
-            listener();
-        } catch (e) {
-            console.error('[inlineDiffStore] Listener error:', e);
-        }
+    // Batch multiple rapid state updates into single notification via microtask
+    if (notifyScheduled) return;
+    notifyScheduled = true;
+
+    queueMicrotask(() => {
+        notifyScheduled = false;
+        listeners.forEach(listener => {
+            try {
+                listener();
+            } catch (e) {
+                console.error('[inlineDiffStore] Listener error:', e);
+            }
+        });
     });
 }
 
@@ -194,6 +204,45 @@ function streamChange(change: Omit<InlineDiffChange, 'id' | 'applied'>): void {
             stats: newStats,
         };
     });
+}
+
+/**
+ * Stream multiple changes at once (BATCHED - single state update)
+ * Use this for performance when applying many changes at once.
+ * Reduces N state updates to just 1, preventing UI freezes on large diffs.
+ */
+function streamChangesBatch(changes: Omit<InlineDiffChange, 'id' | 'applied'>[]): void {
+    if (!state.activeSession || changes.length === 0) {
+        console.warn('[inlineDiffStore] No active session for batched streaming or empty changes');
+        return;
+    }
+
+    setState(prev => {
+        const newStats = { ...prev.stats };
+        const newChanges: InlineDiffChange[] = [];
+
+        for (const change of changes) {
+            const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            newChanges.push({ ...change, id: changeId, applied: false });
+
+            if (change.type === 'insert') {
+                newStats.additions += change.newText.split('\n').length;
+            } else if (change.type === 'delete') {
+                newStats.deletions += change.oldText.split('\n').length;
+            } else if (change.type === 'replace') {
+                newStats.additions += change.newText.split('\n').length;
+                newStats.deletions += change.oldText.split('\n').length;
+            }
+        }
+
+        return {
+            ...prev,
+            pendingChanges: [...prev.pendingChanges, ...newChanges],
+            stats: newStats,
+        };
+    });
+
+    console.log(`[inlineDiffStore] Batched ${changes.length} changes in single update`);
 }
 
 /**
@@ -368,22 +417,90 @@ function getState(): InlineDiffState {
 // ============================================================================
 
 /**
- * Use inline diff state
+ * Use inline diff state (full state - use sparingly, causes re-render on any change)
  */
 export function useInlineDiffState(): InlineDiffState {
     return useSyncExternalStore(subscribe, getSnapshot);
 }
 
 /**
- * Use active session
+ * Use inline diff with selector for granular subscriptions
+ * Only re-renders when selected value changes
  */
-export function useActiveInlineDiffSession(): InlineDiffSession | null {
-    const state = useInlineDiffState();
-    return state.activeSession;
+export function useInlineDiffSelector<T>(
+    selector: (state: InlineDiffState) => T,
+    isEqual: (a: T, b: T) => boolean = Object.is
+): T {
+    const selectorRef = useRef(selector);
+    const isEqualRef = useRef(isEqual);
+    selectorRef.current = selector;
+    isEqualRef.current = isEqual;
+
+    const cachedValueRef = useRef<{ value: T } | null>(null);
+
+    const getSnapshotWithSelector = useCallback(() => {
+        const newValue = selectorRef.current(getSnapshot());
+        if (cachedValueRef.current === null || !isEqualRef.current(cachedValueRef.current.value, newValue)) {
+            cachedValueRef.current = { value: newValue };
+        }
+        return cachedValueRef.current.value;
+    }, []);
+
+    return useSyncExternalStore(subscribe, getSnapshotWithSelector);
 }
 
 /**
- * Use pending changes
+ * Use active session only (memoized)
+ */
+export function useActiveInlineDiffSession(): InlineDiffSession | null {
+    return useInlineDiffSelector(
+        state => state.activeSession,
+        (a, b) => a?.id === b?.id
+    );
+}
+
+/**
+ * Use pending changes count only (doesn't re-render on change content, just count)
+ */
+export function usePendingChangesCount(): number {
+    return useInlineDiffSelector(state => state.pendingChanges.length);
+}
+
+/**
+ * Use streaming status only
+ */
+export function useIsStreaming(): boolean {
+    return useInlineDiffSelector(state => state.isStreaming);
+}
+
+/**
+ * Use stats only
+ */
+export function useInlineDiffStats(): { additions: number; deletions: number } {
+    return useInlineDiffSelector(
+        state => state.stats,
+        (a, b) => a.additions === b.additions && a.deletions === b.deletions
+    );
+}
+
+/**
+ * Check if there's an active session for a specific file URI
+ */
+export function useIsInlineDiffActiveForFile(fileUri: string | undefined): boolean {
+    return useInlineDiffSelector(
+        state => {
+            if (!fileUri || !state.activeSession) return false;
+            const sessionUri = state.activeSession.fileUri.replace(/\\/g, '/');
+            const targetUri = fileUri.replace(/\\/g, '/');
+            return sessionUri === targetUri ||
+                sessionUri.endsWith(`/${targetUri}`) ||
+                targetUri.endsWith(`/${sessionUri.split('/').pop() || ''}`);
+        }
+    );
+}
+
+/**
+ * Use pending changes (use sparingly - re-renders when any change is added)
  */
 export function usePendingChanges(): InlineDiffChange[] {
     const state = useInlineDiffState();
@@ -397,6 +514,7 @@ export function usePendingChanges(): InlineDiffChange[] {
 export const inlineDiffActions = {
     startInlineDiff,
     streamChange,
+    streamChangesBatch,
     finishStreaming,
     acceptAllChanges,
     rejectAllChanges,

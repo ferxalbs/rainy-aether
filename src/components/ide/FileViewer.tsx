@@ -11,7 +11,10 @@ import {
   EditorGroup,
 } from "../../stores/editorGroupStore";
 import {
-  useInlineDiffState,
+  useIsInlineDiffActiveForFile,
+  useIsStreaming,
+  useInlineDiffStats,
+  useActiveInlineDiffSession,
   inlineDiffActions,
 } from "../../stores/inlineDiffStore";
 import { X, Columns, SplitSquareVertical, GripVertical } from "lucide-react";
@@ -214,10 +217,13 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
     return groupFiles.find((f) => f.id === group.activeFileId) ?? null;
   }, [groupFiles, group.activeFileId]);
 
-  // Get inline diff state for this group's active file
-  const inlineDiffState = useInlineDiffState();
-  const showInlineDiff = activeFile &&
-    inlineDiffState.activeSession?.fileUri === activeFile.path;
+  // Get inline diff state for this group's active file using granular hooks
+  // These hooks only re-render when their specific data changes
+  const isInlineDiffActive = useIsInlineDiffActiveForFile(activeFile?.path);
+  const isStreaming = useIsStreaming();
+  const stats = useInlineDiffStats();
+  const activeSession = useActiveInlineDiffSession();
+  const showInlineDiff = activeFile && isInlineDiffActive;
 
   // Handle inline diff keyboard shortcuts
   useEffect(() => {
@@ -363,11 +369,11 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
             {showInlineDiff && (
               <InlineDiffWidget
                 isVisible={true}
-                isStreaming={inlineDiffState.isStreaming}
-                additions={inlineDiffState.stats.additions}
-                deletions={inlineDiffState.stats.deletions}
-                agentName={inlineDiffState.activeSession?.agentName || 'AI Agent'}
-                description={inlineDiffState.activeSession?.description}
+                isStreaming={isStreaming}
+                additions={stats.additions}
+                deletions={stats.deletions}
+                agentName={activeSession?.agentName || 'AI Agent'}
+                description={activeSession?.description}
                 onAccept={() => inlineDiffActions.acceptAllChanges()}
                 onReject={() => inlineDiffActions.rejectAllChanges()}
               />

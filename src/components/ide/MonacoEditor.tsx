@@ -539,56 +539,111 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
     const editor = editorRef.current;
     if (!editor || !filename) return;
 
-    // Track last applied change count to avoid redundant applications
-    let lastAppliedCount = -1;
+    // Track last applied state to avoid redundant updates
+    let lastSessionId: string | null = null;
+    let lastPendingCount = -1;
+    let lastStreamingState = false;
+    let cachedIsMatch: boolean | null = null;
+    let cachedSessionUri: string = '';
 
-    // Subscribe to inline diff store changes
-    const unsubscribe = subscribeToInlineDiff(() => {
-      const diffState = inlineDiffActions.getState();
+    // Debounce timer for decoration updates
+    let updateTimer: ReturnType<typeof setTimeout> | null = null;
 
-      // Check if this editor's file has an active diff session
-      const sessionFileUri = diffState.activeSession?.fileUri || '';
-      const filenameNormalized = filename.replace(/\\/g, '/');
+    // Normalize filename once
+    const filenameNormalized = filename.replace(/\\/g, '/');
+
+    // Path matching helper (cached)
+    const checkIsMatch = (sessionFileUri: string | undefined): boolean => {
+      if (!sessionFileUri) return false;
+
       const sessionNormalized = sessionFileUri.replace(/\\/g, '/');
 
-      const isMatch =
+      // Use cached result if same session URI
+      if (sessionNormalized === cachedSessionUri && cachedIsMatch !== null) {
+        return cachedIsMatch;
+      }
+
+      cachedSessionUri = sessionNormalized;
+      cachedIsMatch =
         sessionNormalized === filenameNormalized ||
         sessionNormalized.endsWith(`/${filenameNormalized}`) ||
         filenameNormalized.endsWith(`/${sessionNormalized.split('/').pop() || ''}`) ||
         sessionNormalized.split('/').pop() === filenameNormalized.split('/').pop();
 
+      return cachedIsMatch;
+    };
+
+    // Subscribe to inline diff store changes
+    const unsubscribe = subscribeToInlineDiff(() => {
+      const diffState = inlineDiffActions.getState();
+      const sessionId = diffState.activeSession?.id || null;
+      const pendingCount = diffState.pendingChanges.length;
+      const isStreaming = diffState.isStreaming;
+
+      // Quick check: if nothing changed that we care about, skip entirely
+      if (
+        sessionId === lastSessionId &&
+        pendingCount === lastPendingCount &&
+        isStreaming === lastStreamingState
+      ) {
+        return;
+      }
+
+      // Check if this editor's file has an active diff session
+      const isMatch = checkIsMatch(diffState.activeSession?.fileUri);
+
       if (!diffState.activeSession || !isMatch) {
         // Clear decorations if no active session for this file
-        if (inlineDiffControllerRef.current) {
+        if (inlineDiffControllerRef.current && lastSessionId !== null) {
           inlineDiffControllerRef.current.clearDecorations();
-          lastAppliedCount = -1;
+          lastSessionId = null;
+          lastPendingCount = -1;
+          cachedIsMatch = null;
         }
         return;
       }
+
+      // Update tracking state
+      lastSessionId = sessionId;
+      lastPendingCount = pendingCount;
+      lastStreamingState = isStreaming;
 
       // Create controller if not exists
       if (!inlineDiffControllerRef.current) {
         inlineDiffControllerRef.current = new InlineDiffController(editor);
       }
 
-      // Only apply decorations if count changed (avoid redundant applications)
-      const currentCount = diffState.pendingChanges.length;
-      if (currentCount > 0 && currentCount !== lastAppliedCount) {
-        inlineDiffControllerRef.current.applyDiffDecorations(diffState.pendingChanges);
-        lastAppliedCount = currentCount;
+      // Debounce the actual decoration application (already debounced in controller,
+      // but also debounce here to avoid rapid subscription callbacks)
+      if (updateTimer) {
+        clearTimeout(updateTimer);
       }
 
-      // Show streaming highlight if still streaming
-      if (diffState.isStreaming && currentCount > 0) {
-        const lastChange = diffState.pendingChanges[currentCount - 1];
-        inlineDiffControllerRef.current.highlightStreamingLine(lastChange.range.endLine);
-      } else {
-        inlineDiffControllerRef.current?.clearStreamingHighlight();
-      }
+      updateTimer = setTimeout(() => {
+        if (!inlineDiffControllerRef.current) return;
+
+        // Apply decorations if there are changes
+        if (pendingCount > 0) {
+          inlineDiffControllerRef.current.applyDiffDecorations(diffState.pendingChanges);
+        }
+
+        // Show streaming highlight if still streaming
+        if (isStreaming && pendingCount > 0) {
+          const lastChange = diffState.pendingChanges[pendingCount - 1];
+          inlineDiffControllerRef.current.highlightStreamingLine(lastChange.range.endLine);
+        } else {
+          inlineDiffControllerRef.current?.clearStreamingHighlight();
+        }
+
+        updateTimer = null;
+      }, 8); // Very short debounce - just to batch synchronous updates
     });
 
     return () => {
       unsubscribe();
+      if (updateTimer) {
+        clearTimeout(updateTimer);
+      }
       if (inlineDiffControllerRef.current) {
         inlineDiffControllerRef.current.dispose();
         inlineDiffControllerRef.current = null;

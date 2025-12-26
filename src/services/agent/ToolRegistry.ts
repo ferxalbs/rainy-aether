@@ -297,10 +297,8 @@ After calling this tool, the user will see the changes highlighted in the editor
             description,
           });
 
-          // Stream each individual line change for proper visualization
-          for (const change of inlineChanges) {
-            inlineDiffActions.streamChange(change);
-          }
+          // Stream ALL changes in single batched update (prevents N re-renders for N-line diffs)
+          inlineDiffActions.streamChangesBatch(inlineChanges);
 
           // Finish streaming
           inlineDiffActions.finishStreaming();

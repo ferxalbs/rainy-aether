@@ -2,6 +2,7 @@
  * Inline Diff Controller
  *
  * Manages Monaco editor decorations for inline diff visualization.
+ * Uses createDecorationsCollection for efficient decoration management.
  * Shows additions in green and deletions in red with appropriate styling.
  */
 
@@ -14,19 +15,42 @@ import { InlineDiffChange, inlineDiffActions } from '@/stores/inlineDiffStore';
 
 export class InlineDiffController {
     private editor: monaco.editor.IStandaloneCodeEditor;
-    private decorations: string[] = [];
-    private streamingDecoration: string[] = [];
+    private decorationsCollection: monaco.editor.IEditorDecorationsCollection | null = null;
+    private streamingDecorations: monaco.editor.IEditorDecorationsCollection | null = null;
     private disposed = false;
+
+    // Debounce state for decoration updates
+    private pendingDecorations: monaco.editor.IModelDeltaDecoration[] | null = null;
+    private decorationUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+    private lastAppliedChangesHash = '';
 
     constructor(editor: monaco.editor.IStandaloneCodeEditor) {
         this.editor = editor;
+        // Create decoration collections once - VS Code pattern
+        this.decorationsCollection = this.editor.createDecorationsCollection([]);
+        this.streamingDecorations = this.editor.createDecorationsCollection([]);
+    }
+
+    /**
+     * Compute a simple hash of changes to detect if we need to update
+     */
+    private computeChangesHash(changes: InlineDiffChange[]): string {
+        return `${changes.length}:${changes.map(c => `${c.range.startLine}-${c.range.endLine}-${c.type}`).join(',')}`;
     }
 
     /**
      * Apply diff decorations to show pending changes
+     * Uses debouncing to prevent excessive decoration updates
      */
     applyDiffDecorations(changes: InlineDiffChange[]): void {
-        if (this.disposed) return;
+        if (this.disposed || !this.decorationsCollection) return;
+
+        // Fast hash check - skip if changes haven't changed
+        const changesHash = this.computeChangesHash(changes);
+        if (changesHash === this.lastAppliedChangesHash) {
+            return;
+        }
+        this.lastAppliedChangesHash = changesHash;
 
         const model = this.editor.getModel();
         if (!model) return;
@@ -55,12 +79,26 @@ export class InlineDiffController {
             });
         }
 
-        // Apply decorations (don't call setDecorationIds to avoid infinite loop!)
-        try {
-            this.decorations = this.editor.deltaDecorations(this.decorations, decorations);
-        } catch (error) {
-            console.error('[InlineDiffController] Error applying decorations:', error);
+        // Debounce decoration updates - batch rapid changes
+        this.pendingDecorations = decorations;
+
+        if (this.decorationUpdateTimer) {
+            clearTimeout(this.decorationUpdateTimer);
         }
+
+        // Apply after a short debounce (16ms = 1 frame at 60fps)
+        this.decorationUpdateTimer = setTimeout(() => {
+            if (this.disposed || !this.decorationsCollection || !this.pendingDecorations) return;
+
+            try {
+                // Use set() method of IEditorDecorationsCollection - much more efficient
+                this.decorationsCollection.set(this.pendingDecorations);
+            } catch (error) {
+                console.error('[InlineDiffController] Error applying decorations:', error);
+            }
+            this.pendingDecorations = null;
+            this.decorationUpdateTimer = null;
+        }, 16);
     }
 
     /**
@@ -175,12 +213,18 @@ export class InlineDiffController {
     }
 
     /**
-     * Highlight the current streaming position
+     * Highlight the current streaming position (debounced)
      */
-    highlightStreamingLine(line: number): void {
-        if (this.disposed) return;
+    private lastStreamingLine = -1;
 
-        const decorations: monaco.editor.IModelDeltaDecoration[] = [
+    highlightStreamingLine(line: number): void {
+        if (this.disposed || !this.streamingDecorations) return;
+
+        // Skip if same line
+        if (line === this.lastStreamingLine) return;
+        this.lastStreamingLine = line;
+
+        this.streamingDecorations.set([
             {
                 range: new monaco.Range(line, 1, line, 1),
                 options: {
@@ -188,23 +232,16 @@ export class InlineDiffController {
                     isWholeLine: true,
                 },
             },
-        ];
-
-        this.streamingDecoration = this.editor.deltaDecorations(
-            this.streamingDecoration,
-            decorations
-        );
+        ]);
     }
 
     /**
      * Clear streaming highlight
      */
     clearStreamingHighlight(): void {
-        if (this.disposed) return;
-        this.streamingDecoration = this.editor.deltaDecorations(
-            this.streamingDecoration,
-            []
-        );
+        if (this.disposed || !this.streamingDecorations) return;
+        this.lastStreamingLine = -1;
+        this.streamingDecorations.clear();
     }
 
     /**
@@ -213,8 +250,15 @@ export class InlineDiffController {
     clearDecorations(): void {
         if (this.disposed) return;
 
-        this.decorations = this.editor.deltaDecorations(this.decorations, []);
-        this.streamingDecoration = this.editor.deltaDecorations(this.streamingDecoration, []);
+        if (this.decorationUpdateTimer) {
+            clearTimeout(this.decorationUpdateTimer);
+            this.decorationUpdateTimer = null;
+        }
+
+        this.decorationsCollection?.clear();
+        this.streamingDecorations?.clear();
+        this.lastAppliedChangesHash = '';
+        this.lastStreamingLine = -1;
         inlineDiffActions.setDecorationIds([]);
     }
 
@@ -232,6 +276,8 @@ export class InlineDiffController {
      */
     dispose(): void {
         this.clearDecorations();
+        this.decorationsCollection = null;
+        this.streamingDecorations = null;
         this.disposed = true;
     }
 }
@@ -245,3 +291,4 @@ export function createInlineDiffController(
 ): InlineDiffController {
     return new InlineDiffController(editor);
 }
+
