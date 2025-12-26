@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { ChatMessage } from '@/types/chat';
 import { toolRegistry } from './ToolRegistry';
 import { AIProvider, StreamChunk, createProvider, ProviderCredentials, getModelConfig } from './providers';
+import { getContextStatus, truncateToFitContext } from './TokenCounter';
 import { brainService } from '@/services/BrainService';
 import { getIDEState } from '@/stores/ideStore';
 
@@ -102,16 +103,47 @@ export class AgentService {
       throw new Error('Provider not initialized. Check API credentials.');
     }
 
+    // Get model config for token limits
+    const modelConfig = getModelConfig(this.config.model);
+    const contextLimits = {
+      contextWindow: modelConfig?.contextWindow ?? 32000,
+      maxOutputTokens: modelConfig?.maxOutputTokens ?? 8192,
+    };
+
+    // Check context usage and truncate if needed
+    const status = getContextStatus(messages, contextLimits);
+    let processedMessages = messages;
+
+    if (status.isAtLimit) {
+      // Truncate to fit
+      const { messages: truncated, truncated: wasTruncated, removedCount } = truncateToFitContext(
+        messages,
+        contextLimits
+      );
+      processedMessages = truncated;
+
+      if (wasTruncated && onChunk) {
+        // Notify user that context was truncated
+        onChunk({
+          type: 'text',
+          content: `\n\n> ⚠️ Context limit reached. Removed ${removedCount} older message(s) to continue.\n\n`,
+        });
+      }
+    } else if (status.isNearLimit && onChunk) {
+      // Warn user approaching limit
+      console.log(`[AgentService] Context at ${status.percentUsed.toFixed(0)}% - approaching limit`);
+    }
+
     // Only include tools if model supports them
     const tools = this.modelSupportsTools ? toolRegistry.getAllTools() : [];
 
     // Use streaming if callback provided
     if (onChunk) {
-      const response = await this.provider.streamMessage(messages, tools, onChunk);
-      return await this.handleToolCalls(response, messages, onChunk);
+      const response = await this.provider.streamMessage(processedMessages, tools, onChunk);
+      return await this.handleToolCalls(response, processedMessages, onChunk);
     } else {
-      const response = await this.provider.sendMessage(messages, tools);
-      return await this.handleToolCalls(response, messages);
+      const response = await this.provider.sendMessage(processedMessages, tools);
+      return await this.handleToolCalls(response, processedMessages);
     }
   }
 

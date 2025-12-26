@@ -14,8 +14,11 @@ export interface ModelConfig {
   provider: 'gemini' | 'groq' | 'cerebras' | 'anthropic' | 'openai' | 'enosislabs';
   model: string;
   description?: string;
+  // Token limits
+  contextWindow: number;     // Max input tokens (context window size)
+  maxOutputTokens: number;   // Max output tokens per response
   // Tool/function calling support
-  supportsTools?: boolean; // If false, tools will not be sent to this model
+  supportsTools?: boolean;   // If false, tools will not be sent to this model
   // Thinking capabilities
   supportsThinking?: boolean;
   thinkingMode?: ThinkingMode;
@@ -33,6 +36,8 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     provider: 'gemini',
     model: 'gemini-2.5-flash-lite',
     description: 'Fast and efficient Gemini model',
+    contextWindow: 128000,     // 128K context
+    maxOutputTokens: 8192,     // 8K output
     category: 'standard',
     supportsThinking: false,
     thinkingMode: 'none',
@@ -44,6 +49,8 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     provider: 'gemini',
     model: 'gemini-3-flash-preview',
     description: 'Latest Gemini 3 Flash model with improved performance',
+    contextWindow: 1000000,    // 1M context
+    maxOutputTokens: 8192,     // 8K output
     category: 'standard',
     supportsThinking: true,
     thinkingMode: 'none',
@@ -59,6 +66,8 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     provider: 'gemini',
     model: 'gemini-3-flash-preview',
     description: 'Gemini 3 Flash with dynamic thinking budget',
+    contextWindow: 1000000,    // 1M context
+    maxOutputTokens: 8192,     // 8K output
     category: 'thinking',
     supportsThinking: true,
     thinkingMode: 'auto',
@@ -74,6 +83,8 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     provider: 'gemini',
     model: 'gemini-3-pro-preview',
     description: 'Gemini 3 Pro with low-depth reasoning',
+    contextWindow: 1000000,    // 1M context
+    maxOutputTokens: 16384,    // 16K output (Pro has higher limit)
     category: 'thinking',
     supportsThinking: true,
     thinkingMode: 'low',
@@ -85,13 +96,17 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     provider: 'gemini',
     model: 'gemini-3-pro-preview',
     description: 'Gemini 3 Pro with high-depth reasoning',
+    contextWindow: 1000000,    // 1M context
+    maxOutputTokens: 16384,    // 16K output
     category: 'thinking',
     supportsThinking: true,
     thinkingMode: 'high',
     thinkingConfig: { thinkingLevel: 'HIGH', includeThoughts: true },
   },
 
-  // Groq Models (using Llama and Mixtral)
+  // ===========================
+  // Groq Models
+  // ===========================
   // Note: Llama 3.3 70B supports function calling, Kimi K2 may not
   {
     id: 'llama-3.3-70b',
@@ -99,7 +114,9 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     provider: 'groq',
     model: 'llama-3.3-70b-versatile',
     description: 'Meta Llama 3.3 70B on Groq infrastructure',
-    supportsTools: true, // Llama 3.3 70B supports tool calling
+    contextWindow: 128000,     // 128K context
+    maxOutputTokens: 8192,     // 8K output
+    supportsTools: true,
   },
   {
     id: 'moonshotai/kimi-k2-instruct-0905',
@@ -107,17 +124,22 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     provider: 'groq',
     model: 'moonshotai/kimi-k2-instruct-0905',
     description: 'Kimi K2 Instruct 09/05 on Groq',
-    supportsTools: false, // Kimi K2 does not support function calling
+    contextWindow: 32000,      // 32K context
+    maxOutputTokens: 8192,     // 8K output
+    supportsTools: false,
   },
 
+  // ===========================
   // Cerebras Models
-
+  // ===========================
   {
     id: 'zai-glm-4.6',
     name: 'Zai GLM 4.6',
     provider: 'cerebras',
     model: 'zai-glm-4.6',
     description: 'Cerebras Zai GLM 4.6 model',
+    contextWindow: 32000,      // 32K context
+    maxOutputTokens: 8192,     // 8K output
   },
 ];
 
@@ -145,11 +167,14 @@ export function createProvider(
     throw new Error(`Model ${modelId} not found`);
   }
 
+  // Use model's maxOutputTokens if not explicitly set
+  const effectiveMaxTokens = maxTokens ?? modelConfig.maxOutputTokens;
+
   const config: AIProviderConfig = {
     apiKey: '',
     model: modelConfig.model,
     temperature,
-    maxTokens,
+    maxTokens: effectiveMaxTokens,
   };
 
   switch (modelConfig.provider) {
