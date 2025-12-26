@@ -163,10 +163,16 @@ export const searchCodeTool = createTool({
 // Exports
 // ===========================
 
+import { applyFileDiffTool, checkPendingDiffTool } from './applyFileDiffTool';
+
 export const fileTools = [
     readFileTool,
     writeFileTool,
     editFileTool,
+    applyFileDiffTool,
+    checkPendingDiffTool,
     listDirectoryTool,
     searchCodeTool,
 ];
+
+export { applyFileDiffTool, checkPendingDiffTool };

@@ -51,6 +51,7 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
     'write_file': FileText,
     'create_file': FileText,
     'edit_file': Code2,
+    'apply_file_diff': Code2,
     'delete_file': FileText,
     'list_dir': FolderOpen,
     'list_files': FolderOpen,

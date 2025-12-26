@@ -293,6 +293,37 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
     },
 
     {
+        name: 'apply_file_diff',
+        description: 'Apply changes to a file with visual diff preview. Shows green/red highlighting for additions/deletions. User must accept (Cmd/Ctrl+Enter) or reject (Escape). PREFERRED for code changes.',
+        category: 'write',
+        executor: 'hybrid',  // Needs frontend React state
+        parallel: false,
+        timeout: 30000,
+        retryable: false,
+        cacheable: false,
+        parameters: {
+            type: 'object',
+            properties: {
+                path: {
+                    type: 'string',
+                    description: 'Relative path to the file',
+                    required: true,
+                },
+                new_content: {
+                    type: 'string',
+                    description: 'Complete new content for the file',
+                    required: true,
+                },
+                description: {
+                    type: 'string',
+                    description: 'Optional description of the changes being made',
+                },
+            },
+            required: ['path', 'new_content'],
+        },
+    },
+
+    {
         name: 'delete_file',
         description: 'Delete a file from the workspace.',
         category: 'write',

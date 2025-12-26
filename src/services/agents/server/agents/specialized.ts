@@ -68,7 +68,8 @@ Your role is to:
 
 IMPORTANT RULES:
 - Always read a file before editing it
-- Use edit_file for targeted changes (preferred)
+- Use apply_file_diff for changes (PREFERRED - shows visual diff preview)
+- Use edit_file for small surgical edits
 - Use write_file only for complete rewrites or new files
 - Write tests alongside code when appropriate
 - Add comments for complex logic
@@ -85,6 +86,7 @@ CODING STANDARDS:
         'create_file',
         'write_file',
         'edit_file',
+        'apply_file_diff',
         'delete_file',
         'format_file',
         'search_code',

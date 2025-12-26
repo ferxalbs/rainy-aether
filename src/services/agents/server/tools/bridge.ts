@@ -488,6 +488,8 @@ const TOOL_ALIASES: Record<string, string> = {
     'file_write': 'write_file',
     'file_create': 'create_file',
     'file_edit': 'edit_file',
+    'file_diff': 'apply_file_diff',
+    'diff_file': 'apply_file_diff',
     'file_delete': 'delete_file',
     'rm': 'delete_file',
     'grep': 'search_code',
