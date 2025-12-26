@@ -19,6 +19,7 @@ import { iconThemeActions } from "./stores/iconThemeStore";
 import { defaultIconTheme } from "./themes/iconThemes/defaultIconTheme";
 import { fontManager } from "./services/fontManager";
 import { initializeExtensionConfig, getExtensionConfig, isExtensionAllowed } from "./stores/extensionConfigStore";
+import { initializeAgentServer, startAgentServer } from "./services/agentServer";
 
 const App: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -280,6 +281,23 @@ const App: React.FC = () => {
         } catch (error) {
           console.error("Failed to initialize terminal system:", error);
           loadingActions.errorStage('terminal', 'Terminal system initialization failed');
+        }
+
+        // Stage 4.5: Agent Server (Background Start)
+        // Initialize agent server health polling and start it in background
+        try {
+          console.log('[App] Initializing agent server...');
+          initializeAgentServer(); // Start health polling
+
+          // Start the server in background (don't wait for it to complete)
+          startAgentServer().then(() => {
+            console.log('[App] ✓ Agent server started successfully');
+          }).catch((error) => {
+            console.warn('[App] Agent server start failed (non-fatal):', error);
+          });
+        } catch (error) {
+          console.warn('[App] Agent server initialization failed (non-fatal):', error);
+          // Non-fatal - agent features will be unavailable but app continues
         }
 
         // Stage 5: Resources

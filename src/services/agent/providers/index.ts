@@ -14,6 +14,8 @@ export interface ModelConfig {
   provider: 'gemini' | 'groq' | 'cerebras' | 'anthropic' | 'openai' | 'enosislabs';
   model: string;
   description?: string;
+  // Tool/function calling support
+  supportsTools?: boolean; // If false, tools will not be sent to this model
   // Thinking capabilities
   supportsThinking?: boolean;
   thinkingMode?: ThinkingMode;
@@ -90,12 +92,14 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
 
   // Groq Models (using Llama and Mixtral)
+  // Note: Llama 3.3 70B supports function calling, Kimi K2 may not
   {
     id: 'llama-3.3-70b',
     name: 'Llama 3.3 70B (Groq)',
     provider: 'groq',
     model: 'llama-3.3-70b-versatile',
     description: 'Meta Llama 3.3 70B on Groq infrastructure',
+    supportsTools: true, // Llama 3.3 70B supports tool calling
   },
   {
     id: 'moonshotai/kimi-k2-instruct-0905',
@@ -103,6 +107,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     provider: 'groq',
     model: 'moonshotai/kimi-k2-instruct-0905',
     description: 'Kimi K2 Instruct 09/05 on Groq',
+    supportsTools: false, // Kimi K2 does not support function calling
   },
 
   // Cerebras Models

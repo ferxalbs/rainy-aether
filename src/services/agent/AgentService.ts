@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { ChatMessage } from '@/types/chat';
 import { toolRegistry } from './ToolRegistry';
-import { AIProvider, StreamChunk, createProvider, ProviderCredentials } from './providers';
+import { AIProvider, StreamChunk, createProvider, ProviderCredentials, getModelConfig } from './providers';
 import { brainService } from '@/services/BrainService';
 import { getIDEState } from '@/stores/ideStore';
 
@@ -26,6 +26,7 @@ export class AgentService {
   private provider: AIProvider | null = null;
   private credentials: ProviderCredentials = {};
   private isInitialized = false;
+  private modelSupportsTools = true; // Default to true, check model config
 
   constructor(config: AgentConfig) {
     this.config = config;
@@ -50,6 +51,15 @@ export class AgentService {
         geminiApiKey: geminiKey || undefined,
         groqApiKey: groqKey || undefined,
       };
+
+      // Check if model supports tools
+      const modelConfig = getModelConfig(this.config.model);
+      // Default to true if undefined, but explicitly false means no tools
+      this.modelSupportsTools = modelConfig?.supportsTools !== false;
+
+      if (!this.modelSupportsTools) {
+        console.log(`[AgentService] Model ${this.config.model} does not support tool calling - tools will be disabled`);
+      }
 
       // Create provider
       this.provider = createProvider(
@@ -92,7 +102,8 @@ export class AgentService {
       throw new Error('Provider not initialized. Check API credentials.');
     }
 
-    const tools = toolRegistry.getAllTools();
+    // Only include tools if model supports them
+    const tools = this.modelSupportsTools ? toolRegistry.getAllTools() : [];
 
     // Use streaming if callback provided
     if (onChunk) {

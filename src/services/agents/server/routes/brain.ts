@@ -13,7 +13,7 @@ import {
     createToolCall,
     toAgentKitTools,
 } from '../tools';
-import { router, getAgentTypes, AgentType } from '../agents';
+import { router, getAgentTypes, AgentType, getAgentsMetadata } from '../agents';
 
 // ===========================
 // Types
@@ -184,12 +184,18 @@ brain.get('/tools', (c: Context) => {
 });
 
 /**
- * Get available agents
+ * Get available agents with full metadata
  */
 brain.get('/agents', (c: Context) => {
+    const metadata = getAgentsMetadata();
     return c.json({
-        agents: router.listAgents(),
+        agents: metadata,
         types: getAgentTypes(),
+        defaultAgent: 'coder' as const,
+        routing: {
+            mode: 'auto',
+            description: 'Tasks are automatically routed to the best agent based on keywords',
+        },
     });
 });
 

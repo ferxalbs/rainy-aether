@@ -258,3 +258,79 @@ export function createAgent(type: AgentType): BaseAgent {
 export function getAgentTypes(): AgentType[] {
     return Object.keys(AGENTS) as AgentType[];
 }
+
+// ===========================
+// Agent Metadata for UI/API
+// ===========================
+
+export interface AgentMetadata {
+    id: AgentType;
+    name: string;
+    description: string;
+    tools: string[];
+    model: 'fast' | 'smart';
+    patterns: {
+        keywords: string[];
+        examples: string[];
+    };
+    status: 'ready' | 'disabled';
+}
+
+const AGENT_PATTERNS: Record<AgentType, { keywords: string[]; examples: string[] }> = {
+    planner: {
+        keywords: ['plan', 'design', 'architect', 'strategy', 'analyze', 'breakdown', 'approach'],
+        examples: ['Plan the implementation for...', 'How should I approach...', 'Design a solution for...'],
+    },
+    coder: {
+        keywords: ['write', 'create', 'implement', 'add', 'code', 'fix', 'refactor', 'build', 'edit', 'modify'],
+        examples: ['Create a React component for...', 'Implement the login feature', 'Fix the bug in...'],
+    },
+    reviewer: {
+        keywords: ['review', 'check', 'audit', 'security', 'performance', 'improve', 'optimize'],
+        examples: ['Review my code for issues', 'Check for security vulnerabilities', 'Optimize this function'],
+    },
+    terminal: {
+        keywords: ['run', 'execute', 'test', 'build', 'deploy', 'install', 'git', 'npm', 'command'],
+        examples: ['Run the tests', 'Build the project', 'Execute git status'],
+    },
+    docs: {
+        keywords: ['explain', 'documentation', 'what is', 'how does', 'usage', 'example', 'help'],
+        examples: ['Explain how this works', 'What does this function do?', 'Show me an example'],
+    },
+};
+
+/**
+ * Get metadata for all agents (for API/UI consumption)
+ */
+export function getAgentsMetadata(): AgentMetadata[] {
+    return getAgentTypes().map(type => {
+        const config = getAgentConfig(type);
+        return {
+            id: type,
+            name: config.name,
+            description: config.description,
+            tools: config.tools,
+            model: config.model,
+            patterns: AGENT_PATTERNS[type],
+            status: 'ready' as const,
+        };
+    });
+}
+
+/**
+ * Get config for a specific agent type
+ */
+function getAgentConfig(type: AgentType): { name: string; description: string; tools: string[]; model: 'fast' | 'smart' } {
+    switch (type) {
+        case 'planner':
+            return { name: 'Planner', description: PLANNER_CONFIG.description, tools: PLANNER_CONFIG.tools, model: PLANNER_CONFIG.model };
+        case 'coder':
+            return { name: 'Coder', description: CODER_CONFIG.description, tools: CODER_CONFIG.tools, model: CODER_CONFIG.model };
+        case 'reviewer':
+            return { name: 'Reviewer', description: REVIEWER_CONFIG.description, tools: REVIEWER_CONFIG.tools, model: REVIEWER_CONFIG.model };
+        case 'terminal':
+            return { name: 'Terminal', description: TERMINAL_CONFIG.description, tools: TERMINAL_CONFIG.tools, model: TERMINAL_CONFIG.model };
+        case 'docs':
+            return { name: 'Docs', description: DOCS_CONFIG.description, tools: DOCS_CONFIG.tools, model: DOCS_CONFIG.model };
+    }
+}

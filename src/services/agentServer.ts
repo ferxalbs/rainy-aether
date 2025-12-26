@@ -243,6 +243,54 @@ export async function getBrainStatus(): Promise<BrainStatusResponse | null> {
     }
 }
 
+// ===========================
+// Agent List (cached)
+// ===========================
+
+export interface AgentInfo {
+    id: string;
+    name: string;
+    description: string;
+    tools: string[];
+    model: 'fast' | 'smart';
+    patterns: {
+        keywords: string[];
+        examples: string[];
+    };
+    status: 'ready' | 'disabled';
+}
+
+export interface AgentsResponse {
+    agents: AgentInfo[];
+    types: string[];
+    defaultAgent: string;
+}
+
+let cachedAgents: AgentsResponse | null = null;
+
+/**
+ * Get available agents from the brain server
+ */
+export async function getAvailableAgents(forceRefresh = false): Promise<AgentsResponse | null> {
+    if (cachedAgents && !forceRefresh) {
+        return cachedAgents;
+    }
+
+    if (!serverStatus?.running) {
+        return null;
+    }
+
+    try {
+        const response = await fetch(`${serverStatus.url}/api/brain/agents`);
+        if (!response.ok) return null;
+
+        cachedAgents = await response.json();
+        return cachedAgents;
+    } catch {
+        return null;
+    }
+}
+
 /**
  * Send a task to the AgentKit brain
  */

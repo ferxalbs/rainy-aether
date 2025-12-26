@@ -1,5 +1,5 @@
-import { Plus, Search, Trash2, Edit2, MoreHorizontal, Zap, Circle } from "lucide-react"
-import { useState } from "react"
+import { Plus, Search, Trash2, Edit2, MoreHorizontal, Zap, Circle, Brain, Loader2 } from "lucide-react"
+import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useSessions, useActiveSession, agentActions } from "@/stores/agentStore"
 import { useAgentServer } from "@/hooks/useAgentServer"
+import { getAvailableAgents, type AgentInfo } from "@/services/agentServer"
 import { AgentSettingsDialog } from "./AgentSettingsDialog"
 import {
     DropdownMenu,
@@ -20,6 +21,35 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+
+/**
+ * Full-screen loading overlay while server starts
+ */
+function ServerLoadingOverlay() {
+    return (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
+                <div className="relative">
+                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-purple-500/20 via-indigo-500/20 to-blue-500/20 flex items-center justify-center border border-white/10 shadow-xl">
+                        <Brain className="h-8 w-8 text-purple-400" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center">
+                        <Loader2 className="h-3 w-3 text-yellow-500 animate-spin" />
+                    </div>
+                </div>
+                <div className="text-center space-y-1">
+                    <p className="text-sm font-medium text-foreground">Starting Agent Server</p>
+                    <p className="text-xs text-muted-foreground">Initializing AI capabilities...</p>
+                </div>
+                <div className="flex gap-1 mt-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function ServerStatusIndicator() {
     const { isRunning, isStarting, status } = useAgentServer();
@@ -81,6 +111,23 @@ export function AgentsSidebar({ className }: { className?: string }) {
     const sessions = useSessions();
     const activeSession = useActiveSession();
     const [searchQuery, setSearchQuery] = useState("");
+    const { isRunning, isStarting } = useAgentServer();
+    const [agents, setAgents] = useState<AgentInfo[]>([]);
+
+    // Fetch agents when server comes online
+    useEffect(() => {
+        if (isRunning) {
+            getAvailableAgents(true).then(response => {
+                if (response?.agents) {
+                    setAgents(response.agents);
+                }
+            }).catch(err => {
+                console.error('[AgentsSidebar] Failed to fetch agents:', err);
+            });
+        } else {
+            setAgents([]);
+        }
+    }, [isRunning]);
 
     const handleNewAgent = () => {
         const sessionName = `New Chat`;
@@ -105,7 +152,9 @@ export function AgentsSidebar({ className }: { className?: string }) {
     );
 
     return (
-        <div className={cn("flex flex-col h-full bg-muted/40 border-r border-border", className)}>
+        <div className={cn("flex flex-col h-full bg-muted/40 border-r border-border relative", className)}>
+            {/* Loading Overlay - shown while server starts */}
+            {isStarting && <ServerLoadingOverlay />}
             {/* Header */}
             <div className="p-3 flex flex-col gap-3">
                 {/* Title and Status */}
@@ -142,6 +191,36 @@ export function AgentsSidebar({ className }: { className?: string }) {
                     </Button>
                 </div>
             </div>
+
+            {/* Available Agents - shown when server is online */}
+            {isRunning && agents.length > 0 && (
+                <>
+                    <div className="px-4 py-2 flex items-center justify-between text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+                        <span>Agents</span>
+                        <span className="bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded-sm">{agents.length}</span>
+                    </div>
+                    <div className="px-2 pb-2 grid grid-cols-2 gap-1.5">
+                        {agents.map((agent) => (
+                            <TooltipProvider key={agent.id}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1.5 p-2 rounded-md bg-muted/30 hover:bg-muted/50 border border-border/50 cursor-pointer transition-colors">
+                                            <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center shrink-0">
+                                                <Zap className="h-2.5 w-2.5 text-primary" />
+                                            </div>
+                                            <span className="text-[10px] font-medium text-foreground truncate">{agent.name}</span>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="right" className="max-w-[200px]">
+                                        <p className="text-xs font-medium">{agent.name}</p>
+                                        <p className="text-[10px] text-muted-foreground">{agent.description}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        ))}
+                    </div>
+                </>
+            )}
 
             {/* Recent Label */}
             <div className="px-4 py-2 flex items-center justify-between text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
