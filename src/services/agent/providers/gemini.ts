@@ -40,7 +40,7 @@ const GEMINI_RESILIENCE_OPTIONS: ResilientOptions = {
   maxRetries: 3,
   baseDelayMs: 1500,
   maxDelayMs: 30000,
-  timeoutMs: 60000, // 60 second timeout per attempt
+  timeoutMs: 180000, // 3 minute timeout per attempt (allows for long responses)
   circuitBreaker: geminiCircuitBreaker,
   onRetry: (attempt, error, nextDelay) => {
     console.warn(`[GeminiProvider] Retry ${attempt}: ${error.message}. Next attempt in ${nextDelay}ms`);
@@ -226,8 +226,8 @@ export class GeminiProvider implements AIProvider {
         () => this.client.models.generateContentStream(config),
         {
           ...GEMINI_RESILIENCE_OPTIONS,
-          // Shorter timeout for stream initialization
-          timeoutMs: 30000,
+          // Stream initialization timeout (stream itself has no timeout once started)
+          timeoutMs: 60000,
         }
       );
 

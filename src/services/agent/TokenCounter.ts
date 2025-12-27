@@ -89,23 +89,38 @@ export interface ContextStatus {
 
 /**
  * Calculate context usage status
+ * 
+ * Display logic (user-facing):
+ * - maxTokens: Shows full context window (e.g., 1M)
+ * - usedTokens: Only counts user/assistant messages (not system prompt)
+ * 
+ * Internal logic (behind the scenes):
+ * - Reserves space for output tokens
+ * - Includes system prompt in actual limit calculations
  */
 export function getContextStatus(
     messages: ChatMessage[],
     limits: ContextLimits
 ): ContextStatus {
-    const usedTokens = estimateConversationTokens(messages);
-    // Reserve space for output tokens
+    // For display: only count user and assistant messages (not system prompt)
+    const displayMessages = messages.filter(m => m.role !== 'system');
+    const displayUsedTokens = estimateConversationTokens(displayMessages);
+
+    // For internal checks: include everything and reserve output space
+    const totalUsedTokens = estimateConversationTokens(messages);
     const effectiveMax = limits.contextWindow - limits.maxOutputTokens;
-    const percentUsed = (usedTokens / effectiveMax) * 100;
+    const internalPercentUsed = (totalUsedTokens / effectiveMax) * 100;
+
+    // Display shows clean numbers (full context window, no system prompt overhead)
+    const displayPercentUsed = (displayUsedTokens / limits.contextWindow) * 100;
 
     return {
-        usedTokens,
-        maxTokens: effectiveMax,
-        percentUsed: Math.min(100, percentUsed),
-        isNearLimit: percentUsed >= 80,
-        isAtLimit: percentUsed >= 95,
-        remainingTokens: Math.max(0, effectiveMax - usedTokens),
+        usedTokens: displayUsedTokens,           // Display: excludes system prompt
+        maxTokens: limits.contextWindow,          // Display: full context window
+        percentUsed: Math.min(100, displayPercentUsed),
+        isNearLimit: internalPercentUsed >= 80,   // Internal: uses actual limits
+        isAtLimit: internalPercentUsed >= 95,     // Internal: uses actual limits
+        remainingTokens: Math.max(0, limits.contextWindow - displayUsedTokens),
     };
 }
 

@@ -229,7 +229,7 @@ export class AgentService {
     const toolResultsMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: `Tool execution results:\n\n${toolResultsContent}\n\nIMPORTANT: Respond to the user NOW with your findings. Do NOT call the same tool again. Only use a tool if absolutely necessary for a DIFFERENT purpose.`,
+      content: `Tool execution results:\n\n${toolResultsContent}\n\nContinue with your task. If you have completed the objective, summarize what was done. If more work is needed, proceed with the next steps using available tools.`,
       timestamp: new Date(),
     };
 
