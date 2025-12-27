@@ -1,4 +1,4 @@
-import { Send, Bot, Loader2, User, Sparkles, Cpu, ChevronRight, Brain } from "lucide-react"
+import { Send, Bot, Loader2, User, Sparkles, Cpu, ChevronRight, Brain, Image, X } from "lucide-react"
 import { useEffect, useRef, memo, useCallback, useState } from "react"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -11,6 +11,7 @@ import { AVAILABLE_MODELS } from "@/services/agent/providers"
 import { CodeBlock } from "./CodeBlock"
 import { ToolExecutionList } from "./ToolExecutionList"
 import { TokenUsageBar } from "./TokenUsageBar"
+import { ImageAttachment } from "@/types/chat"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -32,7 +33,7 @@ export interface AgentChatWindowProps {
 interface ChatInputAreaProps {
     compact: boolean;
     isLoading: boolean;
-    onSend: (message: string) => void;
+    onSend: (message: string, images?: ImageAttachment[]) => void;
     activeSessionId?: string;
     activeSessionModel?: string;
 }
@@ -46,33 +47,64 @@ const ChatInputArea = memo(function ChatInputArea({
 }: ChatInputAreaProps) {
     // Use uncontrolled input with ref - NO STATE = NO RE-RENDERS
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [hasContent, setHasContent] = useState(false);
+    const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
 
     const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             const value = inputRef.current?.value.trim() || '';
-            if (value && !isLoading) {
-                onSend(value);
+            if ((value || pendingImages.length > 0) && !isLoading) {
+                onSend(value || 'Analyze this image', pendingImages.length > 0 ? pendingImages : undefined);
                 if (inputRef.current) {
                     inputRef.current.value = '';
                     setHasContent(false);
                 }
+                setPendingImages([]);
             }
         }
-    }, [isLoading, onSend]);
+    }, [isLoading, onSend, pendingImages]);
 
     const handleSendClick = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         const value = inputRef.current?.value.trim() || '';
-        if (value && !isLoading) {
-            onSend(value);
+        if ((value || pendingImages.length > 0) && !isLoading) {
+            onSend(value || 'Analyze this image', pendingImages.length > 0 ? pendingImages : undefined);
             if (inputRef.current) {
                 inputRef.current.value = '';
                 setHasContent(false);
             }
+            setPendingImages([]);
         }
-    }, [isLoading, onSend]);
+    }, [isLoading, onSend, pendingImages]);
+
+    const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files) return;
+
+        Array.from(files).forEach(file => {
+            if (!file.type.startsWith('image/')) return;
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64 = (reader.result as string).split(',')[1];
+                setPendingImages(prev => [...prev, {
+                    base64,
+                    mimeType: file.type,
+                    filename: file.name,
+                }]);
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // Reset input
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    }, []);
+
+    const removeImage = useCallback((index: number) => {
+        setPendingImages(prev => prev.filter((_, i) => i !== index));
+    }, []);
 
     const handleInput = useCallback(() => {
         const hasText = !!(inputRef.current?.value.trim());
@@ -94,11 +126,42 @@ const ChatInputArea = memo(function ChatInputArea({
                     "relative rounded-xl border border-border bg-muted/30 focus-within:bg-muted/40 focus-within:border-primary/20 transition-all duration-200 shadow-sm",
                     compact && "rounded-lg"
                 )}>
+                    {/* Hidden file input */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handleImageUpload}
+                    />
+
+                    {/* Image Preview Area */}
+                    {pendingImages.length > 0 && (
+                        <div className="flex flex-wrap gap-2 p-2 border-b border-border/50">
+                            {pendingImages.map((img, index) => (
+                                <div key={index} className="relative group">
+                                    <img
+                                        src={`data:${img.mimeType};base64,${img.base64}`}
+                                        alt={img.filename || 'Uploaded image'}
+                                        className="h-16 w-16 object-cover rounded-lg border border-border"
+                                    />
+                                    <button
+                                        onClick={() => removeImage(index)}
+                                        className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
                     <textarea
                         ref={inputRef}
                         onKeyDown={handleKeyDown}
                         onInput={handleInput}
-                        placeholder={compact ? "Ask anything..." : "Ask, search, or make anything..."}
+                        placeholder={pendingImages.length > 0 ? "Add a message about this image..." : (compact ? "Ask anything..." : "Ask, search, or make anything...")}
                         className={cn(
                             "min-h-[52px] max-h-[200px] w-full resize-none border-0 bg-transparent px-4 py-3.5 text-base focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none placeholder:text-muted-foreground/40 text-foreground/90 leading-relaxed scrollbar-hide",
                             compact && "min-h-[44px] px-3 py-2.5 text-sm"
@@ -145,6 +208,18 @@ const ChatInputArea = memo(function ChatInputArea({
                                 <Globe className="h-3.5 w-3.5 group-hover:text-blue-400 transition-colors" />
                                 {!compact && <span>Search</span>}
                             </button>
+
+                            {/* Image Upload Button */}
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className={cn(
+                                    "flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-background/50 hover:text-foreground transition-all group text-xs font-medium",
+                                    pendingImages.length > 0 ? "text-purple-400" : "text-muted-foreground/70"
+                                )}
+                            >
+                                <Image className="h-3.5 w-3.5 group-hover:text-purple-400 transition-colors" />
+                                {!compact && <span>{pendingImages.length > 0 ? `${pendingImages.length} image${pendingImages.length > 1 ? 's' : ''}` : 'Image'}</span>}
+                            </button>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -152,13 +227,13 @@ const ChatInputArea = memo(function ChatInputArea({
                                 size="icon"
                                 className={cn(
                                     "h-7 w-7 rounded-full transition-all duration-300 shadow-sm",
-                                    hasContent
+                                    (hasContent || pendingImages.length > 0)
                                         ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
                                         : "bg-muted text-muted-foreground hover:bg-muted/80 opacity-50 cursor-not-allowed",
                                     compact && "h-6 w-6"
                                 )}
                                 onClick={handleSendClick}
-                                disabled={isLoading || !hasContent}
+                                disabled={isLoading || (!hasContent && pendingImages.length === 0)}
                             >
                                 {isLoading ? (
                                     <div className="h-2 w-2 bg-current rounded-full" />
@@ -241,9 +316,9 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
     }, [messages, streamingContent]);
 
     // Callback for sending messages from the isolated input
-    const handleSend = useCallback((message: string) => {
+    const handleSend = useCallback((message: string, images?: ImageAttachment[]) => {
         if (activeSession) {
-            sendMessage(message);
+            sendMessage(message, images);
         }
     }, [activeSession, sendMessage]);
 

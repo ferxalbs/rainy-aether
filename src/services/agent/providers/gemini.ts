@@ -60,14 +60,59 @@ export class GeminiProvider implements AIProvider {
 
   /**
    * Convert our ChatMessage to Gemini's format
+   * Includes: content, thoughts, tool calls, and tool results
    */
   private convertMessagesToGeminiFormat(messages: ChatMessage[]): any[] {
-    return messages
-      .filter((m) => m.role !== 'system')
-      .map((msg) => ({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }],
-      }));
+    const result: any[] = [];
+
+    for (const msg of messages) {
+      if (msg.role === 'system') continue;
+
+      const parts: any[] = [];
+
+      // Add thoughts first (if present) as part of the content
+      if (msg.thoughts) {
+        parts.push({ text: `[Thinking]: ${msg.thoughts}` });
+      }
+
+      // Add main content
+      if (msg.content) {
+        parts.push({ text: msg.content });
+      }
+
+      // Add image parts if present
+      if (msg.images && msg.images.length > 0) {
+        for (const image of msg.images) {
+          parts.push({
+            inlineData: {
+              mimeType: image.mimeType || 'image/png',
+              data: image.base64,
+            },
+          });
+        }
+      }
+
+      // Add tool call results as text (for context)
+      if (msg.toolCalls && msg.toolCalls.length > 0) {
+        for (const tc of msg.toolCalls) {
+          if (tc.result) {
+            const resultStr = JSON.stringify(tc.result, null, 2);
+            const truncated = resultStr.length > 2000 ? resultStr.slice(0, 2000) + '...(truncated)' : resultStr;
+            parts.push({ text: `[Tool ${tc.name} result]: ${truncated}` });
+          }
+        }
+      }
+
+      // Only add if there are parts
+      if (parts.length > 0) {
+        result.push({
+          role: msg.role === 'assistant' ? 'model' : 'user',
+          parts,
+        });
+      }
+    }
+
+    return result;
   }
 
   /**

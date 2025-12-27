@@ -62,8 +62,8 @@ export function useAgentChat() {
     });
   }, [sessionModel, messages]);
 
-  // sendMessage now accepts an optional message parameter for direct sending
-  const sendMessage = useCallback(async (directMessage?: string) => {
+  // sendMessage now accepts optional message and images for multimodal
+  const sendMessage = useCallback(async (directMessage?: string, images?: import('@/types/chat').ImageAttachment[]) => {
     const messageToSend = directMessage || input;
     if (!messageToSend.trim() || !activeSession || !agentServiceRef.current) return;
 
@@ -72,12 +72,13 @@ export function useAgentChat() {
     agentActions.setLoading(true);
 
     try {
-      // Add user message to store
+      // Add user message to store (with optional images)
       const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'user',
         content: userMessageContent,
         timestamp: new Date(),
+        images: images && images.length > 0 ? images : undefined,
       };
       agentActions.addMessage(activeSession.id, userMessage);
 

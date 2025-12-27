@@ -6,6 +6,18 @@
  */
 
 /**
+ * Image attachment for multimodal messages
+ */
+export interface ImageAttachment {
+  /** Base64 encoded image data */
+  base64: string;
+  /** MIME type (image/png, image/jpeg, etc.) */
+  mimeType: string;
+  /** Original filename (optional) */
+  filename?: string;
+}
+
+/**
  * Unified message interface used across all chat components
  *
  * This combines the essential fields from both the local Message interface
@@ -16,6 +28,7 @@
  * @property role - The role of the message sender (standardized with agent types)
  * @property timestamp - When the message was created
  * @property toolCalls - Optional array of tool calls associated with this message
+ * @property images - Optional array of image attachments for multimodal messages
  * @property metadata - Optional metadata for extensions and custom data
  */
 export interface ChatMessage {
@@ -36,6 +49,9 @@ export interface ChatMessage {
 
   /** Optional thinking/reasoning content (Gemini only) */
   thoughts?: string;
+
+  /** Optional image attachments for multimodal messages */
+  images?: ImageAttachment[];
 
   /** Optional metadata for custom data and extensions */
   metadata?: Record<string, unknown>;
