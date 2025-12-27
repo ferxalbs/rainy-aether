@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm'
 
 import { Button } from "@/components/ui/button"
 import { useAgentChat } from "@/hooks/useAgentChat"
+import { useTauriDragDrop } from "@/hooks/useTauriDragDrop"
 import { cn } from "@/lib/utils"
 import { useActiveSession, agentActions } from "@/stores/agentStore"
 import { AVAILABLE_MODELS } from "@/services/agent/providers"
@@ -106,6 +107,104 @@ const ChatInputArea = memo(function ChatInputArea({
         setPendingImages(prev => prev.filter((_, i) => i !== index));
     }, []);
 
+    // ============================================
+    // NATIVE TAURI DRAG-DROP INTEGRATION
+    // Uses Tauri's native onDragDropEvent for cross-platform support
+    // Falls back to HTML5 drag-drop when Tauri is not available
+    // ============================================
+
+    // Handler for images dropped via Tauri native events
+    const handleTauriImagesDrop = useCallback((images: ImageAttachment[]) => {
+        console.log('[ChatInput] Tauri native drop - images:', images.length);
+        setPendingImages(prev => [...prev, ...images]);
+    }, []);
+
+    // Handler for Tauri drag-drop errors
+    const handleTauriDropError = useCallback((error: string) => {
+        console.error('[ChatInput] Tauri drop error:', error);
+        // Could show a toast notification here
+    }, []);
+
+    // Use Tauri native drag-drop hook
+    const {
+        isDragging: isTauriDragging,
+        draggedImagePaths,
+        isAvailable: isTauriDragDropAvailable,
+    } = useTauriDragDrop({
+        enabled: true,
+        maxFileSizeMB: 10,
+        onImagesDrop: handleTauriImagesDrop,
+        onError: handleTauriDropError,
+    });
+
+    // HTML5 fallback state (used when Tauri is not available)
+    const [isHtml5Dragging, setIsHtml5Dragging] = useState(false);
+    const dragCounter = useRef(0);
+
+    // Combined isDragging state
+    const isDragging = isTauriDragging || isHtml5Dragging;
+
+    // HTML5 fallback handlers (only active when Tauri drag-drop is not available)
+    const handleDragEnter = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // Only use HTML5 fallback if Tauri is not available
+        if (!isTauriDragDropAvailable) {
+            dragCounter.current++;
+            if (e.dataTransfer.types.includes('Files')) {
+                setIsHtml5Dragging(true);
+            }
+        }
+    }, [isTauriDragDropAvailable]);
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isTauriDragDropAvailable) {
+            dragCounter.current--;
+            if (dragCounter.current === 0) {
+                setIsHtml5Dragging(false);
+            }
+        }
+    }, [isTauriDragDropAvailable]);
+
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Only use HTML5 fallback if Tauri is not available
+        if (!isTauriDragDropAvailable) {
+            setIsHtml5Dragging(false);
+            dragCounter.current = 0;
+
+            const files = e.dataTransfer.files;
+            if (!files || files.length === 0) return;
+
+            console.log('[ChatInput] HTML5 fallback drop - files:', files.length);
+
+            Array.from(files).forEach(file => {
+                if (!file.type.startsWith('image/')) return;
+
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = (reader.result as string).split(',')[1];
+                    setPendingImages(prev => [...prev, {
+                        base64,
+                        mimeType: file.type,
+                        filename: file.name,
+                    }]);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        // When Tauri is available, the native handler processes the drop
+    }, [isTauriDragDropAvailable]);
+
     const handleInput = useCallback(() => {
         const hasText = !!(inputRef.current?.value.trim());
         if (hasText !== hasContent) {
@@ -122,10 +221,30 @@ const ChatInputArea = memo(function ChatInputArea({
     return (
         <div className={cn("shrink-0 p-4 bg-background", compact && "p-2")}>
             <div className="max-w-4xl mx-auto w-full relative">
-                <div className={cn(
-                    "relative rounded-xl border border-border bg-muted/30 focus-within:bg-muted/40 focus-within:border-primary/20 transition-all duration-200 shadow-sm",
-                    compact && "rounded-lg"
-                )}>
+                <div
+                    className={cn(
+                        "relative rounded-xl border-2 bg-muted/30 focus-within:bg-muted/40 focus-within:border-primary/20 transition-all duration-200 shadow-sm",
+                        compact && "rounded-lg",
+                        isDragging ? "border-purple-500 bg-purple-500/10 border-dashed" : "border-border"
+                    )}
+                    onDragEnter={handleDragEnter}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                >
+                    {/* Drag overlay */}
+                    {isDragging && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-purple-500/10 rounded-xl z-10 pointer-events-none">
+                            <div className="flex items-center gap-2 text-purple-400 font-medium">
+                                <Image className="h-5 w-5" />
+                                <span>
+                                    {draggedImagePaths.length > 0
+                                        ? `Drop ${draggedImagePaths.length} image${draggedImagePaths.length > 1 ? 's' : ''} here`
+                                        : 'Drop image here'}
+                                </span>
+                            </div>
+                        </div>
+                    )}
                     {/* Hidden file input */}
                     <input
                         ref={fileInputRef}
