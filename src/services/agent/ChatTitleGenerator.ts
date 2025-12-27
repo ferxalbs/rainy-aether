@@ -20,20 +20,26 @@ export async function generateChatTitle(
     const userMessages = messages.filter(m => m.role === 'user');
     if (userMessages.length === 0) return null;
 
-    // Get the first few messages for context (keep it minimal)
-    const contextMessages = messages
-        .filter(m => m.role !== 'system')
-        .slice(0, 4)
-        .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content.slice(0, 200)}`)
-        .join('\n');
+    // Get ONLY user messages for title context (ignore tool outputs, project info)
+    const userContent = messages
+        .filter(m => m.role === 'user')
+        .slice(0, 2)
+        .map(m => m.content.slice(0, 150))
+        .join(' | ');
 
-    const prompt = `Based on this conversation, generate a very short title (2-5 words) and a brief description (max 10 words).
+    const prompt = `Generate a short chat title based on what the USER is asking or doing.
 
-Conversation:
-${contextMessages}
+USER REQUEST: "${userContent}"
 
-Respond in this exact JSON format only (no markdown, no explanation):
-{"title": "Short Title", "description": "Brief description of the topic"}`;
+RULES:
+- Title should be 2-5 words describing the USER'S intent/question
+- Description should be max 10 words
+- Focus on the ACTION or TOPIC the user wants (e.g., "Code Explanation", "Bug Fix", "Feature Request")
+- Do NOT use project names, file paths, or technical metadata
+- Keep it concise and descriptive
+
+Respond ONLY with this JSON (no markdown):
+{"title": "User Intent Title", "description": "Brief topic description"}`;
 
     try {
         const client = new GoogleGenAI({ apiKey });
