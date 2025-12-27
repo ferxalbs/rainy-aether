@@ -80,6 +80,37 @@ const setState = (updater: (prev: AgentState) => AgentState) => {
 
 export const agentActions = {
   /**
+   * Set the current workspace for session isolation
+   * Should be called when workspace changes
+   */
+  async setWorkspace(workspacePath: string) {
+    if (!workspacePath) {
+      console.warn('[AgentStore] No workspace path provided');
+      return;
+    }
+
+    const currentPath = agentHistoryService.getWorkspacePath();
+    if (currentPath === workspacePath) {
+      return; // Already set to this workspace
+    }
+
+    console.log('[AgentStore] Setting workspace:', workspacePath);
+
+    // Clear current state
+    setState((prev) => ({
+      ...prev,
+      sessions: [],
+      activeSessionId: null,
+    }));
+
+    // Set new workspace in history service
+    await agentHistoryService.setWorkspace(workspacePath);
+
+    // Reload sessions for this workspace
+    await this.initialize();
+  },
+
+  /**
    * Initialize store from history
    */
   async initialize() {
@@ -93,10 +124,12 @@ export const agentActions = {
         }));
       } else {
         // Create initial session if none exists
-        this.createSession("First Agent");
+        this.createSession("New Chat");
       }
     } catch (error) {
       console.error('Failed to initialize agent store:', error);
+      // Create a default session on error
+      this.createSession("New Chat");
     }
   },
 

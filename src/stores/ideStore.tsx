@@ -656,6 +656,17 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
       // Non-fatal error - continue
     }
 
+    // Initialize agent sessions for this workspace (isolated per project)
+    try {
+      console.log('[IDE] Initializing agent sessions for workspace:', workspace.path);
+      const { agentActions } = await import("./agentStore");
+      await agentActions.setWorkspace(workspace.path);
+      console.log('[IDE] Agent sessions initialized for workspace successfully');
+    } catch (error) {
+      console.warn("Failed to initialize agent sessions:", error);
+      // Non-fatal error - continue
+    }
+
     // Configure Monaco with workspace-specific settings (tsconfig.json, package.json)
     try {
       console.log('[IDE] Configuring Monaco with workspace settings');

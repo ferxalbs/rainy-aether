@@ -2,10 +2,18 @@ import { invoke } from '@tauri-apps/api/core';
 import { join, homeDir } from '@tauri-apps/api/path';
 import { AgentSession } from '@/stores/agentStore';
 
+/**
+ * AgentHistoryService - Manages chat session persistence per workspace
+ * 
+ * Sessions are stored in ~/.rainy-aether/agent-sessions/{workspace-hash}/
+ * This keeps all agent data centralized while isolating sessions per project.
+ */
 export class AgentHistoryService {
   private static instance: AgentHistoryService;
   private initialized = false;
+  private currentWorkspacePath: string = '';
   private historyPath: string = '';
+  private basePath: string = '';
 
   private constructor() { }
 
@@ -16,36 +24,85 @@ export class AgentHistoryService {
     return AgentHistoryService.instance;
   }
 
+  /**
+   * Generate a safe folder name from workspace path
+   * Uses the folder name + a short hash for uniqueness
+   */
+  private generateWorkspaceId(workspacePath: string): string {
+    // Get the folder name
+    const folderName = workspacePath.split('/').pop() || workspacePath.split('\\').pop() || 'unknown';
+
+    // Create a simple hash of the full path for uniqueness
+    let hash = 0;
+    for (let i = 0; i < workspacePath.length; i++) {
+      const char = workspacePath.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    const hashStr = Math.abs(hash).toString(16).substring(0, 6);
+
+    // Sanitize folder name (remove special characters)
+    const safeName = folderName.replace(/[^a-zA-Z0-9-_]/g, '_');
+
+    return `${safeName}_${hashStr}`;
+  }
+
+  /**
+   * Set the current workspace path
+   * This should be called when the workspace changes
+   */
+  async setWorkspace(workspacePath: string): Promise<void> {
+    if (this.currentWorkspacePath === workspacePath && this.initialized) {
+      return; // Already set to this workspace
+    }
+
+    this.currentWorkspacePath = workspacePath;
+    this.initialized = false;
+    await this.initialize();
+  }
+
+  /**
+   * Get the current workspace path
+   */
+  getWorkspacePath(): string {
+    return this.currentWorkspacePath;
+  }
+
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
     try {
-      // Get the home directory path
       const home = await homeDir();
-      this.historyPath = await join(home, '.rainy-aether', 'agent-history');
+      this.basePath = await join(home, '.rainy-aether', 'agent-sessions');
 
-      // Try to ensure the directory exists using available commands
-      // If commands don't exist, we'll create the directory on first save
+      if (!this.currentWorkspacePath) {
+        // Fallback to global path if no workspace is set
+        this.historyPath = await join(this.basePath, '_global');
+        console.log('[AgentHistoryService] Using global history path:', this.historyPath);
+      } else {
+        // Use workspace-specific subfolder
+        const workspaceId = this.generateWorkspaceId(this.currentWorkspacePath);
+        this.historyPath = await join(this.basePath, workspaceId);
+        console.log('[AgentHistoryService] Using workspace history path:', this.historyPath);
+      }
+
+      // Try to ensure the directory exists
       try {
-        // Try to list the directory - if it succeeds, it exists
         await invoke('load_directory_children', { path: this.historyPath });
       } catch {
-        // Directory doesn't exist or command failed - try to create it
-        // We'll use the create_path command or just let the save operation handle it
+        // Directory doesn't exist - try to create it
         try {
           await invoke('create_path', { path: this.historyPath, isFile: false });
+          console.log('[AgentHistoryService] Created history directory:', this.historyPath);
         } catch {
-          // Command might not exist - that's OK, the directory will be created on first save
           console.log('[AgentHistoryService] Will create history directory on first save');
         }
       }
 
       this.initialized = true;
     } catch (error) {
-      // Don't block initialization on errors - the service can still work
-      // if the directory creation happens later
       console.warn('[AgentHistoryService] Initialization warning:', error);
-      this.initialized = true; // Mark as initialized anyway to prevent repeated attempts
+      this.initialized = true; // Mark as initialized to prevent repeated attempts
     }
   }
 
@@ -125,6 +182,16 @@ export class AgentHistoryService {
     } catch (error) {
       console.error(`Failed to delete session ${sessionId}:`, error);
     }
+  }
+
+  /**
+   * Clear initialization state to force re-initialization
+   * Useful when workspace changes
+   */
+  reset(): void {
+    this.initialized = false;
+    this.currentWorkspacePath = '';
+    this.historyPath = '';
   }
 }
 
