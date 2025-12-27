@@ -8,7 +8,6 @@ import {
 } from '@/stores/agentStore';
 import { StreamChunk, getModelConfig } from '@/services/agent/providers';
 import { getContextStatus, ContextStatus } from '@/services/agent/TokenCounter';
-import { generateChatTitle, extractSimpleTitle } from '@/services/agent/ChatTitleGenerator';
 
 export function useAgentChat() {
   const activeSession = useActiveSession();
@@ -137,40 +136,7 @@ export function useAgentChat() {
       if (!addedMessageIds.has(response.id)) {
         agentActions.addMessage(activeSession.id, response);
       }
-
-      // Generate title after first successful response (only if still "New Chat")
-      const updatedSession = activeSession;
-      const isFirstResponse = updatedSession.messages.filter(m => m.role === 'assistant').length <= 1;
-      const isDefaultTitle = updatedSession.name === 'New Chat' || updatedSession.name.startsWith('New Chat');
-
-      if (isFirstResponse && isDefaultTitle) {
-        // Generate title in background (don't block)
-        const messagesForTitle = updatedSession.messages.concat([userMessage, response]);
-
-        // Try to get API key from agentService
-        try {
-          const apiKey = await agentServiceRef.current?.getApiKey?.();
-          if (apiKey) {
-            const titleResult = await generateChatTitle(messagesForTitle, apiKey);
-            if (titleResult) {
-              agentActions.updateSessionTitleAndDescription(
-                activeSession.id,
-                titleResult.title,
-                titleResult.description
-              );
-            }
-          } else {
-            // Fallback: extract from first message
-            const simpleTitle = extractSimpleTitle(messagesForTitle);
-            agentActions.updateSessionTitleAndDescription(activeSession.id, simpleTitle);
-          }
-        } catch (titleError) {
-          console.warn('[useAgentChat] Failed to generate title:', titleError);
-          // Fallback: extract from first message
-          const simpleTitle = extractSimpleTitle(messagesForTitle);
-          agentActions.updateSessionTitleAndDescription(activeSession.id, simpleTitle);
-        }
-      }
+      // Note: Title is now set by the agent using the set_chat_title tool
     } catch (error) {
       console.error('Failed to send message:', error);
 
