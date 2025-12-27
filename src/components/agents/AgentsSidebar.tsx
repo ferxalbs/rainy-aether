@@ -279,7 +279,7 @@ export function AgentsSidebar({ className }: { className?: string }) {
 
                             <div className="flex items-center justify-between text-[10px] text-muted-foreground/60 w-full">
                                 <span className="truncate max-w-[120px]">
-                                    {session.messages.length > 0 ? (
+                                    {session.description || (session.messages.length > 1 ? (
                                         <span className="flex items-center gap-1">
                                             <span>
                                                 {session.messages[session.messages.length - 1].content.slice(0, 30)}
@@ -288,7 +288,7 @@ export function AgentsSidebar({ className }: { className?: string }) {
                                         </span>
                                     ) : (
                                         "New conversation"
-                                    )}
+                                    ))}
                                 </span>
                                 <span className="whitespace-nowrap shrink-0 ml-2">
                                     {session.messages.length > 0

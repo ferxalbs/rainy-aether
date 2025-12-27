@@ -78,6 +78,14 @@ export class AgentService {
   }
 
   /**
+   * Get the Gemini API key (for title generation)
+   */
+  async getApiKey(): Promise<string | undefined> {
+    if (!this.isInitialized) await this.initialize();
+    return this.credentials.geminiApiKey;
+  }
+
+  /**
    * Load a credential from secure storage
    */
   private async loadCredential(providerId: string): Promise<string | null> {

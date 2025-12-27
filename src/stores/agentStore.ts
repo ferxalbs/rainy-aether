@@ -10,6 +10,7 @@ import { DEFAULT_SYSTEM_PROMPT } from '@/services/agent/agentSystemPrompt';
 export interface AgentSession {
   id: string;
   name: string;
+  description?: string;  // Auto-generated description based on conversation
   model: string;
   systemPrompt: string;
   messages: ChatMessage[];
@@ -308,6 +309,32 @@ export const agentActions = {
 
     if (updatedSession) {
       agentHistoryService.saveSession(updatedSession);
+    }
+  },
+
+  /**
+   * Update session title and description (auto-generated)
+   */
+  updateSessionTitleAndDescription(sessionId: string, title: string, description?: string) {
+    let updatedSession: AgentSession | undefined;
+
+    setState((prev) => ({
+      ...prev,
+      sessions: prev.sessions.map((session) => {
+        if (session.id === sessionId) {
+          updatedSession = {
+            ...session,
+            name: title,
+            description: description || session.description,
+          };
+          return updatedSession;
+        }
+        return session;
+      }),
+    }));
+
+    if (updatedSession) {
+      debouncedSaveSession(updatedSession);
     }
   },
 
