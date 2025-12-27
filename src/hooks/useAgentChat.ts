@@ -6,7 +6,8 @@ import {
   useAgentLoading,
   agentActions,
 } from '@/stores/agentStore';
-import { StreamChunk } from '@/services/agent/providers';
+import { StreamChunk, getModelConfig } from '@/services/agent/providers';
+import { getContextStatus, ContextStatus } from '@/services/agent/TokenCounter';
 
 export function useAgentChat() {
   const activeSession = useActiveSession();
@@ -47,6 +48,19 @@ export function useAgentChat() {
   const messages = useMemo(() => {
     return activeSession?.messages || [];
   }, [activeSession?.messages]);
+
+  // Calculate context status for token usage display
+  const contextStatus: ContextStatus | null = useMemo(() => {
+    if (!sessionModel || messages.length === 0) return null;
+
+    const modelConfig = getModelConfig(sessionModel);
+    if (!modelConfig) return null;
+
+    return getContextStatus(messages, {
+      contextWindow: modelConfig.contextWindow,
+      maxOutputTokens: modelConfig.maxOutputTokens,
+    });
+  }, [sessionModel, messages]);
 
   // sendMessage now accepts an optional message parameter for direct sending
   const sendMessage = useCallback(async (directMessage?: string) => {
@@ -154,5 +168,6 @@ export function useAgentChat() {
     streamingThoughts,
     sendMessage,
     clearChat,
+    contextStatus, // Token context usage status
   };
 }

@@ -10,6 +10,7 @@ import { useActiveSession, agentActions } from "@/stores/agentStore"
 import { AVAILABLE_MODELS } from "@/services/agent/providers"
 import { CodeBlock } from "./CodeBlock"
 import { ToolExecutionList } from "./ToolExecutionList"
+import { TokenUsageBar } from "./TokenUsageBar"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -227,7 +228,7 @@ const ThinkingAccordion = memo(function ThinkingAccordion({ thoughts, isStreamin
 });
 
 export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
-    const { messages, isLoading, sendMessage, streamingContent, streamingThoughts } = useAgentChat();
+    const { messages, isLoading, sendMessage, streamingContent, streamingThoughts, contextStatus } = useAgentChat();
     const activeSession = useActiveSession();
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -459,6 +460,19 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                     </div>
                 )}
             </div>
+
+            {/* Token Usage Indicator - shows when context is being used */}
+            {contextStatus && contextStatus.usedTokens > 0 && (
+                <div className={cn(
+                    "border-t border-border/30 px-4 py-1.5 flex items-center justify-end",
+                    compact && "px-2 py-1"
+                )}>
+                    <TokenUsageBar
+                        usedTokens={contextStatus.usedTokens}
+                        maxTokens={contextStatus.maxTokens}
+                    />
+                </div>
+            )}
 
             {/* Input Area - ISOLATED COMPONENT FOR PERFORMANCE */}
             <ChatInputArea

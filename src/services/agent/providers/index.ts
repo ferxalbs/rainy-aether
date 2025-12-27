@@ -37,7 +37,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     model: 'gemini-2.5-flash-lite',
     description: 'Fast and efficient Gemini model',
     contextWindow: 128000,     // 128K context
-    maxOutputTokens: 8192,     // 8K output
+    maxOutputTokens: 65536,     // 64K output
     category: 'standard',
     supportsThinking: false,
     thinkingMode: 'none',
@@ -50,7 +50,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     model: 'gemini-3-flash-preview',
     description: 'Latest Gemini 3 Flash model with improved performance',
     contextWindow: 1000000,    // 1M context
-    maxOutputTokens: 8192,     // 8K output
+    maxOutputTokens: 65536,     // 64K output
     category: 'standard',
     supportsThinking: true,
     thinkingMode: 'none',
@@ -67,7 +67,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     model: 'gemini-3-flash-preview',
     description: 'Gemini 3 Flash with dynamic thinking budget',
     contextWindow: 1000000,    // 1M context
-    maxOutputTokens: 8192,     // 8K output
+    maxOutputTokens: 65536,     // 64K output
     category: 'thinking',
     supportsThinking: true,
     thinkingMode: 'auto',
@@ -83,8 +83,8 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     provider: 'gemini',
     model: 'gemini-3-pro-preview',
     description: 'Gemini 3 Pro with low-depth reasoning',
-    contextWindow: 1000000,    // 1M context
-    maxOutputTokens: 16384,    // 16K output (Pro has higher limit)
+    contextWindow: 1048576,    // 1M context
+    maxOutputTokens: 65536,    // 64K output (Pro has higher limit)
     category: 'thinking',
     supportsThinking: true,
     thinkingMode: 'low',
@@ -96,8 +96,8 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     provider: 'gemini',
     model: 'gemini-3-pro-preview',
     description: 'Gemini 3 Pro with high-depth reasoning',
-    contextWindow: 1000000,    // 1M context
-    maxOutputTokens: 16384,    // 16K output
+    contextWindow: 1048576,    // 1M context
+    maxOutputTokens: 65536,    // 64K output
     category: 'thinking',
     supportsThinking: true,
     thinkingMode: 'high',
