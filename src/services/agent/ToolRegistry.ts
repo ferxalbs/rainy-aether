@@ -1052,68 +1052,6 @@ Examples:
         }
       },
     });
-
-    // --- Session Management Tools ---
-    this.registerTool({
-      name: "set_chat_title",
-      description: `Set a descriptive title and description for this chat session.
-
-REQUIRED: You MUST call this tool as your FIRST action when starting a new chat.
-This helps organize the user's chat history.
-
-The title should be 2-5 words describing what the user is asking about.
-The description should be max 10 words summarizing the topic.
-
-Examples:
-- User asks "Explain this code" → title: "Code Explanation", description: "Understanding codebase structure"
-- User asks "Fix this bug" → title: "Bug Fix Request", description: "Debugging application error"
-- User asks "Create a login page" → title: "Feature Implementation", description: "Building authentication UI"`,
-      parameters: {
-        type: "object",
-        properties: {
-          title: {
-            type: "string",
-            description: "Short title for the chat (2-5 words). Examples: 'Code Explanation', 'Bug Fix', 'Feature Implementation'"
-          },
-          description: {
-            type: "string",
-            description: "Brief description of the chat topic (max 10 words)"
-          },
-        },
-        required: ["title"],
-      },
-      // Visible in UI - not internal
-      execute: async ({ title, description }) => {
-        try {
-          // Import dynamically to avoid circular deps
-          const { agentActions, getAgentState } = await import('@/stores/agentStore');
-
-          // Get active session ID
-          const state = getAgentState();
-          const activeSessionId = state.activeSessionId;
-
-          if (!activeSessionId) {
-            return { success: false, error: 'No active session' };
-          }
-
-          agentActions.updateSessionTitleAndDescription(
-            activeSessionId,
-            title,
-            description || undefined
-          );
-
-          return {
-            success: true,
-            message: `Chat titled: "${title}"`,
-            title,
-            description
-          };
-        } catch (error) {
-          const errorMsg = error instanceof Error ? error.message : String(error);
-          return { success: false, error: `Failed to set title: ${errorMsg}` };
-        }
-      },
-    });
   }
 
   registerTool(tool: ToolDefinition) {

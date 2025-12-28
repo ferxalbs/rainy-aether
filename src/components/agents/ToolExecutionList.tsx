@@ -23,8 +23,7 @@ import {
     Globe,
     Cpu,
     Database,
-    Image as ImageIcon,
-    Tag
+    Image as ImageIcon
 } from 'lucide-react';
 import {
     Collapsible,
@@ -69,7 +68,6 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
     'generate_image': ImageIcon,
     'analyze_code': Cpu,
     'query_db': Database,
-    'set_chat_title': Tag,
 };
 
 function getToolIcon(toolName: string) {

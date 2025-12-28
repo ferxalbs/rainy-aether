@@ -91,23 +91,8 @@ export class GeminiProvider implements AIProvider {
         }
       }
 
-      // Add minimal tool call info (NOT full results - too verbose)
-      // The model already knows what it called via function calls
-      if (msg.toolCalls && msg.toolCalls.length > 0) {
-        const toolSummary = msg.toolCalls.map(tc => {
-          if (tc.status === 'success') {
-            return `${tc.name}: completed`;
-          } else if (tc.status === 'error') {
-            return `${tc.name}: error - ${tc.error?.slice(0, 100)}`;
-          }
-          return `${tc.name}: ${tc.status || 'pending'}`;
-        }).join(', ');
-
-        // Only add if there's meaningful content AND we're not duplicating
-        if (toolSummary && !msg.content?.includes('Tool execution')) {
-          parts.push({ text: `[Executed: ${toolSummary}]` });
-        }
-      }
+      // NOTE: Don't add tool call summaries to message content
+      // The model tracks tool calls via function calling mechanism
 
       // Only add if there are parts
       if (parts.length > 0) {
@@ -180,21 +165,6 @@ export class GeminiProvider implements AIProvider {
     // Add tools if available
     if (functionDeclarations.length > 0) {
       config.config.tools = [{ functionDeclarations }];
-
-      // Check if this is a new chat (only user messages, no assistant responses yet)
-      const assistantMessages = messages.filter(m => m.role === 'assistant');
-      const isFirstResponse = assistantMessages.length === 0;
-
-      // Force set_chat_title on first response
-      if (isFirstResponse) {
-        config.config.toolConfig = {
-          functionCallingConfig: {
-            mode: 'ANY',
-            allowedFunctionNames: ['set_chat_title'],
-          }
-        };
-        console.log('[GeminiProvider] First message - forcing set_chat_title tool');
-      }
     }
 
     try {
@@ -284,21 +254,6 @@ export class GeminiProvider implements AIProvider {
     // Add tools if available
     if (functionDeclarations.length > 0) {
       config.config.tools = [{ functionDeclarations }];
-
-      // Check if this is a new chat (only user messages, no assistant responses yet)
-      const assistantMessages = messages.filter(m => m.role === 'assistant');
-      const isFirstResponse = assistantMessages.length === 0;
-
-      // Force set_chat_title on first response
-      if (isFirstResponse) {
-        config.config.toolConfig = {
-          functionCallingConfig: {
-            mode: 'ANY',
-            allowedFunctionNames: ['set_chat_title'],
-          }
-        };
-        console.log('[GeminiProvider] Stream - First message - forcing set_chat_title tool');
-      }
     }
 
     try {

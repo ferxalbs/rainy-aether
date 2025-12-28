@@ -136,7 +136,6 @@ export function useAgentChat() {
       if (!addedMessageIds.has(response.id)) {
         agentActions.addMessage(activeSession.id, response);
       }
-      // Note: Title is now set by the agent using the set_chat_title tool
     } catch (error) {
       console.error('Failed to send message:', error);
 
