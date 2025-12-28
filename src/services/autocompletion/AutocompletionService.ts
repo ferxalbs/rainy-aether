@@ -23,8 +23,8 @@ import {
 // Configuration
 // ============================================================================
 
-/** Model for fast autocompletions */
-const AUTOCOMPLETION_MODEL = 'gemini-2.5-flash-lite';
+/** Model for fast and precise autocompletions */
+const AUTOCOMPLETION_MODEL = 'gemini-3-flash-preview';
 
 /** Maximum prefix context (characters) */
 const MAX_PREFIX_CHARS = 2000;
@@ -226,7 +226,8 @@ export class AutocompletionService {
                 config: {
                     temperature: 0.2, // Low temperature for deterministic completions
                     maxOutputTokens: this.config.maxTokens,
-                    stopSequences: ['\n\n\n', '```', '<|fim_end|>', '<|fim_prefix|>', '<|fim_suffix|>', '<|fim_middle|>', '<|file_separator|>', '<|end|>'],
+                    // Gemini API allows max 5 stop sequences
+                    stopSequences: ['\n\n\n', '```', '<|fim_end|>', '<|fim_middle|>', '<|file_separator|>'],
                 },
             });
 
