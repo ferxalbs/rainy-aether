@@ -295,31 +295,28 @@ const ChatInputArea = memo(function ChatInputArea({
                             {/* Auto / Model Selector */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <button className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:py-1.5 rounded-lg hover:bg-primary/5 hover:text-primary transition-all group text-[10px] sm:text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider text-left">
-                                        <Sparkles className="h-3 w-3 text-primary/60 group-hover:text-primary transition-colors shrink-0" />
+                                    <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-muted/50 transition-colors group text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider text-left border border-transparent hover:border-border/30">
+                                        <Sparkles className="h-3 w-3 text-primary/70 shrink-0" />
                                         {!compact && (
-                                            <span className="transition-colors truncate max-w-[80px] sm:max-w-[120px]">
+                                            <span className="truncate max-w-[120px]">
                                                 {activeSessionModel ? (AVAILABLE_MODELS.find(m => m.id === activeSessionModel)?.name || 'Auto') : 'Auto'}
                                             </span>
                                         )}
-                                        <ChevronDown className="h-2.5 sm:h-3 w-2.5 sm:w-3 opacity-30 group-hover:opacity-60 shrink-0" />
+                                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="w-[240px] p-2 rounded-2xl shadow-2xl border border-white/10 bg-black/40 backdrop-blur-xl ring-1 ring-white/5 animate-in fade-in zoom-in-95 duration-200">
-                                    <DropdownMenuLabel className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.15em] px-3 py-2">Select Model</DropdownMenuLabel>
-                                    <DropdownMenuSeparator className="bg-white/10 mx-2 mb-1" />
-                                    {AVAILABLE_MODELS.map((model) => (
+                                <DropdownMenuContent align="start" className="w-[200px] p-1.5">
+                                    <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-2 py-1.5">Select Model</DropdownMenuLabel>
+                                    <DropdownMenuSeparator className="mx-1 opacity-50" />
+                                    {AVAILABLE_MODELS.slice(0, 3).map((model) => (
                                         <DropdownMenuItem
                                             key={model.id}
                                             onClick={() => handleModelChange(model.id)}
-                                            className="flex items-center justify-between cursor-pointer rounded-xl px-3 py-2.5 text-sm focus:bg-white/10 focus:text-white text-zinc-300 transition-all duration-200 group/item my-0.5"
+                                            className="flex items-center justify-between cursor-pointer rounded-sm px-2.5 py-2 text-sm focus:bg-primary/10 focus:text-primary transition-colors"
                                         >
-                                            <div className="flex flex-col gap-0.5">
-                                                <span className="font-medium tracking-tight group-hover/item:text-white transition-colors">{model.name}</span>
-                                                <span className="text-[10px] text-zinc-500 font-normal group-hover/item:text-zinc-400">Context: {model.contextWindow / 1000}k</span>
-                                            </div>
+                                            <span className="font-medium">{model.name}</span>
                                             {activeSessionModel === model.id && (
-                                                <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_2px_rgba(16,185,129,0.3)] animate-pulse" />
+                                                <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm" />
                                             )}
                                         </DropdownMenuItem>
                                     ))}
@@ -599,9 +596,9 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                     <div className="flex flex-col gap-0 min-h-full">
                         {displayMessages.map((msg) => (
                             <div key={msg.id} className={cn(
-                                "flex gap-4 sm:gap-6 px-4 py-6 sm:px-8 sm:py-8 group transition-colors relative",
+                                "mx-auto w-full max-w-4xl flex gap-4 sm:gap-6 px-4 py-6 sm:px-0 sm:py-8 group transition-colors relative",
                                 compact && "gap-3 px-4 py-4",
-                                msg.role === 'user' ? "bg-transparent" : "bg-muted/5"
+                                msg.role === 'user' ? "bg-transparent" : "bg-transparent" // Removed bg-muted/5 to keep it clean
                             )}>
                                 {!compact && (
                                     <div className="shrink-0 mt-0">
@@ -643,11 +640,12 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                                         </div>
                                     )}
                                 </div>
+                                <div className="flex-1 min-w-0" /> {/* Spacer to force center alignment logic if needed, but max-w-4xl on wrapper is key */}
                             </div>
                         ))}
 
                         {isLoading && (
-                            <div className={cn("flex gap-4 sm:gap-6 px-4 py-6 sm:px-8 sm:py-8 group transition-colors animate-in fade-in duration-500", compact && "gap-3 px-4 py-4")}>
+                            <div className={cn("mx-auto w-full max-w-4xl flex gap-4 sm:gap-6 px-4 py-6 sm:px-0 sm:py-8 group transition-colors animate-in fade-in duration-500", compact && "gap-3 px-4 py-4")}>
                                 {!compact && (
                                     <div className="shrink-0 mt-0">
                                         <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)]">
@@ -699,6 +697,6 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                 activeSessionId={activeSession?.id}
                 activeSessionModel={activeSession?.model}
             />
-        </div>
+        </div >
     )
 }
