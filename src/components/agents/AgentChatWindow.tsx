@@ -11,7 +11,6 @@ import { useActiveSession, agentActions } from "@/stores/agentStore"
 import { AVAILABLE_MODELS } from "@/services/agent/providers"
 import { CodeBlock } from "./CodeBlock"
 import { ToolExecutionList } from "./ToolExecutionList"
-import { TokenUsageBar } from "./TokenUsageBar"
 import { ImageAttachment } from "@/types/chat"
 import {
     DropdownMenu,
@@ -306,18 +305,21 @@ const ChatInputArea = memo(function ChatInputArea({
                                         <ChevronDown className="h-2.5 sm:h-3 w-2.5 sm:w-3 opacity-30 group-hover:opacity-60 shrink-0" />
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="w-[220px] p-1.5 rounded-xl shadow-2xl border-border/40 backdrop-blur-xl bg-background/90">
-                                    <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.1em] px-2 py-1.5 opacity-60">System Model</DropdownMenuLabel>
-                                    <DropdownMenuSeparator className="bg-border/20 mx-1" />
+                                <DropdownMenuContent align="start" className="w-[240px] p-2 rounded-2xl shadow-2xl border border-white/10 bg-black/40 backdrop-blur-xl ring-1 ring-white/5 animate-in fade-in zoom-in-95 duration-200">
+                                    <DropdownMenuLabel className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.15em] px-3 py-2">Select Model</DropdownMenuLabel>
+                                    <DropdownMenuSeparator className="bg-white/10 mx-2 mb-1" />
                                     {AVAILABLE_MODELS.map((model) => (
                                         <DropdownMenuItem
                                             key={model.id}
                                             onClick={() => handleModelChange(model.id)}
-                                            className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm focus:bg-primary/5 focus:text-primary transition-colors"
+                                            className="flex items-center justify-between cursor-pointer rounded-xl px-3 py-2.5 text-sm focus:bg-white/10 focus:text-white text-zinc-300 transition-all duration-200 group/item my-0.5"
                                         >
-                                            <span className="font-medium">{model.name}</span>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="font-medium tracking-tight group-hover/item:text-white transition-colors">{model.name}</span>
+                                                <span className="text-[10px] text-zinc-500 font-normal group-hover/item:text-zinc-400">Context: {model.contextWindow / 1000}k</span>
+                                            </div>
                                             {activeSessionModel === model.id && (
-                                                <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.8)]" />
+                                                <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_2px_rgba(16,185,129,0.3)] animate-pulse" />
                                             )}
                                         </DropdownMenuItem>
                                     ))}
@@ -439,7 +441,7 @@ const ThinkingAccordion = memo(function ThinkingAccordion({ thoughts, isStreamin
 });
 
 export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
-    const { messages, isLoading, sendMessage, streamingContent, streamingThoughts, contextStatus } = useAgentChat();
+    const { messages, isLoading, sendMessage, streamingContent, streamingThoughts } = useAgentChat();
     const activeSession = useActiveSession();
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -687,18 +689,7 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                 )}
             </div>
 
-            {/* Token Usage Indicator - shows when context is being used */}
-            {contextStatus && contextStatus.usedTokens > 0 && (
-                <div className={cn(
-                    "border-t border-border/30 px-4 py-1.5 flex items-center justify-end",
-                    compact && "px-2 py-1"
-                )}>
-                    <TokenUsageBar
-                        usedTokens={contextStatus.usedTokens}
-                        maxTokens={contextStatus.maxTokens}
-                    />
-                </div>
-            )}
+
 
             {/* Input Area - ISOLATED COMPONENT FOR PERFORMANCE */}
             <ChatInputArea

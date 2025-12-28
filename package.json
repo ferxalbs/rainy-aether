@@ -91,7 +91,7 @@
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.3.0",
     "zod": "^4.2.1",
-    "zod-to-json-schema": "^3.25.0"
+    "zod-to-json-schema": "^3.25.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",

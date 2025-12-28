@@ -60,13 +60,13 @@ export function TokenUsageBar({ usedTokens, maxTokens, className }: TokenUsageBa
                         </span>
                     </div>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">
+                <TooltipContent side="bottom" className="text-xs bg-zinc-950 border-zinc-800 text-zinc-100 shadow-xl pointer-events-none">
                     <div className="space-y-1">
-                        <div className="font-medium">{getStatusText()}</div>
-                        <div className="text-muted-foreground">
+                        <div className="font-semibold text-zinc-50">{getStatusText()}</div>
+                        <div className="text-zinc-400">
                             {formatTokenCount(usedTokens)} / {formatTokenCount(maxTokens)} tokens
                         </div>
-                        <div className="text-muted-foreground">
+                        <div className="text-zinc-400">
                             {formatTokenCount(Math.max(0, maxTokens - usedTokens))} remaining
                         </div>
                     </div>

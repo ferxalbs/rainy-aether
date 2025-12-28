@@ -1,9 +1,11 @@
-import { useEffect, useState, useCallback, memo } from "react"
+import { useEffect, useState, useCallback, memo, useMemo } from "react"
 import { PanelLeft, PanelLeftClose, Sparkles, Settings } from "lucide-react"
 import { AgentsSidebar } from "./AgentsSidebar"
 import { AgentChatWindow } from "./AgentChatWindow"
 import { useAgentStore, agentActions, useActiveSession } from "@/stores/agentStore"
-import { AVAILABLE_MODELS } from "@/services/agent/providers"
+import { AVAILABLE_MODELS, getModelConfig } from "@/services/agent/providers"
+import { getContextStatus, ContextStatus } from "@/services/agent/TokenCounter"
+import { TokenUsageBar } from "./TokenUsageBar"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -12,6 +14,8 @@ const SIDEBAR_WIDTH = 280;
 // Memoized components for performance
 const MemoizedSidebar = memo(AgentsSidebar);
 const MemoizedChatWindow = memo(AgentChatWindow);
+// Memoize TokenUsageBar to prevent flicker
+const MemoizedTokenBar = memo(TokenUsageBar);
 
 export function AgentsLayout() {
     useAgentStore();
@@ -22,6 +26,19 @@ export function AgentsLayout() {
     useEffect(() => {
         agentActions.initialize();
     }, []);
+
+    // Calculate context status for token usage display (hoisted from chat window)
+    const contextStatus: ContextStatus | null = useMemo(() => {
+        if (!activeSession?.model || !activeSession.messages || activeSession.messages.length === 0) return null;
+
+        const modelConfig = getModelConfig(activeSession.model);
+        if (!modelConfig) return null;
+
+        return getContextStatus(activeSession.messages, {
+            contextWindow: modelConfig.contextWindow,
+            maxOutputTokens: modelConfig.maxOutputTokens,
+        });
+    }, [activeSession?.model, activeSession?.messages]);
 
     const toggleSidebar = useCallback(() => {
         setIsSidebarOpen(prev => !prev);
@@ -84,10 +101,20 @@ export function AgentsLayout() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                        {/* Token Usage Indicator - Moved to Header */}
+                        {contextStatus && contextStatus.usedTokens > 0 && (
+                            <div className="hidden sm:block mr-2 animate-in fade-in duration-500">
+                                <MemoizedTokenBar
+                                    usedTokens={contextStatus.usedTokens}
+                                    maxTokens={contextStatus.maxTokens}
+                                    className="bg-muted/30 border border-border/20 shadow-sm"
+                                />
+                            </div>
+                        )}
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all"
+                            className="h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all rounded-lg"
                         >
                             <Settings className="h-4 w-4" />
                         </Button>
