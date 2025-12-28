@@ -305,7 +305,7 @@ const ChatInputArea = memo(function ChatInputArea({
                                         <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="w-[220px] p-1.5 max-h-[120px] overflow-y-auto scrollbar-thin scrollbar-thumb-border/40 scrollbar-track-transparent">
+                                <DropdownMenuContent align="start" className="w-[240px] max-h-[260px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/30 scrollbar-track-transparent">
                                     <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-2 py-1.5">Select Model</DropdownMenuLabel>
                                     <DropdownMenuSeparator className="mx-1 opacity-50" />
                                     {AVAILABLE_MODELS.map((model) => (
