@@ -2,23 +2,21 @@
 trigger: always_on
 ---
 
-# Agent Rules — Rainy Aether (Tauri 2) — Production
+## Compatibility (hard requirement)
+- All changes must compile and work on macOS, Linux, and Windows.
+- A PR will not be accepted if it breaks: build, startup, menu, shortcuts, files, or stability on any of the three platforms. So always keep this in mind.
 
-## Compatibilidad (hard requirement)
-- Todo cambio debe compilar y funcionar en macOS, Linux y Windows.
-- No se acepta un PR si rompe: build, arranque, menú, atajos, archivos, o estabilidad en cualquiera de las 3 plataformas.
+## macOS: native menu bar (hard requirement)
+- On macOS, the menu is global (app-wide): DO NOT use a menu per window.
+- If the menu is set from JS/TS, use `Menu.setAsAppMenu()`; `Menu.setAsWindowMenu()` is unsupported on macOS. [web:6]
+- If there is a “Help” submenu, mark it as a Help menu using `setAsHelpMenuForNSApp()` (macOS can add a search box automatically). [web:6]
+- If there is a “Window” submenu, mark it as a Window menu using `setAsWindowsMenuForNSApp()` (macOS may automatically add window-switching items).
 
-## macOS: menubar nativo (hard requirement)
-- En macOS el menú es global (app-wide): NO usar menú por ventana.
-- Si el menú se setea desde JS/TS, usar `Menu.setAsAppMenu()`; `Menu.setAsWindowMenu()` es unsupported en macOS. [web:6]
-- Si existe submenu "Help", marcarlo como Help menu usando `setAsHelpMenuForNSApp()` (macOS puede agregar search box automáticamente). [web:6]
-- Si existe submenu "Window", marcarlo como Window menu usando `setAsWindowsMenuForNSApp()` (macOS puede agregar items de window-switching automáticamente). [web:6]
+## Security (Tauri 2 capabilities) (hard requirement)
+- In production builds, use explicit and minimal capabilities per window/webview; do not “open” permissions for convenience.
+- Capabilities must be platform-aware when applicable (e.g., permissions only for macOS/windows/linux).
+- If remote access to APIs/commands is enabled, it must be intentional, scoped, and documented (domains/paths) by capability.
 
-## Seguridad (Tauri 2 capabilities) (hard requirement)
-- En build de producción, usar capabilities explícitas y mínimas por ventana/webview; no “abrir” permisos por comodidad. [web:48]
-- Capabilities deben ser platform-aware cuando aplique (ej. permisos solo para `macOS`/`windows`/`linux`). [web:48]
-- Si se habilita acceso remoto a APIs/commands, debe ser intencional, scopeado y documentado (dominios/paths) por capability. [web:48]
-
-## Producción: firma/notarización/updates
-- macOS release debe salir code-signed y (si aplica distribución fuera de App Store) notarized según guía de Tauri. [web:21]
-- Si se usa updater de Tauri, mantener configuración y artefactos del plugin updater y sus constraints de producción (HTTPS, etc.). [web:36]
+## Production: signing/notarization/updates
+- macOS releases must be code-signed and (if distributing outside the App Store) notarized according to Tauri guidelines.
+- If using Tauri updater, maintain the updater plugin configuration and artifacts and their production constraints (HTTPS, etc.). 
