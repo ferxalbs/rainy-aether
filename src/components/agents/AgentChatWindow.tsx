@@ -219,13 +219,13 @@ const ChatInputArea = memo(function ChatInputArea({
     }, [activeSessionId]);
 
     return (
-        <div className={cn("shrink-0 p-4 bg-background", compact && "p-2")}>
+        <div className={cn("shrink-0 p-3 sm:p-5 bg-background/50 backdrop-blur-sm border-t border-border/20", compact && "p-2.5")}>
             <div className="max-w-4xl mx-auto w-full relative">
                 <div
                     className={cn(
-                        "relative rounded-xl border-2 bg-muted/30 focus-within:bg-muted/40 focus-within:border-primary/20 transition-all duration-200 shadow-sm",
+                        "relative rounded-xl border border-border/40 bg-muted/20 focus-within:bg-muted/30 focus-within:border-primary/30 focus-within:ring-4 focus-within:ring-primary/5 transition-all duration-300 shadow-sm",
                         compact && "rounded-lg",
-                        isDragging ? "border-purple-500 bg-purple-500/10 border-dashed" : "border-border"
+                        isDragging ? "border-primary bg-primary/5 border-dashed ring-4 ring-primary/10" : "border-border/40"
                     )}
                     onDragEnter={handleDragEnter}
                     onDragOver={handleDragOver}
@@ -234,13 +234,13 @@ const ChatInputArea = memo(function ChatInputArea({
                 >
                     {/* Drag overlay */}
                     {isDragging && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-purple-500/10 rounded-xl z-10 pointer-events-none">
-                            <div className="flex items-center gap-2 text-purple-400 font-medium">
-                                <Image className="h-5 w-5" />
-                                <span>
+                        <div className="absolute inset-0 flex items-center justify-center bg-primary/5 rounded-2xl z-10 pointer-events-none">
+                            <div className="flex items-center gap-3 text-primary font-medium animate-in zoom-in-95 duration-300">
+                                <Image className="h-6 w-6" />
+                                <span className="text-sm uppercase tracking-wider font-bold">
                                     {draggedImagePaths.length > 0
-                                        ? `Drop ${draggedImagePaths.length} image${draggedImagePaths.length > 1 ? 's' : ''} here`
-                                        : 'Drop image here'}
+                                        ? `Release ${draggedImagePaths.length} image${draggedImagePaths.length > 1 ? 's' : ''}`
+                                        : 'Release image'}
                                 </span>
                             </div>
                         </div>
@@ -257,19 +257,21 @@ const ChatInputArea = memo(function ChatInputArea({
 
                     {/* Image Preview Area */}
                     {pendingImages.length > 0 && (
-                        <div className="flex flex-wrap gap-2 p-2 border-b border-border/50">
+                        <div className="flex flex-wrap gap-3 p-4 border-b border-border/20 bg-background/20">
                             {pendingImages.map((img, index) => (
-                                <div key={index} className="relative group">
-                                    <img
-                                        src={`data:${img.mimeType};base64,${img.base64}`}
-                                        alt={img.filename || 'Uploaded image'}
-                                        className="h-16 w-16 object-cover rounded-lg border border-border"
-                                    />
+                                <div key={index} className="relative group/img animate-in zoom-in-90 duration-300">
+                                    <div className="h-16 w-16 rounded-xl overflow-hidden border border-border/40 shadow-sm group-hover/img:border-primary/30 group-hover/img:shadow-md transition-all">
+                                        <img
+                                            src={`data:${img.mimeType};base64,${img.base64}`}
+                                            alt={img.filename || 'Uploaded image'}
+                                            className="h-full w-full object-cover group-hover/img:scale-110 transition-transform duration-500"
+                                        />
+                                    </div>
                                     <button
                                         onClick={() => removeImage(index)}
-                                        className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="absolute -top-2 -right-2 h-6 w-6 bg-background border border-border/50 text-foreground/70 rounded-full flex items-center justify-center opacity-0 group-hover/img:opacity-100 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-all shadow-sm z-10"
                                     >
-                                        <X className="h-3 w-3" />
+                                        <X className="h-3.5 w-3.5" />
                                     </button>
                                 </div>
                             ))}
@@ -280,64 +282,66 @@ const ChatInputArea = memo(function ChatInputArea({
                         ref={inputRef}
                         onKeyDown={handleKeyDown}
                         onInput={handleInput}
-                        placeholder={pendingImages.length > 0 ? "Add a message about this image..." : (compact ? "Ask anything..." : "Ask, search, or make anything...")}
+                        placeholder={pendingImages.length > 0 ? "Message..." : (compact ? "Ask anything..." : "How can I help you build?")}
                         className={cn(
-                            "min-h-[52px] max-h-[200px] w-full resize-none border-0 bg-transparent px-4 py-3.5 text-base focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none placeholder:text-muted-foreground/40 text-foreground/90 leading-relaxed scrollbar-hide",
-                            compact && "min-h-[44px] px-3 py-2.5 text-sm"
+                            "min-h-[44px] max-h-[180px] w-full resize-none border-0 bg-transparent px-3.5 sm:px-5 py-2.5 sm:py-3 text-[13px] sm:text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none placeholder:text-muted-foreground/30 text-foreground/80 leading-relaxed scrollbar-hide font-light",
+                            compact && "min-h-[40px] px-3 py-2 text-xs"
                         )}
                         disabled={isLoading}
                     />
 
                     {/* Bottom Actions Bar */}
-                    <div className={cn("flex items-center justify-between px-2 pb-2", compact && "px-1 pb-1")}>
-                        <div className="flex items-center gap-1">
+                    <div className={cn("flex items-center justify-between px-2 sm:px-3 pb-2 sm:pb-3", compact && "px-2 pb-2")}>
+                        <div className="flex items-center gap-1 sm:gap-1.5 ml-1 flex-wrap">
                             {/* Auto / Model Selector */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <button className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-background/50 hover:text-foreground transition-all group text-xs font-medium text-muted-foreground/70">
-                                        <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+                                    <button className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:py-1.5 rounded-lg hover:bg-primary/5 hover:text-primary transition-all group text-[10px] sm:text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider text-left">
+                                        <Sparkles className="h-3 w-3 text-primary/60 group-hover:text-primary transition-colors shrink-0" />
                                         {!compact && (
-                                            <span className="group-hover:text-primary transition-colors">
+                                            <span className="transition-colors truncate max-w-[80px] sm:max-w-[120px]">
                                                 {activeSessionModel ? (AVAILABLE_MODELS.find(m => m.id === activeSessionModel)?.name || 'Auto') : 'Auto'}
                                             </span>
                                         )}
-                                        <ChevronDown className="h-3 w-3 opacity-50" />
+                                        <ChevronDown className="h-2.5 sm:h-3 w-2.5 sm:w-3 opacity-30 group-hover:opacity-60 shrink-0" />
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="w-[200px]">
-                                    <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">Select Agent Mode</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
+                                <DropdownMenuContent align="start" className="w-[220px] p-1.5 rounded-xl shadow-2xl border-border/40 backdrop-blur-xl bg-background/90">
+                                    <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-[0.1em] px-2 py-1.5 opacity-60">System Model</DropdownMenuLabel>
+                                    <DropdownMenuSeparator className="bg-border/20 mx-1" />
                                     {AVAILABLE_MODELS.map((model) => (
                                         <DropdownMenuItem
                                             key={model.id}
                                             onClick={() => handleModelChange(model.id)}
-                                            className="flex items-center justify-between cursor-pointer"
+                                            className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm focus:bg-primary/5 focus:text-primary transition-colors"
                                         >
-                                            <span>{model.name}</span>
+                                            <span className="font-medium">{model.name}</span>
                                             {activeSessionModel === model.id && (
-                                                <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                                <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.8)]" />
                                             )}
                                         </DropdownMenuItem>
                                     ))}
                                 </DropdownMenuContent>
                             </DropdownMenu>
 
+                            <div className="h-3 w-px bg-border/20 mx-1 hidden sm:block" />
+
                             {/* Web Search Toggle */}
-                            <button className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-background/50 hover:text-foreground transition-all group text-xs font-medium text-muted-foreground/70">
-                                <Globe className="h-3.5 w-3.5 group-hover:text-blue-400 transition-colors" />
-                                {!compact && <span>Search</span>}
+                            <button className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg hover:bg-blue-500/5 hover:text-blue-500 transition-all group text-[10px] sm:text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                                <Globe className="h-3 sm:h-3.5 w-3 sm:w-3.5 text-muted-foreground/40 group-hover:text-blue-400 transition-colors" />
+                                {!compact && <span className="hidden sm:inline">Search</span>}
                             </button>
 
                             {/* Image Upload Button */}
                             <button
                                 onClick={() => fileInputRef.current?.click()}
                                 className={cn(
-                                    "flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-background/50 hover:text-foreground transition-all group text-xs font-medium",
-                                    pendingImages.length > 0 ? "text-purple-400" : "text-muted-foreground/70"
+                                    "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg transition-all group text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider",
+                                    pendingImages.length > 0 ? "text-primary bg-primary/5" : "text-muted-foreground/60 hover:bg-primary/5 hover:text-primary"
                                 )}
                             >
-                                <Image className="h-3.5 w-3.5 group-hover:text-purple-400 transition-colors" />
-                                {!compact && <span>{pendingImages.length > 0 ? `${pendingImages.length} image${pendingImages.length > 1 ? 's' : ''}` : 'Image'}</span>}
+                                <Image className={cn("h-3 sm:h-3.5 w-3 sm:w-3.5 transition-colors", pendingImages.length > 0 ? "text-primary" : "text-muted-foreground/40 group-hover:text-primary")} />
+                                {!compact && <span className="hidden sm:inline">{pendingImages.length > 0 ? `${pendingImages.length} Attached` : 'Image'}</span>}
                             </button>
                         </div>
 
@@ -345,19 +349,19 @@ const ChatInputArea = memo(function ChatInputArea({
                             <Button
                                 size="icon"
                                 className={cn(
-                                    "h-7 w-7 rounded-full transition-all duration-300 shadow-sm",
+                                    "h-9 w-9 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl transition-all duration-500 shadow-md",
                                     (hasContent || pendingImages.length > 0)
-                                        ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
-                                        : "bg-muted text-muted-foreground hover:bg-muted/80 opacity-50 cursor-not-allowed",
-                                    compact && "h-6 w-6"
+                                        ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.02] hover:shadow-lg active:scale-95"
+                                        : "bg-muted/40 text-muted-foreground/40 hover:bg-muted/60 opacity-40 cursor-not-allowed",
+                                    compact && "h-8 w-8 rounded-lg"
                                 )}
                                 onClick={handleSendClick}
                                 disabled={isLoading || (!hasContent && pendingImages.length === 0)}
                             >
                                 {isLoading ? (
-                                    <div className="h-2 w-2 bg-current rounded-full" />
+                                    <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                    <Send className="h-3.5 w-3.5" />
+                                    <Send className={cn("h-4.5 w-4.5 transition-transform duration-300", hasContent && "translate-x-0.5 -translate-y-0.5 ring-2 ring-primary/0")} />
                                 )}
                             </Button>
                         </div>
@@ -383,40 +387,53 @@ interface ThinkingAccordionProps {
 }
 
 const ThinkingAccordion = memo(function ThinkingAccordion({ thoughts, isStreaming, compact }: ThinkingAccordionProps) {
-    const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(isStreaming);
+
+    // Auto-open when streaming starts
+    useEffect(() => {
+        if (isStreaming) setIsOpen(true);
+    }, [isStreaming]);
 
     if (!thoughts) return null;
 
     return (
         <div className={cn(
-            "border border-purple-500/20 rounded-lg overflow-hidden mb-3 bg-purple-500/5",
-            compact && "mb-2"
+            "rounded-xl overflow-hidden mb-4 border border-primary/10 bg-primary/5 transition-all duration-300",
+            compact && "mb-2",
+            isOpen ? "ring-1 ring-primary/20 shadow-sm" : "hover:bg-primary/10 hover:border-primary/20"
         )}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-purple-300 hover:bg-purple-500/10 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-xs text-primary/70 hover:text-primary transition-colors text-left"
             >
-                <ChevronRight className={cn(
-                    "h-3 w-3 transition-transform duration-200",
-                    isOpen && "rotate-90"
-                )} />
-                <Brain className="h-3 w-3" />
-                <span className="font-medium">Thinking</span>
+                <div className="flex items-center gap-2 flex-1">
+                    <ChevronRight className={cn(
+                        "h-3.5 w-3.5 transition-transform duration-300 ease-out",
+                        isOpen && "rotate-90"
+                    )} />
+                    <Brain className="h-3.5 w-3.5 opacity-80" />
+                    <span className="font-medium tracking-tight uppercase">Thought Process</span>
+                </div>
                 {isStreaming && (
-                    <span className="ml-auto flex items-center gap-1">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        <span className="text-purple-400/70">Processing...</span>
+                    <span className="flex items-center gap-2 text-[10px] bg-primary/10 px-2 py-0.5 rounded-full animate-pulse">
+                        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                        <span className="font-semibold uppercase tracking-wider">Analyzing</span>
                     </span>
                 )}
             </button>
-            {isOpen && (
-                <div className={cn(
-                    "px-3 py-2 text-xs text-purple-300/80 border-t border-purple-500/20 bg-purple-500/5 whitespace-pre-wrap max-h-60 overflow-y-auto",
-                    compact && "text-[10px]"
-                )}>
-                    {thoughts}
+            <div className={cn(
+                "grid transition-all duration-300 ease-in-out",
+                isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+            )}>
+                <div className="overflow-hidden">
+                    <div className={cn(
+                        "px-4 py-3 text-[13px] text-foreground/70 border-t border-primary/10 bg-background/20 whitespace-pre-wrap leading-relaxed font-light",
+                        compact && "text-[11px] px-3 py-2"
+                    )}>
+                        {thoughts}
+                    </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 });
@@ -432,7 +449,7 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
         if (bottomRef.current) {
             bottomRef.current.scrollIntoView({ behavior: "smooth" });
         }
-    }, [messages, streamingContent]);
+    }, [messages, streamingContent, streamingThoughts]);
 
     // Callback for sending messages from the isolated input
     const handleSend = useCallback((message: string, images?: ImageAttachment[]) => {
@@ -527,46 +544,49 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
             {/* Top Bar removed - moved to AgentsLayout */}
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-0 scroll-smooth" ref={scrollRef}>
+            <div className="flex-1 overflow-y-auto p-0 scroll-smooth selection:bg-primary/10" ref={scrollRef}>
                 {!hasUserMessages ? (
-                    <div className={cn("h-full flex flex-col items-center justify-center p-8", compact && "p-4")}>
-                        <div className={cn("flex flex-col items-center gap-6 max-w-lg text-center animate-in fade-in zoom-in-95 duration-500", compact && "gap-4")}>
+                    <div className={cn("h-full flex flex-col items-center justify-center p-6 sm:p-8", compact && "p-4")}>
+                        <div className={cn("flex flex-col items-center gap-5 sm:gap-6 max-w-2xl text-center animate-in fade-in zoom-in-95 self-center duration-700", compact && "gap-4")}>
                             <div className={cn(
-                                "h-20 w-20 rounded-2xl bg-gradient-to-tr from-purple-500/10 via-indigo-500/10 to-blue-500/10 flex items-center justify-center border border-white/5 shadow-xl",
-                                compact && "h-12 w-12 rounded-xl"
+                                "h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center border border-primary/10 shadow-[0_0_50px_-12px_rgba(var(--primary),0.2)] group-hover:shadow-[0_0_60px_-12px_rgba(var(--primary),0.3)] transition-all duration-500",
+                                compact && "h-10 w-10 rounded-lg"
                             )}>
-                                <Bot className={cn("h-10 w-10 text-foreground/80", compact && "h-6 w-6")} />
+                                <Sparkles className={cn("h-6 w-6 sm:h-7 sm:w-7 text-primary/80 animate-pulse", compact && "h-4 w-4")} />
                             </div>
-                            <div className={cn("space-y-3", compact && "space-y-1.5")}>
+                            <div className={cn("space-y-2.5 sm:space-y-3", compact && "space-y-2")}>
                                 <h3 className={cn(
-                                    "text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-white via-white/90 to-white/60",
-                                    compact && "text-lg"
+                                    "text-xl sm:text-2xl font-semibold tracking-tight text-foreground/90",
+                                    compact && "text-base"
                                 )}>
                                     How can I help you build?
                                 </h3>
-                                <p className={cn("text-muted-foreground", compact && "text-xs max-w-[200px] mx-auto")}>
-                                    I'm your AI coding companion. Ask me to generate components, debug code, or explain complex concepts.
+                                <p className={cn("text-muted-foreground/70 text-sm font-light max-w-sm mx-auto leading-relaxed", compact && "text-xs max-w-[200px]")}>
+                                    Your AI software engineer is ready. State your goal, and let's create something extraordinary together.
                                 </p>
                             </div>
 
                             {!compact && (
-                                <div className="grid grid-cols-2 gap-3 w-full max-w-md mt-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mt-6 sm:mt-8 px-4 sm:px-0">
                                     {[
-                                        { icon: CodeBlock, label: "Generate React Component" },
-                                        { icon: Cpu, label: "Explain Code" },
-                                        { icon: Bot, label: "Refactor Function" },
-                                        { icon: Sparkles, label: "Find Bugs" }
+                                        { icon: Sparkles, label: "Generate React Component", description: "Build modern, accessible UI elements" },
+                                        { icon: Cpu, label: "Explain Code", description: "Deep dive into logic and architecture" },
+                                        { icon: Bot, label: "Refactor Function", description: "Optimize and clean up existing code" },
+                                        { icon: Send, label: "Find Bugs", description: "Debug and fix issues instantly" }
                                     ].map((item, i) => (
                                         <button
                                             key={i}
-                                            className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-white/5 hover:bg-muted/50 hover:border-white/10 transition-all text-sm text-muted-foreground hover:text-foreground text-left group"
+                                            className="flex flex-col gap-2 p-3 sm:p-4 rounded-xl bg-muted/20 border border-border/40 hover:bg-muted/30 hover:border-primary/20 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group text-left"
                                             onClick={() => handleSend(item.label)}
                                         >
-                                            <div className="p-2 rounded-lg bg-background/50 group-hover:bg-background transition-colors">
+                                            <div className="h-8 w-8 rounded-lg bg-background/50 flex items-center justify-center border border-border/50 group-hover:scale-110 transition-transform duration-300">
                                                 {/* @ts-ignore - Lucide icon compatibility */}
-                                                <item.icon className="h-4 w-4" />
+                                                <item.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                             </div>
-                                            <span>{item.label}</span>
+                                            <div className="space-y-0.5">
+                                                <p className="font-medium text-xs sm:text-[13px] text-foreground/90">{item.label}</p>
+                                                <p className="text-[10px] sm:text-[11px] text-muted-foreground/60 leading-normal">{item.description}</p>
+                                            </div>
                                         </button>
                                     ))}
                                 </div>
@@ -577,74 +597,86 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                     <div className="flex flex-col gap-0 min-h-full">
                         {displayMessages.map((msg) => (
                             <div key={msg.id} className={cn(
-                                "flex gap-6 px-6 py-8 border-b border-border/40 group transition-colors",
-                                compact && "gap-3 px-3 py-4",
-                                msg.role === 'user' ? "bg-muted/10 ignore-prose" : "bg-transparent"
+                                "flex gap-4 sm:gap-6 px-4 py-6 sm:px-8 sm:py-8 group transition-colors relative",
+                                compact && "gap-3 px-4 py-4",
+                                msg.role === 'user' ? "bg-transparent" : "bg-muted/5"
                             )}>
                                 {!compact && (
-                                    <div className="shrink-0 mt-0.5">
+                                    <div className="shrink-0 mt-0">
                                         {msg.role === 'user' ? (
-                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
-                                                <User className="h-4 w-4 text-primary" />
+                                            <div className="h-9 w-9 rounded-full bg-muted/20 flex items-center justify-center border border-border/50 shadow-sm">
+                                                <User className="h-4.5 w-4.5 text-muted-foreground/80" />
                                             </div>
                                         ) : (
-                                            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-indigo-500/20 flex items-center justify-center ring-1 ring-white/10">
-                                                <Sparkles className="h-4 w-4 text-purple-400" />
+                                            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)]">
+                                                <Sparkles className="h-4.5 w-4.5 text-primary/80" />
                                             </div>
                                         )}
                                     </div>
                                 )}
-                                <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-4xl">
-                                    <div className="flex items-center gap-2 mb-0">
-                                        <span className="font-semibold text-sm text-foreground">
-                                            {msg.role === 'user' ? 'You' : 'Rainy Agent'}
+                                <div className="flex flex-col gap-4 flex-1 min-w-0 max-w-4xl">
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-medium text-[13px] text-foreground/90 tracking-tight">
+                                            {msg.role === 'user' ? 'You' : 'Rainy'}
                                         </span>
-                                        <span className="text-[10px] text-muted-foreground/50 font-mono">
-                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        <span className="text-[10px] text-muted-foreground/40 font-medium tabular-nums">
+                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
                                         </span>
                                     </div>
 
-                                    <div className="text-sm text-foreground/90 leading-relaxed font-normal">
+                                    <div className="text-[15px] text-foreground/80 leading-relaxed font-light selection:bg-primary/20">
                                         {/* Show stored thoughts in accordion */}
                                         {msg.thoughts && (
                                             <ThinkingAccordion thoughts={msg.thoughts} compact={compact} />
                                         )}
-                                        {renderMessageContent(msg.content)}
+                                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                                            {renderMessageContent(msg.content)}
+                                        </div>
                                     </div>
 
                                     {/* Render Tool Calls */}
                                     {msg.toolCalls && msg.toolCalls.length > 0 && (
-                                        <ToolExecutionList tools={msg.toolCalls} className="mt-4" compact={compact} />
+                                        <div className="mt-4 pt-4 border-t border-border/20">
+                                            <ToolExecutionList tools={msg.toolCalls} compact={compact} />
+                                        </div>
                                     )}
                                 </div>
                             </div>
                         ))}
 
                         {isLoading && (
-                            <div className={cn("flex gap-6 px-6 py-8 border-b border-border/40 bg-transparent animate-in fade-in duration-300", compact && "gap-3 px-3 py-4")}>
+                            <div className={cn("flex gap-4 sm:gap-6 px-4 py-6 sm:px-8 sm:py-8 group transition-colors animate-in fade-in duration-500", compact && "gap-3 px-4 py-4")}>
                                 {!compact && (
-                                    <div className="shrink-0 mt-0.5">
-                                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-indigo-500/20 flex items-center justify-center ring-1 ring-white/10">
-                                            <Sparkles className="h-4 w-4 text-purple-400 animate-pulse" />
+                                    <div className="shrink-0 mt-0">
+                                        <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)]">
+                                            <Sparkles className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-primary/80 animate-pulse" />
                                         </div>
                                     </div>
                                 )}
-                                <div className="flex flex-col gap-2 flex-1 min-w-0 max-w-4xl">
-                                    <div className="flex items-center gap-2 mb-0">
-                                        <span className="font-semibold text-sm text-foreground">Rainy Agent</span>
+                                <div className="flex flex-col gap-4 flex-1 min-w-0 max-w-4xl">
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-medium text-[13px] text-foreground/90 tracking-tight">Rainy</span>
+                                        <span className="flex items-center gap-1.5 bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
+                                            <Loader2 className="h-2.5 w-2.5 animate-spin text-primary" />
+                                            <span className="text-[9px] font-bold text-primary uppercase tracking-widest hidden sm:inline">Generating</span>
+                                        </span>
                                     </div>
                                     {streamingThoughts && (
                                         <ThinkingAccordion thoughts={streamingThoughts} isStreaming={true} compact={compact} />
                                     )}
                                     {streamingContent ? (
-                                        <div className="text-sm text-foreground/90 leading-relaxed">
+                                        <div className="text-[15px] text-foreground/80 leading-relaxed font-light selection:bg-primary/20 prose prose-sm dark:prose-invert max-w-none">
                                             {renderMessageContent(streamingContent)}
-                                            <span className="inline-block w-1.5 h-4 bg-purple-500 animate-pulse ml-1 align-middle" />
+                                            <span className="inline-block w-1 h-4 bg-primary animate-pulse ml-1 align-middle rounded-full" />
                                         </div>
                                     ) : !streamingThoughts ? (
-                                        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                            <span className="text-xs">Thinking...</span>
+                                        <div className="flex items-center gap-3 py-2">
+                                            <div className="flex gap-1">
+                                                <div className="h-1.5 w-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                                <div className="h-1.5 w-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                                <div className="h-1.5 w-1.5 bg-primary/40 rounded-full animate-bounce"></div>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground/50 font-medium uppercase tracking-widest">Processing</span>
                                         </div>
                                     ) : null}
                                 </div>

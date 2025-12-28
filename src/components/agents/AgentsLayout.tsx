@@ -47,47 +47,47 @@ export function AgentsLayout() {
             {/* Main content area */}
             <main className="flex-1 min-w-0 flex flex-col h-full bg-background/50 backdrop-blur-sm">
                 {/* Unified Header */}
-                <header className="shrink-0 h-14 flex items-center justify-between px-4 border-b border-border z-10">
-                    <div className="flex items-center gap-3 overflow-hidden">
+                <header className="shrink-0 h-14 flex items-center justify-between px-4 sm:px-6 border-b border-border/40 bg-background/30 backdrop-blur-md z-10">
+                    <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                            className="h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground/60 hover:text-foreground hover:bg-muted/10 transition-all shrink-0"
                             onClick={toggleSidebar}
                             aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
                         >
                             {isSidebarOpen ? (
-                                <PanelLeftClose className="h-4 w-4" />
+                                <PanelLeftClose className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                             ) : (
-                                <PanelLeft className="h-4 w-4" />
+                                <PanelLeft className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
                             )}
                         </Button>
 
-                        <div className="h-6 w-px bg-border/60 shrink-0" />
+                        <div className="h-4 w-px bg-border/30 shrink-0" />
 
-                        <div className="flex items-center gap-3 min-w-0">
-                            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-indigo-500/20 flex items-center justify-center border border-purple-500/10 shrink-0">
-                                <Sparkles className="h-4 w-4 text-purple-400" />
+                        <div className="flex items-center gap-2 sm:gap-3.5 min-w-0">
+                            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-primary/5 flex items-center justify-center border border-primary/10 shrink-0 shadow-inner">
+                                <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary/70" />
                             </div>
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                                <span className="text-sm font-semibold text-foreground truncate">
-                                    {activeSession?.name || 'Rainy Agent'}
+                            <div className="flex flex-col gap-0 min-w-0">
+                                <span className="text-[12px] sm:text-[13px] font-medium text-foreground/90 truncate tracking-tight max-w-[120px] sm:max-w-[200px]">
+                                    {activeSession?.name || 'New Session'}
                                 </span>
-                                <div className="flex items-center gap-1.5 hidden sm:flex">
-                                    <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 shrink-0"></span>
-                                    <span className="text-[10px] text-muted-foreground font-mono truncate">
-                                        {AVAILABLE_MODELS.find(m => m.id === activeSession?.model)?.name || 'Gemini Flash 2.0 Lite'}
+                                <div className="flex items-center gap-1.5 opacity-60">
+                                    <span className="flex h-1 w-1 rounded-full bg-emerald-500 shrink-0 animate-pulse"></span>
+                                    <span className="text-[9px] sm:text-[10px] text-muted-foreground/80 font-medium truncate uppercase tracking-widest max-w-[80px] sm:max-w-none">
+                                        {AVAILABLE_MODELS.find(m => m.id === activeSession?.model)?.name || 'Gemini Flash 2.0'}
                                     </span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            className="h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all"
                         >
                             <Settings className="h-4 w-4" />
                         </Button>
