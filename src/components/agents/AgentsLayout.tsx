@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, memo, useMemo } from "react"
-import { PanelLeft, PanelLeftClose, Sparkles, Settings } from "lucide-react"
+import { PanelLeft, PanelLeftClose, Sparkles } from "lucide-react"
 import { AgentsSidebar } from "./AgentsSidebar"
 import { AgentChatWindow } from "./AgentChatWindow"
 import { useAgentStore, agentActions, useActiveSession } from "@/stores/agentStore"
@@ -45,7 +45,7 @@ export function AgentsLayout() {
     }, []);
 
     return (
-        <div className="h-full w-full overflow-hidden bg-background text-foreground flex">
+        <div className="h-full w-full overflow-hidden bg-background/10 backdrop-saturate-150 text-foreground flex">
             {/* Sidebar - uses transform for GPU-accelerated animation */}
             <aside
                 className={cn(
@@ -64,7 +64,7 @@ export function AgentsLayout() {
             {/* Main content area */}
             <main className="flex-1 min-w-0 flex flex-col h-full bg-background/50 backdrop-blur-sm">
                 {/* Unified Header */}
-                <header className="shrink-0 h-14 flex items-center justify-between px-4 sm:px-6 border-b border-border/40 bg-background/30 backdrop-blur-md z-10">
+                <header className="shrink-0 h-14 flex items-center justify-between px-4 sm:px-6 border-b border-primary/10 bg-background/10 backdrop-blur-3xl backdrop-saturate-150 z-10 shadow-sm">
                     <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
                         <Button
                             variant="ghost"
@@ -100,25 +100,16 @@ export function AgentsLayout() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                        {/* Token Usage Indicator - Moved to Header */}
-                        {contextStatus && contextStatus.usedTokens > 0 && (
-                            <div className="hidden sm:block mr-2 animate-in fade-in duration-500">
-                                <MemoizedTokenBar
-                                    usedTokens={contextStatus.usedTokens}
-                                    maxTokens={contextStatus.maxTokens}
-                                    className="bg-muted/30 border border-border/20 shadow-sm"
-                                />
-                            </div>
-                        )}
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 sm:h-9 sm:w-9 text-muted-foreground/50 hover:text-foreground hover:bg-muted/10 transition-all rounded-lg"
-                        >
-                            <Settings className="h-4 w-4" />
-                        </Button>
-                    </div>
+                    {/* Token Usage Indicator - right side */}
+                    {contextStatus && contextStatus.usedTokens > 0 && (
+                        <div className="hidden sm:block animate-in fade-in duration-500">
+                            <MemoizedTokenBar
+                                usedTokens={contextStatus.usedTokens}
+                                maxTokens={contextStatus.maxTokens}
+                                className="bg-muted/30 border border-primary/20 shadow-sm"
+                            />
+                        </div>
+                    )}
                 </header>
 
                 {/* Chat window */}
@@ -126,6 +117,6 @@ export function AgentsLayout() {
                     <MemoizedChatWindow />
                 </div>
             </main>
-        </div>
+        </div >
     )
 }
