@@ -305,10 +305,10 @@ const ChatInputArea = memo(function ChatInputArea({
                                         <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="w-[200px] p-1.5">
+                                <DropdownMenuContent align="start" className="w-[220px] p-1.5 max-h-[120px] overflow-y-auto scrollbar-thin scrollbar-thumb-border/40 scrollbar-track-transparent">
                                     <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-2 py-1.5">Select Model</DropdownMenuLabel>
                                     <DropdownMenuSeparator className="mx-1 opacity-50" />
-                                    {AVAILABLE_MODELS.slice(0, 3).map((model) => (
+                                    {AVAILABLE_MODELS.map((model) => (
                                         <DropdownMenuItem
                                             key={model.id}
                                             onClick={() => handleModelChange(model.id)}
@@ -426,10 +426,12 @@ const ThinkingAccordion = memo(function ThinkingAccordion({ thoughts, isStreamin
             )}>
                 <div className="overflow-hidden">
                     <div className={cn(
-                        "px-4 py-3 text-[13px] text-foreground/70 border-t border-primary/10 bg-background/20 whitespace-pre-wrap leading-relaxed font-light",
+                        "px-4 py-3 text-[13px] text-foreground/70 border-t border-primary/10 bg-background/20 leading-relaxed font-light prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-headings:text-foreground/90",
                         compact && "text-[11px] px-3 py-2"
                     )}>
-                        {thoughts}
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {thoughts}
+                        </ReactMarkdown>
                     </div>
                 </div>
             </div>
@@ -596,7 +598,7 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                     <div className="flex flex-col gap-0 min-h-full">
                         {displayMessages.map((msg) => (
                             <div key={msg.id} className={cn(
-                                "mx-auto w-full max-w-4xl flex gap-4 sm:gap-6 px-4 py-6 sm:px-0 sm:py-8 group transition-colors relative",
+                                "mx-auto w-full max-w-4xl flex gap-4 sm:gap-6 px-4 py-6 sm:px-6 sm:py-8 group transition-colors relative",
                                 compact && "gap-3 px-4 py-4",
                                 msg.role === 'user' ? "bg-transparent" : "bg-transparent" // Removed bg-muted/5 to keep it clean
                             )}>
@@ -613,7 +615,7 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                                         )}
                                     </div>
                                 )}
-                                <div className="flex flex-col gap-4 flex-1 min-w-0 max-w-4xl">
+                                <div className="flex flex-col gap-4 flex-1 min-w-0">
                                     <div className="flex items-center gap-3">
                                         <span className="font-medium text-[13px] text-foreground/90 tracking-tight">
                                             {msg.role === 'user' ? 'You' : 'Rainy'}
@@ -623,14 +625,12 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                                         </span>
                                     </div>
 
-                                    <div className="text-[15px] text-foreground/80 leading-relaxed font-light selection:bg-primary/20">
-                                        {/* Show stored thoughts in accordion */}
-                                        {msg.thoughts && (
-                                            <ThinkingAccordion thoughts={msg.thoughts} compact={compact} />
-                                        )}
-                                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                                            {renderMessageContent(msg.content)}
-                                        </div>
+                                    {/* Show stored thoughts in accordion */}
+                                    {msg.thoughts && (
+                                        <ThinkingAccordion thoughts={msg.thoughts} compact={compact} />
+                                    )}
+                                    <div className="text-[15px] text-foreground/80 leading-relaxed font-light selection:bg-primary/20 prose prose-sm dark:prose-invert max-w-none">
+                                        {renderMessageContent(msg.content)}
                                     </div>
 
                                     {/* Render Tool Calls */}
@@ -640,12 +640,11 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex-1 min-w-0" /> {/* Spacer to force center alignment logic if needed, but max-w-4xl on wrapper is key */}
                             </div>
                         ))}
 
                         {isLoading && (
-                            <div className={cn("mx-auto w-full max-w-4xl flex gap-4 sm:gap-6 px-4 py-6 sm:px-0 sm:py-8 group transition-colors animate-in fade-in duration-500", compact && "gap-3 px-4 py-4")}>
+                            <div className={cn("mx-auto w-full max-w-4xl flex gap-4 sm:gap-6 px-4 py-6 sm:px-6 sm:py-8 group transition-colors animate-in fade-in duration-500", compact && "gap-3 px-4 py-4")}>
                                 {!compact && (
                                     <div className="shrink-0 mt-0">
                                         <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)]">
@@ -653,7 +652,7 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                                         </div>
                                     </div>
                                 )}
-                                <div className="flex flex-col gap-4 flex-1 min-w-0 max-w-4xl">
+                                <div className="flex flex-col gap-4 flex-1 min-w-0">
                                     <div className="flex items-center gap-3">
                                         <span className="font-medium text-[13px] text-foreground/90 tracking-tight">Rainy</span>
                                         <span className="flex items-center gap-1.5 bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
