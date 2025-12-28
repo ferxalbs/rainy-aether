@@ -218,13 +218,13 @@ const ChatInputArea = memo(function ChatInputArea({
     }, [activeSessionId]);
 
     return (
-        <div className={cn("shrink-0 p-3 sm:p-5 bg-background/50 backdrop-blur-sm border-t border-border/20", compact && "p-2.5")}>
+        <div className={cn("shrink-0 p-3 sm:p-5", compact && "p-2.5")}>
             <div className="max-w-4xl mx-auto w-full relative">
                 <div
                     className={cn(
-                        "relative rounded-xl border border-border/40 bg-muted/20 focus-within:bg-muted/30 focus-within:border-primary/30 focus-within:ring-4 focus-within:ring-primary/5 transition-all duration-300 shadow-sm",
+                        "relative rounded-xl bg-background/10 backdrop-blur-3xl border border-primary/20 ring-1 ring-primary/10 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-lg focus-within:shadow-primary/5 transition-all duration-300 shadow-lg shadow-black/20",
                         compact && "rounded-lg",
-                        isDragging ? "border-primary bg-primary/5 border-dashed ring-4 ring-primary/10" : "border-border/40"
+                        isDragging ? "border-primary/50 bg-primary/10 border-dashed ring-2 ring-primary/30" : ""
                     )}
                     onDragEnter={handleDragEnter}
                     onDragOver={handleDragOver}
@@ -233,13 +233,13 @@ const ChatInputArea = memo(function ChatInputArea({
                 >
                     {/* Drag overlay */}
                     {isDragging && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-primary/5 rounded-2xl z-10 pointer-events-none">
-                            <div className="flex items-center gap-3 text-primary font-medium animate-in zoom-in-95 duration-300">
-                                <Image className="h-6 w-6" />
-                                <span className="text-sm uppercase tracking-wider font-bold">
+                        <div className="absolute inset-0 flex items-center justify-center bg-primary/10 backdrop-blur-sm rounded-xl z-10 pointer-events-none border border-primary/30">
+                            <div className="flex items-center gap-3 text-primary font-semibold animate-in zoom-in-95 duration-300">
+                                <Image className="h-6 w-6 animate-pulse" />
+                                <span className="text-sm uppercase tracking-widest">
                                     {draggedImagePaths.length > 0
-                                        ? `Release ${draggedImagePaths.length} image${draggedImagePaths.length > 1 ? 's' : ''}`
-                                        : 'Release image'}
+                                        ? `Drop ${draggedImagePaths.length} image${draggedImagePaths.length > 1 ? 's' : ''}`
+                                        : 'Drop image here'}
                                 </span>
                             </div>
                         </div>
@@ -256,21 +256,21 @@ const ChatInputArea = memo(function ChatInputArea({
 
                     {/* Image Preview Area */}
                     {pendingImages.length > 0 && (
-                        <div className="flex flex-wrap gap-3 p-4 border-b border-border/20 bg-background/20">
+                        <div className="flex flex-wrap gap-3 p-4 border-b border-primary/10">
                             {pendingImages.map((img, index) => (
                                 <div key={index} className="relative group/img animate-in zoom-in-90 duration-300">
-                                    <div className="h-16 w-16 rounded-xl overflow-hidden border border-border/40 shadow-sm group-hover/img:border-primary/30 group-hover/img:shadow-md transition-all">
+                                    <div className="h-16 w-16 rounded-lg overflow-hidden border border-primary/20 shadow-md group-hover/img:border-primary/40 group-hover/img:shadow-lg group-hover/img:shadow-primary/10 transition-all duration-300">
                                         <img
                                             src={`data:${img.mimeType};base64,${img.base64}`}
                                             alt={img.filename || 'Uploaded image'}
-                                            className="h-full w-full object-cover group-hover/img:scale-110 transition-transform duration-500"
+                                            className="h-full w-full object-cover group-hover/img:scale-105 transition-transform duration-300"
                                         />
                                     </div>
                                     <button
                                         onClick={() => removeImage(index)}
-                                        className="absolute -top-2 -right-2 h-6 w-6 bg-background border border-border/50 text-foreground/70 rounded-full flex items-center justify-center opacity-0 group-hover/img:opacity-100 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition-all shadow-sm z-10"
+                                        className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-background/80 backdrop-blur-sm border border-primary/30 text-foreground/70 rounded-full flex items-center justify-center opacity-0 group-hover/img:opacity-100 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive/50 transition-all shadow-md z-10"
                                     >
-                                        <X className="h-3.5 w-3.5" />
+                                        <X className="h-3 w-3" />
                                     </button>
                                 </div>
                             ))}
@@ -283,26 +283,26 @@ const ChatInputArea = memo(function ChatInputArea({
                         onInput={handleInput}
                         placeholder={pendingImages.length > 0 ? "Message..." : (compact ? "Ask anything..." : "How can I help you build?")}
                         className={cn(
-                            "min-h-[44px] max-h-[180px] w-full resize-none border-0 bg-transparent px-3.5 sm:px-5 py-2.5 sm:py-3 text-[13px] sm:text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none placeholder:text-muted-foreground/30 text-foreground/80 leading-relaxed scrollbar-hide font-light",
+                            "min-h-[44px] max-h-[180px] w-full resize-none border-0 bg-transparent px-4 sm:px-5 py-3 sm:py-3.5 text-[13px] sm:text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none placeholder:text-muted-foreground/40 text-foreground/90 leading-relaxed scrollbar-hide",
                             compact && "min-h-[40px] px-3 py-2 text-xs"
                         )}
                         disabled={isLoading}
                     />
 
                     {/* Bottom Actions Bar */}
-                    <div className={cn("flex items-center justify-between px-2 sm:px-3 pb-2 sm:pb-3", compact && "px-2 pb-2")}>
-                        <div className="flex items-center gap-1 sm:gap-1.5 ml-1 flex-wrap">
+                    <div className={cn("flex items-center justify-between px-3 sm:px-4 pb-2.5 sm:pb-3", compact && "px-2 pb-2")}>
+                        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                             {/* Auto / Model Selector */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-muted/50 transition-colors group text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-wider text-left border border-transparent hover:border-border/30">
-                                        <Sparkles className="h-3 w-3 text-primary/70 shrink-0" />
+                                    <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-primary/10 transition-all group text-[11px] font-semibold text-muted-foreground/70 uppercase tracking-wider text-left border border-transparent hover:border-primary/20">
+                                        <Sparkles className="h-3 w-3 text-primary/80 shrink-0" />
                                         {!compact && (
-                                            <span className="truncate max-w-[120px]">
+                                            <span className="truncate max-w-[120px] group-hover:text-foreground/90 transition-colors">
                                                 {activeSessionModel ? (AVAILABLE_MODELS.find(m => m.id === activeSessionModel)?.name || 'Auto') : 'Auto'}
                                             </span>
                                         )}
-                                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+                                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0 group-hover:opacity-80 transition-opacity" />
                                     </button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="start" className="w-[240px] max-h-[260px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/30 scrollbar-track-transparent">
@@ -312,21 +312,21 @@ const ChatInputArea = memo(function ChatInputArea({
                                         <DropdownMenuItem
                                             key={model.id}
                                             onClick={() => handleModelChange(model.id)}
-                                            className="flex items-center justify-between cursor-pointer rounded-sm px-2.5 py-2 text-sm focus:bg-primary/10 focus:text-primary transition-colors"
+                                            className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
                                         >
                                             <span className="font-medium">{model.name}</span>
                                             {activeSessionModel === model.id && (
-                                                <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm" />
+                                                <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50" />
                                             )}
                                         </DropdownMenuItem>
                                     ))}
                                 </DropdownMenuContent>
                             </DropdownMenu>
 
-                            <div className="h-3 w-px bg-border/20 mx-1 hidden sm:block" />
+                            <div className="h-3 w-px bg-primary/10 mx-0.5 hidden sm:block" />
 
                             {/* Web Search Toggle */}
-                            <button className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg hover:bg-blue-500/5 hover:text-blue-500 transition-all group text-[10px] sm:text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
+                            <button className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-lg hover:bg-blue-500/10 hover:text-blue-400 transition-all group text-[10px] sm:text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider border border-transparent hover:border-blue-500/20">
                                 <Globe className="h-3 sm:h-3.5 w-3 sm:w-3.5 text-muted-foreground/40 group-hover:text-blue-400 transition-colors" />
                                 {!compact && <span className="hidden sm:inline">Search</span>}
                             </button>
@@ -335,8 +335,10 @@ const ChatInputArea = memo(function ChatInputArea({
                             <button
                                 onClick={() => fileInputRef.current?.click()}
                                 className={cn(
-                                    "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg transition-all group text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider",
-                                    pendingImages.length > 0 ? "text-primary bg-primary/5" : "text-muted-foreground/60 hover:bg-primary/5 hover:text-primary"
+                                    "flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-lg transition-all group text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider border border-transparent",
+                                    pendingImages.length > 0
+                                        ? "text-primary bg-primary/10 border-primary/20"
+                                        : "text-muted-foreground/60 hover:bg-primary/10 hover:text-primary hover:border-primary/20"
                                 )}
                             >
                                 <Image className={cn("h-3 sm:h-3.5 w-3 sm:w-3.5 transition-colors", pendingImages.length > 0 ? "text-primary" : "text-muted-foreground/40 group-hover:text-primary")} />
@@ -348,10 +350,10 @@ const ChatInputArea = memo(function ChatInputArea({
                             <Button
                                 size="icon"
                                 className={cn(
-                                    "h-9 w-9 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl transition-all duration-500 shadow-md",
+                                    "h-9 w-9 sm:h-10 sm:w-10 rounded-xl transition-all duration-300",
                                     (hasContent || pendingImages.length > 0)
-                                        ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.02] hover:shadow-lg active:scale-95"
-                                        : "bg-muted/40 text-muted-foreground/40 hover:bg-muted/60 opacity-40 cursor-not-allowed",
+                                        ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 active:scale-95"
+                                        : "bg-muted/20 text-muted-foreground/30 hover:bg-muted/30 border border-primary/10 cursor-not-allowed",
                                     compact && "h-8 w-8 rounded-lg"
                                 )}
                                 onClick={handleSendClick}
@@ -360,7 +362,7 @@ const ChatInputArea = memo(function ChatInputArea({
                                 {isLoading ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                    <Send className={cn("h-4.5 w-4.5 transition-transform duration-300", hasContent && "translate-x-0.5 -translate-y-0.5 ring-2 ring-primary/0")} />
+                                    <Send className={cn("h-4 w-4 transition-transform duration-300", (hasContent || pendingImages.length > 0) && "translate-x-0.5 -translate-y-0.5")} />
                                 )}
                             </Button>
                         </div>
@@ -544,8 +546,8 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
         <div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
             {/* Top Bar removed - moved to AgentsLayout */}
 
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-0 scroll-smooth selection:bg-primary/10" ref={scrollRef}>
+            {/* Messages Area - padding bottom for floating input */}
+            <div className="flex-1 overflow-y-auto p-0 pb-32 scroll-smooth selection:bg-primary/10" ref={scrollRef}>
                 {!hasUserMessages ? (
                     <div className={cn("h-full flex flex-col items-center justify-center p-6 sm:p-8", compact && "p-4")}>
                         <div className={cn("flex flex-col items-center gap-5 sm:gap-6 max-w-2xl text-center animate-in fade-in zoom-in-95 self-center duration-700", compact && "gap-4")}>
@@ -686,16 +688,16 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                 )}
             </div>
 
-
-
-            {/* Input Area - ISOLATED COMPONENT FOR PERFORMANCE */}
-            <ChatInputArea
-                compact={compact}
-                isLoading={isLoading}
-                onSend={handleSend}
-                activeSessionId={activeSession?.id}
-                activeSessionModel={activeSession?.model}
-            />
+            {/* Floating Input Area - ISOLATED COMPONENT FOR PERFORMANCE */}
+            <div className="absolute bottom-0 left-0 right-0 z-10">
+                <ChatInputArea
+                    compact={compact}
+                    isLoading={isLoading}
+                    onSend={handleSend}
+                    activeSessionId={activeSession?.id}
+                    activeSessionModel={activeSession?.model}
+                />
+            </div>
         </div >
     )
 }
