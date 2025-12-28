@@ -226,7 +226,7 @@ export class AutocompletionService {
                 config: {
                     temperature: 0.2, // Low temperature for deterministic completions
                     maxOutputTokens: this.config.maxTokens,
-                    stopSequences: ['\n\n\n', '```', '<|fim_end|>'],
+                    stopSequences: ['\n\n\n', '```', '<|fim_end|>', '<|fim_prefix|>', '<|fim_suffix|>', '<|fim_middle|>', '<|file_separator|>', '<|end|>'],
                 },
             });
 
@@ -236,7 +236,15 @@ export class AutocompletionService {
             }
 
             // Extract completion text
-            const completionText = response.text?.trim() || '';
+            let completionText = response.text?.trim() || '';
+
+            // Strip any FIM/control tokens that might have leaked
+            const tokensToStrip = ['<|fim_prefix|>', '<|fim_suffix|>', '<|fim_middle|>', '<|fim_end|>', '<|file_separator|>', '<|end|>'];
+            for (const token of tokensToStrip) {
+                completionText = completionText.replace(new RegExp(token.replace(/[|]/g, '\\|'), 'g'), '');
+            }
+            completionText = completionText.trim();
+
             if (!completionText) {
                 return null;
             }
