@@ -109,7 +109,8 @@ export class AutocompletionService {
         }
 
         try {
-            const apiKey = await loadCredential('gemini');
+            // Use the same provider ID as AgentService: 'gemini_api_key'
+            const apiKey = await loadCredential('gemini_api_key');
             if (!apiKey) {
                 console.warn('[AutocompletionService] No Gemini API key configured');
                 return false;
@@ -180,12 +181,14 @@ export class AutocompletionService {
         // Check minimum prefix length
         const trimmedPrefix = context.prefix.trim();
         if (trimmedPrefix.length < this.config.minPrefixLength) {
+            console.debug('[AutocompletionService] Prefix too short:', trimmedPrefix.length, '< min', this.config.minPrefixLength);
             return null;
         }
 
         // Rate limiting
         const now = Date.now();
         if (now - this.lastRequestTime < MIN_REQUEST_INTERVAL_MS) {
+            console.debug('[AutocompletionService] Rate limited');
             return null;
         }
 

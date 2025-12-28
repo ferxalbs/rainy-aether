@@ -24,22 +24,28 @@ export class AutocompletionProvider implements monaco.languages.InlineCompletion
         _context: monaco.languages.InlineCompletionContext,
         token: monaco.CancellationToken
     ): Promise<monaco.languages.InlineCompletions> {
+        console.debug('[AutocompletionProvider] provideInlineCompletions called at L' + position.lineNumber + ':C' + position.column);
+
         // Check if autocompletion is enabled
         const state = getAutocompletionState();
         if (!state.enabled) {
+            console.debug('[AutocompletionProvider] Disabled in state, skipping');
             return { items: [] };
         }
 
         // Check cancellation
         if (token.isCancellationRequested) {
+            console.debug('[AutocompletionProvider] Request cancelled');
             return { items: [] };
         }
 
         // Get the service
         const service = getAutocompletionService();
         if (!service.isReady()) {
+            console.debug('[AutocompletionProvider] Service not ready, attempting init...');
             await service.initialize();
             if (!service.isReady()) {
+                console.debug('[AutocompletionProvider] Service still not ready (no API key?)');
                 return { items: [] };
             }
         }
@@ -47,8 +53,11 @@ export class AutocompletionProvider implements monaco.languages.InlineCompletion
         // Build context from model
         const autocompletionContext = this.buildContext(model, position);
         if (!autocompletionContext) {
+            console.debug('[AutocompletionProvider] Failed to build context');
             return { items: [] };
         }
+
+        console.debug('[AutocompletionProvider] Requesting AI completion for', autocompletionContext.language);
 
         // Set loading state
         autocompletionActions.setLoading(true);

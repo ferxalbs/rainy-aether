@@ -194,11 +194,16 @@ export function configureMonaco() {
       // Initialize store from persisted settings
       autocompletionActions.initialize();
 
-      // Initialize service and register provider
+      // Always register the provider (it will lazy-init when needed)
+      registerAutocompletionProvider();
+      console.info('[Monaco] AI autocompletion provider registered');
+
+      // Pre-initialize service in background (non-blocking)
       initializeAutocompletionService().then((initialized) => {
         if (initialized) {
-          registerAutocompletionProvider();
-          console.info('[Monaco] AI autocompletion provider registered');
+          console.info('[Monaco] AI autocompletion service initialized');
+        } else {
+          console.warn('[Monaco] AI autocompletion service not initialized (API key may be missing)');
         }
       });
     }).catch((error) => {
