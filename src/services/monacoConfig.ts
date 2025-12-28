@@ -181,6 +181,33 @@ export function configureMonaco() {
     console.warn('[Monaco] LSP registration skipped:', error);
   }
 
+  // Register AI autocompletion provider
+  try {
+    // Use dynamic import with .then() since we're not in an async function
+    Promise.all([
+      import('./autocompletion'),
+      import('@/stores/autocompletionStore'),
+    ]).then(([autocompletionModule, storeModule]) => {
+      const { registerAutocompletionProvider, initializeAutocompletionService } = autocompletionModule;
+      const { autocompletionActions } = storeModule;
+
+      // Initialize store from persisted settings
+      autocompletionActions.initialize();
+
+      // Initialize service and register provider
+      initializeAutocompletionService().then((initialized) => {
+        if (initialized) {
+          registerAutocompletionProvider();
+          console.info('[Monaco] AI autocompletion provider registered');
+        }
+      });
+    }).catch((error) => {
+      console.warn('[Monaco] AI autocompletion registration skipped:', error);
+    });
+  } catch (error) {
+    console.warn('[Monaco] AI autocompletion registration skipped:', error);
+  }
+
   isConfigured = true;
   console.info('[Monaco] Language services configured with LSP support');
 }

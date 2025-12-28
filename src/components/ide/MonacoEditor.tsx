@@ -390,6 +390,14 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
         autoFindInSelection: 'multiline',
         seedSearchStringFromSelection: 'selection',
       },
+
+      // AI Inline Suggestions (ghost text)
+      inlineSuggest: {
+        enabled: true,
+        mode: 'prefix',
+        showToolbar: 'onHover',
+        suppressSuggestions: false,
+      },
     });
 
     editorRef.current = editor;
