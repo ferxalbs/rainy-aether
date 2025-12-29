@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState, memo } from "react";
-import { useIDEStore, FileNode } from "../../stores/ideStore";
+import { useIDEStore, useIDEState, FileNode } from "../../stores/ideStore";
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, FilePlus, FolderPlus } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,8 @@ interface FileNodeProps {
   setSelectedPath: (path: string) => void;
   onStartRename: (node: FileNode) => void;
   onContextMenuOpen: (event: React.MouseEvent | KeyboardEvent, node: FileNode) => void;
+  expandedPaths: Set<string>;
+  toggleExpanded: (path: string) => void;
 }
 
 /**
@@ -65,19 +67,22 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
   setSelectedPath,
   onStartRename,
   onContextMenuOpen,
+  expandedPaths,
+  toggleExpanded,
 }) => {
   const { actions } = useIDEStore();
-  const [isOpen, setIsOpen] = useState(false);
   const activeTheme = useActiveIconTheme();
+
+  // Use stable shared state for expansion instead of local state
+  const isOpen = node.is_directory && expandedPaths.has(node.path);
 
   const handleToggle = useCallback(async () => {
     setSelectedPath(node.path);
     if (node.is_directory) {
       const willOpen = !isOpen;
-      setIsOpen(willOpen);
+      toggleExpanded(node.path);
 
       // Lazy load children if opening and not loaded yet
-      // Check both children_loaded flag AND if children array is empty/undefined
       if (willOpen && !node.children_loaded && (!node.children || node.children.length === 0)) {
         try {
           await actions.loadDirectoryChildren(node.path);
@@ -88,7 +93,7 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
     } else {
       actions.openFile(node);
     }
-  }, [actions, node.path, node.is_directory, node.children_loaded, node.children, setSelectedPath, isOpen]);
+  }, [actions, node.path, node.is_directory, node.children_loaded, node.children, setSelectedPath, isOpen, toggleExpanded]);
 
   // Get icon from theme - memoized with proper dependencies
   const icon = useMemo(() => {
@@ -175,6 +180,8 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
               setSelectedPath={setSelectedPath}
               onStartRename={onStartRename}
               onContextMenuOpen={onContextMenuOpen}
+              expandedPaths={expandedPaths}
+              toggleExpanded={toggleExpanded}
             />
           ))}
         </div>
@@ -184,21 +191,30 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
 };
 
 // Memoize FileNodeComponent to prevent unnecessary re-renders of tree nodes
+// IMPORTANT: Compare node reference, not just properties, because children array is populated in place
 const FileNodeComponent = memo(FileNodeComponentInternal, (prevProps, nextProps) => {
+  // If node reference changed, we need to re-render (children may have been loaded)
+  if (prevProps.node !== nextProps.node) {
+    return false;
+  }
+
+  // Check if this node's expanded state changed
+  const prevExpanded = prevProps.node.is_directory && prevProps.expandedPaths.has(prevProps.node.path);
+  const nextExpanded = nextProps.node.is_directory && nextProps.expandedPaths.has(nextProps.node.path);
+  if (prevExpanded !== nextExpanded) {
+    return false;
+  }
+
   return (
-    prevProps.node.path === nextProps.node.path &&
-    prevProps.node.name === nextProps.node.name &&
-    prevProps.node.is_directory === nextProps.node.is_directory &&
-    prevProps.node.children_loaded === nextProps.node.children_loaded &&
     prevProps.selectedPath === nextProps.selectedPath &&
-    prevProps.level === nextProps.level &&
-    prevProps.node.children?.length === nextProps.node.children?.length
+    prevProps.level === nextProps.level
   );
 });
 
 const ProjectExplorerInternal: React.FC = () => {
-  const { state, actions } = useIDEStore();
-  const snapshot = state();
+  // Use useIDEState() instead of state() to properly subscribe to state changes
+  const snapshot = useIDEState();
+  const { actions } = useIDEStore();
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuX, setMenuX] = useState(0);
@@ -210,6 +226,21 @@ const ProjectExplorerInternal: React.FC = () => {
   const [fileDialogNode, setFileDialogNode] = useState<FileNode | null>(null);
   const [fileDialogParentPath, setFileDialogParentPath] = useState<string>("");
   const [fileDialogIsDirectory, setFileDialogIsDirectory] = useState(false);
+
+  // Stable expanded paths state that persists across tree re-renders
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = useCallback((path: string) => {
+    setExpandedPaths(prev => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
 
   const handleContextMenuOpen = useCallback(
     (event: React.MouseEvent | KeyboardEvent, node: FileNode) => {
@@ -333,6 +364,8 @@ const ProjectExplorerInternal: React.FC = () => {
                       setFileDialogOpen(true);
                     }}
                     onContextMenuOpen={handleContextMenuOpen}
+                    expandedPaths={expandedPaths}
+                    toggleExpanded={toggleExpanded}
                   />
                 ))}
               </div>

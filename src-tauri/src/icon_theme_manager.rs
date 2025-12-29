@@ -81,10 +81,12 @@ pub struct IconThemeManifest {
     /// Root folder name to icon ID mapping (expanded)
     #[serde(default)]
     pub root_folder_names_expanded: HashMap<String, String>,
-    /// Light theme variant
+    /// Light theme variant (parsed but not yet used)
+    #[allow(dead_code)]
     #[serde(default)]
     pub light: Option<Box<IconThemeManifest>>,
-    /// High contrast theme variant
+    /// High contrast theme variant (parsed but not yet used)
+    #[allow(dead_code)]
     #[serde(default)]
     pub high_contrast: Option<Box<IconThemeManifest>>,
 }
