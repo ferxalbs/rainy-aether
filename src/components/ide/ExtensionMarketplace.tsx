@@ -21,7 +21,7 @@ const ExtensionMarketplace: React.FC<ExtensionMarketplaceProps> = ({ isOpen, onC
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  const { searchExtensions, clearSearchResults } = useMarketplaceSearch();
+  const { searchExtensions } = useMarketplaceSearch();
   const { installExtension, isInstalling, installingExtension } = useExtensionInstallation();
   const { installedExtensions } = useExtensionStore();
 
@@ -31,6 +31,14 @@ const ExtensionMarketplace: React.FC<ExtensionMarketplaceProps> = ({ isOpen, onC
     error: searchError
   } = useMarketplaceSearch();
 
+  // Load popular extensions when marketplace opens
+  useEffect(() => {
+    if (isOpen && !searchQuery.trim()) {
+      // Search for popular extensions by default (empty query returns popular)
+      searchExtensions('', selectedCategory === 'all' ? undefined : selectedCategory);
+    }
+  }, [isOpen, searchExtensions, selectedCategory]);
+
   // Search when query changes
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -39,10 +47,11 @@ const ExtensionMarketplace: React.FC<ExtensionMarketplaceProps> = ({ isOpen, onC
       }, 300);
 
       return () => clearTimeout(timeoutId);
-    } else {
-      clearSearchResults();
+    } else if (isOpen) {
+      // When search is cleared, reload popular extensions
+      searchExtensions('', selectedCategory === 'all' ? undefined : selectedCategory);
     }
-  }, [searchQuery, selectedCategory, searchExtensions, clearSearchResults]);
+  }, [searchQuery, selectedCategory, searchExtensions, isOpen]);
 
   const handleInstall = async (extension: OpenVSXExtension) => {
     try {
@@ -98,7 +107,7 @@ const ExtensionMarketplace: React.FC<ExtensionMarketplaceProps> = ({ isOpen, onC
               />
             </div>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-56 h-12 font-medium bg-muted/50 dark:bg-background/20 border border-border dark:border-border/40">
+              <SelectTrigger className="w-72 h-12 font-medium bg-muted/50 dark:bg-background/20 border border-border dark:border-border/40">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
