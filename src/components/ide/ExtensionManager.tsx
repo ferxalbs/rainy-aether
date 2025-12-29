@@ -181,17 +181,17 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-      <div className="bg-background border border-border rounded-lg shadow-xl w-4/5 h-4/5 max-w-6xl flex flex-col">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="bg-background/90 dark:bg-background/10 backdrop-blur-3xl backdrop-saturate-150 border-2 dark:border border-border dark:border-border/50 rounded-2xl shadow-2xl w-[90%] h-[88%] max-w-7xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-border">
+        <div className="p-5 border-b border-border dark:border-border/30">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Extension Manager</h2>
+            <h2 className="text-xl font-semibold">Extension Manager</h2>
             <div className="flex items-center gap-2">
               {installedExtensions.some(ext => ext.state === 'error' || ext.state === 'installing') && (
                 <button
                   onClick={handleCleanupAll}
-                  className="px-3 py-1.5 text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 rounded transition-colors"
+                  className="px-3 py-1.5 text-xs bg-destructive/10 backdrop-blur-md text-destructive hover:bg-destructive/20 rounded-lg transition-all duration-200 hover:scale-105 border border-destructive/20"
                   title="Remove all extensions in error/stuck state"
                 >
                   Clean Up All
@@ -200,8 +200,8 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
               <button
                 onClick={() => setShowConfigPanel(!showConfigPanel)}
                 className={cn(
-                  "p-1.5 rounded transition-colors",
-                  showConfigPanel ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+                  "p-2 rounded-lg transition-all duration-200",
+                  showConfigPanel ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "hover:bg-background/20 hover:backdrop-blur-lg hover:scale-105"
                 )}
                 title="Extension Configuration"
               >
@@ -209,14 +209,15 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
               </button>
               <button
                 onClick={handleRefresh}
-                className="p-1.5 hover:bg-muted rounded transition-colors"
+                className="p-2 hover:bg-background/20 hover:backdrop-blur-lg rounded-lg transition-all duration-200 hover:scale-105"
                 title="Refresh"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
               <button
                 onClick={onClose}
-                className="p-1.5 hover:bg-muted rounded transition-colors"
+                className="p-2 hover:bg-background/20 hover:backdrop-blur-lg rounded-lg transition-all duration-200 hover:scale-105"
+                aria-label="Close"
               >
                 ✕
               </button>
@@ -225,7 +226,7 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
 
           {/* Quick Config Panel */}
           {showConfigPanel && (
-            <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border space-y-2">
+            <div className="mt-4 p-4 bg-background/8 backdrop-blur-lg backdrop-saturate-150 rounded-xl border border-border/30 space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-primary" />
@@ -234,10 +235,10 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
                 <button
                   onClick={handleToggleStartupMode}
                   className={cn(
-                    "px-3 py-1 text-xs rounded transition-colors",
+                    "px-3 py-1.5 text-xs rounded-lg transition-all duration-200 hover:scale-105 font-medium",
                     extensionConfig.startupActivationMode === 'auto'
-                      ? "bg-green-500/10 text-green-500 border border-green-500/20"
-                      : "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+                      ? "bg-green-500/10 text-green-500 border border-green-500/20 hover:bg-green-500/15"
+                      : "bg-orange-500/10 text-orange-500 border border-orange-500/20 hover:bg-orange-500/15"
                   )}
                 >
                   {extensionConfig.startupActivationMode === 'auto' ? 'Automatic' : 'Manual'}
@@ -249,7 +250,7 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
                   <Shield className="w-4 h-4 text-primary" />
                   <span className="font-medium">Security Level</span>
                 </div>
-                <span className="px-3 py-1 text-xs bg-background rounded capitalize">
+                <span className="px-3 py-1.5 text-xs bg-background/20 backdrop-blur-md rounded-lg capitalize border border-border/20">
                   {extensionConfig.securityLevel}
                 </span>
               </div>
@@ -259,13 +260,13 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
                   <Clock className="w-4 h-4 text-primary" />
                   <span className="font-medium">Loading Strategy</span>
                 </div>
-                <span className="px-3 py-1 text-xs bg-background rounded capitalize">
+                <span className="px-3 py-1.5 text-xs bg-background/20 backdrop-blur-md rounded-lg capitalize border border-border/20">
                   {extensionConfig.loadingStrategy}
                 </span>
               </div>
 
               {extensionConfig.startupActivationMode === 'manual' && (
-                <div className="pt-2 border-t border-border">
+                <div className="pt-2 border-t border-border/30">
                   <div className="flex items-start gap-2 text-xs text-muted-foreground">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <p>
@@ -277,8 +278,8 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
               )}
 
               {startupModeError && (
-                <div className="pt-2 border-t border-border">
-                  <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 p-2 rounded">
+                <div className="pt-2 border-t border-border/30">
+                  <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/10 backdrop-blur-md p-2.5 rounded-lg border border-destructive/20">
                     <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     <p>{startupModeError}</p>
                   </div>
@@ -315,15 +316,15 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
         </div>
 
         {/* Filters */}
-        <div className="p-4 border-b border-border">
+        <div className="p-5 border-b border-border dark:border-border/30">
           <div className="flex gap-2">
             <button
               onClick={() => setFilter('all')}
               className={cn(
-                "px-3 py-1 text-sm rounded transition-colors",
+                "px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200",
                 filter === 'all'
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  : "bg-background/10 backdrop-blur-md text-muted-foreground hover:bg-background/20 hover:text-foreground border border-border/30"
               )}
             >
               All ({installedExtensions.length})
@@ -331,10 +332,10 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
             <button
               onClick={() => setFilter('enabled')}
               className={cn(
-                "px-3 py-1 text-sm rounded transition-colors",
+                "px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200",
                 filter === 'enabled'
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  : "bg-background/10 backdrop-blur-md text-muted-foreground hover:bg-background/20 hover:text-foreground border border-border/30"
               )}
             >
               Enabled ({installedExtensions.filter(ext => ext.enabled).length})
@@ -342,10 +343,10 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
             <button
               onClick={() => setFilter('disabled')}
               className={cn(
-                "px-3 py-1 text-sm rounded transition-colors",
+                "px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200",
                 filter === 'disabled'
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
+                  : "bg-background/10 backdrop-blur-md text-muted-foreground hover:bg-background/20 hover:text-foreground border border-border/30"
               )}
             >
               Disabled ({installedExtensions.filter(ext => !ext.enabled).length})
@@ -354,7 +355,7 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
         </div>
 
         {/* Extension List */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto py-2">
           {filteredExtensions.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               <div className="text-center">
@@ -364,7 +365,7 @@ const ExtensionManagerComponent: React.FC<ExtensionManagerProps> = ({ isOpen, on
               </div>
             </div>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="space-y-0">
               {filteredExtensions.map((extension) => (
                 <ExtensionItem
                   key={extension.id}
@@ -421,41 +422,41 @@ const ExtensionItemComponent: React.FC<ExtensionItemProps> = ({
 
   return (
     <div className={cn(
-      "p-4 hover:bg-muted/50 transition-colors",
-      isStuckOrError && "border-l-2 border-l-destructive"
+      "p-5 bg-background/5 backdrop-blur-lg backdrop-saturate-150 hover:bg-background/10 transition-all duration-300 group hover:shadow-lg hover:shadow-primary/5 mx-4 my-2 rounded-xl border-2 dark:border border-border dark:border-border/20 hover:border-border dark:hover:border-border/40",
+      isStuckOrError && "border-l-4 border-l-destructive"
     )}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="shrink-0">
             {statusIcon}
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-medium text-sm truncate">{extension.displayName}</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-base truncate group-hover:text-primary transition-colors">{extension.displayName}</h3>
               {isStuckOrError && (
-                <span className="px-1.5 py-0.5 text-xs bg-destructive/10 text-destructive rounded">
+                <span className="px-2 py-0.5 text-xs bg-destructive/10 backdrop-blur-md text-destructive rounded-md border border-destructive/20">
                   Action Required
                 </span>
               )}
               {health && health.healthScore < 100 && !isStuckOrError && (
-                <div className="flex items-center gap-1" title={`Health Score: ${health.healthScore}%`}>
-                  <div className={cn("w-1.5 h-1.5 rounded-full", getHealthColor())}></div>
-                  <span className="text-xs text-muted-foreground">{health.healthScore}%</span>
+                <div className="flex items-center gap-1.5" title={`Health Score: ${health.healthScore}%`}>
+                  <div className={cn("w-2 h-2 rounded-full", getHealthColor())}></div>
+                  <span className="text-xs text-muted-foreground font-medium">{health.healthScore}%</span>
                 </div>
               )}
             </div>
             <p className="text-xs text-muted-foreground truncate">
               {extension.publisher} • v{extension.version}
             </p>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate mt-0.5">
               {extension.description}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground px-2 py-1 bg-muted rounded">
+        <div className="flex items-center gap-3 ml-4">
+          <span className="text-xs text-muted-foreground px-3 py-1.5 bg-background/20 backdrop-blur-md rounded-lg border border-border/20 font-medium">
             {statusText}
           </span>
 
@@ -463,11 +464,11 @@ const ExtensionItemComponent: React.FC<ExtensionItemProps> = ({
             onClick={onToggle}
             disabled={!canToggle}
             className={cn(
-              "p-1 rounded transition-colors",
+              "p-2 rounded-lg transition-all duration-200",
               canToggle
                 ? extension.enabled
-                  ? "hover:bg-destructive/10 text-destructive"
-                  : "hover:bg-green-500/10 text-green-500"
+                  ? "hover:bg-destructive/10 text-destructive hover:scale-110 active:scale-95"
+                  : "hover:bg-green-500/10 text-green-500 hover:scale-110 active:scale-95"
                 : "opacity-50 cursor-not-allowed"
             )}
             title={extension.enabled ? "Disable extension" : "Enable extension"}
@@ -479,9 +480,9 @@ const ExtensionItemComponent: React.FC<ExtensionItemProps> = ({
             onClick={onUninstall}
             disabled={!canUninstall}
             className={cn(
-              "p-1 rounded transition-colors",
+              "p-2 rounded-lg transition-all duration-200",
               canUninstall
-                ? "hover:bg-destructive/10 text-destructive"
+                ? "hover:bg-destructive/10 text-destructive hover:scale-110 active:scale-95"
                 : "opacity-50 cursor-not-allowed"
             )}
             title="Uninstall extension"
@@ -492,14 +493,14 @@ const ExtensionItemComponent: React.FC<ExtensionItemProps> = ({
       </div>
 
       {extension.error && (
-        <div className="mt-2 p-2 bg-destructive/10 border border-destructive/20 rounded text-xs text-destructive">
+        <div className="mt-3 p-3 bg-destructive/10 backdrop-blur-md border border-destructive/20 rounded-lg text-xs text-destructive">
           {extension.error}
         </div>
       )}
 
       {extension.dependencies && extension.dependencies.length > 0 && (
-        <div className="mt-2 text-xs text-muted-foreground">
-          Dependencies: {extension.dependencies.join(', ')}
+        <div className="mt-3 p-2.5 bg-background/10 backdrop-blur-md border border-border/20 rounded-lg text-xs text-muted-foreground">
+          <span className="font-medium">Dependencies:</span> {extension.dependencies.join(', ')}
         </div>
       )}
     </div>
