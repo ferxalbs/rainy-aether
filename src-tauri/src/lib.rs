@@ -8,6 +8,7 @@ mod file_operations;
 mod font_manager;
 mod git; // Modular native Git implementation
 mod help_manager;
+mod icon_theme_manager; // High-performance icon theme management
 mod language_server_manager;
 #[cfg(target_os = "macos")]
 mod menu_manager; // Native macOS menu support
@@ -65,6 +66,7 @@ pub fn run() {
         .manage(language_server_manager::LanguageServerManager::new())
         .manage(agent_server_manager::AgentServerState::default())
         .manage(browser_manager::BrowserManagerState::new())
+        .manage(icon_theme_manager::IconThemeManagerState::new())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -410,6 +412,15 @@ pub fn run() {
         browser_manager::browser_set_title,
         browser_manager::browser_set_loading,
         browser_manager::browser_set_status,
+        // Icon theme management (high-performance Rust-based)
+        icon_theme_manager::load_icon_theme,
+        icon_theme_manager::set_active_icon_theme,
+        icon_theme_manager::get_active_icon_theme,
+        icon_theme_manager::get_file_icon,
+        icon_theme_manager::get_folder_icon,
+        icon_theme_manager::get_icons_batch,
+        icon_theme_manager::unregister_icon_theme,
+        icon_theme_manager::get_loaded_icon_themes,
     ]);
 
     if let Err(error) = builder.run(tauri::generate_context!()) {

@@ -98,6 +98,20 @@ const setState = (newState: IconThemeState) => {
   listeners.forEach((listener) => listener());
 };
 
+// Icon lookup cache for O(1) repeated lookups
+// Key format: "file:{themeId}:{fileName}" or "folder:{themeId}:{folderName}:{isExpanded}:{isRoot}"
+const iconCache = new Map<string, IconDefinition | null>();
+const MAX_CACHE_SIZE = 2000;
+
+// Clear cache when it gets too large (LRU-like behavior without tracking order)
+const maintainCacheSize = () => {
+  if (iconCache.size > MAX_CACHE_SIZE) {
+    // Clear half the cache when limit is reached
+    const keysToDelete = Array.from(iconCache.keys()).slice(0, MAX_CACHE_SIZE / 2);
+    keysToDelete.forEach(key => iconCache.delete(key));
+  }
+};
+
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => listeners.delete(listener);
@@ -107,82 +121,81 @@ const getSnapshot = () => state;
 
 /**
  * Get icon for a file based on the active theme
+ * Uses caching for O(1) repeated lookups
  */
 export const getFileIcon = (fileName: string, languageId?: string): IconDefinition | null => {
   const activeTheme = state.activeThemeId ? state.themes.get(state.activeThemeId) : null;
   if (!activeTheme) {
-    console.log('[IconTheme] No active theme');
     return null;
   }
 
-  console.log(`[IconTheme] Looking up icon for file: "${fileName}"`);
-  console.log(`[IconTheme] Active theme: ${state.activeThemeId}`);
-  console.log(`[IconTheme] Available fileExtensions:`, Object.keys(activeTheme.fileExtensions || {}).slice(0, 20));
-  console.log(`[IconTheme] Available fileNames:`, Object.keys(activeTheme.fileNames || {}).slice(0, 20));
+  // Check cache first
+  const cacheKey = `file:${state.activeThemeId}:${fileName.toLowerCase()}:${languageId || ''}`;
+  if (iconCache.has(cacheKey)) {
+    return iconCache.get(cacheKey)!;
+  }
 
   const { iconDefinitions } = activeTheme;
   let iconId: string | undefined;
+  let result: IconDefinition | null = null;
 
   // 1. Check exact file name match
   if (activeTheme.fileNames) {
     iconId = activeTheme.fileNames[fileName.toLowerCase()];
     if (iconId && iconDefinitions[iconId]) {
-      console.log(`[IconTheme] ✅ Found icon for file "${fileName}" via fileNames: ${iconId}`);
-      return iconDefinitions[iconId];
+      result = iconDefinitions[iconId];
     }
   }
 
-  // 2. Check file extension match (can match multiple for files like lib.d.ts)
-  if (activeTheme.fileExtensions) {
+  // 2. Check file extension match (multi-part extensions first)
+  if (!result && activeTheme.fileExtensions) {
     const parts = fileName.toLowerCase().split('.');
-    console.log(`[IconTheme] File parts:`, parts);
-
-    // Try multi-part extensions first (e.g., 'd.ts' before 'ts')
-    for (let i = 1; i < parts.length; i++) {
+    for (let i = 1; i < parts.length && !result; i++) {
       const ext = parts.slice(i).join('.');
-      console.log(`[IconTheme] Trying extension: "${ext}"`);
       iconId = activeTheme.fileExtensions[ext];
-      if (iconId) {
-        console.log(`[IconTheme] Found iconId: ${iconId}, checking if definition exists...`);
-        if (iconDefinitions[iconId]) {
-          console.log(`[IconTheme] ✅ Found icon for file "${fileName}" via extension ".${ext}": ${iconId}`);
-          return iconDefinitions[iconId];
-        } else {
-          console.warn(`[IconTheme] IconId ${iconId} not found in iconDefinitions!`);
-        }
+      if (iconId && iconDefinitions[iconId]) {
+        result = iconDefinitions[iconId];
       }
     }
   }
 
   // 3. Check language ID match
-  if (languageId && activeTheme.languageIds) {
+  if (!result && languageId && activeTheme.languageIds) {
     iconId = activeTheme.languageIds[languageId];
     if (iconId && iconDefinitions[iconId]) {
-      console.log(`[IconTheme] ✅ Found icon for file "${fileName}" via languageId "${languageId}": ${iconId}`);
-      return iconDefinitions[iconId];
+      result = iconDefinitions[iconId];
     }
   }
 
   // 4. Fall back to default file icon
-  if (activeTheme.file && iconDefinitions[activeTheme.file]) {
-    console.log(`[IconTheme] ⚠️ Using default file icon for "${fileName}": ${activeTheme.file}`);
-    return iconDefinitions[activeTheme.file];
+  if (!result && activeTheme.file && iconDefinitions[activeTheme.file]) {
+    result = iconDefinitions[activeTheme.file];
   }
 
-  console.error(`[IconTheme] ❌ No icon found for file "${fileName}"`);
-  console.log(`[IconTheme] Total icon definitions loaded: ${Object.keys(iconDefinitions).length}`);
-  return null;
+  // Cache the result
+  maintainCacheSize();
+  iconCache.set(cacheKey, result);
+
+  return result;
 };
 
 /**
  * Get icon for a folder based on the active theme
+ * Uses caching for O(1) repeated lookups
  */
 export const getFolderIcon = (folderName: string, isExpanded: boolean, isRoot: boolean = false): IconDefinition | null => {
   const activeTheme = state.activeThemeId ? state.themes.get(state.activeThemeId) : null;
   if (!activeTheme) return null;
 
+  // Check cache first
+  const cacheKey = `folder:${state.activeThemeId}:${folderName.toLowerCase()}:${isExpanded}:${isRoot}`;
+  if (iconCache.has(cacheKey)) {
+    return iconCache.get(cacheKey)!;
+  }
+
   const { iconDefinitions } = activeTheme;
   let iconId: string | undefined;
+  let result: IconDefinition | null = null;
 
   // 1. Check root folder name match (if this is a root folder)
   if (isRoot) {
@@ -190,33 +203,43 @@ export const getFolderIcon = (folderName: string, isExpanded: boolean, isRoot: b
     if (rootFolderMap) {
       iconId = rootFolderMap[folderName.toLowerCase()];
       if (iconId && iconDefinitions[iconId]) {
-        return iconDefinitions[iconId];
+        result = iconDefinitions[iconId];
       }
     }
 
     // Fall back to root folder default
-    iconId = isExpanded ? activeTheme.rootFolderExpanded : activeTheme.rootFolder;
-    if (iconId && iconDefinitions[iconId]) {
-      return iconDefinitions[iconId];
+    if (!result) {
+      iconId = isExpanded ? activeTheme.rootFolderExpanded : activeTheme.rootFolder;
+      if (iconId && iconDefinitions[iconId]) {
+        result = iconDefinitions[iconId];
+      }
     }
   }
 
   // 2. Check regular folder name match
-  const folderMap = isExpanded ? activeTheme.folderNamesExpanded : activeTheme.folderNames;
-  if (folderMap) {
-    iconId = folderMap[folderName.toLowerCase()];
-    if (iconId && iconDefinitions[iconId]) {
-      return iconDefinitions[iconId];
+  if (!result) {
+    const folderMap = isExpanded ? activeTheme.folderNamesExpanded : activeTheme.folderNames;
+    if (folderMap) {
+      iconId = folderMap[folderName.toLowerCase()];
+      if (iconId && iconDefinitions[iconId]) {
+        result = iconDefinitions[iconId];
+      }
     }
   }
 
   // 3. Fall back to default folder icon
-  iconId = isExpanded ? activeTheme.folderExpanded : activeTheme.folder;
-  if (iconId && iconDefinitions[iconId]) {
-    return iconDefinitions[iconId];
+  if (!result) {
+    iconId = isExpanded ? activeTheme.folderExpanded : activeTheme.folder;
+    if (iconId && iconDefinitions[iconId]) {
+      result = iconDefinitions[iconId];
+    }
   }
 
-  return null;
+  // Cache the result
+  maintainCacheSize();
+  iconCache.set(cacheKey, result);
+
+  return result;
 };
 
 /**
@@ -258,19 +281,19 @@ export const setActiveIconTheme = async (themeId: string | null, savePreference:
     return;
   }
 
+  // Clear the icon cache when theme changes
+  iconCache.clear();
+
   setState({
     ...state,
     activeThemeId: themeId,
   });
-
-  console.log(`[IconTheme] Active theme set to: ${themeId}`);
 
   // Save user preference
   if (savePreference) {
     try {
       const { setIconThemeId } = await import('./settingsStore');
       await setIconThemeId(themeId);
-      console.log(`[IconTheme] Saved theme preference: ${themeId}`);
     } catch (error) {
       console.error('[IconTheme] Failed to save theme preference:', error);
     }

@@ -447,33 +447,45 @@ export class MonacoExtensionHost {
     console.log(`[IconTheme] Extension ${extension.id} provides ${iconThemes.length} icon theme(s)`);
 
     try {
-      // Dynamically import the icon theme API
+      const { invoke } = await import('@tauri-apps/api/core');
       const { iconThemeActions } = await import('@/stores/iconThemeStore');
 
       for (const iconThemeContrib of iconThemes) {
-        console.log(`[IconTheme] Loading icon theme: ${iconThemeContrib.label} (${iconThemeContrib.id})`);
-
         try {
-          // Resolve the path to the icon theme JSON file
+          // Use Rust backend for high-performance icon theme loading
+          // This loads the manifest and builds O(1) lookup tables in Rust
+          const themeInfo = await invoke<{
+            id: string;
+            label: string;
+            extensionId: string | null;
+            iconCount: number;
+            fileExtensionCount: number;
+            fileNameCount: number;
+          }>('load_icon_theme', {
+            themeId: iconThemeContrib.id,
+            themeLabel: iconThemeContrib.label,
+            themePath: iconThemeContrib.path,
+            extensionPath: extension.path,
+            extensionId: extension.id,
+          });
+
+          console.log(`[IconTheme] Loaded theme in Rust: ${themeInfo.label} (${themeInfo.iconCount} icons, ${themeInfo.fileExtensionCount} extensions)`);
+
+          // Also register in TypeScript store for backward compatibility
+          // but with minimal data - icons are resolved on-demand from Rust
           const themePath = this.resolveExtensionPath(extension, iconThemeContrib.path);
-          console.log(`[IconTheme] Loading theme file from: ${themePath}`);
-
-          // Load the icon theme data
           const themeData = await this.loadJsonFile(themePath);
-          console.log(`[IconTheme] Loaded theme data for ${iconThemeContrib.id}`);
 
-          // Convert icon paths to full extension paths and load as data URLs
+          // Register theme metadata in TS store (icons are resolved from Rust on-demand)
+          // We still need to load icon definitions for the TS store because
+          // some components may use the TS store directly
           const iconDefinitions: Record<string, any> = {};
           if (themeData.iconDefinitions) {
-            const { invoke } = await import('@tauri-apps/api/core');
             let loadedCount = 0;
             let failedCount = 0;
 
             for (const [iconId, iconDef] of Object.entries<any>(themeData.iconDefinitions)) {
               try {
-                // Handle different formats:
-                // 1. Object with iconPath property: { iconPath: "./icons/file.svg" }
-                // 2. Direct string value (legacy format)
                 let iconPath: string | undefined;
 
                 if (typeof iconDef === 'string') {
@@ -483,19 +495,12 @@ export class MonacoExtensionHost {
                 }
 
                 if (iconPath) {
-                  // Convert relative path to full extension path
                   const fullPath = this.resolveExtensionPath(extension, iconPath);
-
-                  // Read the icon file
                   const iconContent = await invoke<string>('read_extension_file', { path: fullPath });
 
-                  // If it's an SVG, convert to data URL (properly encoded for UTF-8)
                   if (fullPath.endsWith('.svg')) {
-                    // Properly encode UTF-8 strings for base64
-                    // Use TextEncoder to handle UTF-8 characters correctly
                     const encoder = new TextEncoder();
                     const data = encoder.encode(iconContent);
-                    // Convert to base64 using Uint8Array
                     let binary = '';
                     const len = data.byteLength;
                     for (let i = 0; i < len; i++) {
@@ -506,11 +511,8 @@ export class MonacoExtensionHost {
                     iconDefinitions[iconId] = { iconPath: dataUrl };
                     loadedCount++;
                   } else {
-                    // For PNG/JPG, we'd need to determine MIME type
                     const ext = fullPath.split('.').pop()?.toLowerCase();
                     const mimeType = ext === 'png' ? 'image/png' : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/svg+xml';
-                    // For binary files, we need to read them differently
-                    // For now, use the same encoding approach
                     const encoder = new TextEncoder();
                     const data = encoder.encode(iconContent);
                     let binary = '';
@@ -524,26 +526,20 @@ export class MonacoExtensionHost {
                     loadedCount++;
                   }
                 } else {
-                  // No iconPath, keep the definition as-is (might be font-based icon)
                   iconDefinitions[iconId] = iconDef;
                 }
-              } catch (error) {
+              } catch {
                 failedCount++;
-                console.warn(`[IconTheme] Failed to load icon ${iconId}:`, error);
-                // Skip this icon - don't add it to iconDefinitions
+                // Skip this icon silently - Rust backend will handle it
               }
             }
-
-            console.log(`[IconTheme] Loaded ${loadedCount} icons, ${failedCount} failed for theme ${iconThemeContrib.id}`);
           }
 
-          // Register the icon theme
           iconThemeActions.registerTheme({
             id: iconThemeContrib.id,
             label: iconThemeContrib.label,
             extensionId: extension.id,
             iconDefinitions,
-            // Copy VS Code standard properties
             file: themeData.file,
             folder: themeData.folder,
             folderExpanded: themeData.folderExpanded,
@@ -558,22 +554,15 @@ export class MonacoExtensionHost {
             rootFolderNamesExpanded: themeData.rootFolderNamesExpanded,
           });
 
-          console.log(`[IconTheme] Successfully registered icon theme: ${iconThemeContrib.id}`);
-          console.log(`[IconTheme] Theme has ${Object.keys(iconDefinitions).length} icon definitions`);
-          console.log(`[IconTheme] Theme has ${Object.keys(themeData.fileExtensions || {}).length} file extensions`);
-          console.log(`[IconTheme] Theme has ${Object.keys(themeData.fileNames || {}).length} file names`);
-          console.log(`[IconTheme] Sample fileExtensions:`, Object.keys(themeData.fileExtensions || {}).slice(0, 30));
-
-          // Auto-activate the theme when the extension is enabled
-          // This ensures the user sees the icons immediately
-          console.log(`[IconTheme] Auto-activating icon theme: ${iconThemeContrib.id}`);
+          // Set active theme in both Rust and TS
+          await invoke('set_active_icon_theme', { themeId: iconThemeContrib.id });
           await iconThemeActions.setActiveTheme(iconThemeContrib.id, true);
-          console.log(`[IconTheme] Icon theme ${iconThemeContrib.id} is now active`);
 
-          // Add disposal callback
           loadedExtension.disposables.push({
-            dispose: () => {
-              console.log(`[IconTheme] Unregistering icon theme: ${iconThemeContrib.id}`);
+            dispose: async () => {
+              try {
+                await invoke('unregister_icon_theme', { themeId: iconThemeContrib.id });
+              } catch { /* ignore cleanup errors */ }
               iconThemeActions.unregisterTheme(iconThemeContrib.id);
             },
           });
@@ -582,7 +571,7 @@ export class MonacoExtensionHost {
         }
       }
     } catch (error) {
-      console.error(`[IconTheme] Failed to import icon theme store:`, error);
+      console.error(`[IconTheme] Failed to load icon themes:`, error);
     }
   }
 
