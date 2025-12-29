@@ -16,7 +16,7 @@ interface FileNodeProps {
   onStartRename: (node: FileNode) => void;
   onContextMenuOpen: (event: React.MouseEvent | KeyboardEvent, node: FileNode) => void;
   expandedPaths: Set<string>;
-  toggleExpanded: (path: string) => void;
+  toggleExpanded: (path: string) => boolean;
 }
 
 /**
@@ -79,8 +79,9 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
   const handleToggle = useCallback(async () => {
     setSelectedPath(node.path);
     if (node.is_directory) {
-      const willOpen = !isOpen;
-      toggleExpanded(node.path);
+      // Use toggleExpanded's return value to determine the new state
+      // This avoids stale closure issues with isOpen
+      const willOpen = toggleExpanded(node.path);
 
       // Lazy load children if opening and not loaded yet
       if (willOpen && !node.children_loaded && (!node.children || node.children.length === 0)) {
@@ -93,7 +94,7 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
     } else {
       actions.openFile(node);
     }
-  }, [actions, node.path, node.is_directory, node.children_loaded, node.children, setSelectedPath, isOpen, toggleExpanded]);
+  }, [actions, node.path, node.is_directory, node.children_loaded, node.children, setSelectedPath, toggleExpanded]);
 
   // Get icon from theme - memoized with proper dependencies
   const icon = useMemo(() => {
@@ -198,6 +199,12 @@ const FileNodeComponent = memo(FileNodeComponentInternal, (prevProps, nextProps)
     return false;
   }
 
+  // If expandedPaths Set reference changed, we need to re-render to propagate to children
+  // This is critical: without this check, child folder toggles won't update UI
+  if (prevProps.expandedPaths !== nextProps.expandedPaths) {
+    return false;
+  }
+
   // Check if this node's expanded state changed
   const prevExpanded = prevProps.node.is_directory && prevProps.expandedPaths.has(prevProps.node.path);
   const nextExpanded = nextProps.node.is_directory && nextProps.expandedPaths.has(nextProps.node.path);
@@ -230,16 +237,21 @@ const ProjectExplorerInternal: React.FC = () => {
   // Stable expanded paths state that persists across tree re-renders
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
 
-  const toggleExpanded = useCallback((path: string) => {
+  const toggleExpanded = useCallback((path: string): boolean => {
+    let wasExpanded = false;
     setExpandedPaths(prev => {
       const next = new Set(prev);
       if (next.has(path)) {
         next.delete(path);
+        wasExpanded = true;
       } else {
         next.add(path);
+        wasExpanded = false;
       }
       return next;
     });
+    // Return whether the folder is NOW expanded (opposite of wasExpanded)
+    return !wasExpanded;
   }, []);
 
   const handleContextMenuOpen = useCallback(
