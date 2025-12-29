@@ -110,20 +110,90 @@ class ProjectContextService {
   }
 
   /**
-   * Parse tsconfig.json content (handles comments via JSON5-like parsing)
+   * Parse tsconfig.json content (handles comments and trailing commas via JSON5-like parsing)
    */
   private parseTSConfig(content: string): TSConfig {
     try {
-      // Remove comments (simple approach - handles // and /* */ style)
-      const withoutComments = content
-        .replace(/\/\*[\s\S]*?\*\//g, '') // Remove /* */ comments
-        .replace(/\/\/.*/g, ''); // Remove // comments
-
-      return JSON.parse(withoutComments);
+      // Use robust JSON5-like parser that properly handles:
+      // 1. Single-line comments (//)
+      // 2. Multi-line comments (/* */)
+      // 3. Trailing commas
+      // 4. Comments/patterns inside strings (e.g., URLs with //)
+      const cleanedContent = this.stripJsonComments(content);
+      return JSON.parse(cleanedContent);
     } catch (error) {
       console.warn('[ProjectContext] Failed to parse tsconfig.json:', error);
       return {};
     }
+  }
+
+  /**
+   * Strip JSON comments and trailing commas while preserving strings
+   * This properly handles edge cases like URLs containing // or /* patterns
+   */
+  private stripJsonComments(content: string): string {
+    let result = '';
+    let i = 0;
+    const len = content.length;
+
+    while (i < len) {
+      const char = content[i];
+      const nextChar = content[i + 1];
+
+      // Handle strings - preserve everything inside them
+      if (char === '"') {
+        result += char;
+        i++;
+        // Find end of string, handling escapes
+        while (i < len) {
+          const strChar = content[i];
+          result += strChar;
+          if (strChar === '\\' && i + 1 < len) {
+            // Include escaped character
+            i++;
+            result += content[i];
+          } else if (strChar === '"') {
+            break;
+          }
+          i++;
+        }
+        i++;
+        continue;
+      }
+
+      // Handle single-line comments
+      if (char === '/' && nextChar === '/') {
+        // Skip until end of line
+        while (i < len && content[i] !== '\n') {
+          i++;
+        }
+        continue;
+      }
+
+      // Handle multi-line comments
+      if (char === '/' && nextChar === '*') {
+        i += 2; // Skip /*
+        // Find end of comment
+        while (i < len - 1) {
+          if (content[i] === '*' && content[i + 1] === '/') {
+            i += 2; // Skip */
+            break;
+          }
+          i++;
+        }
+        continue;
+      }
+
+      // Regular character
+      result += char;
+      i++;
+    }
+
+    // Remove trailing commas before } and ]
+    // This regex is safe because we've already removed comments
+    result = result.replace(/,(\s*[}\]])/g, '$1');
+
+    return result;
   }
 
   /**

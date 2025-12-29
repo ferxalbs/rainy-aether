@@ -33,7 +33,7 @@ import {
 
 interface ToolExecution {
     name: string;
-    arguments: Record<string, any>;
+    arguments?: Record<string, any>;
     status?: 'pending' | 'running' | 'success' | 'error';
     result?: any;
     error?: string;
@@ -115,6 +115,9 @@ function ToolExecutionItem({ tool, compact }: { tool: ToolExecution; compact?: b
 
     // Get primary argument to show (usually 'path' or 'command')
     const getPrimaryArg = (): string | null => {
+        if (!tool.arguments || typeof tool.arguments !== 'object') {
+            return null;
+        }
         const primaryKeys = ['path', 'command', 'query', 'message', 'file_path', 'target_file'];
         for (const key of primaryKeys) {
             // Check both snake_case and camelCase or direct match
@@ -193,7 +196,7 @@ function ToolExecutionItem({ tool, compact }: { tool: ToolExecution; compact?: b
                 <CollapsibleContent>
                     <div className="px-3 py-3 border-t border-border/10 space-y-3 bg-black/20">
                         {/* Arguments Grid */}
-                        {Object.keys(tool.arguments).length > 0 && (
+                        {tool.arguments && Object.keys(tool.arguments).length > 0 && (
                             <div className="space-y-1.5">
                                 <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Arguments</p>
                                 <div className="grid gap-2">

@@ -10,7 +10,6 @@ import {
   ActivationEventType,
 } from './extension';
 import { webviewActions } from '../stores/webviewStore';
-import { ideActions } from '../stores/ideStore';
 
 export class MonacoExtensionHost {
   private loadedExtensions: Map<string, LoadedExtension> = new Map();
@@ -613,16 +612,6 @@ export class MonacoExtensionHost {
             // Only handle webview type views
             if (view.type === 'webview' || !view.type) {
               console.log(`[Webview] Creating webview panel: ${view.id} (${view.name})`);
-
-              // Create the webview panel
-              const panel = webviewActions.createWebviewPanel({
-                viewId: view.id,
-                extensionId: extension.id,
-                title: view.name || view.id,
-                icon: view.icon,
-                enableScripts: true,
-                retainContextWhenHidden: true,
-              });
 
               console.log(`[Webview] Webview panel created: ${view.id}`);
 
