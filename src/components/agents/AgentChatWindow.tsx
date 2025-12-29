@@ -573,7 +573,7 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mt-6 sm:mt-8 px-4 sm:px-0">
                                     {[
                                         { icon: Sparkles, label: "Generate React Component", description: "Build modern, accessible UI elements" },
-                                        { icon: Cpu, label: "Explain Code", description: "Deep dive into logic and architecture" },
+                                        { icon: Cpu, label: "Explain the repository", description: "Deep dive into logic and architecture" },
                                         { icon: Bot, label: "Refactor Function", description: "Optimize and clean up existing code" },
                                         { icon: Send, label: "Find Bugs", description: "Debug and fix issues instantly" }
                                     ].map((item, i) => (

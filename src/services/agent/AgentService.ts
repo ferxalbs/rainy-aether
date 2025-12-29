@@ -237,7 +237,7 @@ export class AgentService {
     const toolResultsMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: `Tool execution results:\n\n${toolResultsContent}\n\nIMPORTANT: Do NOT repeat or quote the raw tool output. Instead, analyze the results and provide a helpful summary or explanation. If you need to show code, show only the relevant parts with proper explanation.`,
+      content: `Tool execution results:\n\n${toolResultsContent}\n\nAnalyze these results and continue your task. If you need more information, use additional tools. When you have enough information, present your findings clearly to the user.`,
       timestamp: new Date(),
     };
 
