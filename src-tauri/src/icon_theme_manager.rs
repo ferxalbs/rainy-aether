@@ -251,6 +251,7 @@ fn strip_json_comments(content: &str) -> String {
 }
 
 /// Resolve a relative icon path to full path
+/// Handles paths like "./../icons/file.svg" which go up from the theme file location
 fn resolve_icon_path(base_path: &Path, icon_path: &str) -> PathBuf {
     let mut clean_path = icon_path.to_string();
 
@@ -259,12 +260,35 @@ fn resolve_icon_path(base_path: &Path, icon_path: &str) -> PathBuf {
         clean_path = clean_path[2..].to_string();
     }
 
-    // Handle ../ paths (going up from dist/ folder)
-    while clean_path.starts_with("../") {
-        clean_path = clean_path[3..].to_string();
+    // Join the path with the base path and let the OS handle normalization
+    // This properly handles ../ by actually going up directories
+    let joined = base_path.join(&clean_path);
+
+    // Try to canonicalize (resolve all ../ and symbolic links)
+    // If that fails (file doesn't exist yet), use a manual normalization
+    if let Ok(canonical) = joined.canonicalize() {
+        return canonical;
     }
 
-    base_path.join(clean_path)
+    // Manual normalization for paths that don't exist yet
+    let joined_str = joined.to_string_lossy().to_string();
+    let mut components: Vec<&str> = Vec::new();
+    for component in joined_str.split('/') {
+        match component {
+            ".." => {
+                components.pop();
+            }
+            "." | "" => { /* skip */ }
+            other => components.push(other),
+        }
+    }
+
+    // Handle Windows paths with drive letter
+    if cfg!(windows) {
+        PathBuf::from(components.join("\\"))
+    } else {
+        PathBuf::from(format!("/{}", components.join("/")))
+    }
 }
 
 /// Load icon content and convert to base64 data URL

@@ -119,6 +119,52 @@ const subscribe = (listener: () => void) => {
 
 const getSnapshot = () => state;
 
+// Map common file extensions to language IDs for fallback lookup
+// Some icon themes (like Material Icon Theme) use languageIds instead of fileExtensions
+const extensionToLanguageId: Record<string, string> = {
+  'js': 'javascript',
+  'mjs': 'javascript',
+  'cjs': 'javascript',
+  'jsx': 'javascriptreact',
+  'ts': 'typescript',
+  'mts': 'typescript',
+  'cts': 'typescript',
+  'tsx': 'typescriptreact',
+  'html': 'html',
+  'htm': 'html',
+  'css': 'css',
+  'scss': 'scss',
+  'sass': 'sass',
+  'less': 'less',
+  'json': 'json',
+  'jsonc': 'jsonc',
+  'md': 'markdown',
+  'mdx': 'mdx',
+  'py': 'python',
+  'rb': 'ruby',
+  'rs': 'rust',
+  'go': 'go',
+  'java': 'java',
+  'c': 'c',
+  'cpp': 'cpp',
+  'h': 'c',
+  'hpp': 'cpp',
+  'cs': 'csharp',
+  'php': 'php',
+  'swift': 'swift',
+  'kt': 'kotlin',
+  'vue': 'vue',
+  'svelte': 'svelte',
+  'yaml': 'yaml',
+  'yml': 'yaml',
+  'xml': 'xml',
+  'svg': 'xml',
+  'sql': 'sql',
+  'sh': 'shellscript',
+  'bash': 'shellscript',
+  'zsh': 'shellscript',
+};
+
 /**
  * Get icon for a file based on the active theme
  * Uses caching for O(1) repeated lookups
@@ -138,10 +184,11 @@ export const getFileIcon = (fileName: string, languageId?: string): IconDefiniti
   const { iconDefinitions } = activeTheme;
   let iconId: string | undefined;
   let result: IconDefinition | null = null;
+  const fileNameLower = fileName.toLowerCase();
 
   // 1. Check exact file name match
   if (activeTheme.fileNames) {
-    iconId = activeTheme.fileNames[fileName.toLowerCase()];
+    iconId = activeTheme.fileNames[fileNameLower];
     if (iconId && iconDefinitions[iconId]) {
       result = iconDefinitions[iconId];
     }
@@ -149,7 +196,7 @@ export const getFileIcon = (fileName: string, languageId?: string): IconDefiniti
 
   // 2. Check file extension match (multi-part extensions first)
   if (!result && activeTheme.fileExtensions) {
-    const parts = fileName.toLowerCase().split('.');
+    const parts = fileNameLower.split('.');
     for (let i = 1; i < parts.length && !result; i++) {
       const ext = parts.slice(i).join('.');
       iconId = activeTheme.fileExtensions[ext];
@@ -159,11 +206,27 @@ export const getFileIcon = (fileName: string, languageId?: string): IconDefiniti
     }
   }
 
-  // 3. Check language ID match
-  if (!result && languageId && activeTheme.languageIds) {
-    iconId = activeTheme.languageIds[languageId];
-    if (iconId && iconDefinitions[iconId]) {
-      result = iconDefinitions[iconId];
+  // 3. Check language ID match (use provided or infer from extension)
+  if (!result && activeTheme.languageIds) {
+    // Try provided languageId first
+    if (languageId) {
+      iconId = activeTheme.languageIds[languageId];
+      if (iconId && iconDefinitions[iconId]) {
+        result = iconDefinitions[iconId];
+      }
+    }
+
+    // If no match, try to infer language ID from file extension
+    // This is important for themes like Material Icon Theme that use languageIds
+    if (!result) {
+      const ext = fileNameLower.split('.').pop() || '';
+      const inferredLangId = extensionToLanguageId[ext];
+      if (inferredLangId) {
+        iconId = activeTheme.languageIds[inferredLangId];
+        if (iconId && iconDefinitions[iconId]) {
+          result = iconDefinitions[iconId];
+        }
+      }
     }
   }
 
