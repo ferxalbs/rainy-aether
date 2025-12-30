@@ -310,14 +310,14 @@ class BrainService {
                 }
             }, 1000);
 
-            // Timeout after 5 minutes
+            // Timeout after 30 minutes for extended tasks (30 hours supported via multiple calls)
             setTimeout(() => {
                 clearInterval(pollInterval);
                 cleanup();
                 if (!finalStatus) {
                     reject(new Error('Task timeout'));
                 }
-            }, 5 * 60 * 1000);
+            }, 30 * 60 * 1000);
         });
     }
 }

@@ -110,7 +110,7 @@ class ToolRegistry {
 
     this.registerTool({
       name: "edit_file",
-      description: "Performs surgical edits on a file by replacing specific text. Use this for precise modifications without rewriting the entire file. CRITICAL: You must provide the EXACT text to replace (old_string) and what to replace it with (new_string). Include enough context in old_string to make it unique.",
+      description: "Performs surgical edits on a file by replacing specific text. CRITICAL RULES: 1) old_string MUST match EXACTLY (including whitespace/indentation). 2) Include 3+ surrounding lines for uniqueness. 3) NEVER use to delete large blocks - use apply_file_diff instead. 4) If edit fails, READ THE FILE AGAIN.",
       parameters: {
         type: "object",
         properties: {
@@ -120,25 +120,34 @@ class ToolRegistry {
           },
           old_string: {
             type: "string",
-            description: "The exact text to find and replace. Must be unique in the file. Include surrounding context if needed for uniqueness."
+            description: "The exact text to find and replace. Must be unique in the file. Include 3+ surrounding lines for uniqueness."
           },
           new_string: {
             type: "string",
-            description: "The new text to replace old_string with. Can be empty string to delete."
+            description: "The new text to replace old_string with. Can be empty string to delete small sections only."
           },
         },
         required: ["path", "old_string", "new_string"],
       },
       execute: async ({ path, old_string, new_string }) => {
         try {
+          // Enhanced validation for stable editing
           if (!path || typeof path !== 'string') {
             return { success: false, error: 'Invalid path parameter' };
           }
-          if (old_string === undefined || old_string === null) {
-            return { success: false, error: 'old_string parameter is required' };
+          if (old_string === undefined || old_string === null || old_string === '') {
+            return {
+              success: false,
+              error: 'old_string parameter is required and cannot be empty. Use create_file for new files or write_file for complete rewrites.'
+            };
           }
           if (new_string === undefined || new_string === null) {
-            return { success: false, error: 'new_string parameter is required' };
+            return { success: false, error: 'new_string parameter is required (can be empty string for deletions)' };
+          }
+
+          // Safety check: Warn about large deletions
+          if (new_string === '' && old_string.length > 200) {
+            console.warn(`[edit_file] Large deletion detected: ${old_string.length} characters. Consider using apply_file_diff instead.`);
           }
 
           const resolvedPath = await this.resolvePath(path);
@@ -159,13 +168,15 @@ class ToolRegistry {
             if (looseContent.includes(looseOldString)) {
               return {
                 success: false,
-                error: `The text was found but with different whitespace/indentation. Please read the file again to get the exact content.`
+                error: `The text was found but with different whitespace/indentation. Please READ THE FILE AGAIN to get the exact content.`,
+                hint: 'Use read_file to get current exact content before editing.'
               };
             }
 
             return {
               success: false,
-              error: `The specified old_string was not found in '${path}'. Make sure you're using the exact text from the file.`
+              error: `The specified old_string was not found in '${path}'. The file may have changed.`,
+              hint: 'Use read_file to get current content before editing.'
             };
           }
 
@@ -174,28 +185,22 @@ class ToolRegistry {
           if (occurrences > 1) {
             return {
               success: false,
-              error: `The old_string appears ${occurrences} times in '${path}'. Please provide more context to make it unique.`
+              error: `The old_string appears ${occurrences} times in '${path}'. Include more surrounding lines to make it unique.`,
+              hint: 'Add 3+ lines of context before and after to make old_string unique.'
             };
           }
 
           // Perform the replacement
-          // We need to be careful with replace() as it only replaces the first occurrence
-          // But we've already verified there's only one occurrence (or we warned about it)
-          // However, we need to handle the original content with original line endings if possible
-          // For now, we'll use the normalized content for replacement and save that
-          // This might change line endings to LF, which is generally fine
           const newContent = normalizedContent.replace(normalizedOldString, new_string);
           await invoke("save_file_content", { path: resolvedPath, content: newContent });
 
           // IMPORTANT: Update Monaco editor if this file is open
-          // This ensures the editor shows the latest content
           const editor = editorActions.getCurrentEditor();
           if (editor) {
             const model = editor.getModel();
             const openFiles = getIDEState().openFiles;
             const isFileOpen = openFiles.some(f => f.path === resolvedPath);
             if (model && isFileOpen) {
-              // Update editor content to match disk
               const currentValue = model.getValue();
               if (currentValue !== newContent) {
                 model.setValue(newContent);
@@ -203,9 +208,26 @@ class ToolRegistry {
             }
           }
 
+          // Post-edit verification
+          const verifyContent = await invoke<string>("get_file_content", { path: resolvedPath });
+          const normalizedVerify = verifyContent.replace(/\r\n/g, '\n');
+
+          // Check that old_string is gone (unless it equals new_string)
+          if (normalizedOldString !== new_string && normalizedVerify.includes(normalizedOldString)) {
+            return {
+              success: false,
+              error: 'Edit verification failed: old_string still present after edit.',
+              hint: 'The file may have been modified by another process. Read the file again.'
+            };
+          }
+
+          const changeType = new_string === '' ? 'deleted' :
+            old_string.length < new_string.length ? 'added' : 'replaced';
+
           return {
             success: true,
-            message: `Successfully edited '${path}' - replaced ${old_string.length} characters with ${new_string.length} characters.`
+            message: `Successfully ${changeType} content in '${path}' (${old_string.length} → ${new_string.length} characters).`,
+            verified: true
           };
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
@@ -814,13 +836,13 @@ Examples:
     // --- Terminal Tools ---
     this.registerTool({
       name: "run_command",
-      description: "Execute a shell command in the workspace. Returns command output. Use this for running build tools, tests, linters, formatters, etc.",
+      description: "Execute a shell command in the workspace. Returns command output. Use for builds, tests, linters, formatters. Commands have 30s default timeout; use 60000ms for linters/type-checks, 120000ms for builds/tests.",
       parameters: {
         type: "object",
         properties: {
           command: {
             type: "string",
-            description: "The command to execute (e.g., 'npm test', 'pnpm build', 'cargo check')."
+            description: "The command to execute (e.g., 'npm test', 'pnpm build', 'cargo check', 'npx tsc --noEmit')."
           },
           cwd: {
             type: "string",
@@ -828,12 +850,12 @@ Examples:
           },
           timeout: {
             type: "number",
-            description: "Timeout in milliseconds (default: 30000, max: 120000)."
+            description: "Timeout in milliseconds. Default: 30000. Use 60000 for linters/type-checks, 120000 for builds/tests."
           },
         },
         required: ["command"],
       },
-      execute: async ({ command, cwd, timeout: _timeout = 30000 }) => {
+      execute: async ({ command, cwd, timeout = 30000 }) => {
         try {
           if (!command || typeof command !== 'string') {
             return { success: false, error: 'Command parameter is required' };
@@ -845,13 +867,18 @@ Examples:
           }
 
           const workingDir = cwd ? await this.resolvePath(cwd) : workspace.path;
-          // Note: timeout is available for future use with proper async command handling
+
+          // Production timeout: min 30s, max 120s
+          const effectiveTimeout = Math.min(Math.max(timeout, 30000), 120000);
+          console.log(`[run_command] Executing: ${command} (timeout: ${effectiveTimeout}ms)`);
 
           // Use terminal service to create a temporary session and capture output
           const terminalService = getTerminalService();
           const sessionId = await terminalService.create({ cwd: workingDir });
 
           let output = '';
+          let lastOutputLength = 0;
+          let lastOutputChangeTime = Date.now();
 
           // Subscribe to data events
           const cleanup = terminalService.onData((id, data) => {
@@ -864,22 +891,53 @@ Examples:
             // Send command
             await terminalService.write(sessionId, command + "\r\n");
 
-            // Wait for output with a smarter timeout strategy
-            // We'll wait up to 5 seconds, but return early if we see a prompt or significant pause
+            // Smart wait strategy for production:
+            // - Track output changes to detect command completion
+            // - Wait longer for slow-loading commands (linters, type-checks)
+            // - Exit early when command clearly finished
             const startTime = Date.now();
-            let lastOutputTime = Date.now();
 
-            while (Date.now() - startTime < 5000) {
-              await new Promise(resolve => setTimeout(resolve, 100));
+            while (Date.now() - startTime < effectiveTimeout) {
+              await new Promise(resolve => setTimeout(resolve, 200));
 
-              // If we haven't received output for 1 second and we have some output, assume command finished or paused
-              if (output.length > 0 && Date.now() - lastOutputTime > 1000) {
+              // Track output changes
+              if (output.length > lastOutputLength) {
+                lastOutputLength = output.length;
+                lastOutputChangeTime = Date.now();
+              }
+
+              const timeSinceOutputChange = Date.now() - lastOutputChangeTime;
+              const totalElapsed = Date.now() - startTime;
+
+              // Check for command completion indicators (shell prompts)
+              const hasPrompt = /[$%>#]\s*$/.test(output.trim());
+
+              // Exit conditions:
+              // 1. Output settled (2s no change) AND we have substantial output AND see shell prompt
+              if (output.length > 100 && timeSinceOutputChange > 2000 && hasPrompt) {
+                console.log(`[run_command] Command completed (prompt detected after ${totalElapsed}ms)`);
                 break;
               }
 
-              // Update last output time if output length changed
-              // (This is a simplified check, ideally we'd track actual data events)
+              // 2. No output change for 5 seconds after getting content
+              if (output.length > 50 && timeSinceOutputChange > 5000) {
+                console.log(`[run_command] Command completed (output settled after ${totalElapsed}ms)`);
+                break;
+              }
+
+              // 3. Empty/minimal output - extend wait for slow-loading commands
+              if (output.length < 50) {
+                // Continue waiting - commands like tsc --noEmit can take 20-30s before output
+                if (totalElapsed > 60000 && output.length === 0) {
+                  // After 60s with no output at all, something is wrong
+                  console.warn(`[run_command] No output after 60s, timing out`);
+                  break;
+                }
+              }
             }
+
+            const totalTime = Date.now() - startTime;
+            console.log(`[run_command] Finished after ${totalTime}ms with ${output.length} bytes of output`);
 
             // Clean up session
             await terminalService.kill(sessionId);
@@ -892,8 +950,9 @@ Examples:
               success: true,
               stdout: cleanOutput,
               rawOutput: output,
-              message: `Command executed. Output captured below.`,
-              sessionId
+              message: `Command executed in ${totalTime}ms. Output captured below.`,
+              sessionId,
+              duration: totalTime
             };
           } finally {
             cleanup();

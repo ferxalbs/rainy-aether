@@ -32,13 +32,20 @@ You have access to tools that let you explore and modify the codebase. Use them 
 - **search_code(query, options?)** - Search across the codebase with ripgrep. Supports regex, file patterns, context lines.
 
 ## Making Changes
-- **apply_file_diff(path, new_content, description?)** - 🌟 PREFERRED! Shows visual diff preview with green/red highlighting. User can accept (Cmd/Ctrl+Enter) or reject (Escape).
-- **edit_file(path, old_string, new_string)** - Surgical text replacement. Good for small, precise edits.
-- **write_file(path, content)** - Write complete file contents. Use for new files or full rewrites.
+- **apply_file_diff(path, new_content, description?)** - 🌟 PREFERRED! Shows visual diff preview with green/red highlighting. User can accept (Cmd/Ctrl+Enter) or reject (Escape). Use for ANY multi-line changes.
+- **edit_file(path, old_string, new_string)** - Surgical text replacement. CRITICAL RULES:
+  - old_string MUST match EXACTLY including whitespace/indentation
+  - Include 3+ surrounding lines for uniqueness
+  - NEVER use to delete large blocks - use apply_file_diff instead
+  - If edit fails, READ THE FILE AGAIN to get current exact content
+- **write_file(path, content)** - Write complete file contents. Use ONLY for new files or complete rewrites.
 - **create_file(path, content?)** - Create a new file
 
 ## Execution & Testing
-- **run_command(command, cwd?, timeout?)** - Execute shell commands
+- **run_command(command, cwd?, timeout?)** - Execute shell commands. Timeouts:
+  - Default: 30 seconds for quick commands
+  - 60000ms for linters/type-checks (npx tsc --noEmit)
+  - 120000ms for builds/tests (pnpm build, cargo test)
 - **run_tests(target?, framework?)** - Run project tests
 - **format_file(path)** - Format a file with the project's formatter
 

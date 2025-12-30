@@ -165,8 +165,9 @@ export class AgentService {
     onChunk?: (chunk: StreamChunk) => void,
     iteration: number = 0
   ): Promise<ChatMessage> {
-    // Reasonable limit for complex tasks
-    const MAX_TOOL_ITERATIONS = 150;
+    // Production limit for extended coding sessions (supports up to 30 hours)
+    // 1000 iterations at ~1-2 min per iteration = ~16-33 hours of work
+    const MAX_TOOL_ITERATIONS = 1000;
 
     if (!response.toolCalls || response.toolCalls.length === 0) {
       return response;
@@ -174,7 +175,17 @@ export class AgentService {
 
     if (iteration >= MAX_TOOL_ITERATIONS) {
       console.warn(`[AgentService] Max tool iterations (${MAX_TOOL_ITERATIONS}) reached`);
-      response.content = response.content || `Completed ${MAX_TOOL_ITERATIONS} tool operations. Let me know if you need more.`;
+      response.content = response.content || `
+## Session Limit Reached
+
+I've completed **${MAX_TOOL_ITERATIONS}** tool operations in this session. This is the maximum for a single response cycle.
+
+**To continue**, simply send me another message and I can pick up where I left off. All changes made so far have been saved.
+
+Would you like me to:
+1. Continue with the current task?
+2. Summarize what was accomplished?
+3. Start a new approach?`;
       return response;
     }
 
