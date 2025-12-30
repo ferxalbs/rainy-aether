@@ -3,7 +3,8 @@
  * 
  * Core service for generating AI-powered code completions using Gemini.
  * Features:
- * - Fill-in-Middle (FIM) prompt construction
+ * - Context-aware prompting (uses comments, surrounding code)
+ * - Intelligent completion sanitization
  * - LRU caching for repeated contexts
  * - Request cancellation with AbortController
  * - Rate limiting to prevent API abuse
@@ -27,13 +28,13 @@ import {
 const AUTOCOMPLETION_MODEL = 'gemini-3-flash-preview';
 
 /** Maximum prefix context (characters) */
-const MAX_PREFIX_CHARS = 2000;
+const MAX_PREFIX_CHARS = 3000;
 
 /** Maximum suffix context (characters) */
-const MAX_SUFFIX_CHARS = 500;
+const MAX_SUFFIX_CHARS = 10000;
 
 /** Rate limit: minimum ms between requests */
-const MIN_REQUEST_INTERVAL_MS = 500;
+const MIN_REQUEST_INTERVAL_MS = 300;
 
 // ============================================================================
 // LRU Cache
@@ -55,7 +56,6 @@ class LRUCache<K, V> {
         const keyStr = this.keyToString(key);
         const value = this.cache.get(keyStr);
         if (value !== undefined) {
-            // Move to end (most recently used)
             this.cache.delete(keyStr);
             this.cache.set(keyStr, value);
         }
@@ -64,9 +64,7 @@ class LRUCache<K, V> {
 
     set(key: K, value: V): void {
         const keyStr = this.keyToString(key);
-        // Delete if exists (to update position)
         this.cache.delete(keyStr);
-        // Evict oldest if at capacity
         if (this.cache.size >= this.maxSize) {
             const oldestKey = this.cache.keys().next().value;
             if (oldestKey) this.cache.delete(oldestKey);
@@ -100,16 +98,12 @@ export class AutocompletionService {
         this.cache = new LRUCache(this.config.cacheSize);
     }
 
-    /**
-     * Initialize the service by loading API credentials
-     */
     async initialize(): Promise<boolean> {
         if (this.isInitialized && this.client) {
             return true;
         }
 
         try {
-            // Use the same provider ID as AgentService: 'gemini_api_key'
             const apiKey = await loadCredential('gemini_api_key');
             if (!apiKey) {
                 console.warn('[AutocompletionService] No Gemini API key configured');
@@ -126,9 +120,6 @@ export class AutocompletionService {
         }
     }
 
-    /**
-     * Update configuration
-     */
     updateConfig(config: Partial<AutocompletionConfig>): void {
         this.config = { ...this.config, ...config };
         if (config.cacheSize !== undefined) {
@@ -136,23 +127,14 @@ export class AutocompletionService {
         }
     }
 
-    /**
-     * Get current configuration
-     */
     getConfig(): AutocompletionConfig {
         return { ...this.config };
     }
 
-    /**
-     * Check if service is ready
-     */
     isReady(): boolean {
         return this.isInitialized && this.client !== null && this.config.enabled;
     }
 
-    /**
-     * Cancel any pending completion request
-     */
     cancelPendingRequest(): void {
         if (this.abortController) {
             this.abortController.abort();
@@ -160,16 +142,10 @@ export class AutocompletionService {
         }
     }
 
-    /**
-     * Clear the completion cache
-     */
     clearCache(): void {
         this.cache.clear();
     }
 
-    /**
-     * Generate a completion for the given context
-     */
     async getCompletion(context: AutocompletionContext): Promise<AutocompletionResult | null> {
         if (!this.isReady()) {
             await this.initialize();
@@ -178,79 +154,59 @@ export class AutocompletionService {
             }
         }
 
-        // Check minimum prefix length
         const trimmedPrefix = context.prefix.trim();
         if (trimmedPrefix.length < this.config.minPrefixLength) {
-            console.debug('[AutocompletionService] Prefix too short:', trimmedPrefix.length, '< min', this.config.minPrefixLength);
             return null;
         }
 
-        // Rate limiting
         const now = Date.now();
         if (now - this.lastRequestTime < MIN_REQUEST_INTERVAL_MS) {
-            console.debug('[AutocompletionService] Rate limited');
             return null;
         }
 
-        // Check cache
         if (this.config.cacheEnabled) {
             const cacheKey: AutocompletionCacheKey = {
                 fileUri: context.fileUri,
-                prefix: context.prefix.slice(-500), // Last 500 chars for key
-                suffix: context.suffix.slice(0, 200), // First 200 chars for key
+                prefix: context.prefix.slice(-500),
+                suffix: context.suffix.slice(0, 200),
                 cursorLine: context.cursorLine,
             };
 
             const cached = this.cache.get(cacheKey);
             if (cached) {
-                console.debug('[AutocompletionService] Cache hit');
                 return { ...cached, source: 'cache' };
             }
         }
 
-        // Cancel any pending request
         this.cancelPendingRequest();
-
-        // Create new abort controller
         this.abortController = new AbortController();
         this.lastRequestTime = now;
 
         try {
-            // Build FIM prompt
-            const prompt = this.buildFIMPrompt(context);
+            const prompt = this.buildCompletionPrompt(context);
 
-            // Call Gemini API (matching the structure from gemini.ts)
             const response = await this.client!.models.generateContent({
                 model: AUTOCOMPLETION_MODEL,
                 contents: [{ role: 'user', parts: [{ text: prompt }] }],
                 config: {
-                    temperature: 0.2, // Low temperature for deterministic completions
+                    temperature: 0.8,
                     maxOutputTokens: this.config.maxTokens,
-                    // Gemini API allows max 5 stop sequences
-                    stopSequences: ['\n\n\n', '```', '<|fim_end|>', '<|fim_middle|>', '<|file_separator|>'],
+                    topP: 0.95,
+                    topK: 40,
                 },
             });
 
-            // Check if aborted
             if (this.abortController?.signal.aborted) {
                 return null;
             }
 
-            // Extract completion text
-            let completionText = response.text?.trim() || '';
-
-            // Strip any FIM/control tokens that might have leaked
-            const tokensToStrip = ['<|fim_prefix|>', '<|fim_suffix|>', '<|fim_middle|>', '<|fim_end|>', '<|file_separator|>', '<|end|>'];
-            for (const token of tokensToStrip) {
-                completionText = completionText.replace(new RegExp(token.replace(/[|]/g, '\\|'), 'g'), '');
-            }
-            completionText = completionText.trim();
+            const rawText = response.text || '';
+            const completionText = this.sanitizeCompletion(rawText, context);
 
             if (!completionText) {
                 return null;
             }
 
-            // Create result
             const result: AutocompletionResult = {
                 text: completionText,
                 range: {
@@ -264,7 +220,6 @@ export class AutocompletionService {
                 timestamp: Date.now(),
             };
 
-            // Cache the result
             if (this.config.cacheEnabled) {
                 const cacheKey: AutocompletionCacheKey = {
                     fileUri: context.fileUri,
@@ -288,23 +243,118 @@ export class AutocompletionService {
     }
 
     /**
-     * Build Fill-in-Middle prompt for code completion
+     * Build a minimal, strict prompt for code completion.
+     * Less is more - complex prompts cause the model to generate explanations.
      */
-    private buildFIMPrompt(context: AutocompletionContext): string {
-        // Truncate prefix and suffix to fit context window
+    private buildCompletionPrompt(context: AutocompletionContext): string {
         const prefix = context.prefix.slice(-MAX_PREFIX_CHARS);
         const suffix = context.suffix.slice(0, MAX_SUFFIX_CHARS);
 
-        return `You are a code completion assistant. Complete the code at the cursor position.
-Only output the completion text, nothing else. Do not include explanations or markdown.
+        // Ultra-minimal prompt - just code context, no instructions
+        // The model should infer what to complete from the code structure
+        return `Complete this ${context.language} code. Output ONLY code, nothing else.
 
-File: ${context.fileUri.split('/').pop() || 'untitled'}
-Language: ${context.language}
+${prefix}<COMPLETE_HERE>${suffix}`;
+    }
 
-<|fim_prefix|>
-${prefix}<|fim_suffix|>
-${suffix}
-<|fim_middle|>`;
+    /**
+     * Aggressively sanitize and validate the AI completion output.
+     * Truncates at natural code boundaries to prevent thinking text leakage.
+     */
+    private sanitizeCompletion(raw: string, context: AutocompletionContext): string {
+        let text = raw;
+
+        // Remove the completion marker if it appears
+        text = text.replace(/<COMPLETE_HERE>/g, '');
+        text = text.replace(/<\/COMPLETE_HERE>/g, '');
+
+        // Remove markdown code fences
+        text = text.replace(/^```[\w]*\n?/gm, '');
+        text = text.replace(/\n?```$/gm, '');
+        text = text.replace(/```/g, '');
+
+        // Remove control tokens
+        text = text.replace(/<\|[^|>]+\|>/g, '');
+
+        // Trim whitespace
+        text = text.trim();
+
+        // CRITICAL: Truncate at first sign of thinking/explanation text
+        // This catches cases where valid code is followed by rambling
+        const thinkingStarters = [
+            '(implied)', '(note', '(actually', '(this',
+            'Actually,', 'Note:', 'This is', 'The prompt',
+            'Wait,', 'Let me', "Let's", 'I think',
+            'Here is', 'Here we', 'Now,', 'First,',
+            '// Note', '// TODO', '/* Note', '/* TODO',
+        ];
+
+        for (const starter of thinkingStarters) {
+            const idx = text.indexOf(starter);
+            if (idx > 0) {
+                // Found thinking text after some valid code - truncate there
+                text = text.slice(0, idx).trim();
+                console.log('[AutocompletionService] Truncated at thinking:', starter);
+            }
+        }
+
+        // Also truncate at patterns that look like AI rambling
+        const ramblingPatterns = [
+            /\s+or\s+just\s+/i,           // "or just ends"
+            /\s+the\s+prompt\s+/i,        // "the prompt ends with"
+            /\s+actually\s+/i,            // "Actually, ..."
+            /\s+implied\s+/i,             // "(implied)"
+            /\s+note\s*:/i,               // "Note:"
+        ];
+
+        for (const pattern of ramblingPatterns) {
+            const match = text.match(pattern);
+            if (match && match.index && match.index > 5) {
+                text = text.slice(0, match.index).trim();
+                console.log('[AutocompletionService] Truncated at rambling pattern');
+            }
+        }
+
+        // For single-line completions, stop at reasonable boundaries
+        if (!text.includes('\n')) {
+            // If there's a semicolon followed by non-code text, truncate there
+            const semiMatch = text.match(/;[\s]*[a-zA-Z]{3,}/);
+            if (semiMatch && semiMatch.index !== undefined) {
+                text = text.slice(0, semiMatch.index + 1); // Keep the semicolon
+            }
+
+            // If there's a closing brace/paren followed by text, truncate
+            const braceMatch = text.match(/[}\)][\s]*[a-zA-Z]{4,}/);
+            if (braceMatch && braceMatch.index !== undefined) {
+                text = text.slice(0, braceMatch.index + 1); // Keep the brace
+            }
+        }
+
+        // Reject if ENTIRELY thinking (starts with thinking words)
+        const startsWithThinking = /^(wait|let me|let's|i |okay|ok,|alright|hmm|the |this |here |sure|certainly|actually|note)/i;
+        if (startsWithThinking.test(text)) {
+            console.warn('[AutocompletionService] Rejected: starts with thinking');
+            return '';
+        }
+
+        // If completion starts with what's already at the end of prefix, remove it
+        const prefixEnd = context.prefix.slice(-30).trim();
+        if (prefixEnd.length > 5 && text.startsWith(prefixEnd)) {
+            text = text.slice(prefixEnd.length).trim();
+        }
+
+        // Reject empty or too long
+        if (text.length < 1 || text.length > 500) {
+            return '';
+        }
+
+        // Limit lines for inline completion (max 5 lines for cleaner suggestions)
+        const lines = text.split('\n');
+        if (lines.length > 5) {
+            text = lines.slice(0, 5).join('\n');
+        }
+
+        return text;
     }
 }
 

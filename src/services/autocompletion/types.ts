@@ -36,7 +36,7 @@ export interface AutocompletionConfig {
 export const DEFAULT_AUTOCOMPLETION_CONFIG: AutocompletionConfig = {
     enabled: true,
     debounceMs: 300,
-    maxTokens: 150,
+    maxTokens: 1024, // Increased for longer, more complete suggestions
     minPrefixLength: 3,
     triggerOnNewLine: true,
     cacheEnabled: true,
