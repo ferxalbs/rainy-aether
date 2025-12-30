@@ -20,6 +20,13 @@ export interface ToolParameter {
     required?: boolean;
     default?: unknown;
     enum?: string[];
+    // For array types - defines the type of items in the array
+    items?: {
+        type: 'string' | 'number' | 'boolean' | 'object';
+        properties?: Record<string, { type: string; description?: string }>;
+        required?: string[];
+        description?: string;
+    };
 }
 
 export interface ToolSchema {
@@ -579,6 +586,7 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 include: {
                     type: 'array',
+                    items: { type: 'string' },
                     description: "What to include: 'structure', 'dependencies', 'git', 'readme', 'entry_points'. Default: all.",
                 },
                 response_format: {
@@ -605,8 +613,8 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 paths: {
                     type: 'array',
+                    items: { type: 'string' },
                     description: 'Array of file paths to read (relative to workspace).',
-                    required: true,
                 },
                 response_format: {
                     type: 'string',
@@ -700,8 +708,15 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
                 },
                 edits: {
                     type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            find: { type: 'string', description: 'Text to find (must be unique in file)' },
+                            replace: { type: 'string', description: 'Replacement text' }
+                        },
+                        required: ['find', 'replace']
+                    },
                     description: 'Array of {find: string, replace: string} objects.',
-                    required: true,
                 },
                 verify: {
                     type: 'boolean',

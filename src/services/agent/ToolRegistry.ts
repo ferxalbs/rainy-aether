@@ -1200,6 +1200,7 @@ Returns (based on 'include' parameter):
         properties: {
           include: {
             type: "array",
+            items: { type: "string" },
             description: "What to include: 'structure', 'dependencies', 'git', 'readme', 'entry_points'. Default: all."
           },
           response_format: {
@@ -1351,6 +1352,7 @@ Use when you need to read 2+ files. Returns all file contents with metadata.`,
         properties: {
           paths: {
             type: "array",
+            items: { type: "string" },
             description: "Array of file paths to read (relative to workspace)."
           },
           response_format: {
@@ -1726,6 +1728,14 @@ Use this instead of separate read_file + edit_file + verify_changes calls.`,
           },
           edits: {
             type: "array",
+            items: {
+              type: "object",
+              properties: {
+                find: { type: "string", description: "Text to find (must be unique in file)" },
+                replace: { type: "string", description: "Replacement text" }
+              },
+              required: ["find", "replace"]
+            },
             description: "Array of {find: string, replace: string} objects. Each 'find' must be unique in the file."
           },
           verify: {
