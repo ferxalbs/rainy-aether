@@ -158,8 +158,11 @@ export const toolHandlers: Record<string, ToolHandler> = {
                 const tree: { directories: any[]; files: any[] } = { directories: [], files: [] };
 
                 for (const entry of entries) {
-                    // Skip common ignored directories
-                    if (['node_modules', '.git', 'dist', 'build', '.next', 'target'].includes(entry.name)) {
+                    // Skip common .gitignore patterns
+                    const IGNORED = ['node_modules', '.git', 'dist', 'build', '.next', 'out',
+                        'target', '.cache', '.turbo', 'coverage', '.nyc_output', 'vendor',
+                        'bower_components', '.pnpm', '__pycache__', '.venv', 'venv'];
+                    if (IGNORED.includes(entry.name)) {
                         continue;
                     }
 

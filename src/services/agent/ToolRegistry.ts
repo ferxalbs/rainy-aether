@@ -434,7 +434,7 @@ After calling this tool, the user will see the changes highlighted in the editor
 
     this.registerTool({
       name: "read_directory_tree",
-      description: "Gets the complete directory structure as a tree. Useful for understanding project layout.",
+      description: "Gets the complete directory structure as a tree. Automatically skips .gitignore patterns (node_modules, .git, dist, build, etc.).",
       parameters: {
         type: "object",
         properties: {
@@ -460,6 +460,14 @@ After calling this tool, the user will see the changes highlighted in the editor
           const startTime = Date.now();
           const maxDuration = 30000; // 30 seconds total
 
+          // Directories to always skip (common .gitignore patterns)
+          const IGNORED_DIRS = new Set([
+            'node_modules', '.git', 'dist', 'build', '.next', 'out',
+            'target', '.cache', '.turbo', 'coverage', '.nyc_output',
+            'vendor', 'bower_components', '.pnpm', '__pycache__',
+            '.venv', 'venv', '.tox', '.pytest_cache', 'eggs', '*.egg-info'
+          ]);
+
           const invokeWithTimeout = async <T>(cmd: string, args: any): Promise<T> => {
             const timeoutPromise = new Promise<never>((_, reject) =>
               setTimeout(() => reject(new Error('invoke timeout')), 5000)
@@ -481,6 +489,11 @@ After calling this tool, the user will see the changes highlighted in the editor
 
               for (const child of children) {
                 if (Date.now() - startTime > maxDuration) break;
+
+                // Skip ignored directories
+                if (child.is_directory && IGNORED_DIRS.has(child.name)) {
+                  continue; // Skip node_modules, .git, etc.
+                }
 
                 if (child.is_directory) {
                   const subtree = await buildTree(child.path, currentDepth + 1);
@@ -614,12 +627,26 @@ Examples:
             args.push(`--glob=${file_pattern}`);
           }
 
-          // Exclude common non-code directories
+          // Exclude common .gitignore patterns
           args.push('--glob=!node_modules');
-          args.push('--glob=!target');
-          args.push('--glob=!dist');
           args.push('--glob=!.git');
+          args.push('--glob=!dist');
+          args.push('--glob=!build');
+          args.push('--glob=!.next');
+          args.push('--glob=!out');
+          args.push('--glob=!target');
+          args.push('--glob=!.cache');
+          args.push('--glob=!.turbo');
+          args.push('--glob=!coverage');
+          args.push('--glob=!.nyc_output');
+          args.push('--glob=!vendor');
+          args.push('--glob=!bower_components');
+          args.push('--glob=!.pnpm');
+          args.push('--glob=!__pycache__');
+          args.push('--glob=!.venv');
+          args.push('--glob=!venv');
           args.push('--glob=!*.lock');
+          args.push('--glob=!*.log');
 
           // The search pattern (escaped for shell)
           const escapedQuery = query.replace(/"/g, '\\"');
@@ -963,17 +990,26 @@ Examples:
             // Check if command output indicates an error (for informational purposes)
             const hasErrors = /error|Error|ERROR|failed|Failed|FAILED/.test(cleanOutput);
 
-            console.log(`[run_command] Completed in ${totalTime}ms with ${output.length} bytes${hasErrors ? ' (contains errors)' : ''}`);
+            console.log(`[run_command] Completed in ${totalTime}ms with ${cleanOutput.length} bytes${hasErrors ? ' (contains errors)' : ''}`);
 
-            // Always return success=true for completed commands
-            // The agent will interpret the output to determine if there were issues
-            return {
+            // Debug: log first 500 chars of output to verify capture
+            if (cleanOutput.length > 0) {
+              console.log(`[run_command] Output preview (first 500 chars):\n${cleanOutput.slice(0, 500)}`);
+            } else {
+              console.warn(`[run_command] WARNING: No output captured!`);
+            }
+
+            // Prepare result
+            const result = {
               success: true,
               stdout: cleanOutput,
               exitedWithErrors: hasErrors,
               message: `Command "${command}" executed in ${totalTime}ms.`,
               duration: totalTime
             };
+
+            console.log(`[run_command] Returning result with ${cleanOutput.length} bytes of stdout`);
+            return result;
           } finally {
             cleanup();
           }

@@ -243,9 +243,32 @@ Would you like me to:
     // Create a message with tool results to send back to the LLM
     const toolResultsContent = response.toolCalls.map(tc => {
       if (tc.status === 'success') {
-        // Truncate very long results to avoid token limits
+        // Special formatting for command outputs - show stdout directly, not JSON
+        if (tc.name === 'run_command' && tc.result && typeof tc.result === 'object') {
+          const result = tc.result as Record<string, unknown>;
+          const stdout = result.stdout || result.output || '';
+          const exitCode = result.exitCode ?? result.exitedWithErrors;
+          const duration = result.duration || '';
+
+          // For commands, show the actual output clearly
+          let output = `Tool run_command completed (${duration}ms):\n`;
+          if (exitCode !== undefined && exitCode !== 0 && exitCode !== false) {
+            output += `Exit status: ${exitCode}\n`;
+          }
+          output += `--- Command Output ---\n${stdout}\n--- End Output ---`;
+
+          // Larger limit for command outputs (8000 chars)
+          if (output.length > 8000) {
+            output = output.slice(0, 8000) + '\n... (output truncated, showing first 8000 chars)';
+          }
+          return output;
+        }
+
+        // For other tools, use JSON but with better truncation
         const resultStr = JSON.stringify(tc.result, null, 2);
-        const truncated = resultStr.length > 3000 ? resultStr.slice(0, 3000) + '\n... (truncated)' : resultStr;
+        const truncated = resultStr.length > 5000
+          ? resultStr.slice(0, 5000) + '\n... (truncated, showing first 5000 chars)'
+          : resultStr;
         return `Tool ${tc.name} executed successfully:\n${truncated}`;
       } else {
         return `Tool ${tc.name} failed with error: ${tc.error}`;
