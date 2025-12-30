@@ -558,6 +558,159 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             required: ['path'],
         },
     },
+
+    // =========================================================================
+    // NEW CONSOLIDATED TOOLS (Anthropic Best Practices)
+    // These tools combine multiple operations for better token efficiency
+    // =========================================================================
+
+    {
+        name: 'get_project_context',
+        description: 'Get comprehensive project context in ONE call. Returns workspace info, directory structure, dependencies, git status, README, and entry points. CALL THIS FIRST when starting any new task.',
+        category: 'read',
+        executor: 'hybrid',
+        parallel: true,
+        timeout: 30000,
+        retryable: true,
+        cacheable: true,
+        cacheTimeout: 60000,
+        parameters: {
+            type: 'object',
+            properties: {
+                include: {
+                    type: 'array',
+                    description: "What to include: 'structure', 'dependencies', 'git', 'readme', 'entry_points'. Default: all.",
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' or 'detailed'. Default: detailed.",
+                },
+            },
+            required: [],
+        },
+    },
+
+    {
+        name: 'fs_batch_read',
+        description: 'Read multiple files in a single operation. Much more token-efficient than calling read_file multiple times.',
+        category: 'read',
+        executor: 'hybrid',
+        parallel: true,
+        timeout: 30000,
+        retryable: true,
+        cacheable: true,
+        cacheTimeout: 30000,
+        parameters: {
+            type: 'object',
+            properties: {
+                paths: {
+                    type: 'array',
+                    description: 'Array of file paths to read (relative to workspace).',
+                    required: true,
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (line counts + previews) or 'detailed' (full content).",
+                },
+                max_chars_per_file: {
+                    type: 'number',
+                    description: 'Maximum characters per file. Default: 50000.',
+                },
+            },
+            required: ['paths'],
+        },
+    },
+
+    {
+        name: 'find_symbols',
+        description: 'Find code symbols (functions, classes, interfaces, types) across the codebase. More accurate than text search.',
+        category: 'read',
+        executor: 'hybrid',
+        parallel: true,
+        timeout: 30000,
+        retryable: true,
+        cacheable: true,
+        cacheTimeout: 15000,
+        parameters: {
+            type: 'object',
+            properties: {
+                query: {
+                    type: 'string',
+                    description: 'Symbol name or pattern to find.',
+                    required: true,
+                },
+                kind: {
+                    type: 'string',
+                    description: "Symbol type: 'function', 'class', 'interface', 'type', 'const', 'all'.",
+                },
+                file_pattern: {
+                    type: 'string',
+                    description: "Glob pattern for files (e.g., '*.ts', '*.rs').",
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' or 'detailed'.",
+                },
+            },
+            required: ['query'],
+        },
+    },
+
+    {
+        name: 'verify_changes',
+        description: 'Verify code changes by running type-check, lint, or tests. Call this AFTER making changes.',
+        category: 'execute',
+        executor: 'hybrid',
+        parallel: false,
+        timeout: 120000,
+        retryable: true,
+        cacheable: false,
+        parameters: {
+            type: 'object',
+            properties: {
+                scope: {
+                    type: 'string',
+                    description: "'type-check', 'lint', 'test', or 'build'. Default: type-check.",
+                },
+                fix: {
+                    type: 'boolean',
+                    description: 'Auto-fix issues (lint only). Default: false.',
+                },
+            },
+            required: [],
+        },
+    },
+
+    {
+        name: 'smart_edit',
+        description: 'Perform reliable file edits with built-in verification. Combines read + edit + type-check.',
+        category: 'write',
+        executor: 'hybrid',
+        parallel: false,
+        timeout: 60000,
+        retryable: false,
+        cacheable: false,
+        parameters: {
+            type: 'object',
+            properties: {
+                path: {
+                    type: 'string',
+                    description: 'File path to edit.',
+                    required: true,
+                },
+                edits: {
+                    type: 'array',
+                    description: 'Array of {find: string, replace: string} objects.',
+                    required: true,
+                },
+                verify: {
+                    type: 'boolean',
+                    description: 'Run type-check after editing. Default: true.',
+                },
+            },
+            required: ['path', 'edits'],
+        },
+    },
 ];
 
 // ===========================

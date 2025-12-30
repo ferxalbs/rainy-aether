@@ -7,6 +7,14 @@ import { editorActions } from "@/stores/editorStore";
 import { inlineDiffActions } from "@/stores/inlineDiffStore";
 import { computeLineDiff, diffToInlineChanges } from "@/services/inlineDiff/lineDiff";
 import { join } from "@tauri-apps/api/path";
+import {
+  ResponseFormat,
+  truncateString,
+  formatFileResponse,
+  formatSearchResults,
+  formatDirectoryTree,
+  createHelpfulError,
+} from "./toolUtils";
 
 export interface ToolDefinition {
   name: string;
@@ -1168,6 +1176,724 @@ Examples:
         }
       },
     });
+
+    // =========================================================================
+    // NEW CONSOLIDATED TOOLS (Anthropic Best Practices)
+    // These tools combine multiple operations for better token efficiency
+    // =========================================================================
+
+    // --- get_project_context: Comprehensive project overview in one call ---
+    this.registerTool({
+      name: "get_project_context",
+      description: `Get comprehensive project context in ONE call. Returns workspace info, directory structure, package.json/Cargo.toml contents, README, and git status.
+
+🌟 CALL THIS FIRST when starting any new task. Replaces 5+ individual tool calls.
+
+Returns (based on 'include' parameter):
+- structure: Directory tree (depth 2)
+- dependencies: package.json or Cargo.toml parsed
+- git: Current git status
+- readme: README.md content
+- entry_points: Main entry files (main.ts, index.ts, lib.rs, etc.)`,
+      parameters: {
+        type: "object",
+        properties: {
+          include: {
+            type: "array",
+            description: "What to include: 'structure', 'dependencies', 'git', 'readme', 'entry_points'. Default: all."
+          },
+          response_format: {
+            type: "string",
+            description: "Output format: 'concise' (summaries only) or 'detailed' (full content). Default: detailed."
+          },
+        },
+        required: [],
+      },
+      execute: async ({ include, response_format = 'detailed' }: { include?: string[]; response_format?: ResponseFormat }) => {
+        try {
+          const workspace = getIDEState().workspace;
+          if (!workspace) {
+            return createHelpfulError('No workspace is currently open.', {
+              tool: 'get_project_context',
+              suggestion: 'Open a folder first using File > Open Folder',
+            });
+          }
+
+          const sections = include || ['structure', 'dependencies', 'git', 'readme', 'entry_points'];
+          const context: Record<string, unknown> = {
+            workspace: { name: workspace.name, path: workspace.path },
+          };
+
+          // Get directory structure
+          if (sections.includes('structure')) {
+            try {
+              const dirTool = this.getTool('read_directory_tree');
+              if (dirTool) {
+                const result = await dirTool.execute({ path: '.', max_depth: 2 });
+                if (result.success) {
+                  context.structure = formatDirectoryTree(result.tree, response_format);
+                }
+              }
+            } catch { /* ignore */ }
+          }
+
+          // Get dependencies (package.json or Cargo.toml)
+          if (sections.includes('dependencies')) {
+            try {
+              // Try package.json first
+              const pkgPath = await join(workspace.path, 'package.json');
+              const pkgContent = await invoke<string>("get_file_content", { path: pkgPath });
+              const pkg = JSON.parse(pkgContent);
+
+              context.dependencies = response_format === 'concise'
+                ? {
+                  name: pkg.name,
+                  version: pkg.version,
+                  type: 'npm',
+                  dependencyCount: Object.keys(pkg.dependencies || {}).length,
+                  devDependencyCount: Object.keys(pkg.devDependencies || {}).length,
+                  scripts: Object.keys(pkg.scripts || {}),
+                }
+                : {
+                  name: pkg.name,
+                  version: pkg.version,
+                  type: 'npm',
+                  scripts: pkg.scripts,
+                  dependencies: pkg.dependencies,
+                  devDependencies: pkg.devDependencies,
+                };
+            } catch {
+              // Try Cargo.toml
+              try {
+                const cargoPath = await join(workspace.path, 'Cargo.toml');
+                const cargoContent = await invoke<string>("get_file_content", { path: cargoPath });
+                context.dependencies = {
+                  type: 'cargo',
+                  content: response_format === 'concise'
+                    ? cargoContent.slice(0, 500) + '...'
+                    : cargoContent,
+                };
+              } catch { /* no deps file */ }
+            }
+          }
+
+          // Get git status
+          if (sections.includes('git')) {
+            try {
+              const gitService = getGitService(workspace.path);
+              const status = await gitService.getGitStatus();
+              context.git = response_format === 'concise'
+                ? {
+                  branch: status.branch,
+                  modified: Array.isArray(status.modified) ? status.modified.length : 0,
+                  staged: Array.isArray(status.staged) ? status.staged.length : 0,
+                  untracked: Array.isArray(status.untracked) ? status.untracked.length : 0,
+                }
+                : status;
+            } catch { /* not a git repo */ }
+          }
+
+          // Get README
+          if (sections.includes('readme')) {
+            try {
+              const readmePath = await join(workspace.path, 'README.md');
+              const readmeContent = await invoke<string>("get_file_content", { path: readmePath });
+              const formatted = formatFileResponse(readmePath, readmeContent, response_format);
+              context.readme = response_format === 'concise' ? formatted.preview : formatted.content;
+            } catch { /* no readme */ }
+          }
+
+          // Get entry points
+          if (sections.includes('entry_points')) {
+            const entryPoints: Array<{ name: string; path: string; type: string }> = [];
+            const potentialEntries = [
+              { file: 'src/main.ts', type: 'typescript' },
+              { file: 'src/index.ts', type: 'typescript' },
+              { file: 'src/main.tsx', type: 'typescript-react' },
+              { file: 'src/App.tsx', type: 'react-component' },
+              { file: 'src/lib.rs', type: 'rust-lib' },
+              { file: 'src/main.rs', type: 'rust-bin' },
+              { file: 'index.js', type: 'javascript' },
+              { file: 'main.py', type: 'python' },
+            ];
+
+            for (const entry of potentialEntries) {
+              try {
+                const entryPath = await join(workspace.path, entry.file);
+                await invoke<string>("get_file_content", { path: entryPath });
+                entryPoints.push({ name: entry.file, path: entryPath, type: entry.type });
+              } catch { /* doesn't exist */ }
+            }
+
+            context.entry_points = entryPoints;
+          }
+
+          return {
+            success: true,
+            ...context,
+            message: `Project context for ${workspace.name} (${sections.join(', ')})`,
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Failed to get project context: ${errorMsg}` };
+        }
+      },
+    });
+
+    // --- fs_batch_read: Read multiple files in one call ---
+    this.registerTool({
+      name: "fs_batch_read",
+      description: `Read multiple files in a single operation. Much more token-efficient than calling read_file multiple times.
+
+Use when you need to read 2+ files. Returns all file contents with metadata.`,
+      parameters: {
+        type: "object",
+        properties: {
+          paths: {
+            type: "array",
+            description: "Array of file paths to read (relative to workspace)."
+          },
+          response_format: {
+            type: "string",
+            description: "'concise' (line counts + previews) or 'detailed' (full content). Default: detailed."
+          },
+          max_chars_per_file: {
+            type: "number",
+            description: "Maximum characters per file. Default: 50000."
+          },
+        },
+        required: ["paths"],
+      },
+      execute: async ({
+        paths,
+        response_format = 'detailed',
+        max_chars_per_file = 50000
+      }: {
+        paths: string[];
+        response_format?: ResponseFormat;
+        max_chars_per_file?: number;
+      }) => {
+        try {
+          if (!paths || !Array.isArray(paths) || paths.length === 0) {
+            return createHelpfulError('paths array is required and must not be empty', {
+              tool: 'fs_batch_read',
+              suggestion: 'Provide an array of file paths, e.g., ["src/main.ts", "package.json"]',
+            });
+          }
+
+          const results: Array<{
+            path: string;
+            success: boolean;
+            content?: string;
+            lineCount?: number;
+            charCount?: number;
+            preview?: string;
+            error?: string;
+          }> = [];
+
+          let totalChars = 0;
+          const maxTotalChars = 100000; // ~25k tokens
+
+          for (const path of paths) {
+            try {
+              if (totalChars >= maxTotalChars) {
+                results.push({
+                  path,
+                  success: false,
+                  error: 'Skipped: total response size limit reached. Use fewer files or concise format.',
+                });
+                continue;
+              }
+
+              const resolvedPath = await this.resolvePath(path);
+              let content = await invoke<string>("get_file_content", { path: resolvedPath });
+
+              // Truncate if too large
+              if (content.length > max_chars_per_file) {
+                content = content.slice(0, max_chars_per_file) + '\n\n[... truncated ...]';
+              }
+
+              const formatted = formatFileResponse(path, content, response_format);
+              totalChars += (formatted.content?.length || 0);
+
+              results.push({
+                path: formatted.path,
+                success: true,
+                content: formatted.content,
+                lineCount: formatted.lineCount,
+                charCount: formatted.charCount,
+                preview: formatted.preview,
+              });
+            } catch (error) {
+              results.push({
+                path,
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }
+
+          const successful = results.filter(r => r.success).length;
+          return {
+            success: true,
+            files: results,
+            summary: {
+              requested: paths.length,
+              successful,
+              failed: paths.length - successful,
+            },
+            message: `Read ${successful}/${paths.length} files successfully.`,
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Batch read failed: ${errorMsg}` };
+        }
+      },
+    });
+
+    // --- verify_changes: Verify code after modifications ---
+    this.registerTool({
+      name: "verify_changes",
+      description: `Verify code changes by running type-check, lint, or tests. 
+      
+🌟 Call this AFTER making code changes to ensure they don't introduce errors.
+
+Scopes:
+- 'type-check': Run TypeScript compiler (fast, catches type errors)
+- 'lint': Run ESLint or equivalent  
+- 'test': Run project tests (slower, thorough)
+- 'build': Run build command (verifies everything compiles)`,
+      parameters: {
+        type: "object",
+        properties: {
+          scope: {
+            type: "string",
+            description: "What to verify: 'type-check', 'lint', 'test', 'build'. Default: type-check."
+          },
+          fix: {
+            type: "boolean",
+            description: "Auto-fix issues where possible (lint only). Default: false."
+          },
+        },
+        required: [],
+      },
+      execute: async ({ scope = 'type-check', fix = false }: { scope?: string; fix?: boolean }) => {
+        try {
+          const workspace = getIDEState().workspace;
+          if (!workspace) {
+            return { success: false, error: 'No workspace open' };
+          }
+
+          // Determine the verification command based on project type
+          let command = '';
+          let timeout = 60000;
+
+          // Detect project type
+          const hasTsconfig = await this.fileExists(await join(workspace.path, 'tsconfig.json'));
+          const hasCargoToml = await this.fileExists(await join(workspace.path, 'Cargo.toml'));
+
+          if (hasTsconfig) {
+            switch (scope) {
+              case 'type-check':
+                command = 'pnpm exec tsc --noEmit';
+                break;
+              case 'lint':
+                command = fix ? 'pnpm exec eslint . --fix' : 'pnpm exec eslint .';
+                timeout = 90000;
+                break;
+              case 'test':
+                command = 'pnpm test';
+                timeout = 120000;
+                break;
+              case 'build':
+                command = 'pnpm build';
+                timeout = 120000;
+                break;
+              default:
+                command = 'pnpm exec tsc --noEmit';
+            }
+          } else if (hasCargoToml) {
+            switch (scope) {
+              case 'type-check':
+              case 'build':
+                command = 'cargo check';
+                break;
+              case 'lint':
+                command = 'cargo clippy';
+                break;
+              case 'test':
+                command = 'cargo test';
+                timeout = 120000;
+                break;
+              default:
+                command = 'cargo check';
+            }
+          } else {
+            return createHelpfulError('Could not detect project type', {
+              tool: 'verify_changes',
+              suggestion: 'Ensure project has tsconfig.json or Cargo.toml',
+              alternatives: ['run_command with your specific command'],
+            });
+          }
+
+          // Execute the command
+          const runCommandTool = this.getTool('run_command');
+          if (!runCommandTool) {
+            return { success: false, error: 'run_command tool not available' };
+          }
+
+          const result = await runCommandTool.execute({ command, timeout });
+
+          // Parse the result to provide a summary
+          const output = result.stdout || '';
+          const hasErrors = /error(\[|\s|:)/i.test(output);
+          const errorCount = (output.match(/error(\[|\s|:)/gi) || []).length;
+          const warningCount = (output.match(/warning(\[|\s|:)/gi) || []).length;
+
+          return {
+            success: true,
+            scope,
+            command,
+            passed: !hasErrors,
+            summary: {
+              errors: errorCount,
+              warnings: warningCount,
+              passed: !hasErrors,
+            },
+            output: truncateString(output, 10000).data,
+            message: hasErrors
+              ? `Verification failed: ${errorCount} error(s) found. Review output and fix issues.`
+              : `✓ Verification passed (${scope}). No errors found.`,
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Verification failed: ${errorMsg}` };
+        }
+      },
+    });
+
+    // --- find_symbols: Smart code symbol search ---
+    this.registerTool({
+      name: "find_symbols",
+      description: `Find code symbols (functions, classes, interfaces, types) across the codebase.
+
+More accurate than text search because it understands code structure.
+Uses ripgrep with smart patterns optimized for common languages.`,
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "Symbol name or pattern to find."
+          },
+          kind: {
+            type: "string",
+            description: "Symbol type: 'function', 'class', 'interface', 'type', 'const', 'all'. Default: all."
+          },
+          file_pattern: {
+            type: "string",
+            description: "Glob pattern for files (e.g., '*.ts', '*.rs'). Default: all code files."
+          },
+          response_format: {
+            type: "string",
+            description: "'concise' (name + location) or 'detailed' (includes context). Default: detailed."
+          },
+        },
+        required: ["query"],
+      },
+      execute: async ({
+        query,
+        kind = 'all',
+        file_pattern,
+        response_format = 'detailed'
+      }: {
+        query: string;
+        kind?: string;
+        file_pattern?: string;
+        response_format?: ResponseFormat;
+      }) => {
+        try {
+          if (!query || typeof query !== 'string') {
+            return createHelpfulError('query parameter is required', {
+              tool: 'find_symbols',
+              suggestion: 'Provide a symbol name to search for, e.g., "handleClick"',
+            });
+          }
+
+          // Build regex pattern based on symbol kind
+          let patterns: string[] = [];
+          const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+          switch (kind) {
+            case 'function':
+              patterns = [
+                `(function|const|let|var)\\s+${escapedQuery}\\s*[=(<]`,
+                `${escapedQuery}\\s*:\\s*\\([^)]*\\)\\s*=>`,
+                `async\\s+${escapedQuery}\\s*\\(`,
+                `fn\\s+${escapedQuery}\\s*[<(]`, // Rust
+                `def\\s+${escapedQuery}\\s*\\(`, // Python
+              ];
+              break;
+            case 'class':
+              patterns = [
+                `class\\s+${escapedQuery}\\s*[{<]`,
+                `struct\\s+${escapedQuery}\\s*[{<]`, // Rust
+              ];
+              break;
+            case 'interface':
+              patterns = [
+                `interface\\s+${escapedQuery}\\s*[{<]`,
+                `trait\\s+${escapedQuery}\\s*[{<]`, // Rust
+              ];
+              break;
+            case 'type':
+              patterns = [
+                `type\\s+${escapedQuery}\\s*[=<]`,
+              ];
+              break;
+            case 'const':
+              patterns = [
+                `(const|let|var)\\s+${escapedQuery}\\s*[=:]`,
+              ];
+              break;
+            default:
+              // All - use the query directly with word boundaries
+              patterns = [`\\b${escapedQuery}\\b`];
+          }
+
+          // Use search_code tool with regex
+          const searchTool = this.getTool('search_code');
+          if (!searchTool) {
+            return { success: false, error: 'search_code tool not available' };
+          }
+
+          const allResults: Array<{ file: string; line: number; content: string; kind?: string }> = [];
+
+          for (const pattern of patterns) {
+            const result = await searchTool.execute({
+              query: pattern,
+              file_pattern: file_pattern || '*.{ts,tsx,js,jsx,rs,py}',
+              is_regex: true,
+              max_results: 20,
+              context_lines: response_format === 'detailed' ? 2 : 0,
+            });
+
+            if (result.success && result.results) {
+              for (const r of result.results) {
+                // Avoid duplicates
+                if (!allResults.find(ar => ar.file === r.file && ar.line === r.line)) {
+                  allResults.push({ ...r, kind });
+                }
+              }
+            }
+          }
+
+          const formatted = formatSearchResults(allResults, response_format);
+
+          return {
+            success: true,
+            query,
+            kind,
+            ...formatted,
+            message: allResults.length > 0
+              ? `Found ${allResults.length} symbol(s) matching "${query}"`
+              : `No symbols found matching "${query}". Try a different query or kind.`,
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Symbol search failed: ${errorMsg}` };
+        }
+      },
+    });
+
+    // --- smart_edit: Combined read + edit + verify ---
+    this.registerTool({
+      name: "smart_edit",
+      description: `Perform reliable file edits with built-in verification.
+
+Combines:
+1. Read the current file content
+2. Apply one or more find/replace edits
+3. Optionally verify with type-check
+
+Use this instead of separate read_file + edit_file + verify_changes calls.`,
+      parameters: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description: "File path to edit."
+          },
+          edits: {
+            type: "array",
+            description: "Array of {find: string, replace: string} objects. Each 'find' must be unique in the file."
+          },
+          verify: {
+            type: "boolean",
+            description: "Run type-check after editing. Default: true."
+          },
+          show_diff: {
+            type: "boolean",
+            description: "Return a summary of changes made. Default: true."
+          },
+        },
+        required: ["path", "edits"],
+      },
+      execute: async ({
+        path,
+        edits,
+        verify = true,
+      }: {
+        path: string;
+        edits: Array<{ find: string; replace: string }>;
+        verify?: boolean;
+      }) => {
+        try {
+          if (!path || typeof path !== 'string') {
+            return createHelpfulError('path parameter is required', {
+              tool: 'smart_edit',
+              suggestion: 'Provide the file path to edit',
+            });
+          }
+
+          if (!edits || !Array.isArray(edits) || edits.length === 0) {
+            return createHelpfulError('edits array is required', {
+              tool: 'smart_edit',
+              suggestion: 'Provide an array of {find, replace} objects',
+            });
+          }
+
+          const resolvedPath = await this.resolvePath(path);
+
+          // Step 1: Read current content
+          let content: string;
+          try {
+            content = await invoke<string>("get_file_content", { path: resolvedPath });
+          } catch {
+            return createHelpfulError(`File not found: ${path}`, {
+              tool: 'smart_edit',
+              suggestion: 'Use create_file to create a new file, or check the path',
+            });
+          }
+
+          const changes: Array<{ find: string; replace: string; success: boolean; error?: string }> = [];
+
+          // Step 2: Apply each edit
+          for (const edit of edits) {
+            if (!edit.find || edit.replace === undefined) {
+              changes.push({
+                find: edit.find || '(empty)',
+                replace: edit.replace || '',
+                success: false,
+                error: 'Both find and replace are required'
+              });
+              continue;
+            }
+
+            // Normalize line endings
+            const normalizedContent = content.replace(/\r\n/g, '\n');
+            const normalizedFind = edit.find.replace(/\r\n/g, '\n');
+
+            if (!normalizedContent.includes(normalizedFind)) {
+              changes.push({
+                find: edit.find.slice(0, 50) + (edit.find.length > 50 ? '...' : ''),
+                replace: edit.replace.slice(0, 50) + (edit.replace.length > 50 ? '...' : ''),
+                success: false,
+                error: 'Text not found in file. Content may have changed.'
+              });
+              continue;
+            }
+
+            // Check for duplicates
+            const occurrences = normalizedContent.split(normalizedFind).length - 1;
+            if (occurrences > 1) {
+              changes.push({
+                find: edit.find.slice(0, 50) + (edit.find.length > 50 ? '...' : ''),
+                replace: edit.replace.slice(0, 50) + (edit.replace.length > 50 ? '...' : ''),
+                success: false,
+                error: `Text appears ${occurrences} times. Add more context to make unique.`
+              });
+              continue;
+            }
+
+            // Apply the edit
+            content = normalizedContent.replace(normalizedFind, edit.replace);
+            changes.push({
+              find: edit.find.slice(0, 50) + (edit.find.length > 50 ? '...' : ''),
+              replace: edit.replace.slice(0, 50) + (edit.replace.length > 50 ? '...' : ''),
+              success: true
+            });
+          }
+
+          const successfulEdits = changes.filter(c => c.success);
+
+          // If no edits were successful, don't write
+          if (successfulEdits.length === 0) {
+            return {
+              success: false,
+              error: 'No edits could be applied',
+              changes,
+              hint: 'Read the file again to get the current content, then retry with exact text.',
+            };
+          }
+
+          // Step 3: Write the file
+          await invoke("save_file_content", { path: resolvedPath, content });
+
+          // Update Monaco editor if file is open
+          const editor = editorActions.getCurrentEditor();
+          if (editor) {
+            const model = editor.getModel();
+            const openFiles = getIDEState().openFiles;
+            const isFileOpen = openFiles.some(f => f.path === resolvedPath);
+            if (model && isFileOpen && model.getValue() !== content) {
+              model.setValue(content);
+            }
+          }
+
+          // Step 4: Optionally verify
+          let verification = null;
+          if (verify) {
+            const verifyTool = this.getTool('verify_changes');
+            if (verifyTool) {
+              verification = await verifyTool.execute({ scope: 'type-check' });
+            }
+          }
+
+          return {
+            success: true,
+            path,
+            changes,
+            summary: {
+              attempted: edits.length,
+              successful: successfulEdits.length,
+              failed: edits.length - successfulEdits.length,
+            },
+            verification: verification ? {
+              passed: verification.passed,
+              errors: verification.summary?.errors || 0,
+            } : null,
+            message: `Applied ${successfulEdits.length}/${edits.length} edits to ${path}.` +
+              (verification ? (verification.passed ? ' ✓ Type-check passed.' : ' ⚠ Type errors detected.') : ''),
+          };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          return { success: false, error: `Smart edit failed: ${errorMsg}` };
+        }
+      },
+    });
+  }
+
+  /**
+   * Helper to check if a file exists
+   */
+  private async fileExists(path: string): Promise<boolean> {
+    try {
+      await invoke<string>("get_file_content", { path });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   registerTool(tool: ToolDefinition) {
