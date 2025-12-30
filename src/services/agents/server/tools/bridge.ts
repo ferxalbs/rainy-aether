@@ -501,6 +501,385 @@ export const toolHandlers: Record<string, ToolHandler> = {
             return { success: false, error: `Failed to analyze imports: ${error}` };
         }
     },
+
+    // =========================================================================
+    // NEW CONSOLIDATED TOOLS (Anthropic Best Practices)
+    // =========================================================================
+
+    get_project_context: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const include = (args as any).include || ['structure', 'dependencies', 'git', 'readme', 'entry_points'];
+            const responseFormat = (args as any).response_format || 'detailed';
+            const context: Record<string, unknown> = {};
+
+            // Workspace info
+            context.workspace = {
+                path: workspacePath,
+                name: path.basename(workspacePath),
+            };
+
+            // Directory structure
+            if (include.includes('structure')) {
+                try {
+                    const readDirRecursive = async (dir: string, depth: number = 0, maxDepth: number = 2): Promise<any> => {
+                        if (depth >= maxDepth) return null;
+                        const items = await fs.readdir(dir, { withFileTypes: true });
+                        const IGNORED = ['node_modules', '.git', 'dist', 'build', '.next', 'target', '.cache'];
+                        const filtered = items.filter(i => !IGNORED.includes(i.name) && !i.name.startsWith('.'));
+
+                        return {
+                            directories: await Promise.all(
+                                filtered.filter(i => i.isDirectory()).slice(0, 20).map(async d => ({
+                                    name: d.name,
+                                    children: await readDirRecursive(path.join(dir, d.name), depth + 1, maxDepth)
+                                }))
+                            ),
+                            files: filtered.filter(i => i.isFile()).slice(0, 30).map(f => ({ name: f.name }))
+                        };
+                    };
+                    context.structure = await readDirRecursive(workspacePath);
+                } catch { /* ignore */ }
+            }
+
+            // Dependencies
+            if (include.includes('dependencies')) {
+                try {
+                    const pkgPath = path.join(workspacePath, 'package.json');
+                    const content = await fs.readFile(pkgPath, 'utf-8');
+                    const pkg = JSON.parse(content);
+                    context.dependencies = responseFormat === 'concise'
+                        ? {
+                            name: pkg.name,
+                            version: pkg.version,
+                            type: 'npm',
+                            scripts: Object.keys(pkg.scripts || {}),
+                            dependencyCount: Object.keys(pkg.dependencies || {}).length,
+                        }
+                        : {
+                            name: pkg.name,
+                            version: pkg.version,
+                            type: 'npm',
+                            scripts: pkg.scripts,
+                            dependencies: pkg.dependencies,
+                            devDependencies: pkg.devDependencies,
+                        };
+                } catch {
+                    try {
+                        const cargoPath = path.join(workspacePath, 'Cargo.toml');
+                        const content = await fs.readFile(cargoPath, 'utf-8');
+                        context.dependencies = { type: 'cargo', content: responseFormat === 'concise' ? content.slice(0, 500) : content };
+                    } catch { /* no deps */ }
+                }
+            }
+
+            // Git status
+            if (include.includes('git')) {
+                try {
+                    const status = execSync('git status --porcelain', { cwd: workspacePath, encoding: 'utf-8' });
+                    const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: workspacePath, encoding: 'utf-8' }).trim();
+                    const lines = status.split('\n').filter(Boolean);
+                    context.git = responseFormat === 'concise'
+                        ? { branch, modified: lines.length }
+                        : { branch, files: lines };
+                } catch { /* not a git repo */ }
+            }
+
+            // README
+            if (include.includes('readme')) {
+                try {
+                    const readmePath = path.join(workspacePath, 'README.md');
+                    const content = await fs.readFile(readmePath, 'utf-8');
+                    context.readme = responseFormat === 'concise' ? content.slice(0, 500) : content;
+                } catch { /* no readme */ }
+            }
+
+            // Entry points
+            if (include.includes('entry_points')) {
+                const entries = ['src/main.ts', 'src/index.ts', 'src/main.tsx', 'src/App.tsx', 'src/lib.rs', 'src/main.rs', 'index.js', 'main.py'];
+                const found = [];
+                for (const entry of entries) {
+                    try {
+                        await fs.access(path.join(workspacePath, entry));
+                        found.push(entry);
+                    } catch { /* doesn't exist */ }
+                }
+                context.entry_points = found;
+            }
+
+            return { success: true, data: context };
+        } catch (error) {
+            return { success: false, error: `Failed to get project context: ${error}` };
+        }
+    },
+
+    fs_batch_read: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const paths = args.paths || [];
+            const responseFormat = (args as any).response_format || 'detailed';
+            const maxCharsPerFile = (args as any).max_chars_per_file || 50000;
+
+            if (!Array.isArray(paths) || paths.length === 0) {
+                return { success: false, error: 'paths array is required and must not be empty' };
+            }
+
+            const results = [];
+            for (const filePath of paths) {
+                try {
+                    const resolved = resolvePath(filePath);
+                    let content = await fs.readFile(resolved, 'utf-8');
+                    if (content.length > maxCharsPerFile) {
+                        content = content.slice(0, maxCharsPerFile) + '\n\n[... truncated ...]';
+                    }
+                    const lines = content.split('\n');
+
+                    if (responseFormat === 'concise') {
+                        results.push({
+                            path: filePath,
+                            success: true,
+                            lineCount: lines.length,
+                            charCount: content.length,
+                            preview: lines.slice(0, 5).join('\n')
+                        });
+                    } else {
+                        results.push({
+                            path: filePath,
+                            success: true,
+                            content,
+                            lineCount: lines.length
+                        });
+                    }
+                } catch (error) {
+                    results.push({ path: filePath, success: false, error: String(error) });
+                }
+            }
+
+            return {
+                success: true,
+                data: {
+                    files: results,
+                    summary: {
+                        requested: paths.length,
+                        successful: results.filter(r => r.success).length,
+                        failed: results.filter(r => !r.success).length,
+                    }
+                }
+            };
+        } catch (error) {
+            return { success: false, error: `Batch read failed: ${error}` };
+        }
+    },
+
+    find_symbols: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const query = args.query;
+            const kind = (args as any).kind || 'all';
+            const filePattern = args.file_pattern || '*.{ts,tsx,js,jsx,rs,py}';
+
+            if (!query) {
+                return { success: false, error: 'query parameter is required' };
+            }
+
+            // Build regex patterns based on kind
+            let patterns: string[] = [];
+            const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+            switch (kind) {
+                case 'function':
+                    patterns = [`(function|const|let|var)\\s+${escaped}\\s*[=(<]`, `fn\\s+${escaped}\\s*[<(]`];
+                    break;
+                case 'class':
+                    patterns = [`class\\s+${escaped}\\s*[{<]`, `struct\\s+${escaped}\\s*[{<]`];
+                    break;
+                case 'interface':
+                    patterns = [`interface\\s+${escaped}\\s*[{<]`, `trait\\s+${escaped}\\s*[{<]`];
+                    break;
+                default:
+                    patterns = [`\\b${escaped}\\b`];
+            }
+
+            // Use grep to search
+            const results: Array<{ file: string; line: number; content: string }> = [];
+            for (const pattern of patterns) {
+                try {
+                    const cmd = `grep -rn -E "${pattern}" --include="${filePattern}" . 2>/dev/null | head -50`;
+                    const output = execSync(cmd, { cwd: workspacePath, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
+                    for (const line of output.split('\n').filter(Boolean)) {
+                        const match = line.match(/^\.\/([^:]+):(\d+):(.*)$/);
+                        if (match) {
+                            results.push({ file: match[1], line: parseInt(match[2]), content: match[3].trim() });
+                        }
+                    }
+                } catch { /* no matches */ }
+            }
+
+            // Deduplicate
+            const unique = results.filter((r, i, arr) =>
+                arr.findIndex(x => x.file === r.file && x.line === r.line) === i
+            );
+
+            return {
+                success: true,
+                data: {
+                    query,
+                    kind,
+                    results: unique,
+                    total: unique.length,
+                }
+            };
+        } catch (error) {
+            return { success: false, error: `Symbol search failed: ${error}` };
+        }
+    },
+
+    verify_changes: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const scope = (args as any).scope || 'type-check';
+            const fix = (args as any).fix || false;
+
+            // Detect project type
+            let command = '';
+            let hasTs = false;
+            let hasCargo = false;
+
+            try { await fs.access(path.join(workspacePath, 'tsconfig.json')); hasTs = true; } catch { }
+            try { await fs.access(path.join(workspacePath, 'Cargo.toml')); hasCargo = true; } catch { }
+
+            if (hasTs) {
+                switch (scope) {
+                    case 'type-check': command = 'pnpm exec tsc --noEmit 2>&1'; break;
+                    case 'lint': command = fix ? 'pnpm exec eslint . --fix 2>&1' : 'pnpm exec eslint . 2>&1'; break;
+                    case 'test': command = 'pnpm test 2>&1'; break;
+                    case 'build': command = 'pnpm build 2>&1'; break;
+                    default: command = 'pnpm exec tsc --noEmit 2>&1';
+                }
+            } else if (hasCargo) {
+                switch (scope) {
+                    case 'type-check':
+                    case 'build': command = 'cargo check 2>&1'; break;
+                    case 'lint': command = 'cargo clippy 2>&1'; break;
+                    case 'test': command = 'cargo test 2>&1'; break;
+                    default: command = 'cargo check 2>&1';
+                }
+            } else {
+                return { success: false, error: 'Could not detect project type (no tsconfig.json or Cargo.toml)' };
+            }
+
+            try {
+                const output = execSync(command, { cwd: workspacePath, encoding: 'utf-8', timeout: 120000, maxBuffer: 10 * 1024 * 1024 });
+                const hasErrors = /error(\[|\s|:)/i.test(output);
+                const errorCount = (output.match(/error(\[|\s|:)/gi) || []).length;
+                const warningCount = (output.match(/warning(\[|\s|:)/gi) || []).length;
+
+                return {
+                    success: true,
+                    data: {
+                        scope,
+                        command,
+                        passed: !hasErrors,
+                        summary: { errors: errorCount, warnings: warningCount },
+                        output: output.slice(0, 10000),
+                    }
+                };
+            } catch (error: any) {
+                const output = error.stdout || error.stderr || String(error);
+                const errorCount = (output.match(/error(\[|\s|:)/gi) || []).length;
+                return {
+                    success: true,
+                    data: {
+                        scope,
+                        command,
+                        passed: false,
+                        summary: { errors: errorCount, warnings: 0 },
+                        output: output.slice(0, 10000),
+                    }
+                };
+            }
+        } catch (error) {
+            return { success: false, error: `Verification failed: ${error}` };
+        }
+    },
+
+    smart_edit: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const filePath = args.path;
+            const edits = (args as any).edits;
+            const verify = (args as any).verify !== false;
+
+            if (!filePath) {
+                return { success: false, error: 'path parameter is required' };
+            }
+            if (!edits || !Array.isArray(edits) || edits.length === 0) {
+                return { success: false, error: 'edits array is required' };
+            }
+
+            const resolved = resolvePath(filePath);
+            let content = await fs.readFile(resolved, 'utf-8');
+            const changes: Array<{ find: string; replace: string; success: boolean; error?: string }> = [];
+
+            for (const edit of edits) {
+                if (!edit.find || edit.replace === undefined) {
+                    changes.push({ find: edit.find || '(empty)', replace: '', success: false, error: 'Both find and replace are required' });
+                    continue;
+                }
+
+                const normalizedContent = content.replace(/\r\n/g, '\n');
+                const normalizedFind = edit.find.replace(/\r\n/g, '\n');
+
+                if (!normalizedContent.includes(normalizedFind)) {
+                    changes.push({
+                        find: edit.find.slice(0, 50),
+                        replace: edit.replace.slice(0, 50),
+                        success: false,
+                        error: 'Text not found in file'
+                    });
+                    continue;
+                }
+
+                const occurrences = normalizedContent.split(normalizedFind).length - 1;
+                if (occurrences > 1) {
+                    changes.push({
+                        find: edit.find.slice(0, 50),
+                        replace: edit.replace.slice(0, 50),
+                        success: false,
+                        error: `Text appears ${occurrences} times. Make it unique.`
+                    });
+                    continue;
+                }
+
+                content = normalizedContent.replace(normalizedFind, edit.replace);
+                changes.push({ find: edit.find.slice(0, 50), replace: edit.replace.slice(0, 50), success: true });
+            }
+
+            const successfulEdits = changes.filter(c => c.success);
+            if (successfulEdits.length === 0) {
+                return { success: false, error: 'No edits could be applied', data: { changes } };
+            }
+
+            await fs.writeFile(resolved, content, 'utf-8');
+
+            // Optionally verify
+            let verification = null;
+            if (verify) {
+                verification = await toolHandlers.verify_changes({ scope: 'type-check' } as any);
+            }
+
+            return {
+                success: true,
+                data: {
+                    path: filePath,
+                    changes,
+                    summary: {
+                        attempted: edits.length,
+                        successful: successfulEdits.length,
+                        failed: edits.length - successfulEdits.length,
+                    },
+                    verification: verification?.data || null,
+                }
+            };
+        } catch (error) {
+            return { success: false, error: `Smart edit failed: ${error}` };
+        }
+    },
 };
 
 // ===========================
