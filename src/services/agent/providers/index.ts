@@ -24,6 +24,11 @@ export interface ModelConfig {
   thinkingMode?: ThinkingMode;
   thinkingConfig?: GeminiThinkingConfig;
   category?: 'standard' | 'thinking';
+  // Caching configuration (for Gemini models)
+  supportsPromptCache?: boolean;   // Whether the model supports context caching
+  minCacheTokens?: number;         // Minimum tokens required for caching (1024 for Flash, 4096 for Pro)
+  cacheReadsPrice?: number;        // Price per 1M cached tokens read ($ per 1M tokens)
+  cacheWritesPrice?: number;       // Price per 1M cached tokens written ($ per 1M tokens)
 }
 
 export const AVAILABLE_MODELS: ModelConfig[] = [
@@ -42,6 +47,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     supportsThinking: false,
     thinkingMode: 'none',
     thinkingConfig: { thinkingBudget: 0 },
+    // Caching: Flash models have 1024 min tokens
+    supportsPromptCache: true,
+    minCacheTokens: 1024,
+    cacheReadsPrice: 0.025,    // ~10x cheaper than input
   },
   {
     id: 'gemini-flash-latest',
@@ -55,6 +64,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     supportsThinking: true,
     thinkingMode: 'none',
     thinkingConfig: { thinkingBudget: 0 },
+    // Caching: Flash models have 1024 min tokens
+    supportsPromptCache: true,
+    minCacheTokens: 1024,
+    cacheReadsPrice: 0.03,     // ~10x cheaper than input
   },
 
   // ===========================
@@ -72,6 +85,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     supportsThinking: true,
     thinkingMode: 'auto',
     thinkingConfig: { thinkingBudget: -1, includeThoughts: true },
+    // Caching: Flash models have 1024 min tokens
+    supportsPromptCache: true,
+    minCacheTokens: 1024,
+    cacheReadsPrice: 0.03,
   },
 
   // ===========================
@@ -89,6 +106,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     supportsThinking: true,
     thinkingMode: 'low',
     thinkingConfig: { thinkingLevel: 'LOW', includeThoughts: true },
+    // Caching: Pro models have 4096 min tokens
+    supportsPromptCache: true,
+    minCacheTokens: 4096,
+    cacheReadsPrice: 0.4,
   },
   {
     id: 'gemini-3-pro-thinking-high',
@@ -102,6 +123,10 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     supportsThinking: true,
     thinkingMode: 'high',
     thinkingConfig: { thinkingLevel: 'HIGH', includeThoughts: true },
+    // Caching: Pro models have 4096 min tokens
+    supportsPromptCache: true,
+    minCacheTokens: 4096,
+    cacheReadsPrice: 0.4,
   },
 
   // ===========================

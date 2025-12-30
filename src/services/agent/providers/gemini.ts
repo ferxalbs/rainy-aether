@@ -13,6 +13,7 @@ import {
   CircuitBreaker,
   ResilientOptions
 } from './retryUtils';
+import { GeminiCacheManager, CacheStats, getGeminiCacheManager } from './geminiCache';
 
 // ===========================
 // Gemini Provider
@@ -25,6 +26,18 @@ export interface GeminiThinkingConfig {
   thinkingLevel?: 'LOW' | 'HIGH';
   // Whether to include thoughts in response (required to see thinking)
   includeThoughts?: boolean;
+}
+
+// ===========================
+// Cache Statistics (exported for UI)
+// ===========================
+
+export interface GeminiUsageStats {
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  cacheHitRate: number;
+  estimatedSavings: number;
 }
 
 // Shared circuit breaker for all Gemini API calls
@@ -51,11 +64,36 @@ export class GeminiProvider implements AIProvider {
   private client: GoogleGenAI;
   private config: AIProviderConfig;
   private thinkingConfig?: GeminiThinkingConfig;
+  private cacheManager: GeminiCacheManager;
+
+  // Track usage stats for the session
+  private usageStats: GeminiUsageStats = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedTokens: 0,
+    cacheHitRate: 0,
+    estimatedSavings: 0,
+  };
 
   constructor(config: AIProviderConfig, thinkingConfig?: GeminiThinkingConfig) {
     this.config = config;
     this.thinkingConfig = thinkingConfig;
     this.client = new GoogleGenAI({ apiKey: config.apiKey });
+    this.cacheManager = getGeminiCacheManager(config.apiKey);
+  }
+
+  /**
+   * Get current usage statistics (for UI display)
+   */
+  getUsageStats(): GeminiUsageStats {
+    return { ...this.usageStats };
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getCacheStats(): CacheStats {
+    return this.cacheManager.getStats();
   }
 
   /**
@@ -271,6 +309,9 @@ export class GeminiProvider implements AIProvider {
       let fullThoughts = '';
       let toolCalls: ToolCall[] = [];
 
+      // Track usage metadata for caching stats
+      let lastUsageMetadata: any = null;
+
       for await (const chunk of stream) {
         let chunkText = '';
         let chunkThought = '';
@@ -327,6 +368,41 @@ export class GeminiProvider implements AIProvider {
               toolCall: tc,
             });
           });
+        }
+
+        // Track usage metadata (includes cache stats)
+        if ((chunk as any).usageMetadata) {
+          lastUsageMetadata = (chunk as any).usageMetadata;
+        }
+      }
+
+      // Update cache stats from final usage metadata
+      if (lastUsageMetadata) {
+        const cachedTokens = lastUsageMetadata.cachedContentTokenCount ?? 0;
+        const inputTokens = lastUsageMetadata.promptTokenCount ?? 0;
+        const outputTokens = lastUsageMetadata.candidatesTokenCount ?? 0;
+
+        this.usageStats = {
+          inputTokens,
+          outputTokens,
+          cachedTokens,
+          cacheHitRate: inputTokens > 0 ? (cachedTokens / inputTokens) * 100 : 0,
+          estimatedSavings: inputTokens > 0 ? (cachedTokens * 0.9 / inputTokens) * 100 : 0,
+        };
+
+        // Update cache manager stats
+        this.cacheManager.updateStats({
+          promptTokenCount: inputTokens,
+          cachedContentTokenCount: cachedTokens,
+          candidatesTokenCount: outputTokens,
+        });
+
+        // Log cache performance
+        if (cachedTokens > 0 || inputTokens > 10000) {
+          console.log(
+            `[GeminiProvider] 📊 Usage: ${inputTokens.toLocaleString()} input, ${outputTokens.toLocaleString()} output. ` +
+            `Cache: ${cachedTokens.toLocaleString()} tokens (${this.usageStats.cacheHitRate.toFixed(1)}% hit rate)`
+          );
         }
       }
 
