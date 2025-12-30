@@ -190,9 +190,16 @@ Would you like me to:
     }
 
     // Execute all tool calls - try BrainService first, fallback to local ToolRegistry
-    // IMPORTANT: Some tools MUST run locally (apply_file_diff needs frontend state)
+    // IMPORTANT: Some tools MUST run locally for proper functionality
     const useBrain = brainService.connected;
-    const LOCAL_ONLY_TOOLS = ['apply_file_diff']; // Tools that need frontend React state
+    const LOCAL_ONLY_TOOLS = [
+      'apply_file_diff',  // Needs frontend React state
+      'run_command',      // ToolRegistry has better terminal integration (PTY, async events)
+      'run_tests',        // Uses run_command internally
+      'git_status',       // Better handled by local git service
+      'git_commit',       // Better handled by local git service
+      'git_diff',         // Better handled by local git service
+    ];
 
     for (const toolCall of response.toolCalls) {
       try {

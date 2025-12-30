@@ -313,11 +313,14 @@ export const toolHandlers: Record<string, ToolHandler> = {
     run_command: async (args) => {
         const command = args.command as string;
         const cwd = args.cwd ? resolvePath(args.cwd as string) : workspacePath;
-        const timeout = (args.timeout as number) || 30000;
+        const timeout = Math.min((args.timeout as number) || 30000, 120000);
+
+        console.log(`[Bridge] Executing: "${command}" in ${cwd} (timeout: ${timeout}ms)`);
 
         return new Promise((resolve) => {
             let output = '';
             let stderr = '';
+            let timedOut = false;
 
             const [cmd, ...cmdArgs] = command.split(' ');
             const proc = spawn(cmd, cmdArgs, {
@@ -330,18 +333,33 @@ export const toolHandlers: Record<string, ToolHandler> = {
             proc.stderr?.on('data', (data) => { stderr += data.toString(); });
 
             proc.on('close', (code) => {
+                if (timedOut) return; // Already resolved on timeout
+
+                const combinedOutput = output + (stderr ? '\n--- stderr ---\n' + stderr : '');
+
+                // IMPORTANT: Always return success=true for completed commands
+                // Exit code 1 from tsc, eslint, etc. is normal - it means "found issues"
+                // The agent should interpret the output, not retry on exit code 1
+                console.log(`[Bridge] Command completed with exit code ${code}, ${combinedOutput.length} bytes`);
+
                 resolve({
-                    success: code === 0,
+                    success: true, // Changed: Always success for completed commands
                     data: {
                         stdout: output,
                         stderr,
                         exitCode: code,
+                        combinedOutput,
+                        // Include informational note about exit code
+                        message: code === 0
+                            ? 'Command completed successfully.'
+                            : `Command completed with exit code ${code}. Review output for details.`,
                     },
-                    error: code !== 0 ? `Command exited with code ${code}` : undefined,
                 });
             });
 
             proc.on('error', (error) => {
+                if (timedOut) return;
+                console.error(`[Bridge] Command error:`, error.message);
                 resolve({
                     success: false,
                     error: `Failed to execute command: ${error.message}`,
@@ -350,11 +368,19 @@ export const toolHandlers: Record<string, ToolHandler> = {
 
             // Timeout handling
             setTimeout(() => {
-                proc.kill();
-                resolve({
-                    success: false,
-                    error: `Command timed out after ${timeout}ms`,
-                });
+                if (!proc.killed) {
+                    timedOut = true;
+                    proc.kill();
+                    resolve({
+                        success: false,
+                        error: `Command timed out after ${timeout}ms`,
+                        data: {
+                            stdout: output,
+                            stderr,
+                            exitCode: null,
+                        },
+                    });
+                }
             }, timeout);
         });
     },

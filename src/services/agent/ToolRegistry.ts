@@ -870,94 +870,115 @@ Examples:
 
           // Production timeout: min 30s, max 120s
           const effectiveTimeout = Math.min(Math.max(timeout, 30000), 120000);
-          console.log(`[run_command] Executing: ${command} (timeout: ${effectiveTimeout}ms)`);
+          console.log(`[run_command] Executing: "${command}" in ${workingDir} (timeout: ${effectiveTimeout}ms)`);
 
           // Use terminal service to create a temporary session and capture output
           const terminalService = getTerminalService();
-          const sessionId = await terminalService.create({ cwd: workingDir });
+
+          let sessionId: string;
+          try {
+            sessionId = await terminalService.create({ cwd: workingDir });
+            console.log(`[run_command] Created session: ${sessionId}`);
+          } catch (createError) {
+            console.error('[run_command] Failed to create terminal session:', createError);
+            return {
+              success: false,
+              error: `Failed to create terminal: ${createError instanceof Error ? createError.message : String(createError)}`
+            };
+          }
 
           let output = '';
+          let outputSettledCount = 0;
           let lastOutputLength = 0;
-          let lastOutputChangeTime = Date.now();
 
-          // Subscribe to data events
+          // Subscribe to data events BEFORE sending command
           const cleanup = terminalService.onData((id, data) => {
             if (id === sessionId) {
               output += data;
             }
           });
 
+          const startTime = Date.now();
+
           try {
+            // Small delay to ensure event subscription is set up
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             // Send command
             await terminalService.write(sessionId, command + "\r\n");
+            console.log(`[run_command] Command sent to terminal`);
 
-            // Smart wait strategy for production:
-            // - Track output changes to detect command completion
-            // - Wait longer for slow-loading commands (linters, type-checks)
-            // - Exit early when command clearly finished
-            const startTime = Date.now();
+            // Wait for output using a simpler strategy:
+            // Check every 500ms, exit when output has been stable for 3 checks (1.5s)
+            // This handles both fast commands and slow commands like tsc
+            const pollInterval = 500;
+            const settlementThreshold = 3; // 1.5 seconds of no change
 
             while (Date.now() - startTime < effectiveTimeout) {
-              await new Promise(resolve => setTimeout(resolve, 200));
+              await new Promise(resolve => setTimeout(resolve, pollInterval));
 
-              // Track output changes
-              if (output.length > lastOutputLength) {
-                lastOutputLength = output.length;
-                lastOutputChangeTime = Date.now();
-              }
-
-              const timeSinceOutputChange = Date.now() - lastOutputChangeTime;
+              const currentLength = output.length;
               const totalElapsed = Date.now() - startTime;
 
-              // Check for command completion indicators (shell prompts)
-              const hasPrompt = /[$%>#]\s*$/.test(output.trim());
+              if (currentLength === lastOutputLength) {
+                outputSettledCount++;
 
-              // Exit conditions:
-              // 1. Output settled (2s no change) AND we have substantial output AND see shell prompt
-              if (output.length > 100 && timeSinceOutputChange > 2000 && hasPrompt) {
-                console.log(`[run_command] Command completed (prompt detected after ${totalElapsed}ms)`);
-                break;
-              }
-
-              // 2. No output change for 5 seconds after getting content
-              if (output.length > 50 && timeSinceOutputChange > 5000) {
-                console.log(`[run_command] Command completed (output settled after ${totalElapsed}ms)`);
-                break;
-              }
-
-              // 3. Empty/minimal output - extend wait for slow-loading commands
-              if (output.length < 50) {
-                // Continue waiting - commands like tsc --noEmit can take 20-30s before output
-                if (totalElapsed > 60000 && output.length === 0) {
-                  // After 60s with no output at all, something is wrong
-                  console.warn(`[run_command] No output after 60s, timing out`);
+                // Command is done if output hasn't changed for 1.5 seconds
+                // and we have at least SOME output (command echoed back)
+                if (outputSettledCount >= settlementThreshold && currentLength > 0) {
+                  console.log(`[run_command] Output settled after ${totalElapsed}ms (${currentLength} bytes)`);
                   break;
                 }
+
+                // For commands with no output, wait at least 10 seconds
+                if (totalElapsed > 10000 && currentLength === 0 && outputSettledCount >= 6) {
+                  console.log(`[run_command] No output after ${totalElapsed}ms, assuming silent success`);
+                  break;
+                }
+              } else {
+                // Output changed, reset counter
+                outputSettledCount = 0;
+                lastOutputLength = currentLength;
+              }
+
+              // Progress log for long commands
+              if (totalElapsed > 5000 && totalElapsed % 5000 < pollInterval) {
+                console.log(`[run_command] Still waiting... ${(totalElapsed / 1000).toFixed(1)}s elapsed, ${currentLength} bytes output`);
               }
             }
 
             const totalTime = Date.now() - startTime;
-            console.log(`[run_command] Finished after ${totalTime}ms with ${output.length} bytes of output`);
 
             // Clean up session
-            await terminalService.kill(sessionId);
+            try {
+              await terminalService.kill(sessionId);
+            } catch (killError) {
+              console.warn('[run_command] Failed to kill session:', killError);
+            }
 
             // Filter out ANSI escape codes for cleaner output
             // eslint-disable-next-line no-control-regex
             const cleanOutput = output.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
 
+            // Check if command output indicates an error (for informational purposes)
+            const hasErrors = /error|Error|ERROR|failed|Failed|FAILED/.test(cleanOutput);
+
+            console.log(`[run_command] Completed in ${totalTime}ms with ${output.length} bytes${hasErrors ? ' (contains errors)' : ''}`);
+
+            // Always return success=true for completed commands
+            // The agent will interpret the output to determine if there were issues
             return {
               success: true,
               stdout: cleanOutput,
-              rawOutput: output,
-              message: `Command executed in ${totalTime}ms. Output captured below.`,
-              sessionId,
+              exitedWithErrors: hasErrors,
+              message: `Command "${command}" executed in ${totalTime}ms.`,
               duration: totalTime
             };
           } finally {
             cleanup();
           }
         } catch (error) {
+          console.error('[run_command] Critical error:', error);
           const errorMsg = error instanceof Error ? error.message : String(error);
           return { success: false, error: `Failed to execute command: ${errorMsg}` };
         }
