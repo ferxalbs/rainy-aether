@@ -80,7 +80,10 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
     // --- Workspace Info ---
     {
         name: 'get_workspace_info',
-        description: 'Get information about the current workspace including path, name, and project type.',
+        description: `Get workspace metadata including path, name, and detected project type.
+
+WHEN TO USE: Quick check of workspace location. For comprehensive project understanding, use 'get_project_context' instead.
+RETURNS: { path: string, name: string, projectType: 'npm'|'cargo'|'unknown' }`,
         category: 'read',
         executor: 'tauri',
         parallel: true,
@@ -90,7 +93,13 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
         cacheTimeout: 60000,
         parameters: {
             type: 'object',
-            properties: {},
+            properties: {
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (path only) or 'detailed' (all metadata). Default: detailed.",
+                    enum: ['concise', 'detailed'],
+                },
+            },
             required: [],
         },
     },
@@ -98,7 +107,12 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
     // --- File System: Read ---
     {
         name: 'read_file',
-        description: 'Read the contents of a file. Returns the file content as a string.',
+        description: `Read a single file's complete contents.
+
+WHEN TO USE: Reading one specific file when you know the exact path.
+WHEN NOT TO USE: For reading 2+ files, use 'fs_batch_read' instead (more token-efficient).
+RETURNS: File content as string. Files >50KB are truncated with '[...truncated]' marker.
+ERRORS: "file not found" - verify path with 'list_dir' first.`,
         category: 'read',
         executor: 'tauri',
         parallel: true,
@@ -111,13 +125,22 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 path: {
                     type: 'string',
-                    description: 'Relative path to the file from workspace root',
+                    description: 'Relative path to the file from workspace root (e.g., "src/App.tsx")',
                     required: true,
                 },
                 encoding: {
                     type: 'string',
                     description: 'File encoding (default: utf-8)',
                     default: 'utf-8',
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (first 100 lines + line count) or 'detailed' (full content). Default: detailed.",
+                    enum: ['concise', 'detailed'],
+                },
+                max_lines: {
+                    type: 'number',
+                    description: 'Maximum lines to return. Default: unlimited.',
                 },
             },
             required: ['path'],
@@ -126,7 +149,11 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'list_dir',
-        description: 'List files and directories in a given path.',
+        description: `List files and subdirectories in a path (one level only).
+
+WHEN TO USE: Checking if specific files exist, exploring a single folder.
+WHEN NOT TO USE: For project overview, use 'get_project_context'. For deep traversal, use 'read_directory_tree'.
+RETURNS: Array of { name, isDirectory, size } objects, sorted alphabetically.`,
         category: 'read',
         executor: 'tauri',
         parallel: true,
@@ -139,8 +166,13 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 path: {
                     type: 'string',
-                    description: 'Relative path to the directory',
+                    description: 'Relative path to directory (use "." for workspace root)',
                     required: true,
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (names only) or 'detailed' (with sizes/types). Default: detailed.",
+                    enum: ['concise', 'detailed'],
                 },
             },
             required: ['path'],
@@ -149,7 +181,12 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'read_directory_tree',
-        description: 'Get complete directory structure as a tree. Useful for understanding project layout.',
+        description: `Get recursive directory structure as a nested tree.
+
+WHEN TO USE: Understanding folder hierarchy, finding where files are located.
+WHEN NOT TO USE: For quick project overview with deps/git/readme, use 'get_project_context' instead.
+NOTE: Automatically ignores: node_modules, .git, dist, build, target, .cache, __pycache__.
+RETURNS: Nested { directories: [...], files: [...] } structure.`,
         category: 'read',
         executor: 'tauri',
         parallel: true,
@@ -162,13 +199,18 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 path: {
                     type: 'string',
-                    description: 'Relative path (use "." for workspace root)',
+                    description: 'Starting path (use "." for workspace root)',
                     required: true,
                 },
                 max_depth: {
                     type: 'number',
-                    description: 'Maximum depth to traverse (default: 3, max: 5)',
+                    description: 'Maximum depth to traverse (1-5). Default: 3.',
                     default: 3,
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (names only, flat list) or 'detailed' (nested tree with sizes). Default: detailed.",
+                    enum: ['concise', 'detailed'],
                 },
             },
             required: ['path'],
@@ -177,7 +219,12 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'search_code',
-        description: 'Search for code patterns across the workspace using text or regex.',
+        description: `Search for text/regex patterns across the codebase using grep.
+
+WHEN TO USE: Finding where a function/variable/string is used.
+WHEN NOT TO USE: For finding symbol definitions (functions, classes), use 'find_symbols' instead.
+TIP: Use file_pattern to narrow scope (e.g., "*.ts" for TypeScript only).
+RETURNS: Array of { file, line, content } matches, max 50 by default.`,
         category: 'read',
         executor: 'tauri',
         parallel: true,
@@ -190,22 +237,27 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 query: {
                     type: 'string',
-                    description: 'Search query (text or regex pattern)',
+                    description: 'Search text or regex pattern',
                     required: true,
                 },
                 file_pattern: {
                     type: 'string',
-                    description: 'Glob pattern to filter files (e.g., "*.ts", "src/**/*.tsx")',
+                    description: 'Glob to filter files: "*.ts", "src/**/*.tsx", "!**/test/**"',
                 },
                 is_regex: {
                     type: 'boolean',
-                    description: 'Treat query as regex pattern',
+                    description: 'Treat query as regex. Default: false (literal text).',
                     default: false,
                 },
                 max_results: {
                     type: 'number',
-                    description: 'Maximum results to return',
+                    description: 'Maximum matches to return. Default: 50.',
                     default: 50,
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (file:line only) or 'detailed' (with matching text). Default: detailed.",
+                    enum: ['concise', 'detailed'],
                 },
             },
             required: ['query'],
@@ -215,24 +267,28 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
     // --- File System: Write ---
     {
         name: 'create_file',
-        description: 'Create a new file with optional initial content.',
+        description: `Create a new file with optional initial content. Parent directories are created automatically.
+
+WHEN TO USE: Creating brand new files.
+WHEN NOT TO USE: If file might exist, use 'write_file' instead (overwrites safely).
+ERRORS: Returns error if file already exists.`,
         category: 'write',
         executor: 'tauri',
-        parallel: false,  // Write operations are sequential
+        parallel: false,
         timeout: 10000,
-        retryable: false, // Don't retry writes
+        retryable: false,
         cacheable: false,
         parameters: {
             type: 'object',
             properties: {
                 path: {
                     type: 'string',
-                    description: 'Relative path for the new file',
+                    description: 'Relative path for new file (e.g., "src/components/Button.tsx")',
                     required: true,
                 },
                 content: {
                     type: 'string',
-                    description: 'Initial file content (optional)',
+                    description: 'Initial file content. Default: empty file.',
                     default: '',
                 },
             },
@@ -242,7 +298,11 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'write_file',
-        description: 'Write complete content to a file, replacing existing content. Use for new files or complete rewrites.',
+        description: `Write complete content to a file, creating or overwriting it.
+
+WHEN TO USE: Creating new files OR completely replacing file contents.
+WHEN NOT TO USE: For targeted modifications, use 'edit_file' or 'smart_edit' instead.
+TIP: Always use 'verify_changes' after writes to catch type errors.`,
         category: 'write',
         executor: 'tauri',
         parallel: false,
@@ -259,7 +319,7 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
                 },
                 content: {
                     type: 'string',
-                    description: 'Complete file content',
+                    description: 'Complete file content to write',
                     required: true,
                 },
             },
@@ -269,7 +329,14 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'edit_file',
-        description: 'Perform surgical edit on a file by replacing specific text. Preferred for modifications.',
+        description: `Replace specific text in a file. The old_string must be UNIQUE in the file.
+
+WHEN TO USE: Small, targeted modifications to existing code.
+WHEN NOT TO USE: For multiple edits, use 'smart_edit'. For new files, use 'write_file'.
+ERRORS:
+- "Text not found" → Read file first to get exact text including whitespace.
+- "Text appears N times" → Include more context to make old_string unique.
+TIP: Include surrounding lines for uniqueness.`,
         category: 'write',
         executor: 'tauri',
         parallel: false,
@@ -286,7 +353,7 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
                 },
                 old_string: {
                     type: 'string',
-                    description: 'Exact text to find and replace (must be unique in file)',
+                    description: 'Exact text to find (must be unique in file, include whitespace)',
                     required: true,
                 },
                 new_string: {
@@ -301,9 +368,14 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'apply_file_diff',
-        description: 'Apply changes to a file with visual diff preview. Shows green/red highlighting for additions/deletions. User must accept (Cmd/Ctrl+Enter) or reject (Escape). PREFERRED for code changes.',
+        description: `Apply changes with visual diff preview in the editor. Shows green/red highlighting.
+
+WHEN TO USE: When user should review changes before they're applied.
+USER ACTION REQUIRED: Accept (Cmd/Ctrl+Enter) or Reject (Escape).
+BENEFIT: User sees exactly what changes, can reject bad edits.
+WHEN NOT TO USE: For silent/automated changes, use 'edit_file' or 'smart_edit'.`,
         category: 'write',
-        executor: 'hybrid',  // Needs frontend React state
+        executor: 'hybrid',
         parallel: false,
         timeout: 30000,
         retryable: false,
@@ -323,7 +395,7 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
                 },
                 description: {
                     type: 'string',
-                    description: 'Optional description of the changes being made',
+                    description: 'Summary of changes (shown to user)',
                 },
             },
             required: ['path', 'new_content'],
@@ -332,7 +404,11 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'delete_file',
-        description: 'Delete a file from the workspace.',
+        description: `Delete a file from the workspace. Cannot be undone.
+
+WHEN TO USE: Removing obsolete files after refactoring.
+WARNING: Permanent deletion. Consider git_status first to verify uncommitted changes.
+ERRORS: "file not found" - file may already be deleted.`,
         category: 'write',
         executor: 'tauri',
         parallel: false,
@@ -355,11 +431,16 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
     // --- Execute ---
     {
         name: 'run_command',
-        description: 'Execute a shell command and capture output. For build tools, tests, linters, etc.',
+        description: `Execute a shell command and capture stdout/stderr.
+
+WHEN TO USE: Build tools, linters, custom scripts, package managers.
+WHEN NOT TO USE: For type-checking, use 'verify_changes'. For tests, use 'run_tests'.
+NOTE: Commands run in workspace root. Exit code 1 = "found issues" (not a failure).
+TIMEOUT: Default 30s, max 120s. Long builds may need higher timeout.`,
         category: 'execute',
         executor: 'tauri',
-        parallel: false,  // Commands usually need sequential execution
-        timeout: 120000,  // 2 minutes max
+        parallel: false,
+        timeout: 120000,
         retryable: true,
         cacheable: false,
         parameters: {
@@ -367,16 +448,16 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 command: {
                     type: 'string',
-                    description: 'Command to execute (e.g., "npm test", "pnpm build")',
+                    description: 'Shell command to run (e.g., "pnpm build", "cargo check")',
                     required: true,
                 },
                 cwd: {
                     type: 'string',
-                    description: 'Working directory (relative to workspace)',
+                    description: 'Working directory relative to workspace. Default: workspace root.',
                 },
                 timeout: {
                     type: 'number',
-                    description: 'Timeout in ms (default: 30000)',
+                    description: 'Timeout in ms. Default: 30000. Max: 120000.',
                     default: 30000,
                 },
             },
@@ -386,11 +467,15 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'run_tests',
-        description: 'Run project tests. Auto-detects test runner (npm, pnpm, cargo, etc.).',
+        description: `Run project tests with auto-detected test framework.
+
+WHEN TO USE: Running full test suite or specific test files.
+AUTO-DETECTS: pnpm/npm (package.json), cargo (Cargo.toml), pytest (requirements.txt).
+TIMEOUT: 5 minutes max for long test suites.`,
         category: 'execute',
         executor: 'tauri',
         parallel: false,
-        timeout: 300000,  // 5 minutes for tests
+        timeout: 300000,
         retryable: true,
         cacheable: false,
         parameters: {
@@ -398,11 +483,12 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 target: {
                     type: 'string',
-                    description: 'Specific test file or suite (optional)',
+                    description: 'Specific test file or pattern (e.g., "src/utils.test.ts")',
                 },
                 framework: {
                     type: 'string',
-                    description: 'Override test framework: npm, pnpm, cargo, pytest',
+                    description: 'Override test framework: "pnpm", "npm", "cargo", "pytest"',
+                    enum: ['pnpm', 'npm', 'cargo', 'pytest'],
                 },
             },
             required: [],
@@ -411,10 +497,13 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'format_file',
-        description: 'Format a file using project formatter (Prettier, rustfmt, etc.).',
+        description: `Format a file using project's configured formatter.
+
+AUTO-DETECTS: Prettier (JS/TS/CSS/HTML/MD), rustfmt (Rust).
+WHEN TO USE: After creating or editing files to ensure consistent style.`,
         category: 'execute',
         executor: 'tauri',
-        parallel: true,  // Formatting can be parallel
+        parallel: true,
         timeout: 30000,
         retryable: true,
         cacheable: false,
@@ -423,7 +512,7 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 path: {
                     type: 'string',
-                    description: 'Relative path to the file to format',
+                    description: 'File path to format',
                     required: true,
                 },
             },
@@ -434,7 +523,10 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
     // --- Git ---
     {
         name: 'git_status',
-        description: 'Get current git status (staged, modified, untracked files).',
+        description: `Get git status: staged, modified, and untracked files.
+
+WHEN TO USE: Before committing to see what files have changes.
+RETURNS: Porcelain format (M=modified, A=added, ??=untracked).`,
         category: 'git',
         executor: 'tauri',
         parallel: true,
@@ -444,14 +536,23 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
         cacheTimeout: 5000,
         parameters: {
             type: 'object',
-            properties: {},
+            properties: {
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (modified file count) or 'detailed' (file list). Default: detailed.",
+                    enum: ['concise', 'detailed'],
+                },
+            },
             required: [],
         },
     },
 
     {
         name: 'git_diff',
-        description: 'Get diff of changes (staged or unstaged).',
+        description: `Get diff showing actual code changes.
+
+WHEN TO USE: Reviewing what changed before committing or after edits.
+OPTIONS: Use staged=true for changes ready to commit.`,
         category: 'git',
         executor: 'tauri',
         parallel: true,
@@ -464,12 +565,17 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 staged: {
                     type: 'boolean',
-                    description: 'Show only staged changes',
+                    description: 'Show only staged changes. Default: false (unstaged).',
                     default: false,
                 },
                 path: {
                     type: 'string',
-                    description: 'Specific file or directory to diff',
+                    description: 'Filter to specific file or directory.',
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (stat summary) or 'detailed' (full diff). Default: detailed.",
+                    enum: ['concise', 'detailed'],
                 },
             },
             required: [],
@@ -478,7 +584,11 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'git_commit',
-        description: 'Create a git commit with staged changes.',
+        description: `Create a git commit with currently staged changes.
+
+WHEN TO USE: After staging files with 'git_add'.
+PREREQ: Files must be staged first. Use 'git_status' to verify.
+ERRORS: "nothing to commit" → Stage files first with 'git_add'.`,
         category: 'git',
         executor: 'tauri',
         parallel: false,
@@ -490,7 +600,7 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 message: {
                     type: 'string',
-                    description: 'Commit message',
+                    description: 'Commit message (use conventional format: "type: description")',
                     required: true,
                 },
             },
@@ -500,7 +610,10 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'git_add',
-        description: 'Stage files for commit.',
+        description: `Stage files for the next commit.
+
+WHEN TO USE: Before 'git_commit' to prepare changes.
+USAGE: paths=["."] stages all changes, or specify individual files.`,
         category: 'git',
         executor: 'tauri',
         parallel: false,
@@ -512,7 +625,8 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 paths: {
                     type: 'array',
-                    description: 'Files to stage (use ["."] for all)',
+                    description: 'File paths to stage. Use ["."] for all files.',
+                    items: { type: 'string' },
                     required: true,
                 },
             },
@@ -523,7 +637,10 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
     // --- Analysis ---
     {
         name: 'get_diagnostics',
-        description: 'Get errors and warnings from LSP/linters.',
+        description: `Get TypeScript/lint errors and warnings from the language server.
+
+WHEN TO USE: After edits to check for errors without running full build.
+WHEN NOT TO USE: Use 'verify_changes' for comprehensive type-checking.`,
         category: 'analysis',
         executor: 'tauri',
         parallel: true,
@@ -536,7 +653,12 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
             properties: {
                 file: {
                     type: 'string',
-                    description: 'Filter diagnostics to specific file',
+                    description: 'Filter to specific file (optional).',
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (error count) or 'detailed' (full messages). Default: detailed.",
+                    enum: ['concise', 'detailed'],
                 },
             },
             required: [],
@@ -545,7 +667,10 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
 
     {
         name: 'analyze_imports',
-        description: 'Analyze imports and dependencies in a file.',
+        description: `Analyze import/require statements in a file.
+
+RETURNS: List of imported modules (npm packages, relative paths, etc.).
+WHEN TO USE: Understanding file dependencies before refactoring.`,
         category: 'analysis',
         executor: 'hybrid',
         parallel: true,
@@ -560,6 +685,11 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
                     type: 'string',
                     description: 'File to analyze',
                     required: true,
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (import count) or 'detailed' (full list). Default: detailed.",
+                    enum: ['concise', 'detailed'],
                 },
             },
             required: ['path'],
@@ -724,6 +854,144 @@ export const TOOL_DEFINITIONS: ToolSchema[] = [
                 },
             },
             required: ['path', 'edits'],
+        },
+    },
+
+    // =========================================================================
+    // PHASE 3 & 4: PRECISION EDIT TOOLS + ANALYZE FILE
+    // =========================================================================
+
+    {
+        name: 'edit_file_lines',
+        description: `Edit a file by replacing specific line ranges. More precise than text-based edit.
+
+WHEN TO USE: When you know exact line numbers to modify (e.g., from search_code or read_file output).
+WHEN NOT TO USE: For text-based find/replace, use 'edit_file' or 'smart_edit'.
+BENEFITS: No need to match exact text - just specify line numbers.`,
+        category: 'write',
+        executor: 'hybrid',
+        parallel: false,
+        timeout: 30000,
+        retryable: false,
+        cacheable: false,
+        parameters: {
+            type: 'object',
+            properties: {
+                path: {
+                    type: 'string',
+                    description: 'File path to edit.',
+                    required: true,
+                },
+                start_line: {
+                    type: 'number',
+                    description: 'First line to replace (1-indexed).',
+                    required: true,
+                },
+                end_line: {
+                    type: 'number',
+                    description: 'Last line to replace (1-indexed, inclusive).',
+                    required: true,
+                },
+                new_content: {
+                    type: 'string',
+                    description: 'Replacement content for those lines.',
+                    required: true,
+                },
+                verify: {
+                    type: 'boolean',
+                    description: 'Run type-check after edit. Default: true.',
+                    default: true,
+                },
+            },
+            required: ['path', 'start_line', 'end_line', 'new_content'],
+        },
+    },
+
+    {
+        name: 'multi_edit',
+        description: `Apply multiple edits to a file atomically. All edits succeed or none are applied.
+
+WHEN TO USE: Making several related changes to one file in a single operation.
+BENEFITS: 
+- Atomic: all-or-nothing, won't leave file in broken state
+- Token-efficient: one tool call vs multiple edit_file calls
+- Auto-adjusts line numbers as edits are applied`,
+        category: 'write',
+        executor: 'hybrid',
+        parallel: false,
+        timeout: 60000,
+        retryable: false,
+        cacheable: false,
+        parameters: {
+            type: 'object',
+            properties: {
+                path: {
+                    type: 'string',
+                    description: 'File path to edit.',
+                    required: true,
+                },
+                edits: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            type: {
+                                type: 'string',
+                                description: 'Edit type: "line" (line range) or "text" (find/replace)',
+                            },
+                            start_line: { type: 'number', description: 'For line type: first line (1-indexed)' },
+                            end_line: { type: 'number', description: 'For line type: last line (1-indexed)' },
+                            find: { type: 'string', description: 'For text type: text to find' },
+                            replace: { type: 'string', description: 'Replacement content' },
+                        },
+                        required: ['type', 'replace'],
+                    },
+                    description: 'Array of edit operations to apply in order.',
+                },
+                verify: {
+                    type: 'boolean',
+                    description: 'Run type-check after edits. Default: true.',
+                    default: true,
+                },
+            },
+            required: ['path', 'edits'],
+        },
+    },
+
+    {
+        name: 'analyze_file',
+        description: `Get comprehensive analysis of a file in ONE call: content, imports, exports, symbols, diagnostics.
+
+WHEN TO USE: Before making changes to understand file structure and dependencies.
+BENEFITS: Avoids multiple tool calls (read_file + analyze_imports + get_diagnostics + find_symbols).
+RETURNS: Combined analysis with imports, exports, function/class definitions, and any errors.`,
+        category: 'analysis',
+        executor: 'hybrid',
+        parallel: true,
+        timeout: 20000,
+        retryable: true,
+        cacheable: true,
+        cacheTimeout: 30000,
+        parameters: {
+            type: 'object',
+            properties: {
+                path: {
+                    type: 'string',
+                    description: 'File to analyze.',
+                    required: true,
+                },
+                include: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: "What to include: 'content', 'imports', 'exports', 'symbols', 'diagnostics'. Default: all.",
+                },
+                response_format: {
+                    type: 'string',
+                    description: "'concise' (counts + summary) or 'detailed' (full data). Default: detailed.",
+                    enum: ['concise', 'detailed'],
+                },
+            },
+            required: ['path'],
         },
     },
 ];

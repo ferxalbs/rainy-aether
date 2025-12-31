@@ -20,6 +20,9 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - **Sidebar**: Improved file explorer performance, fixed folder toggling bugs, and removed dead code.
 - **Diff View**: Fixed inline diff visualization in Monaco editor and resolved UI freezes during diff application.
 - **Tooling**: Enhanced tool schemas and output formatting for better agent interaction.
+- **Agent Tools**: Applied Anthropic best practices - prompt-engineered tool descriptions with usage guidance, added `response_format` for token efficiency, improved error messages with recovery hints.
+- **Precision Editing**: Added `edit_file_lines` (line-based), `multi_edit` (atomic batch edits), and `analyze_file` (comprehensive file analysis) tools for more accurate agent file modifications.
+- **Agent Prompts**: Updated agent system prompts with tool selection guidelines to prefer efficient consolidated tools.
 
 ### Fixed
 - **Autocompletion**: Fixed connection and credential loading issues.

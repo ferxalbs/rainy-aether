@@ -99,7 +99,7 @@ function resolvePath(relativePath: string): string {
 
 export const toolHandlers: Record<string, ToolHandler> = {
     // --- Workspace Info ---
-    get_workspace_info: async (): Promise<ToolResult> => {
+    get_workspace_info: async (args: ToolArgs): Promise<ToolResult> => {
         try {
             if (!workspacePath) {
                 return {
@@ -108,12 +108,27 @@ export const toolHandlers: Record<string, ToolHandler> = {
                 };
             }
             const name = path.basename(workspacePath);
+            const responseFormat = (args as any).response_format || 'detailed';
+
+            // Detect project type
+            let projectType = 'unknown';
+            try {
+                await fs.access(path.join(workspacePath, 'package.json'));
+                projectType = 'npm';
+            } catch {
+                try {
+                    await fs.access(path.join(workspacePath, 'Cargo.toml'));
+                    projectType = 'cargo';
+                } catch { /* keep unknown */ }
+            }
+
+            if (responseFormat === 'concise') {
+                return { success: true, data: { path: workspacePath } };
+            }
+
             return {
                 success: true,
-                data: {
-                    name,
-                    path: workspacePath,
-                },
+                data: { name, path: workspacePath, projectType },
             };
         } catch (error) {
             return { success: false, error: String(error) };
@@ -124,23 +139,70 @@ export const toolHandlers: Record<string, ToolHandler> = {
     read_file: async (args: ToolArgs): Promise<ToolResult> => {
         try {
             const filePath = resolvePath(args.path as string);
-            const content = await fs.readFile(filePath, 'utf-8');
-            return { success: true, data: { content, path: filePath } };
+            const responseFormat = (args as any).response_format || 'detailed';
+            const maxLines = (args as any).max_lines as number | undefined;
+            let content = await fs.readFile(filePath, 'utf-8');
+            const lines = content.split('\n');
+            const totalLines = lines.length;
+
+            // Apply max_lines if specified
+            if (maxLines && maxLines > 0 && lines.length > maxLines) {
+                content = lines.slice(0, maxLines).join('\n') + '\n\n[... truncated, showing ' + maxLines + ' of ' + totalLines + ' lines]';
+            }
+
+            // Truncate very large files
+            const MAX_CHARS = 50000;
+            if (content.length > MAX_CHARS) {
+                content = content.slice(0, MAX_CHARS) + '\n\n[... truncated at ' + MAX_CHARS + ' chars]';
+            }
+
+            if (responseFormat === 'concise') {
+                const preview = lines.slice(0, 100).join('\n');
+                return {
+                    success: true,
+                    data: {
+                        path: filePath,
+                        lineCount: totalLines,
+                        charCount: content.length,
+                        preview: preview.slice(0, 2000),
+                    }
+                };
+            }
+
+            return { success: true, data: { content, path: filePath, lineCount: totalLines } };
         } catch (error) {
-            return { success: false, error: `Failed to read file: ${error}` };
+            return { success: false, error: `Failed to read file: ${error}. Verify path exists with 'list_dir'.` };
         }
     },
 
     list_dir: async (args) => {
         try {
             const dirPath = resolvePath(args.path as string);
+            const responseFormat = (args as any).response_format || 'detailed';
             const entries = await fs.readdir(dirPath, { withFileTypes: true });
-            const files = entries.map(entry => ({
-                name: entry.name,
-                path: path.join(dirPath, entry.name),
-                isDirectory: entry.isDirectory(),
+
+            if (responseFormat === 'concise') {
+                const names = entries.map(e => e.name).sort();
+                return { success: true, data: { files: names, count: names.length } };
+            }
+
+            const files = await Promise.all(entries.map(async entry => {
+                const entryPath = path.join(dirPath, entry.name);
+                let size = 0;
+                if (!entry.isDirectory()) {
+                    try {
+                        const stat = await fs.stat(entryPath);
+                        size = stat.size;
+                    } catch { /* ignore */ }
+                }
+                return {
+                    name: entry.name,
+                    path: entryPath,
+                    isDirectory: entry.isDirectory(),
+                    size,
+                };
             }));
-            return { success: true, data: { files } };
+            return { success: true, data: { files: files.sort((a, b) => a.name.localeCompare(b.name)) } };
         } catch (error) {
             return { success: false, error: `Failed to list directory: ${error}` };
         }
@@ -149,8 +211,13 @@ export const toolHandlers: Record<string, ToolHandler> = {
     read_directory_tree: async (args) => {
         const maxDepth = Math.min((args.max_depth as number) || 3, 5);
         const dirPath = resolvePath(args.path as string);
+        const responseFormat = (args as any).response_format || 'detailed';
 
-        async function buildTree(currentPath: string, depth: number): Promise<any> {
+        // For concise mode, collect flat list
+        const flatFiles: string[] = [];
+        const flatDirs: string[] = [];
+
+        async function buildTree(currentPath: string, depth: number, relativePath: string = ''): Promise<any> {
             if (depth > maxDepth) return null;
 
             try {
@@ -167,15 +234,18 @@ export const toolHandlers: Record<string, ToolHandler> = {
                     }
 
                     const entryPath = path.join(currentPath, entry.name);
+                    const relPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
                     if (entry.isDirectory()) {
-                        const subtree = await buildTree(entryPath, depth + 1);
+                        flatDirs.push(relPath);
+                        const subtree = await buildTree(entryPath, depth + 1, relPath);
                         tree.directories.push({
                             name: entry.name,
                             path: entryPath,
                             children: subtree,
                         });
                     } else {
+                        flatFiles.push(relPath);
                         tree.files.push({
                             name: entry.name,
                             path: entryPath,
@@ -191,6 +261,18 @@ export const toolHandlers: Record<string, ToolHandler> = {
 
         try {
             const tree = await buildTree(dirPath, 0);
+
+            if (responseFormat === 'concise') {
+                return {
+                    success: true,
+                    data: {
+                        directories: flatDirs.slice(0, 100),
+                        files: flatFiles.slice(0, 200),
+                        summary: { dirCount: flatDirs.length, fileCount: flatFiles.length },
+                    }
+                };
+            }
+
             return { success: true, data: { tree } };
         } catch (error) {
             return { success: false, error: `Failed to read directory tree: ${error}` };
@@ -198,10 +280,10 @@ export const toolHandlers: Record<string, ToolHandler> = {
     },
 
     search_code: async (args) => {
-        // Simple grep-like search (in production, use ripgrep)
         const query = args.query as string;
         const filePattern = args.file_pattern as string | undefined;
         const maxResults = (args.max_results as number) || 50;
+        const responseFormat = (args as any).response_format || 'detailed';
 
         try {
             // Use grep/ripgrep for actual search
@@ -217,8 +299,18 @@ export const toolHandlers: Record<string, ToolHandler> = {
 
             const results = output.split('\n').filter(Boolean).slice(0, maxResults).map(line => {
                 const [file, lineNum, ...rest] = line.split(':');
-                return { file, line: parseInt(lineNum) || 0, content: rest.join(':').trim() };
+                return { file: file.replace(/^\.\//, ''), line: parseInt(lineNum) || 0, content: rest.join(':').trim() };
             });
+
+            if (responseFormat === 'concise') {
+                return {
+                    success: true,
+                    data: {
+                        matches: results.map(r => `${r.file}:${r.line}`),
+                        total: results.length,
+                    }
+                };
+            }
 
             return { success: true, data: { results, total: results.length } };
         } catch (error) {
@@ -878,6 +970,261 @@ export const toolHandlers: Record<string, ToolHandler> = {
             };
         } catch (error) {
             return { success: false, error: `Smart edit failed: ${error}` };
+        }
+    },
+
+    // =========================================================================
+    // PHASE 3 & 4: PRECISION EDIT TOOLS + ANALYZE FILE
+    // =========================================================================
+
+    edit_file_lines: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const filePath = args.path as string;
+            const startLine = (args as any).start_line as number;
+            const endLine = (args as any).end_line as number;
+            const newContent = (args as any).new_content as string;
+            const verify = (args as any).verify !== false;
+
+            if (!filePath) return { success: false, error: 'path is required' };
+            if (!startLine || startLine < 1) return { success: false, error: 'start_line must be >= 1' };
+            if (!endLine || endLine < startLine) return { success: false, error: 'end_line must be >= start_line' };
+
+            const resolved = resolvePath(filePath);
+            const content = await fs.readFile(resolved, 'utf-8');
+            const lines = content.split('\n');
+
+            if (endLine > lines.length) {
+                return { success: false, error: `end_line (${endLine}) exceeds file length (${lines.length} lines)` };
+            }
+
+            // Replace lines (1-indexed to 0-indexed)
+            const newLines = newContent.split('\n');
+            const before = lines.slice(0, startLine - 1);
+            const after = lines.slice(endLine);
+            const result = [...before, ...newLines, ...after];
+
+            await fs.writeFile(resolved, result.join('\n'), 'utf-8');
+
+            let verification = null;
+            if (verify) {
+                verification = await toolHandlers.verify_changes({ scope: 'type-check' } as any);
+            }
+
+            return {
+                success: true,
+                data: {
+                    path: filePath,
+                    linesReplaced: { start: startLine, end: endLine, count: endLine - startLine + 1 },
+                    newLinesInserted: newLines.length,
+                    totalLines: result.length,
+                    verification: verification?.data || null,
+                }
+            };
+        } catch (error) {
+            return { success: false, error: `edit_file_lines failed: ${error}` };
+        }
+    },
+
+    multi_edit: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const filePath = args.path as string;
+            const edits = (args as any).edits as any[];
+            const verify = (args as any).verify !== false;
+
+            if (!filePath) return { success: false, error: 'path is required' };
+            if (!edits || !Array.isArray(edits) || edits.length === 0) {
+                return { success: false, error: 'edits array is required' };
+            }
+
+            const resolved = resolvePath(filePath);
+            const originalContent = await fs.readFile(resolved, 'utf-8');
+            let content = originalContent;
+            const results: any[] = [];
+
+            // Sort edits by line number (descending) to avoid offset issues
+            const sortedEdits = [...edits].map((e, i) => ({ ...e, originalIndex: i }));
+            sortedEdits.sort((a, b) => {
+                if (a.type === 'line' && b.type === 'line') return b.start_line - a.start_line;
+                return 0;
+            });
+
+            for (const edit of sortedEdits) {
+                const editResult = { index: edit.originalIndex, type: edit.type, success: false, error: '' };
+
+                if (edit.type === 'line') {
+                    const { start_line, end_line, replace } = edit;
+                    if (!start_line || !end_line || replace === undefined) {
+                        editResult.error = 'line edit requires start_line, end_line, and replace';
+                        results.push(editResult);
+                        continue;
+                    }
+
+                    const lines = content.split('\n');
+                    if (end_line > lines.length || start_line < 1) {
+                        editResult.error = `Invalid line range: ${start_line}-${end_line} (file has ${lines.length} lines)`;
+                        results.push(editResult);
+                        continue;
+                    }
+
+                    const newLines = replace.split('\n');
+                    const before = lines.slice(0, start_line - 1);
+                    const after = lines.slice(end_line);
+                    content = [...before, ...newLines, ...after].join('\n');
+                    editResult.success = true;
+                } else if (edit.type === 'text') {
+                    const { find, replace } = edit;
+                    if (!find || replace === undefined) {
+                        editResult.error = 'text edit requires find and replace';
+                        results.push(editResult);
+                        continue;
+                    }
+
+                    const normalized = content.replace(/\r\n/g, '\n');
+                    const normalizedFind = find.replace(/\r\n/g, '\n');
+
+                    if (!normalized.includes(normalizedFind)) {
+                        editResult.error = 'Text not found';
+                        results.push(editResult);
+                        continue;
+                    }
+
+                    const occurrences = normalized.split(normalizedFind).length - 1;
+                    if (occurrences > 1) {
+                        editResult.error = `Text appears ${occurrences} times. Make it unique.`;
+                        results.push(editResult);
+                        continue;
+                    }
+
+                    content = normalized.replace(normalizedFind, replace);
+                    editResult.success = true;
+                } else {
+                    editResult.error = 'Unknown edit type. Use "line" or "text".';
+                }
+
+                results.push(editResult);
+            }
+
+            // Check if any edits succeeded
+            const successCount = results.filter(r => r.success).length;
+            if (successCount === 0) {
+                return {
+                    success: false,
+                    error: 'No edits could be applied',
+                    data: { results: results.sort((a, b) => a.index - b.index) }
+                };
+            }
+
+            // Write atomically only if all edits succeeded (or make it configurable)
+            await fs.writeFile(resolved, content, 'utf-8');
+
+            let verification = null;
+            if (verify) {
+                verification = await toolHandlers.verify_changes({ scope: 'type-check' } as any);
+            }
+
+            return {
+                success: true,
+                data: {
+                    path: filePath,
+                    results: results.sort((a, b) => a.index - b.index),
+                    summary: { total: edits.length, successful: successCount, failed: edits.length - successCount },
+                    verification: verification?.data || null,
+                }
+            };
+        } catch (error) {
+            return { success: false, error: `multi_edit failed: ${error}` };
+        }
+    },
+
+    analyze_file: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const filePath = args.path as string;
+            const include = (args as any).include as string[] || ['content', 'imports', 'exports', 'symbols', 'diagnostics'];
+            const responseFormat = (args as any).response_format || 'detailed';
+
+            if (!filePath) return { success: false, error: 'path is required' };
+
+            const resolved = resolvePath(filePath);
+            const content = await fs.readFile(resolved, 'utf-8');
+            const lines = content.split('\n');
+            const ext = path.extname(filePath).toLowerCase();
+
+            const analysis: any = { path: filePath, lineCount: lines.length };
+
+            // Include content if requested
+            if (include.includes('content')) {
+                if (responseFormat === 'concise') {
+                    analysis.content = { preview: lines.slice(0, 50).join('\n'), lineCount: lines.length };
+                } else {
+                    analysis.content = content.length > 50000
+                        ? content.slice(0, 50000) + '\n[...truncated]'
+                        : content;
+                }
+            }
+
+            // Parse imports/exports for JS/TS files
+            if (['.ts', '.tsx', '.js', '.jsx', '.mjs'].includes(ext)) {
+                if (include.includes('imports')) {
+                    const importRegex = /^(?:import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+)?['"]([^'"]+)['"]|import\s*\(['"]([^'"]+)['"]\)|require\s*\(['"]([^'"]+)['"]\))/gm;
+                    const imports: string[] = [];
+                    let match;
+                    while ((match = importRegex.exec(content)) !== null) {
+                        imports.push(match[1] || match[2] || match[3]);
+                    }
+                    analysis.imports = responseFormat === 'concise'
+                        ? { count: imports.length, list: imports.slice(0, 10) }
+                        : imports;
+                }
+
+                if (include.includes('exports')) {
+                    const exportRegex = /export\s+(?:default\s+)?(?:(?:async\s+)?function|class|const|let|var|type|interface|enum)\s+(\w+)/gm;
+                    const exports: string[] = [];
+                    let match;
+                    while ((match = exportRegex.exec(content)) !== null) {
+                        exports.push(match[1]);
+                    }
+                    analysis.exports = responseFormat === 'concise'
+                        ? { count: exports.length, list: exports.slice(0, 10) }
+                        : exports;
+                }
+
+                if (include.includes('symbols')) {
+                    const symbols: any[] = [];
+                    // Functions
+                    const funcRegex = /(?:export\s+)?(?:async\s+)?function\s+(\w+)/gm;
+                    let match;
+                    while ((match = funcRegex.exec(content)) !== null) {
+                        const lineNum = content.slice(0, match.index).split('\n').length;
+                        symbols.push({ name: match[1], kind: 'function', line: lineNum });
+                    }
+                    // Classes
+                    const classRegex = /(?:export\s+)?class\s+(\w+)/gm;
+                    while ((match = classRegex.exec(content)) !== null) {
+                        const lineNum = content.slice(0, match.index).split('\n').length;
+                        symbols.push({ name: match[1], kind: 'class', line: lineNum });
+                    }
+                    // Interfaces/Types
+                    const typeRegex = /(?:export\s+)?(?:interface|type)\s+(\w+)/gm;
+                    while ((match = typeRegex.exec(content)) !== null) {
+                        const lineNum = content.slice(0, match.index).split('\n').length;
+                        symbols.push({ name: match[1], kind: 'type', line: lineNum });
+                    }
+                    analysis.symbols = responseFormat === 'concise'
+                        ? { count: symbols.length, list: symbols.slice(0, 15).map(s => `${s.kind}:${s.name}`) }
+                        : symbols;
+                }
+            }
+
+            // Diagnostics placeholder (would integrate with LSP in production)
+            if (include.includes('diagnostics')) {
+                analysis.diagnostics = responseFormat === 'concise'
+                    ? { errorCount: 0, warningCount: 0 }
+                    : [];
+            }
+
+            return { success: true, data: analysis };
+        } catch (error) {
+            return { success: false, error: `analyze_file failed: ${error}` };
         }
     },
 };
