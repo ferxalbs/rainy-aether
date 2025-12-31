@@ -10,10 +10,12 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - **Planner Agent**: New agent for task analysis and execution plan generation before handing off to specialized agents.
 - **Agent Lifecycle Hooks**: Added `onStart` and `onFinish` hooks to all agents for context preparation and state persistence.
 - **State-Based Routing**: Replaced keyword-based routing with intelligent state-based orchestration using execution plans.
+- **Batch Tools**: Added `fs_batch_read` (multi-file cached reads), `batch_search` (parallel pattern search), `verify_changes` (TypeScript checking), `get_project_context` (cached project info).
+- **Git Caching**: Added `gitDiffTool` and caching for git status/diff operations.
 
 ### Improved
 - **Agent Coordination**: Agents now share context via network state, enabling better handoffs and reducing redundant operations.
-- **Tool Descriptions**: Enhanced file tool descriptions with caching behavior and usage guidance.
+- **Tool Descriptions**: Enhanced file and terminal tool descriptions with caching behavior and usage guidance.
 
 ---
 

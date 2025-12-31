@@ -18,8 +18,13 @@ import {
     listDirectoryTool,
     searchCodeTool,
 } from '../tools/fileTools';
-import { runCommandTool } from '../tools/terminalTools';
+import { runCommandTool, gitStatusTool } from '../tools/terminalTools';
 import { applyFileDiffTool } from '../tools/applyFileDiffTool';
+import {
+    batchReadFilesTool,
+    verifyChangesTool,
+    getProjectContextTool,
+} from '../tools/batchTools';
 import type { NetworkState } from '../types';
 
 export const codeAssistantAgent = createAgent({
@@ -87,12 +92,20 @@ export const codeAssistantAgent = createAgent({
 4. **Explain concisely**: Brief explanations, not lengthy descriptions`,
 
     tools: [
+        // Core file operations
         readFileTool,
         writeFileTool,
         editFileTool,
         listDirectoryTool,
         searchCodeTool,
+        // Batch operations (more efficient)
+        batchReadFilesTool,
+        verifyChangesTool,
+        getProjectContextTool,
+        // Terminal and git
         runCommandTool,
+        gitStatusTool,
+        // Visual diff preview
         applyFileDiffTool,
     ],
 
