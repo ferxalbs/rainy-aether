@@ -75,21 +75,28 @@ const FileTreeItemInternal: React.FC<FileTreeItemProps> = ({
   onOpenFile,
 }) => {
   const activeTheme = useActiveIconTheme();
-  const isExpanded = expandedSet.has(node.path);
   const isSelected = selectedPath === node.path;
 
-  // Get icon from theme
-  const icon = useMemo(() => {
+  // Get icons from theme
+  const { fileIcon, folderOpenIcon, folderCloseIcon } = useMemo(() => {
     if (node.is_directory) {
-      const folderIcon = iconThemeActions.getFolderIcon(node.name, isExpanded, false);
-      if (folderIcon) return folderIcon;
-      return { iconComponent: isExpanded ? FolderOpen : FolderIconLucide };
+      // Get both open and closed folder icons
+      const openIcon = iconThemeActions.getFolderIcon(node.name, true, false);
+      const closeIcon = iconThemeActions.getFolderIcon(node.name, false, false);
+      return {
+        fileIcon: null,
+        folderOpenIcon: openIcon ?? { iconComponent: FolderOpen },
+        folderCloseIcon: closeIcon ?? { iconComponent: FolderIconLucide },
+      };
     } else {
-      const fileIcon = iconThemeActions.getFileIcon(node.name);
-      if (fileIcon) return fileIcon;
-      return { iconComponent: FileIconLucide };
+      const icon = iconThemeActions.getFileIcon(node.name);
+      return {
+        fileIcon: icon ?? { iconComponent: FileIconLucide },
+        folderOpenIcon: null,
+        folderCloseIcon: null,
+      };
     }
-  }, [node.is_directory, node.name, isExpanded, activeTheme]);
+  }, [node.is_directory, node.name, activeTheme]);
 
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
@@ -114,7 +121,7 @@ const FileTreeItemInternal: React.FC<FileTreeItemProps> = ({
       <File
         value={node.path}
         isSelect={isSelected}
-        fileIcon={<RenderIcon icon={icon} size={16} />}
+        fileIcon={fileIcon ? <RenderIcon icon={fileIcon} size={16} /> : undefined}
         onClick={handleFileClick}
         onContextMenu={handleContextMenu}
       >
@@ -123,12 +130,14 @@ const FileTreeItemInternal: React.FC<FileTreeItemProps> = ({
     );
   }
 
-  // Folder node
+  // Folder node - pass themed icons
   return (
     <Folder
       element={node.name}
       value={node.path}
       isSelect={isSelected}
+      openIcon={folderOpenIcon ? <RenderIcon icon={folderOpenIcon} size={16} /> : undefined}
+      closeIcon={folderCloseIcon ? <RenderIcon icon={folderCloseIcon} size={16} /> : undefined}
       onClick={handleFolderClick}
       onContextMenu={handleContextMenu}
     >

@@ -150,6 +150,8 @@ type FolderProps = {
   value: string
   isSelectable?: boolean
   isSelect?: boolean
+  openIcon?: React.ReactNode
+  closeIcon?: React.ReactNode
 } & React.HTMLAttributes<HTMLDivElement>
 
 const Folder = forwardRef<HTMLDivElement, FolderProps>(
@@ -160,6 +162,8 @@ const Folder = forwardRef<HTMLDivElement, FolderProps>(
       value,
       isSelectable = true,
       isSelect,
+      openIcon,
+      closeIcon,
       children,
       ...props
     },
@@ -170,8 +174,8 @@ const Folder = forwardRef<HTMLDivElement, FolderProps>(
       handleExpand,
       expandedSet,
       indicator,
-      openIcon,
-      closeIcon,
+      openIcon: contextOpenIcon,
+      closeIcon: contextCloseIcon,
     } = useTree()
 
     // O(1) lookup with Set
@@ -182,6 +186,10 @@ const Folder = forwardRef<HTMLDivElement, FolderProps>(
         handleExpand(value as string)
       }
     }, [handleExpand, value, isSelectable])
+
+    // Use prop icons first, then context icons, then defaults
+    const folderOpenIcon = openIcon ?? contextOpenIcon ?? <FolderOpenIcon className="size-4 shrink-0" />
+    const folderCloseIcon = closeIcon ?? contextCloseIcon ?? <FolderIcon className="size-4 shrink-0" />
 
     return (
       <div ref={ref} className="relative" {...props}>
@@ -205,10 +213,8 @@ const Folder = forwardRef<HTMLDivElement, FolderProps>(
           ) : (
             <ChevronRight className="size-3.5 shrink-0 opacity-60" />
           )}
-          {/* Folder icon */}
-          {isExpanded
-            ? (openIcon ?? <FolderOpenIcon className="size-4 shrink-0" />)
-            : (closeIcon ?? <FolderIcon className="size-4 shrink-0" />)}
+          {/* Folder icon - use themed icons if provided */}
+          {isExpanded ? folderOpenIcon : folderCloseIcon}
           <span className="truncate">{element}</span>
         </button>
 
