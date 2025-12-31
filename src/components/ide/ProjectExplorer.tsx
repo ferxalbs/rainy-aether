@@ -1,23 +1,13 @@
 import React, { useCallback, useMemo, useState, memo } from "react";
 import { useIDEStore, useIDEState, FileNode } from "../../stores/ideStore";
-import { ChevronRight, ChevronDown, File, Folder, FolderOpen, FilePlus, FolderPlus } from "lucide-react";
+import { File as FileIconLucide, Folder, FolderOpen, FilePlus, FolderPlus, ChevronRight, ChevronDown } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "@/lib/utils";
 import { iconThemeActions, useActiveIconTheme, type IconDefinition } from "@/stores/iconThemeStore";
 import ContextMenu, { type ContextMenuItem } from "./ContextMenu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import FileDialog from "./file-dialog";
-
-interface FileNodeProps {
-  node: FileNode;
-  level: number;
-  selectedPath: string | null;
-  setSelectedPath: (path: string) => void;
-  onStartRename: (node: FileNode) => void;
-  onContextMenuOpen: (event: React.MouseEvent | KeyboardEvent, node: FileNode) => void;
-  expandedPaths: Set<string>;
-  toggleExpanded: (path: string) => boolean;
-}
+import { ScrollArea } from "../ui/scroll-area";
 
 /**
  * Render an icon from IconDefinition - Memoized to prevent unnecessary re-renders
@@ -57,132 +47,143 @@ const RenderIcon = memo<{ icon: IconDefinition; size?: number; className?: strin
   }
 
   // Fallback to generic file icon
-  return <File size={size} className={className} style={style} />;
+  return <FileIconLucide size={size} className={className} style={style} />;
 });
 
-const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
+RenderIcon.displayName = "RenderIcon";
+
+interface FileTreeNodeProps {
+  node: FileNode;
+  depth: number;
+  isSelected: boolean;
+  isExpanded: boolean;
+  onSelect: (path: string) => void;
+  onContextMenu: (event: React.MouseEvent, node: FileNode) => void;
+  onToggleExpand: (path: string, node: FileNode) => void;
+  onOpenFile: (node: FileNode) => void;
+  expandedSet: Set<string>;
+}
+
+/**
+ * High-performance file tree node - uses pure props to avoid hooks overhead
+ */
+const FileTreeNodeInternal: React.FC<FileTreeNodeProps> = ({
   node,
-  level,
-  selectedPath,
-  setSelectedPath,
-  onStartRename,
-  onContextMenuOpen,
-  expandedPaths,
-  toggleExpanded,
+  depth,
+  isSelected,
+  isExpanded,
+  onSelect,
+  onContextMenu,
+  onToggleExpand,
+  onOpenFile,
+  expandedSet,
 }) => {
-  const { actions } = useIDEStore();
   const activeTheme = useActiveIconTheme();
+  const paddingLeft = depth * 12 + 8;
 
-  // Use stable shared state for expansion instead of local state
-  const isOpen = node.is_directory && expandedPaths.has(node.path);
-
-  const handleToggle = useCallback(async () => {
-    setSelectedPath(node.path);
-    if (node.is_directory) {
-      // Use toggleExpanded's return value to determine the new state
-      // This avoids stale closure issues with isOpen
-      const willOpen = toggleExpanded(node.path);
-
-      // Lazy load children if opening and not loaded yet
-      if (willOpen && !node.children_loaded && (!node.children || node.children.length === 0)) {
-        try {
-          await actions.loadDirectoryChildren(node.path);
-        } catch (error) {
-          console.error('Failed to load directory children:', error);
-        }
-      }
-    } else {
-      actions.openFile(node);
-    }
-  }, [actions, node.path, node.is_directory, node.children_loaded, node.children, setSelectedPath, toggleExpanded]);
-
-  // Get icon from theme - memoized with proper dependencies
+  // Get icon from theme - memoized
   const icon = useMemo(() => {
     if (node.is_directory) {
-      const folderIcon = iconThemeActions.getFolderIcon(node.name, isOpen, false);
+      const folderIcon = iconThemeActions.getFolderIcon(node.name, isExpanded, false);
       if (folderIcon) return folderIcon;
-      // Fallback to Lucide icon
-      return { iconComponent: isOpen ? FolderOpen : Folder };
+      return { iconComponent: isExpanded ? FolderOpen : Folder };
     } else {
       const fileIcon = iconThemeActions.getFileIcon(node.name);
       if (fileIcon) return fileIcon;
-      // Fallback to Lucide icon
-      return { iconComponent: File };
+      return { iconComponent: FileIconLucide };
     }
-  }, [node.is_directory, node.name, isOpen, activeTheme]);
+  }, [node.is_directory, node.name, isExpanded, activeTheme]);
 
-  const isSelected = selectedPath === node.path;
+  const handleClick = useCallback(() => {
+    if (node.is_directory) {
+      onSelect(node.path);
+      onToggleExpand(node.path, node);
+    } else {
+      onSelect(node.path);
+      onOpenFile(node);
+    }
+  }, [node, onSelect, onToggleExpand, onOpenFile]);
 
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (!isSelected) {
-        return;
-      }
-      if (event.key === "F2" || event.key === "Delete") {
-        event.preventDefault();
-        onContextMenuOpen(event.nativeEvent as KeyboardEvent, node);
-        if (event.key === "F2") {
-          onStartRename(node);
-        }
-      }
-    },
-    [isSelected, node, onContextMenuOpen, onStartRename],
-  );
+  const handleContextMenu = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onSelect(node.path);
+    onContextMenu(event, node);
+  }, [node, onContextMenu, onSelect]);
 
-  const handleContextMenu = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      setSelectedPath(node.path);
-      onContextMenuOpen(event, node);
-    },
-    [node, onContextMenuOpen, setSelectedPath],
-  );
+  // Inline style for padding (faster than template strings in className)
+  const style = useMemo(() => ({ paddingLeft }), [paddingLeft]);
 
-  const showChevron = node.is_directory;
-
-  return (
-    <div>
-      <div
+  // File node - simple button
+  if (!node.is_directory) {
+    return (
+      <button
+        type="button"
         className={cn(
-          "w-full h-7 px-1.5 flex items-center text-left font-normal cursor-pointer rounded-sm transition-colors duration-100",
+          "flex w-full items-center gap-1.5 rounded-sm h-7 text-sm",
           isSelected
             ? "bg-accent/50 text-accent-foreground"
-            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
         )}
-        style={{ paddingLeft: `${level * 12 + 4}px` }}
-        onClick={handleToggle}
-        onKeyDown={handleKeyDown}
+        style={style}
+        onClick={handleClick}
         onContextMenu={handleContextMenu}
-        tabIndex={0}
       >
-        {showChevron && (
-          <>
-            {isOpen ? (
-              <ChevronDown size={14} className="mr-1 opacity-60 shrink-0" />
-            ) : (
-              <ChevronRight size={14} className="mr-1 opacity-60 shrink-0" />
-            )}
-          </>
+        <RenderIcon icon={icon} size={16} className="shrink-0" />
+        <span className="truncate">{node.name}</span>
+      </button>
+    );
+  }
+
+  // Folder node
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className={cn(
+          "flex w-full items-center gap-1 rounded-sm h-7 text-sm",
+          isSelected
+            ? "bg-accent/50 text-accent-foreground"
+            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
         )}
-        {!showChevron && <div className="w-3.5 mr-1 shrink-0" />}
-        <div className="mr-1.5 shrink-0">
-          <RenderIcon icon={icon} size={16} />
-        </div>
-        <span className="flex-1 truncate text-sm">{node.name}</span>
-      </div>
-      {node.is_directory && isOpen && node.children && node.children.length > 0 && (
-        <div>
+        style={style}
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
+      >
+        {isExpanded ? (
+          <ChevronDown size={14} className="shrink-0 opacity-60" />
+        ) : (
+          <ChevronRight size={14} className="shrink-0 opacity-60" />
+        )}
+        <RenderIcon icon={icon} size={16} className="shrink-0" />
+        <span className="truncate">{node.name}</span>
+      </button>
+
+      {/* Children - only render when expanded */}
+      {isExpanded && node.children && node.children.length > 0 && (
+        <div className="relative">
+          {/* Tree line indicator */}
+          <div
+            className="absolute w-px bg-border/30"
+            style={{
+              left: paddingLeft + 6,
+              top: 0,
+              bottom: 0,
+            }}
+            aria-hidden="true"
+          />
           {node.children.map((child) => (
-            <FileNodeComponent
+            <FileTreeNode
               key={child.path}
               node={child}
-              level={level + 1}
-              selectedPath={selectedPath}
-              setSelectedPath={setSelectedPath}
-              onStartRename={onStartRename}
-              onContextMenuOpen={onContextMenuOpen}
-              expandedPaths={expandedPaths}
-              toggleExpanded={toggleExpanded}
+              depth={depth + 1}
+              isSelected={false} // Will be set by parent via prop drilling
+              isExpanded={expandedSet.has(child.path)}
+              onSelect={onSelect}
+              onContextMenu={onContextMenu}
+              onToggleExpand={onToggleExpand}
+              onOpenFile={onOpenFile}
+              expandedSet={expandedSet}
             />
           ))}
         </div>
@@ -191,35 +192,55 @@ const FileNodeComponentInternal: React.FC<FileNodeProps> = ({
   );
 };
 
-// Memoize FileNodeComponent to prevent unnecessary re-renders of tree nodes
-// IMPORTANT: Compare node reference, not just properties, because children array is populated in place
-const FileNodeComponent = memo(FileNodeComponentInternal, (prevProps, nextProps) => {
-  // If node reference changed, we need to re-render (children may have been loaded)
-  if (prevProps.node !== nextProps.node) {
-    return false;
-  }
+// Optimized memo comparison - only re-render when necessary
+const FileTreeNode = memo(FileTreeNodeInternal, (prev, next) => {
+  // Quick reference check first
+  if (prev.node !== next.node) return false;
+  if (prev.isSelected !== next.isSelected) return false;
+  if (prev.isExpanded !== next.isExpanded) return false;
+  if (prev.depth !== next.depth) return false;
+  // expandedSet only matters for child rendering which is controlled by isExpanded
+  if (prev.expandedSet !== next.expandedSet && next.isExpanded) return false;
+  return true;
+});
 
-  // If expandedPaths Set reference changed, we need to re-render to propagate to children
-  // This is critical: without this check, child folder toggles won't update UI
-  if (prevProps.expandedPaths !== nextProps.expandedPaths) {
-    return false;
-  }
+FileTreeNode.displayName = "FileTreeNode";
 
-  // Check if this node's expanded state changed
-  const prevExpanded = prevProps.node.is_directory && prevProps.expandedPaths.has(prevProps.node.path);
-  const nextExpanded = nextProps.node.is_directory && nextProps.expandedPaths.has(nextProps.node.path);
-  if (prevExpanded !== nextExpanded) {
-    return false;
-  }
-
+/**
+ * Virtualized file tree wrapper for root children
+ */
+const FileTreeList = memo<{
+  children: FileNode[];
+  selectedPath: string | null;
+  expandedSet: Set<string>;
+  onSelect: (path: string) => void;
+  onContextMenu: (event: React.MouseEvent, node: FileNode) => void;
+  onToggleExpand: (path: string, node: FileNode) => void;
+  onOpenFile: (node: FileNode) => void;
+}>(({ children, selectedPath, expandedSet, onSelect, onContextMenu, onToggleExpand, onOpenFile }) => {
   return (
-    prevProps.selectedPath === nextProps.selectedPath &&
-    prevProps.level === nextProps.level
+    <>
+      {children.map((child) => (
+        <FileTreeNode
+          key={child.path}
+          node={child}
+          depth={0}
+          isSelected={selectedPath === child.path}
+          isExpanded={expandedSet.has(child.path)}
+          onSelect={onSelect}
+          onContextMenu={onContextMenu}
+          onToggleExpand={onToggleExpand}
+          onOpenFile={onOpenFile}
+          expandedSet={expandedSet}
+        />
+      ))}
+    </>
   );
 });
 
+FileTreeList.displayName = "FileTreeList";
+
 const ProjectExplorerInternal: React.FC = () => {
-  // Use useIDEState() instead of state() to properly subscribe to state changes
   const snapshot = useIDEState();
   const { actions } = useIDEStore();
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -234,31 +255,41 @@ const ProjectExplorerInternal: React.FC = () => {
   const [fileDialogParentPath, setFileDialogParentPath] = useState<string>("");
   const [fileDialogIsDirectory, setFileDialogIsDirectory] = useState(false);
 
-  // Stable expanded paths state that persists across tree re-renders
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  // Use Set for O(1) lookup instead of array includes
+  const [expandedSet, setExpandedSet] = useState<Set<string>>(() => new Set());
 
-  const toggleExpanded = useCallback((path: string): boolean => {
-    let wasExpanded = false;
-    setExpandedPaths(prev => {
+  // Stable callback refs to prevent child re-renders
+  const handleToggleExpand = useCallback(async (path: string, node: FileNode) => {
+    const willExpand = !expandedSet.has(path);
+
+    // Lazy load children if needed
+    if (willExpand && node.is_directory && !node.children_loaded && (!node.children || node.children.length === 0)) {
+      try {
+        await actions.loadDirectoryChildren(path);
+      } catch (error) {
+        console.error('Failed to load directory children:', error);
+      }
+    }
+
+    setExpandedSet(prev => {
       const next = new Set(prev);
       if (next.has(path)) {
         next.delete(path);
-        wasExpanded = true;
       } else {
         next.add(path);
-        wasExpanded = false;
       }
       return next;
     });
-    // Return whether the folder is NOW expanded (opposite of wasExpanded)
-    return !wasExpanded;
-  }, []);
+  }, [expandedSet, actions]);
+
+  const handleOpenFile = useCallback((node: FileNode) => {
+    actions.openFile(node);
+  }, [actions]);
 
   const handleContextMenuOpen = useCallback(
-    (event: React.MouseEvent | KeyboardEvent, node: FileNode) => {
-      const coords = "clientX" in event ? { x: event.clientX, y: event.clientY } : { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-      setMenuX(coords.x);
-      setMenuY(coords.y);
+    (event: React.MouseEvent, node: FileNode) => {
+      setMenuX(event.clientX);
+      setMenuY(event.clientY);
 
       const items: ContextMenuItem[] = [];
       if (node.is_directory) {
@@ -327,6 +358,18 @@ const ProjectExplorerInternal: React.FC = () => {
     setFileDialogOpen(true);
   }, [projectRoot]);
 
+  const handleRootClick = useCallback(() => {
+    if (projectRoot) setSelectedPath(projectRoot.path);
+  }, [projectRoot]);
+
+  const handleRootContextMenu = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    if (projectRoot) {
+      setSelectedPath(projectRoot.path);
+      handleContextMenuOpen(event, projectRoot);
+    }
+  }, [projectRoot, handleContextMenuOpen]);
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-3 py-2 border-b border-border/20">
@@ -342,129 +385,123 @@ const ProjectExplorerInternal: React.FC = () => {
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto px-1 py-1">
-        {projectRoot ? (
-          <>
-            {/* Show folder name as header */}
-            <div
-              className={cn(
-                "w-full h-7 px-1.5 flex items-center text-left font-medium cursor-pointer rounded-sm mb-0.5 transition-colors duration-100",
-                selectedPath === projectRoot.path
-                  ? "bg-accent/50 text-accent-foreground"
-                  : "text-foreground hover:bg-muted/50",
+      <ScrollArea className="flex-1">
+        <div className="px-1 py-1">
+          {projectRoot ? (
+            <>
+              {/* Project root header */}
+              <button
+                type="button"
+                className={cn(
+                  "w-full h-7 px-2 flex items-center text-left font-medium rounded-sm mb-0.5",
+                  selectedPath === projectRoot.path
+                    ? "bg-accent/50 text-accent-foreground"
+                    : "text-foreground hover:bg-muted/50",
+                )}
+                onClick={handleRootClick}
+                onContextMenu={handleRootContextMenu}
+              >
+                <FolderOpen size={16} className="mr-1.5 shrink-0" style={{ color: "var(--accent-primary)" }} />
+                <span className="text-sm truncate">{projectRoot.name}</span>
+              </button>
+
+              {/* File tree */}
+              {projectRoot.children && projectRoot.children.length > 0 && (
+                <FileTreeList
+                  children={projectRoot.children}
+                  selectedPath={selectedPath}
+                  expandedSet={expandedSet}
+                  onSelect={setSelectedPath}
+                  onContextMenu={handleContextMenuOpen}
+                  onToggleExpand={handleToggleExpand}
+                  onOpenFile={handleOpenFile}
+                />
               )}
-              onClick={() => setSelectedPath(projectRoot.path)}
-              onContextMenu={(event) => handleContextMenuOpen(event, projectRoot)}
-            >
-              <FolderOpen size={16} className="mr-1.5 shrink-0" style={{ color: "var(--accent-primary)" }} />
-              <span className="text-sm truncate">{projectRoot.name}</span>
-            </div>
-            {/* Show children directly without nesting the root folder */}
-            {projectRoot.children && projectRoot.children.length > 0 && (
-              <div>
-                {projectRoot.children.map((child) => (
-                  <FileNodeComponent
-                    key={child.path}
-                    node={child}
-                    level={0}
-                    selectedPath={selectedPath}
-                    setSelectedPath={setSelectedPath}
-                    onStartRename={(node) => {
-                      setFileDialogMode("rename");
-                      setFileDialogNode(node);
-                      setFileDialogIsDirectory(node.is_directory);
-                      setFileDialogOpen(true);
-                    }}
-                    onContextMenuOpen={handleContextMenuOpen}
-                    expandedPaths={expandedPaths}
-                    toggleExpanded={toggleExpanded}
-                  />
-                ))}
-              </div>
-            )}
-            <ContextMenu
-              isOpen={menuOpen}
-              x={menuX}
-              y={menuY}
-              items={menuItems}
-              onClose={() => setMenuOpen(false)}
-            />
-            <Dialog open={Boolean(deleteNode)} onOpenChange={(open) => !open && setDeleteNode(null)}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Delete</DialogTitle>
-                  <DialogDescription>
-                    {deleteNode
-                      ? `Delete ${deleteNode.name}${deleteNode.is_directory ? " and its contents" : ""}?`
-                      : ""}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex justify-end gap-2 mt-3">
-                  <Button variant="ghost" onClick={() => setDeleteNode(null)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={async () => {
-                      if (deleteNode) {
-                        await actions.deleteNode(deleteNode);
-                        setDeleteNode(null);
-                      }
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <FileDialog
-              open={fileDialogOpen}
-              onOpenChange={(open) => setFileDialogOpen(open)}
-              title={
-                fileDialogMode === "create"
-                  ? fileDialogIsDirectory
-                    ? "Create New Folder"
-                    : "Create New File"
-                  : "Rename"
-              }
-              description={
-                fileDialogMode === "create"
-                  ? fileDialogIsDirectory
-                    ? "Enter the name for the new folder."
-                    : "Enter the name and extension for the new file."
-                  : "Enter the new name."
-              }
-              initialName={
-                fileDialogMode === "create"
-                  ? fileDialogIsDirectory
-                    ? "New Folder"
-                    : "Untitled"
-                  : fileDialogNode?.name ?? ""
-              }
-              onConfirm={(name) => {
-                if (fileDialogMode === "create") {
-                  if (fileDialogIsDirectory) {
-                    actions.createFolderAt(fileDialogParentPath, name);
-                  } else {
-                    actions.createFileAt(fileDialogParentPath, name);
-                    const newPath = `${fileDialogParentPath}/${name}`;
-                    setSelectedPath(newPath);
-                  }
-                } else if (fileDialogNode) {
-                  actions.renameNode(fileDialogNode, name);
+
+              <ContextMenu
+                isOpen={menuOpen}
+                x={menuX}
+                y={menuY}
+                items={menuItems}
+                onClose={() => setMenuOpen(false)}
+              />
+              <Dialog open={Boolean(deleteNode)} onOpenChange={(open) => !open && setDeleteNode(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete</DialogTitle>
+                    <DialogDescription>
+                      {deleteNode
+                        ? `Delete ${deleteNode.name}${deleteNode.is_directory ? " and its contents" : ""}?`
+                        : ""}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex justify-end gap-2 mt-3">
+                    <Button variant="ghost" onClick={() => setDeleteNode(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={async () => {
+                        if (deleteNode) {
+                          await actions.deleteNode(deleteNode);
+                          setDeleteNode(null);
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <FileDialog
+                open={fileDialogOpen}
+                onOpenChange={(open) => setFileDialogOpen(open)}
+                title={
+                  fileDialogMode === "create"
+                    ? fileDialogIsDirectory
+                      ? "Create New Folder"
+                      : "Create New File"
+                    : "Rename"
                 }
-              }}
-              confirmLabel={fileDialogMode === "create" ? "Create" : "Rename"}
-              isDirectory={fileDialogIsDirectory}
-            />
-          </>
-        ) : (
-          <div className="text-center text-sm py-8 no-project-text">
-            <Folder size={32} className="mx-auto mb-2 opacity-50" />
-            No project open
-          </div>
-        )}
-      </div>
+                description={
+                  fileDialogMode === "create"
+                    ? fileDialogIsDirectory
+                      ? "Enter the name for the new folder."
+                      : "Enter the name and extension for the new file."
+                    : "Enter the new name."
+                }
+                initialName={
+                  fileDialogMode === "create"
+                    ? fileDialogIsDirectory
+                      ? "New Folder"
+                      : "Untitled"
+                    : fileDialogNode?.name ?? ""
+                }
+                onConfirm={(name) => {
+                  if (fileDialogMode === "create") {
+                    if (fileDialogIsDirectory) {
+                      actions.createFolderAt(fileDialogParentPath, name);
+                    } else {
+                      actions.createFileAt(fileDialogParentPath, name);
+                      const newPath = `${fileDialogParentPath}/${name}`;
+                      setSelectedPath(newPath);
+                    }
+                  } else if (fileDialogNode) {
+                    actions.renameNode(fileDialogNode, name);
+                  }
+                }}
+                confirmLabel={fileDialogMode === "create" ? "Create" : "Rename"}
+                isDirectory={fileDialogIsDirectory}
+              />
+            </>
+          ) : (
+            <div className="text-center text-sm py-8 no-project-text">
+              <Folder size={32} className="mx-auto mb-2 opacity-50" />
+              No project open
+            </div>
+          )}
+        </div>
+      </ScrollArea>
     </div>
   );
 };

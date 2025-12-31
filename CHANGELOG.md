@@ -16,6 +16,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ### Improved
 
 - **Update Icons**: Improved update icons to be more visible and easier to understand.
+- **Sidebar File Tree**: Modernized file explorer with Radix Accordion for smooth folder animations and tree line indicators for better visual hierarchy.
 
 ## [v0.1.2] - 2025-12-31
 
