@@ -89,7 +89,7 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
       })
     }, [])
 
-    const direction = dir === "rtl" ? "rtl" : "ltr"
+    const direction: "rtl" | "ltr" = dir === "rtl" ? "rtl" : "ltr"
 
     // Memoize context value to prevent unnecessary re-renders
     const contextValue = useMemo(() => ({
@@ -147,6 +147,7 @@ TreeIndicator.displayName = "TreeIndicator"
 type FolderProps = {
   expandedItems?: string[]
   element: string
+  value: string
   isSelectable?: boolean
   isSelect?: boolean
 } & React.HTMLAttributes<HTMLDivElement>
