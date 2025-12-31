@@ -4,14 +4,17 @@
  * Exports the unified tool system for use by AgentKit agents.
  */
 
-// Schema and types
-export {
+// Schema and types - using 'export type' for type-only exports
+export type {
     ToolSchema,
     ToolParameter,
     ToolResult,
     ToolCall,
     ToolExecution,
     ToolCategory,
+} from './schema';
+
+export {
     TOOL_DEFINITIONS,
     getToolByName,
     getToolsByCategory,
@@ -21,12 +24,11 @@ export {
     toOpenAIFunctions,
 } from './schema';
 
-// Executor (ToolExecutor class is here, not in schema)
+// Executor - using 'export type' for type-only exports
+export type { ExecutorConfig, BatchOptions, ToolHandler } from './executor';
+
 export {
     ToolExecutor,
-    ExecutorConfig,
-    BatchOptions,
-    ToolHandler,
     getToolExecutor,
     createToolExecutor,
     createToolCall,

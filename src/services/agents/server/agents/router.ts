@@ -7,8 +7,8 @@
  * - Explicit agent requests
  */
 
-import { AgentType, createAgent, getAgentTypes, AGENTS } from './specialized';
-import { BaseAgent, AgentContext, AgentResult } from './base';
+import { AgentType, createAgent, getAgentTypes } from './specialized';
+import type { BaseAgent, AgentContext, AgentResult } from './base';
 
 // ===========================
 // Types

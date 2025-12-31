@@ -12,10 +12,18 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - **State-Based Routing**: Replaced keyword-based routing with intelligent state-based orchestration using execution plans.
 - **Batch Tools**: Added `fs_batch_read` (multi-file cached reads), `batch_search` (parallel pattern search), `verify_changes` (TypeScript checking), `get_project_context` (cached project info).
 - **Git Caching**: Added `gitDiffTool` and caching for git status/diff operations.
+- **State Inspection**: Added `/tasks/:id/state` API endpoint for debugging network state and cache statistics.
+- **BrainService Methods**: Added `getTaskState()` for state inspection and `getAgents()` for discovering available agents.
 
 ### Improved
 - **Agent Coordination**: Agents now share context via network state, enabling better handoffs and reducing redundant operations.
 - **Tool Descriptions**: Enhanced file and terminal tool descriptions with caching behavior and usage guidance.
+- **SSE Streaming**: Task status updates now include `networkState` snapshot for real-time monitoring.
+
+### Fixed
+- **Type Exports**: Fixed type re-exports in `tools/index.ts` using proper `export type` syntax.
+- **Unused Imports**: Removed unused imports in base.ts, router.ts, executor.ts, bridge.ts.
+- **Type Safety**: Added null checks for function call parameters and step result types in inngest.ts.
 
 ---
 

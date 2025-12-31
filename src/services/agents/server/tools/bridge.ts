@@ -8,8 +8,9 @@
  * Communication happens via HTTP to the Tauri webview.
  */
 
-import { ToolResult, TOOL_DEFINITIONS } from './schema';
-import { ToolExecutor, ToolHandler, getToolExecutor, createToolCall } from './executor';
+import type { ToolResult } from './schema';
+import { ToolExecutor, getToolExecutor, createToolCall } from './executor';
+import type { ToolHandler } from './executor';
 
 // ===========================
 // Types

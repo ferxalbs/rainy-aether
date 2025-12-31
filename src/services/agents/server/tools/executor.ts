@@ -8,14 +8,12 @@
  * - Retry logic
  */
 
-import {
-    ToolSchema,
+import type {
     ToolResult,
     ToolCall,
     ToolExecution,
-    getToolByName,
-    TOOL_DEFINITIONS
 } from './schema';
+import { getToolByName } from './schema';
 
 // ===========================
 // Types
@@ -104,12 +102,6 @@ export class ToolExecutor {
     private config: ExecutorConfig;
     private handlers: Map<string, ToolHandler>;
     private cache: LRUCache<ToolResult>;
-    private runningCount: number = 0;
-    private queue: Array<{
-        call: ToolCall;
-        resolve: (result: ToolResult) => void;
-        reject: (error: Error) => void;
-    }> = [];
 
     constructor(config: Partial<ExecutorConfig> = {}) {
         this.config = {
@@ -314,7 +306,7 @@ export class ToolExecutor {
     /**
      * Invalidate cache for specific tool calls
      */
-    invalidateCache(toolName: string, argsPattern?: Record<string, unknown>): void {
+    invalidateCache(_toolName: string, _argsPattern?: Record<string, unknown>): void {
         // For now, just clear all cache
         // TODO: Implement pattern-based invalidation
         this.cache.clear();

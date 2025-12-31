@@ -5,7 +5,7 @@
  * Each agent has specific tools, system prompt, and behavior.
  */
 
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { createConfiguredExecutor, createToolCall, toAgentKitTools } from '../tools';
 
 // ===========================
@@ -145,10 +145,13 @@ export abstract class BaseAgent {
                         hasToolCalls = true;
                         const { name, args } = part.functionCall;
 
+                        // Ensure name is defined before proceeding
+                        if (!name) continue;
+
                         toolsUsed.push(name);
 
                         // Execute tool
-                        const call = createToolCall(name, args as Record<string, unknown>);
+                        const call = createToolCall(name, (args || {}) as Record<string, unknown>);
                         const execution = await this.executor.execute(call);
 
                         if (execution.result?.success && name.includes('file') && name !== 'read_file') {

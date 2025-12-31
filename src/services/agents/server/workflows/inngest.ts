@@ -97,11 +97,13 @@ export const executeTaskWorkflow = inngest.createFunction(
     {
         id: 'execute-task',
         retries: 2,
-        onFailure: async ({ event, error }) => {
-            console.error(`[Workflow] Task ${event.data.taskId} failed:`, error.message);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onFailure: async ({ event, error }: { event: any; error: any }) => {
+            const taskId = event.data?.taskId || 'unknown';
+            console.error(`[Workflow] Task ${taskId} failed:`, error.message);
             await inngest.send({
                 name: 'brain/task.failed',
-                data: { taskId: event.data.taskId, error: error.message },
+                data: { taskId, error: error.message },
             });
         },
     },
@@ -117,7 +119,7 @@ export const executeTaskWorkflow = inngest.createFunction(
         });
 
         // Step 2: Initialize router
-        const routerReady = await step.run('init-router', async () => {
+        await step.run('init-router', async () => {
             const apiKey = process.env.GEMINI_API_KEY;
             if (!apiKey) {
                 throw new Error('GEMINI_API_KEY not configured');
@@ -184,16 +186,18 @@ export const createProjectWorkflow = inngest.createFunction(
     {
         id: 'create-project',
         retries: 1,
-        onFailure: async ({ event, error }) => {
-            console.error(`[Workflow] Project ${event.data.projectId} creation failed:`, error.message);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onFailure: async ({ event, error }: { event: any; error: any }) => {
+            const projectId = event.data?.projectId || 'unknown';
+            console.error(`[Workflow] Project ${projectId} creation failed:`, error.message);
         },
     },
     { event: 'brain/project.create' },
     async ({ event, step }) => {
-        const { projectId, name, template, path: projectPath, options } = event.data;
+        const { projectId, name: _name, template, path: projectPath, options: _options } = event.data;
 
         // Step 1: Create project directory
-        const dirResult = await step.run('create-directory', async () => {
+        await step.run('create-directory', async () => {
             const executor = createConfiguredExecutor(projectPath);
             await executor.execute(createToolCall('run_command', {
                 command: `mkdir -p "${projectPath}"`,
@@ -202,7 +206,7 @@ export const createProjectWorkflow = inngest.createFunction(
         });
 
         // Step 2: Initialize project based on template
-        const initResult = await step.run('init-project', async () => {
+        await step.run('init-project', async () => {
             const executor = createConfiguredExecutor(projectPath);
 
             let initCommand = '';
@@ -236,7 +240,7 @@ export const createProjectWorkflow = inngest.createFunction(
         });
 
         // Step 3: Install dependencies
-        const installResult = await step.run('install-deps', async () => {
+        await step.run('install-deps', async () => {
             if (template === 'rust') {
                 return { skipped: true };
             }
@@ -309,13 +313,15 @@ export const indexCodebaseWorkflow = inngest.createFunction(
                     file_pattern: pattern,
                     max_results: 5,
                 }));
-                if (result.result?.data?.results) {
-                    files.push(...result.result.data.results.map((r: any) => r.file));
+                // Handle dynamic result data
+                const data = result.result?.data as { results?: Array<{ file: string }> } | undefined;
+                if (data?.results) {
+                    files.push(...data.results.map((r) => r.file));
                 }
             }
 
             return { files: [...new Set(files)] };
-        });
+        }) as { files: string[] };
 
         // Step 3: Analyze imports
         const imports = await step.run('analyze-imports', async () => {
@@ -329,7 +335,9 @@ export const indexCodebaseWorkflow = inngest.createFunction(
                 try {
                     const result = await executor.execute(createToolCall('analyze_imports', { path: file }));
                     if (result.result?.success) {
-                        allImports[file] = result.result.data?.imports || [];
+                        // Handle dynamic result data with type assertion
+                        const data = result.result.data as { imports?: string[] } | undefined;
+                        allImports[file] = data?.imports || [];
                     }
                 } catch {
                     // File doesn't exist, skip
@@ -337,7 +345,7 @@ export const indexCodebaseWorkflow = inngest.createFunction(
             }
 
             return { imports: allImports };
-        });
+        }) as { imports: Record<string, string[]> };
 
         return {
             indexId,

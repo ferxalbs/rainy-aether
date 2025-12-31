@@ -53,6 +53,39 @@ export interface TaskStatus {
     error?: string;
     startTime: number;
     endTime?: number;
+    // Added: Network state snapshot for debugging - included in SSE updates
+    networkState?: NetworkStateSnapshot;
+}
+
+/**
+ * Snapshot of network state for debugging and monitoring
+ */
+export interface NetworkStateSnapshot {
+    iteration: number;
+    maxIterations: number;
+    lastAgent: string;
+    cachedFiles: number;
+    cacheHits: number;
+    cacheMisses: number;
+    contextLoaded: boolean;
+    planGenerated: boolean;
+    taskCompleted: boolean;
+}
+
+/**
+ * Full state inspection result
+ */
+export interface TaskStateInspection {
+    taskId: string;
+    status: TaskStatus['status'];
+    networkState: NetworkStateSnapshot | null;
+    fullState: unknown | null;
+    cacheStats: {
+        hits: number;
+        misses: number;
+        cachedFiles: number;
+        hitRate: string;
+    } | null;
 }
 
 export interface TaskHandle {
@@ -319,6 +352,41 @@ class BrainService {
                 }
             }, 30 * 60 * 1000);
         });
+    }
+
+    // ===========================
+    // State Inspection
+    // ===========================
+
+    /**
+     * Get the network state for a task (for debugging/monitoring)
+     */
+    async getTaskState(taskId: string): Promise<TaskStateInspection> {
+        const response = await fetch(`${this.baseUrl}/api/brain/tasks/${taskId}/state`);
+        if (!response.ok) throw new Error(`Failed to get task state: ${response.status}`);
+        return response.json();
+    }
+
+    /**
+     * Get available agents and their metadata
+     */
+    async getAgents(): Promise<{
+        agents: Array<{
+            name: string;
+            type: string;
+            description: string;
+            capabilities: string[];
+        }>;
+        types: string[];
+        defaultAgent: string;
+        routing: {
+            mode: string;
+            description: string;
+        };
+    }> {
+        const response = await fetch(`${this.baseUrl}/api/brain/agents`);
+        if (!response.ok) throw new Error(`Failed to get agents: ${response.status}`);
+        return response.json();
     }
 }
 

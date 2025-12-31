@@ -46,10 +46,25 @@ interface TaskStatus {
     startTime: number;
     endTime?: number;
     agentsUsed?: string[];
+    // Network state snapshot for debugging/streaming
+    networkState?: {
+        iteration: number;
+        maxIterations: number;
+        lastAgent: string;
+        cachedFiles: number;
+        cacheHits: number;
+        cacheMisses: number;
+        contextLoaded: boolean;
+        planGenerated: boolean;
+        taskCompleted: boolean;
+    };
 }
 
 // In-memory task storage
 const tasks = new Map<string, TaskStatus>();
+
+// Network state snapshots for streaming (updated during task execution)
+const taskStateSnapshots = new Map<string, unknown>();
 
 // Router initialization flag
 let routerInitialized = false;
@@ -140,7 +155,7 @@ brain.get('/tasks/:id/stream', (c: Context) => {
 
     if (!task) return c.json({ error: 'Task not found' }, 404);
 
-    return streamSSE(c, async (stream) => {
+    return streamSSE(c, async (stream: { writeSSE: (data: { data: string }) => Promise<void> }) => {
         let lastStatus = '';
 
         while (true) {
@@ -193,9 +208,36 @@ brain.get('/agents', (c: Context) => {
         types: getAgentTypes(),
         defaultAgent: 'coder' as const,
         routing: {
-            mode: 'auto',
-            description: 'Tasks are automatically routed to the best agent based on keywords',
+            mode: 'state-based',
+            description: 'Tasks are intelligently routed based on network state and execution plans',
         },
+    });
+});
+
+/**
+ * Get network state for a task (debugging/inspection)
+ */
+brain.get('/tasks/:id/state', (c: Context) => {
+    const taskId = c.req.param('id');
+    const task = tasks.get(taskId);
+
+    if (!task) return c.json({ error: 'Task not found' }, 404);
+
+    // Return the state snapshot
+    const stateSnapshot = taskStateSnapshots.get(taskId);
+    return c.json({
+        taskId,
+        status: task.status,
+        networkState: task.networkState,
+        fullState: stateSnapshot || null,
+        cacheStats: task.networkState ? {
+            hits: task.networkState.cacheHits,
+            misses: task.networkState.cacheMisses,
+            cachedFiles: task.networkState.cachedFiles,
+            hitRate: task.networkState.cacheHits + task.networkState.cacheMisses > 0
+                ? (task.networkState.cacheHits / (task.networkState.cacheHits + task.networkState.cacheMisses) * 100).toFixed(1) + '%'
+                : 'N/A',
+        } : null,
     });
 });
 
