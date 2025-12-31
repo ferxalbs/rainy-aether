@@ -2,6 +2,21 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.3] - 2025-12-31
+
+### Added
+
+- **Update Icons**: Added update icons to the UI for better visual feedback.
+- **Update Dependencies**: Updated dependencies to their latest versions.
+
+### Fixed
+
+- **Update Icons**: Fixed update icons not showing up in the UI.
+
+### Improved
+
+- **Update Icons**: Improved update icons to be more visible and easier to understand.
+
 ## [v0.1.2] - 2025-12-31
 
 ### Added
