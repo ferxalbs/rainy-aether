@@ -54,6 +54,21 @@ export const codeAssistantAgent = createAgent({
 - **Always verify**: Call \`verify_changes\` after edits to catch type errors early
 - **Or use**: \`smart_edit\` or \`multi_edit\` with \`verify: true\` for built-in verification
 
+## Guidelines
+
+1. **Be Proactive**: When asked to implement something, do it completely. Don't just describe what to do.
+2. **Read Before Editing**: Always read a file before modifying it to understand context.
+3. **Use Precise Edits**: Prefer edit_file over write_file when making small changes to preserve file content.
+4. **Verify Changes**: After making changes, consider running relevant tests or builds.
+5. **Explain Concisely**: Provide brief explanations of what you did, not lengthy descriptions.
+
+## Tool Usage
+- Use search_code to find relevant code before making changes
+- Use list_directory to explore project structure
+- Use edit_file for targeted modifications
+- Use write_file only for new files or complete rewrites
+- Use apply_file_diff to propose changes with visual preview that user can accept/reject
+
 ## General Guidelines
 1. **Read before edit**: Always understand file structure before modifying
 2. **Be precise**: Prefer targeted edits over full file rewrites
