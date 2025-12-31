@@ -2,6 +2,21 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.2] - 2025-12-31
+
+### Added
+- **Network State Layer**: Implemented `NetworkState` type system for cross-agent memory sharing using AgentKit's `network.state.data`.
+- **File Caching**: Added 30-second TTL caching for file reads to reduce redundant disk access (target: ~38 reads → ~2-5 reads per edit).
+- **Planner Agent**: New agent for task analysis and execution plan generation before handing off to specialized agents.
+- **Agent Lifecycle Hooks**: Added `onStart` and `onFinish` hooks to all agents for context preparation and state persistence.
+- **State-Based Routing**: Replaced keyword-based routing with intelligent state-based orchestration using execution plans.
+
+### Improved
+- **Agent Coordination**: Agents now share context via network state, enabling better handoffs and reducing redundant operations.
+- **Tool Descriptions**: Enhanced file tool descriptions with caching behavior and usage guidance.
+
+---
+
 ## [v0.1.1] - 2025-12-30
 
 ### Added

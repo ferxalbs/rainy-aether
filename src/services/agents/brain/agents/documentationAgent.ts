@@ -2,6 +2,10 @@
  * Documentation Agent
  * 
  * Specialized agent for generating and updating documentation.
+ * 
+ * Features:
+ * - Uses file cache for efficient reads
+ * - Lifecycle hooks for context and state tracking
  */
 
 import { createAgent } from '@inngest/agent-kit';
@@ -11,6 +15,7 @@ import {
     editFileTool,
     searchCodeTool,
 } from '../tools/fileTools';
+import type { NetworkState } from '../types';
 
 export const documentationAgent = createAgent({
     name: 'Documentation Writer',
@@ -50,6 +55,53 @@ export const documentationAgent = createAgent({
         editFileTool,
         searchCodeTool,
     ],
+
+    lifecycle: {
+        onStart: async ({ prompt, history, network }) => {
+            const state = network?.state?.data as NetworkState | undefined;
+
+            if (state) {
+                // Add workspace info for documentation context
+                if (state.workspaceInfo) {
+                    prompt.push({
+                        type: 'text' as const,
+                        role: 'system' as const,
+                        content: `[Project] ${state.workspaceInfo.projectType} project: ${state.workspaceInfo.name}`,
+                    });
+                }
+
+                // Add files that were modified (may need docs updated)
+                if (state.context.relevantFiles.length > 0) {
+                    prompt.push({
+                        type: 'text' as const,
+                        role: 'system' as const,
+                        content: `[Modified Files] ${state.context.relevantFiles.join(', ')}`,
+                    });
+                }
+            }
+
+            return { prompt, history: history || [], stop: false };
+        },
+
+        onFinish: async ({ result, network }) => {
+            const state = network?.state?.data as NetworkState | undefined;
+
+            if (state) {
+                state.lastAgent = 'Documentation Writer';
+                const textOutput = result.output?.find(o => o.type === 'text');
+                state.lastAgentOutput = textOutput?.content?.toString().slice(0, 1000) || '';
+
+                // Update plan progress
+                if (state.plan && state.plan.currentIndex < state.plan.steps.length) {
+                    const currentStep = state.plan.steps[state.plan.currentIndex];
+                    currentStep.status = 'completed';
+                    state.plan.currentIndex++;
+                }
+            }
+
+            return result;
+        },
+    },
 });
 
 export default documentationAgent;

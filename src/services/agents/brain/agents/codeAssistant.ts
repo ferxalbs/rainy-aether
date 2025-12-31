@@ -3,6 +3,11 @@
  * 
  * General-purpose coding assistant for file operations,
  * code generation, and modifications.
+ * 
+ * Features:
+ * - File caching via network state
+ * - Lifecycle hooks for context preparation
+ * - Automatic progress tracking
  */
 
 import { createAgent } from '@inngest/agent-kit';
@@ -15,6 +20,7 @@ import {
 } from '../tools/fileTools';
 import { runCommandTool } from '../tools/terminalTools';
 import { applyFileDiffTool } from '../tools/applyFileDiffTool';
+import type { NetworkState } from '../types';
 
 export const codeAssistantAgent = createAgent({
     name: 'Code Assistant',
@@ -35,7 +41,7 @@ export const codeAssistantAgent = createAgent({
 2. Use \`analyze_file\` before editing to understand imports, exports, and symbols
 
 ### Reading Files
-- **Single file**: Use \`read_file\`
+- **Single file**: Use \`read_file\` (automatically cached for 30s)
 - **Multiple files**: Use \`fs_batch_read\` (more token-efficient than multiple read_file calls)
 - **Large files**: Use \`response_format: 'concise'\` to get preview + line count
 
@@ -53,6 +59,11 @@ export const codeAssistantAgent = createAgent({
 ### Verification
 - **Always verify**: Call \`verify_changes\` after edits to catch type errors early
 - **Or use**: \`smart_edit\` or \`multi_edit\` with \`verify: true\` for built-in verification
+
+## Caching Behavior
+- **File reads are cached**: Repeated reads of the same file return cached content
+- **Writes invalidate cache**: After editing a file, the cache is cleared for that path
+- **30 second TTL**: Cache entries expire after 30 seconds
 
 ## Guidelines
 
@@ -84,6 +95,95 @@ export const codeAssistantAgent = createAgent({
         runCommandTool,
         applyFileDiffTool,
     ],
+
+    // Lifecycle hooks for state management
+    lifecycle: {
+        /**
+         * Called before the agent runs inference.
+         * Use to prepare context and enhance the prompt.
+         */
+        onStart: async ({ prompt, history, network }) => {
+            const state = network?.state?.data as NetworkState | undefined;
+
+            if (state) {
+                // Add cached file context to prompt if available
+                const cachedFiles = Object.keys(state.fileCache);
+                if (cachedFiles.length > 0) {
+                    prompt.push({
+                        type: 'text' as const,
+                        role: 'system' as const,
+                        content: `[Context] ${cachedFiles.length} file(s) are cached and will be fast to access: ${cachedFiles.slice(0, 5).join(', ')}${cachedFiles.length > 5 ? '...' : ''}`,
+                    });
+                }
+
+                // Add workspace info if available
+                if (state.workspaceInfo) {
+                    prompt.push({
+                        type: 'text' as const,
+                        role: 'system' as const,
+                        content: `[Workspace] ${state.workspaceInfo.projectType} project at ${state.workspaceInfo.path}. Entry points: ${state.workspaceInfo.entryPoints.join(', ') || 'not detected'}`,
+                    });
+                }
+
+                // Add current file context
+                if (state.context.currentFile) {
+                    prompt.push({
+                        type: 'text' as const,
+                        role: 'system' as const,
+                        content: `[Active File] ${state.context.currentFile}`,
+                    });
+                }
+
+                // Add previous agent output for continuity
+                if (state.lastAgent && state.lastAgentOutput) {
+                    prompt.push({
+                        type: 'text' as const,
+                        role: 'system' as const,
+                        content: `[Handoff from ${state.lastAgent}] ${state.lastAgentOutput.slice(0, 500)}`,
+                    });
+                }
+            }
+
+            return { prompt, history: history || [], stop: false };
+        },
+
+        /**
+         * Called after the agent completes.
+         * Use to update state and prepare for next agent.
+         */
+        onFinish: async ({ result, network }) => {
+            const state = network?.state?.data as NetworkState | undefined;
+
+            if (state) {
+                // Track this agent's work
+                state.lastAgent = 'Code Assistant';
+
+                // Extract text output for handoff context
+                const textOutput = result.output?.find(o => o.type === 'text');
+                state.lastAgentOutput = textOutput?.content?.toString().slice(0, 1000) || '';
+
+                // Update plan progress if executing a plan
+                if (state.plan && state.plan.currentIndex < state.plan.steps.length) {
+                    const currentStep = state.plan.steps[state.plan.currentIndex];
+                    currentStep.status = 'completed';
+                    currentStep.result = state.lastAgentOutput;
+                    state.plan.currentIndex++;
+
+                    // Check if plan is complete
+                    if (state.plan.currentIndex >= state.plan.totalSteps) {
+                        state.plan.completedAt = Date.now();
+                        state.flags.taskCompleted = true;
+                        console.log('[Code Assistant] Plan execution completed');
+                    }
+                }
+
+                // Log cache stats
+                console.log(`[Code Assistant] Finished. Cache: ${state.fileCacheStats.hits} hits, ${state.fileCacheStats.misses} misses`);
+            }
+
+            return result;
+        },
+    },
 });
 
 export default codeAssistantAgent;

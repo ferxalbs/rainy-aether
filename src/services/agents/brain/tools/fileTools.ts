@@ -2,32 +2,59 @@
  * AgentKit Tools - File Operations
  * 
  * Tools for file system operations using Tauri IPC.
- * All operations are sandboxed through Tauri's security model.
+ * Features:
+ * - File caching via network.state to avoid redundant reads
+ * - Cache invalidation on writes
+ * - All operations sandboxed through Tauri's security model
  */
 
 import { createTool } from '@inngest/agent-kit';
 import { z } from 'zod';
+import {
+    type NetworkState,
+    getCachedFile,
+    setCachedFile,
+    invalidateCachedFile,
+    CACHE_CONFIG,
+} from '../types';
 
 // ===========================
-// Read File Tool
+// Read File Tool (with caching)
 // ===========================
 
 export const readFileTool = createTool({
     name: 'read_file',
-    description: 'Read the contents of a file. Returns the file content as a string.',
+    description: `Read file contents with automatic caching.
+
+CACHING: Files are cached for ${CACHE_CONFIG.FILE_TTL_MS / 1000}s. Repeated reads return cached content (no disk access).
+WHEN TO USE: Reading one specific file when you know the exact path.
+WHEN NOT TO USE: For reading 2+ files, use 'fs_batch_read' instead (more token-efficient).
+RETURNS: File content as string. Files >${CACHE_CONFIG.MAX_FILE_SIZE / 1024}KB are not cached.`,
     parameters: z.object({
         path: z.string().describe('Absolute or relative path to the file to read'),
+        bypass_cache: z.boolean().optional().describe('Force read from disk, ignoring cache'),
     }),
-    handler: async ({ path }, { network }) => {
+    handler: async ({ path, bypass_cache }, { network }) => {
         try {
+            const state = network?.state?.data as NetworkState | undefined;
+
+            // Check cache first (unless bypass requested)
+            if (!bypass_cache && state) {
+                const cached = getCachedFile(state, path);
+                if (cached) {
+                    console.log(`[read_file] Cache HIT: ${path}`);
+                    return cached.content;
+                }
+            }
+
             // Dynamic import to avoid bundling issues in sidecar
             const { invoke } = await import('@tauri-apps/api/core');
             const content = await invoke<string>('read_text_file', { path });
 
-            // Track in network state
-            if (network?.state?.data) {
-                network.state.data.lastReadFile = path;
-                network.state.data.filesRead = (network.state.data.filesRead || 0) + 1;
+            // Store in cache
+            if (state) {
+                setCachedFile(state, path, content);
+                console.log(`[read_file] Cached: ${path} (${content.length} bytes)`);
             }
 
             return content;
@@ -37,13 +64,18 @@ export const readFileTool = createTool({
     },
 });
 
+
 // ===========================
-// Write File Tool
+// Write File Tool (with cache invalidation)
 // ===========================
 
 export const writeFileTool = createTool({
     name: 'write_file',
-    description: 'Create a new file or completely overwrite an existing file with new content.',
+    description: `Create or overwrite a file. Invalidates file cache on success.
+
+WHEN TO USE: Creating new files OR completely replacing file contents.
+WHEN NOT TO USE: For targeted modifications, use 'edit_file' instead.
+CACHE: Automatically invalidates cached content for this path.`,
     parameters: z.object({
         path: z.string().describe('Path where the file should be written'),
         content: z.string().describe('The complete content to write to the file'),
@@ -53,9 +85,16 @@ export const writeFileTool = createTool({
             const { invoke } = await import('@tauri-apps/api/core');
             await invoke('write_file', { path, content });
 
-            if (network?.state?.data) {
-                network.state.data.lastWrittenFile = path;
-                network.state.data.filesWritten = (network.state.data.filesWritten || 0) + 1;
+            const state = network?.state?.data as NetworkState | undefined;
+            if (state) {
+                // Invalidate cache for this file
+                invalidateCachedFile(state, path);
+
+                // Track write stats
+                const existing = state.context.relevantFiles;
+                if (!existing.includes(path)) {
+                    state.context.relevantFiles = [...existing, path];
+                }
             }
 
             return { success: true, path, bytesWritten: content.length };
@@ -66,12 +105,17 @@ export const writeFileTool = createTool({
 });
 
 // ===========================
-// Edit File Tool
+// Edit File Tool (with cache invalidation)
 // ===========================
 
 export const editFileTool = createTool({
     name: 'edit_file',
-    description: 'Edit a file by replacing a specific string with new content. Use for targeted modifications.',
+    description: `Replace specific text in a file. Uses cache for read, invalidates on write.
+
+WHEN TO USE: Small, targeted modifications to existing code.
+WHEN NOT TO USE: For multiple edits, use 'smart_edit'. For new files, use 'write_file'.
+CACHE: Reads from cache if available, invalidates after successful edit.
+ERRORS: "Text not found" → Read file first to get exact text including whitespace.`,
     parameters: z.object({
         path: z.string().describe('Path to the file to edit'),
         oldString: z.string().describe('The exact string to find and replace'),
@@ -80,9 +124,18 @@ export const editFileTool = createTool({
     handler: async ({ path, oldString, newString }, { network }) => {
         try {
             const { invoke } = await import('@tauri-apps/api/core');
+            const state = network?.state?.data as NetworkState | undefined;
 
-            // Read current content
-            const content = await invoke<string>('read_text_file', { path });
+            // Try cache first for read
+            let content: string;
+            const cached = state ? getCachedFile(state, path) : undefined;
+
+            if (cached) {
+                console.log(`[edit_file] Using cached content for: ${path}`);
+                content = cached.content;
+            } else {
+                content = await invoke<string>('read_text_file', { path });
+            }
 
             // Check if old string exists
             if (!content.includes(oldString)) {
@@ -90,6 +143,18 @@ export const editFileTool = createTool({
                     success: false,
                     error: 'Target string not found in file',
                     path,
+                    hint: 'Ensure oldString matches exactly, including whitespace and line breaks',
+                };
+            }
+
+            // Count occurrences
+            const occurrences = content.split(oldString).length - 1;
+            if (occurrences > 1) {
+                return {
+                    success: false,
+                    error: `Target string appears ${occurrences} times in file`,
+                    path,
+                    hint: 'Include more surrounding context to make oldString unique',
                 };
             }
 
@@ -97,8 +162,15 @@ export const editFileTool = createTool({
             const updated = content.replace(oldString, newString);
             await invoke('write_file', { path, content: updated });
 
-            if (network?.state?.data) {
-                network.state.data.filesEdited = (network.state.data.filesEdited || 0) + 1;
+            // Invalidate cache since content changed
+            if (state) {
+                invalidateCachedFile(state, path);
+
+                // Update relevant files
+                const existing = state.context.relevantFiles;
+                if (!existing.includes(path)) {
+                    state.context.relevantFiles = [...existing, path];
+                }
             }
 
             return { success: true, path, replacements: 1 };
@@ -114,7 +186,7 @@ export const editFileTool = createTool({
 
 export const listDirectoryTool = createTool({
     name: 'list_directory',
-    description: 'List files and directories in a given path.',
+    description: 'List files and directories in a given path (one level only).',
     parameters: z.object({
         path: z.string().describe('Path to the directory to list'),
     }),
@@ -138,7 +210,11 @@ export const listDirectoryTool = createTool({
 
 export const searchCodeTool = createTool({
     name: 'search_code',
-    description: 'Search for a pattern across files in the workspace using grep.',
+    description: `Search for text/regex patterns across the codebase using grep.
+
+WHEN TO USE: Finding where a function/variable/string is used.
+WHEN NOT TO USE: For finding symbol definitions (functions, classes), use 'find_symbols'.
+TIP: Use filePattern to narrow scope (e.g., "*.ts" for TypeScript only).`,
     parameters: z.object({
         query: z.string().describe('The search pattern to look for'),
         filePattern: z.string().optional().describe('Glob pattern to filter files (e.g., "*.ts")'),
