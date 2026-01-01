@@ -555,6 +555,7 @@ function enhanceThemeWithValidation(theme: Theme): Theme {
 }
 
 import { draculaTheme, draculaDayTheme, oneDarkProTheme, oneLightProTheme, githubDarkTheme, githubLightTheme } from './premiumThemes';
+import { christmasDayTheme, christmasNightTheme, newYearDayTheme, newYearNightTheme, rainyAetherDayTheme, rainyAetherNightTheme } from './brandThemes';
 
 // All available themes with validation
 export const allThemes: Theme[] = [
@@ -576,7 +577,15 @@ export const allThemes: Theme[] = [
   enhanceThemeWithValidation(oneDarkProTheme),
   enhanceThemeWithValidation(oneLightProTheme),
   enhanceThemeWithValidation(githubDarkTheme),
-  enhanceThemeWithValidation(githubLightTheme)
+  enhanceThemeWithValidation(githubDarkTheme),
+  enhanceThemeWithValidation(githubLightTheme),
+  // Brand & Holiday Themes
+  enhanceThemeWithValidation(christmasDayTheme),
+  enhanceThemeWithValidation(christmasNightTheme),
+  enhanceThemeWithValidation(newYearDayTheme),
+  enhanceThemeWithValidation(newYearNightTheme),
+  enhanceThemeWithValidation(rainyAetherDayTheme),
+  enhanceThemeWithValidation(rainyAetherNightTheme)
 ];
 
 // Validate theme consistency across pairs
@@ -589,7 +598,11 @@ const themePairs: Array<[Theme, Theme]> = [
   [emberDayTheme, emberNightTheme],
   [draculaDayTheme, draculaTheme],
   [oneLightProTheme, oneDarkProTheme],
-  [githubLightTheme, githubDarkTheme]
+  [githubLightTheme, githubDarkTheme],
+  // Brand Pairs
+  [christmasDayTheme, christmasNightTheme],
+  [newYearDayTheme, newYearNightTheme],
+  [rainyAetherDayTheme, rainyAetherNightTheme]
 ];
 
 for (const [dayTheme, nightTheme] of themePairs) {
