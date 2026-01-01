@@ -62,6 +62,8 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
   // Memoize theme creation based on actual theme properties
   const createMonacoTheme = useCallback(() => {
     const theme = themeRef.current;
+
+    // Check if it's a "Dark" theme for base monaco config
     const isDark = theme.mode === 'night' ||
       theme.variables['--bg-editor'] === '#0f172a' ||
       theme.variables['--bg-editor'] === '#1c1917' ||
@@ -69,10 +71,22 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
 
     const themeName = `custom-theme-${theme.mode}-${theme.name.replace(/\s+/g, '-')}`;
 
-    monaco.editor.defineTheme(themeName, {
-      base: isDark ? 'vs-dark' : 'vs',
-      inherit: true,
-      rules: [
+    // Helper to process token colors
+    let rules: any[] = [];
+
+    if (theme.vsCodeTokenColors && Array.isArray(theme.vsCodeTokenColors)) {
+      // PROCESSED: Use specific provided token colors for premium accuracy
+      rules = theme.vsCodeTokenColors.flatMap((token: any) => {
+        const scopes = Array.isArray(token.scope) ? token.scope : [token.scope];
+        return scopes.map((scope: string) => ({
+          token: scope,
+          foreground: token.settings.foreground ? toMonacoColor(token.settings.foreground) : undefined,
+          fontStyle: token.settings.fontStyle
+        }));
+      });
+    } else {
+      // FALBACK: Use generic mapping if no specific tokens (Legacy)
+      rules = [
         // Comments
         { token: 'comment', foreground: isDark ? '6A9955' : '008000', fontStyle: 'italic' },
         { token: 'comment.doc', foreground: isDark ? '6A9955' : '008000', fontStyle: 'italic' },
@@ -122,21 +136,28 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
 
         // Invalid
         { token: 'invalid', foreground: isDark ? 'F44747' : 'CD3131', fontStyle: 'underline' },
-      ],
+      ];
+    }
+
+    monaco.editor.defineTheme(themeName, {
+      base: isDark ? 'vs-dark' : 'vs',
+      inherit: true,
+      rules: rules,
       colors: {
         // Colors object KEEPS the # prefix (different from rules array!)
-        'editor.background': theme.variables['--bg-editor'],
+        // TRANSPARENCY: We use 00000000 to let the backdrop-blur container show through
+        'editor.background': '#00000000',
         'editor.foreground': theme.variables['--text-editor'],
-        'editor.lineHighlightBackground': isDark ? '#ffffff0d' : '#0000000d',
+        'editor.lineHighlightBackground': isDark ? '#ffffff0a' : '#0000000a',
         'editor.selectionBackground': theme.variables['--accent-primary'] + '40',
         'editor.inactiveSelectionBackground': theme.variables['--accent-primary'] + '30',
         'editorCursor.foreground': theme.variables['--accent-primary'],
-        'editorWhitespace.foreground': isDark ? '#ffffff33' : '#00000033',
-        'editorIndentGuide.background': isDark ? '#ffffff1a' : '#0000001a',
-        'editorIndentGuide.activeBackground': isDark ? '#ffffff33' : '#00000033',
-        'editorLineNumber.foreground': isDark ? '#ffffff66' : '#00000066',
+        'editorWhitespace.foreground': isDark ? '#ffffff20' : '#00000020',
+        'editorIndentGuide.background': isDark ? '#ffffff15' : '#00000015',
+        'editorIndentGuide.activeBackground': isDark ? '#ffffff30' : '#00000030',
+        'editorLineNumber.foreground': isDark ? '#ffffff50' : '#00000050',
         'editorLineNumber.activeForeground': theme.variables['--text-editor'],
-        'editorGutter.background': theme.variables['--bg-editor'],
+        'editorGutter.background': '#00000000', // Transparent gutter
         'editorWidget.background': theme.variables['--bg-secondary'],
         'editorWidget.border': theme.variables['--border-color'],
         'editorSuggestWidget.background': theme.variables['--bg-secondary'],
@@ -213,7 +234,8 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
     const editorSettings = getSettingsState().editor;
 
     const fontSize = editorSettings.fontSize || configurationService.get<number>('editor.fontSize', 14);
-    const fontFamily = editorSettings.fontFamily || configurationService.get<string>('editor.fontFamily', 'Consolas, "Courier New", monospace');
+    // PREFERRED: JetBrains Mono and Fira Code for developers
+    const fontFamily = editorSettings.fontFamily || configurationService.get<string>('editor.fontFamily', '"JetBrains Mono", "Fira Code", Menlo, Monaco, "Courier New", monospace');
     const tabSize = editorSettings.tabSize || configurationService.get<number>('editor.tabSize', 4);
     const insertSpaces = editorSettings.insertSpaces ?? configurationService.get<boolean>('editor.insertSpaces', true);
     const wordWrap = configurationService.get<string>('editor.wordWrap', 'off');
@@ -229,8 +251,9 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
       // Font settings
       fontSize,
       fontFamily,
-      lineHeight: editorSettings.lineHeight,
+      lineHeight: editorSettings.lineHeight || 24, // Optimized line height (approx 1.6x)
       letterSpacing: editorSettings.letterSpacing,
+      fontLigatures: true, // Enable ligatures for Fira Code/JetBrains Mono
 
       // Tab settings
       tabSize,
@@ -243,17 +266,26 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
       // Glyph margin (required for inline diff decorations)
       glyphMargin: true,
 
+      // Whitespace and Layout
+      padding: { top: 24, bottom: 24 }, // Comfortable breathing room
+      scrollBeyondLastLine: false,
+
       // Minimap settings
       minimap: {
         enabled: minimapEnabled,
         scale: editorSettings.minimapScale,
         showSlider: editorSettings.minimapShowSlider,
+        renderCharacters: false, // Cleaner minimap
       },
 
       // Visual settings
-      scrollBeyondLastLine: false,
       wordWrap: wordWrap as 'off' | 'on' | 'wordWrapColumn' | 'bounded',
       renderWhitespace: editorSettings.renderWhitespace,
+
+      // Glass/Smooth Effects
+      cursorBlinking: 'smooth',
+      cursorSmoothCaretAnimation: 'on',
+      smoothScrolling: true,
 
       // Bracket pair colorization
       bracketPairColorization: {
@@ -286,11 +318,8 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
 
       // Cursor settings
       cursorStyle: editorSettings.cursorStyle,
-      cursorBlinking: editorSettings.cursorBlinking,
-      cursorSmoothCaretAnimation: editorSettings.cursorSmoothCaretAnimation,
 
       // Scroll settings
-      smoothScrolling: editorSettings.smoothScrolling,
       mouseWheelZoom: editorSettings.mouseWheelZoom,
 
       // Format settings
@@ -662,7 +691,7 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
   return (
     <div
       ref={setContainer}
-      className="monaco-container w-full h-full"
+      className="monaco-container w-full h-full bg-background/10 backdrop-blur-3xl"
     />
   );
 };

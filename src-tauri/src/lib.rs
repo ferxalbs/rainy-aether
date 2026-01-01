@@ -14,6 +14,7 @@ mod language_server_manager;
 mod menu_manager; // Native macOS menu support
 mod project_manager;
 mod terminal_manager;
+mod theme_manager; // Core Rust theme management
 mod update_manager;
 mod window_manager; // Inngest/AgentKit sidecar manager
 
@@ -67,6 +68,7 @@ pub fn run() {
         .manage(agent_server_manager::AgentServerState::default())
         .manage(browser_manager::BrowserManagerState::new())
         .manage(icon_theme_manager::IconThemeManagerState::new())
+        .manage(theme_manager::ThemeManagerState::new())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -400,6 +402,10 @@ pub fn run() {
         agent_server_manager::agent_server_stop,
         agent_server_manager::agent_server_status,
         agent_server_manager::agent_server_health,
+        agent_server_manager::agent_server_health,
+        // Theme management (Rust backend)
+        theme_manager::set_backend_theme,
+        theme_manager::get_backend_theme,
         // Browser preview management
         browser_manager::browser_open_preview,
         browser_manager::browser_navigate,

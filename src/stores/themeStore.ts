@@ -147,6 +147,8 @@ interface SetCurrentThemeOptions {
   persistVariant?: boolean;
 }
 
+import { invoke } from '@tauri-apps/api/core';
+
 export const setCurrentTheme = async (theme: Theme, options: SetCurrentThemeOptions = {}) => {
   // Validate theme accessibility before applying
   const validation = validateThemeAccessibility(theme.variables);
@@ -159,6 +161,14 @@ export const setCurrentTheme = async (theme: Theme, options: SetCurrentThemeOpti
 
   updateThemeState({ currentTheme: theme, baseTheme: baseName });
   await applyTheme(theme);
+
+  // Sync with Rust backend
+  try {
+    await invoke('set_backend_theme', { themeName: theme.name, mode: theme.mode });
+  } catch (error) {
+    console.warn('[ThemeStore] Failed to sync theme with backend:', error);
+  }
+
   persistThemeSelection(baseName, theme.name, persistVariant);
   notifyThemeListeners(theme);
 };
@@ -425,9 +435,9 @@ export const initializeTheme = async () => {
     // Map legacy values ('auto'|'light'|'dark') to unified ('system'|'day'|'night')
     const savedPreference: ThemeMode =
       rawPreference === 'auto' ? 'system' :
-      rawPreference === 'light' ? 'day' :
-      rawPreference === 'dark' ? 'night' :
-      (['system','day','night'].includes(rawPreference) ? (rawPreference as ThemeMode) : 'system');
+        rawPreference === 'light' ? 'day' :
+          rawPreference === 'dark' ? 'night' :
+            (['system', 'day', 'night'].includes(rawPreference) ? (rawPreference as ThemeMode) : 'system');
 
     // Detect system theme using our utility
     const systemTheme = await detectSystemTheme();

@@ -45,7 +45,7 @@ const App: React.FC = () => {
         // Platform detection for scrollbars
         // Mac: use native overlay scrollbars (no custom CSS)
         // Windows/Linux: use custom thin scrollbars (CSS)
-        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const isMac = navigator.userAgent.toUpperCase().includes('MAC');
         if (isMac) {
           document.body.classList.add('os-mac');
         } else {
