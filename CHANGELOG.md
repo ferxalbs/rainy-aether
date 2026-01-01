@@ -2,6 +2,14 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.4] - 2025-12-31
+
+### Fixed
+- **Theme Persistence**: Fixed issue where premium themes (Dracula, One Dark, GitHub) would reset to default on restart by standardizing naming conventions.
+- **Monaco Minimap**: Resolved black minimap background issue with global CSS overrides.
+- **Monaco Syntax Highlighting**: Improved syntax highlighting stability for premium themes using explicit Monaco rules.
+- **Theme Metadata**: Added missing metadata for premium themes in ThemeStore to ensure correct display and selection.
+
 ## [v0.1.3] - 2025-12-31
 
 ### Added

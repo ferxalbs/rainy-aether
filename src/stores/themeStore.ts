@@ -40,6 +40,18 @@ const themeBaseMetadata: Record<string, { label: string; description: string }> 
   ember: {
     label: 'Ember',
     description: 'Warm ambience with vivid highlights to keep energy during late-night builds.'
+  },
+  dracula: {
+    label: 'Dracula',
+    description: 'Famous dark theme with vibrant colors and high contrast.'
+  },
+  onedark: {
+    label: 'One Dark Pro',
+    description: 'Atom-inspired dark theme with soft colors and good readability.'
+  },
+  github: {
+    label: 'GitHub',
+    description: 'Classic GitHub look, clean and familiar.'
   }
 };
 

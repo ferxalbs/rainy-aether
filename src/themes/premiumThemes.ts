@@ -1,3 +1,4 @@
+
 import { Theme } from './index';
 
 // Helper to standard Monaco tokens
@@ -28,9 +29,9 @@ const commonRules = (colors: {
  * https://draculatheme.com/contribute
  */
 export const draculaTheme: Theme = {
-    name: 'dracula',
+    name: 'dracula-night',
     mode: 'night',
-    displayName: 'Dracula',
+    displayName: 'Dracula (Night)',
     variables: {
         '--bg-primary': '#282A36',
         '--bg-secondary': '#282A36',
@@ -115,12 +116,12 @@ export const draculaDayTheme: Theme = {
 };
 
 /**
- * ONE DARK PRO
+ * ONE DARK PRO (Official Palette)
  */
 export const oneDarkProTheme: Theme = {
-    name: 'onedark',
+    name: 'onedark-night',
     mode: 'night',
-    displayName: 'One Dark Pro',
+    displayName: 'One Dark Pro (Night)',
     variables: {
         '--bg-primary': '#282C34',
         '--bg-secondary': '#21252B',
@@ -160,12 +161,12 @@ export const oneDarkProTheme: Theme = {
 };
 
 /**
- * ONE LIGHT PRO
+ * ONE LIGHT PRO (Light Variant)
  */
 export const oneLightProTheme: Theme = {
-    name: 'onelight',
+    name: 'onedark-day',
     mode: 'day',
-    displayName: 'One Light Pro',
+    displayName: 'One Dark Pro (Day)',
     variables: {
         '--bg-primary': '#FAFAFA',
         '--bg-secondary': '#F0F0F1',
@@ -208,7 +209,7 @@ export const oneLightProTheme: Theme = {
  * GITHUB DARK
  */
 export const githubDarkTheme: Theme = {
-    name: 'github-dark',
+    name: 'github-night',
     mode: 'night',
     displayName: 'GitHub Dark',
     variables: {
@@ -253,7 +254,7 @@ export const githubDarkTheme: Theme = {
  * GITHUB LIGHT
  */
 export const githubLightTheme: Theme = {
-    name: 'github-light',
+    name: 'github-day',
     mode: 'day',
     displayName: 'GitHub Light',
     variables: {
