@@ -1,0 +1,21 @@
+/* Force Monaco Minimap Transparency */
+.monaco-editor .minimap,
+.monaco-editor .minimap canvas {
+    background-color: transparent !important;
+}
+
+.monaco-editor .scrollbar .slider {
+    background: rgba(120, 120, 120, 0.2) !important;
+    border-radius: 10px !important;
+}
+
+.monaco-editor .minimap-slider .minimap-slider-horizontal {
+    background: rgba(120, 120, 120, 0.2) !important;
+}
+
+/* Enhancing the glass effect on the editor itself */
+.monaco-container .monaco-editor,
+.monaco-container .monaco-editor-background,
+.monaco-container .monaco-editor .margin {
+    background-color: transparent !important;
+}

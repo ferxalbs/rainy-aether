@@ -74,7 +74,10 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
     // Helper to process token colors
     let rules: any[] = [];
 
-    if (theme.vsCodeTokenColors && Array.isArray(theme.vsCodeTokenColors)) {
+    if (theme.monacoRules && Array.isArray(theme.monacoRules)) {
+      // PREFERRED: Use EXPLICIT stable Monaco rules
+      rules = theme.monacoRules;
+    } else if (theme.vsCodeTokenColors && Array.isArray(theme.vsCodeTokenColors)) {
       // PROCESSED: Use specific provided token colors for premium accuracy
       rules = theme.vsCodeTokenColors.flatMap((token: any) => {
         const scopes = Array.isArray(token.scope) ? token.scope : [token.scope];
@@ -139,14 +142,18 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
       ];
     }
 
+    // (Duplicated block removed)
+
     monaco.editor.defineTheme(themeName, {
       base: isDark ? 'vs-dark' : 'vs',
       inherit: true,
       rules: rules,
       colors: {
         // Colors object KEEPS the # prefix (different from rules array!)
-        // TRANSPARENCY: We use 00000000 to let the backdrop-blur container show through
+        // TRANSPARENCY: Force 00000000 for glass effect
+        // NOTE: The minimap might still render black if scrollbar slider is opaque.
         'editor.background': '#00000000',
+
         'editor.foreground': theme.variables['--text-editor'],
         'editor.lineHighlightBackground': isDark ? '#ffffff0a' : '#0000000a',
         'editor.selectionBackground': theme.variables['--accent-primary'] + '40',
@@ -176,6 +183,14 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
         'searchEditor.findMatchBackground': theme.variables['--accent-secondary'] + '60',
         'searchEditor.findMatchBorder': theme.variables['--accent-secondary'],
         'searchEditor.findMatchHighlightBackground': theme.variables['--accent-primary'] + '80',
+
+        // MINIMAP & SCROLLBAR FIXES
+        // Make the scrollbar/minimap background transparent or match glass
+        'scrollbar.shadow': '#00000000',
+        'scrollbarSlider.background': isDark ? '#ffffff20' : '#00000020',
+        'scrollbarSlider.hoverBackground': isDark ? '#ffffff30' : '#00000030',
+        'scrollbarSlider.activeBackground': theme.variables['--accent-primary'] + '60',
+        'minimap.background': '#00000000', // Explicitly try to set, though Monaco might ignore
       }
     });
 

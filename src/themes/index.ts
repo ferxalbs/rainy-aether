@@ -29,6 +29,8 @@ export interface Theme {
   vsCodeColors?: Record<string, string>;
   /** Original VS Code tokenColors (for syntax highlighting) */
   vsCodeTokenColors?: any[] | string;
+  /** EXPLICIT Monaco rules for stable highlighting */
+  monacoRules?: Array<{ token: string; foreground?: string; background?: string; fontStyle?: string }>;
 }
 
 // Navy Blue Theme (Default)
@@ -541,163 +543,7 @@ export const emberNightTheme: Theme = {
   }
 };
 
-// Dracula Theme (Official Palette)
-export const draculaTheme: Theme = {
-  name: 'dracula',
-  mode: 'night',
-  displayName: 'Dracula',
-  variables: {
-    '--bg-primary': '#282a36',
-    '--bg-secondary': '#282a36', // Sidebar matches editor for seamless look
-    '--bg-tertiary': '#44475a',
-    '--bg-sidebar': '#282a36',
-    '--bg-editor': '#282a36',
-    '--bg-status': '#191a21', // Darker status bar
-    '--text-primary': '#f8f8f2',
-    '--text-secondary': '#6272a4',
-    '--text-editor': '#f8f8f2',
-    '--accent-primary': '#bd93f9', // Purple
-    '--accent-secondary': '#ff79c6', // Pink
-    '--border-color': '#44475a',
-    '--diff-added': '#50fa7b',
-    '--diff-removed': '#ff5555',
-    '--diff-hunk': '#bd93f9',
-    // StatusBar Item colors
-    '--statusBarItem-activeBackground': 'rgba(255, 255, 255, 0.18)',
-    '--statusBarItem-hoverBackground': 'rgba(255, 255, 255, 0.12)',
-    '--statusBarItem-errorForeground': '#f8f8f2',
-    '--statusBarItem-errorBackground': '#ff5555',
-    '--statusBarItem-errorHoverForeground': '#f8f8f2',
-    '--statusBarItem-errorHoverBackground': '#ff6e6e',
-    '--statusBarItem-warningForeground': '#282a36',
-    '--statusBarItem-warningBackground': '#f1fa8c',
-    '--statusBarItem-warningHoverForeground': '#282a36',
-    '--statusBarItem-warningHoverBackground': '#ffffa5',
-    '--statusBarItem-prominentForeground': '#282a36',
-    '--statusBarItem-prominentBackground': '#bd93f9',
-    '--statusBarItem-prominentHoverForeground': '#282a36',
-    '--statusBarItem-prominentHoverBackground': '#d6acff',
-    '--statusBarItem-remoteForeground': '#282a36',
-    '--statusBarItem-remoteBackground': '#50fa7b',
-    '--statusBarItem-offlineForeground': '#6272a4',
-    '--statusBarItem-offlineBackground': '#21222c'
-  },
-  // Custom Monaco rules for Dracula
-  vsCodeTokenColors: [
-    { scope: ['comment'], settings: { foreground: '#6272a4', fontStyle: 'italic' } },
-    { scope: ['string'], settings: { foreground: '#f1fa8c' } },
-    { scope: ['constant.numeric'], settings: { foreground: '#bd93f9' } },
-    { scope: ['keyword', 'storage', 'variable.language'], settings: { foreground: '#ff79c6', fontStyle: 'bold' } },
-    { scope: ['entity.name.function', 'support.function'], settings: { foreground: '#50fa7b' } },
-    { scope: ['entity.name.type', 'support.class', 'support.type'], settings: { foreground: '#8be9fd', fontStyle: 'italic' } },
-    { scope: ['variable.parameter'], settings: { foreground: '#ffb86c', fontStyle: 'italic' } },
-    { scope: ['variable.other'], settings: { foreground: '#f8f8f2' } },
-    { scope: ['markup.heading'], settings: { foreground: '#bd93f9', fontStyle: 'bold' } },
-    { scope: ['markup.link'], settings: { foreground: '#8be9fd' } }
-  ]
-};
-
-// One Dark Pro (Atom-inspired)
-export const oneDarkProTheme: Theme = {
-  name: 'onedark',
-  mode: 'night',
-  displayName: 'One Dark Pro',
-  variables: {
-    '--bg-primary': '#282c34',
-    '--bg-secondary': '#21252b',
-    '--bg-tertiary': '#2c313a',
-    '--bg-sidebar': '#21252b',
-    '--bg-editor': '#282c34',
-    '--bg-status': '#21252b',
-    '--text-primary': '#abb2bf',
-    '--text-secondary': '#5c6370',
-    '--text-editor': '#abb2bf',
-    '--accent-primary': '#61afef', // Blue
-    '--accent-secondary': '#c678dd', // Purple
-    '--border-color': '#181a1f',
-    '--diff-added': '#98c379',
-    '--diff-removed': '#e06c75',
-    '--diff-hunk': '#61afef',
-    // StatusBar Item colors
-    '--statusBarItem-activeBackground': 'rgba(255, 255, 255, 0.18)',
-    '--statusBarItem-hoverBackground': 'rgba(255, 255, 255, 0.12)',
-    '--statusBarItem-errorForeground': '#ffffff',
-    '--statusBarItem-errorBackground': '#e06c75',
-    '--statusBarItem-errorHoverForeground': '#ffffff',
-    '--statusBarItem-errorHoverBackground': '#e55561',
-    '--statusBarItem-warningForeground': '#282c34',
-    '--statusBarItem-warningBackground': '#e5c07b',
-    '--statusBarItem-warningHoverForeground': '#282c34',
-    '--statusBarItem-warningHoverBackground': '#d19a66',
-    '--statusBarItem-prominentForeground': '#282c34',
-    '--statusBarItem-prominentBackground': '#61afef',
-    '--statusBarItem-prominentHoverForeground': '#282c34',
-    '--statusBarItem-prominentHoverBackground': '#4fa6ed',
-    '--statusBarItem-remoteForeground': '#282c34',
-    '--statusBarItem-remoteBackground': '#98c379',
-    '--statusBarItem-offlineForeground': '#5c6370',
-    '--statusBarItem-offlineBackground': '#21252b'
-  },
-  vsCodeTokenColors: [
-    { scope: ['comment'], settings: { foreground: '#5c6370', fontStyle: 'italic' } },
-    { scope: ['string'], settings: { foreground: '#98c379' } },
-    { scope: ['constant.numeric'], settings: { foreground: '#d19a66' } },
-    { scope: ['keyword'], settings: { foreground: '#c678dd' } },
-    { scope: ['entity.name.function'], settings: { foreground: '#61afef' } },
-    { scope: ['entity.name.type'], settings: { foreground: '#e5c07b' } },
-    { scope: ['variable'], settings: { foreground: '#e06c75' } }
-  ]
-};
-
-// GitHub Dark Dimmed
-export const githubDarkDimmedTheme: Theme = {
-  name: 'github-dimmed',
-  mode: 'night',
-  displayName: 'GitHub Dark Dimmed',
-  variables: {
-    '--bg-primary': '#22272e',
-    '--bg-secondary': '#1c2128',
-    '--bg-tertiary': '#2d333b',
-    '--bg-sidebar': '#1c2128',
-    '--bg-editor': '#22272e',
-    '--bg-status': '#22272e',
-    '--text-primary': '#adbac7',
-    '--text-secondary': '#768390',
-    '--text-editor': '#adbac7',
-    '--accent-primary': '#539bf5',
-    '--accent-secondary': '#3fb950',
-    '--border-color': '#444c56',
-    '--diff-added': '#57ab5a',
-    '--diff-removed': '#e5534b',
-    '--diff-hunk': '#539bf5',
-    // StatusBar Item colors
-    '--statusBarItem-activeBackground': 'rgba(173, 186, 199, 0.12)',
-    '--statusBarItem-hoverBackground': 'rgba(173, 186, 199, 0.08)',
-    '--statusBarItem-errorForeground': '#cdd9e5',
-    '--statusBarItem-errorBackground': '#c93c37',
-    '--statusBarItem-errorHoverForeground': '#cdd9e5',
-    '--statusBarItem-errorHoverBackground': '#b62c24',
-    '--statusBarItem-warningForeground': '#22272e',
-    '--statusBarItem-warningBackground': '#d29922',
-    '--statusBarItem-warningHoverForeground': '#22272e',
-    '--statusBarItem-warningHoverBackground': '#ac7b15',
-    '--statusBarItem-prominentForeground': '#ffffff',
-    '--statusBarItem-prominentBackground': '#316dca',
-    '--statusBarItem-prominentHoverForeground': '#ffffff',
-    '--statusBarItem-prominentHoverBackground': '#255ab2',
-    '--statusBarItem-remoteForeground': '#ffffff',
-    '--statusBarItem-remoteBackground': '#46954a',
-    '--statusBarItem-offlineForeground': '#636e7b',
-    '--statusBarItem-offlineBackground': '#2d333b'
-  },
-  vsCodeTokenColors: [
-    { scope: ['comment'], settings: { foreground: '#768390' } },
-    { scope: ['string'], settings: { foreground: '#96d0ff' } },
-    { scope: ['keyword'], settings: { foreground: '#f47067' } },
-    { scope: ['entity.name.function'], settings: { foreground: '#dcbdfb' } },
-    { scope: ['entity.name.type'], settings: { foreground: '#dcbdfb' } }
-  ]
-};
+// (Original inline Premium Themes removed in favor of premiumThemes.ts)
 
 // Validate and enhance themes with contrast ratios
 function enhanceThemeWithValidation(theme: Theme): Theme {
@@ -707,6 +553,8 @@ function enhanceThemeWithValidation(theme: Theme): Theme {
     contrastRatio: validation.contrastRatios
   };
 }
+
+import { draculaTheme, draculaDayTheme, oneDarkProTheme, oneLightProTheme, githubDarkTheme, githubLightTheme } from './premiumThemes';
 
 // All available themes with validation
 export const allThemes: Theme[] = [
@@ -724,8 +572,11 @@ export const allThemes: Theme[] = [
   enhanceThemeWithValidation(emberNightTheme),
   // Premium Themes
   enhanceThemeWithValidation(draculaTheme),
+  enhanceThemeWithValidation(draculaDayTheme),
   enhanceThemeWithValidation(oneDarkProTheme),
-  enhanceThemeWithValidation(githubDarkDimmedTheme)
+  enhanceThemeWithValidation(oneLightProTheme),
+  enhanceThemeWithValidation(githubDarkTheme),
+  enhanceThemeWithValidation(githubLightTheme)
 ];
 
 // Validate theme consistency across pairs
@@ -735,7 +586,10 @@ const themePairs: Array<[Theme, Theme]> = [
   [lightDayTheme, lightNightTheme],
   [monokaiDayTheme, monokaiNightTheme],
   [auroraDayTheme, auroraNightTheme],
-  [emberDayTheme, emberNightTheme]
+  [emberDayTheme, emberNightTheme],
+  [draculaDayTheme, draculaTheme],
+  [oneLightProTheme, oneDarkProTheme],
+  [githubLightTheme, githubDarkTheme]
 ];
 
 for (const [dayTheme, nightTheme] of themePairs) {

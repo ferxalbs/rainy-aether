@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./App.css";
+import "./styles/monaco-overrides.css"; // Force minimap transparency
 import App from "./App";
 import { configureMonacoForVite } from "./services/monacoWorkers";
 
