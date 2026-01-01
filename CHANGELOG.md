@@ -6,6 +6,8 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 
 ### Fixed
 - **Theme Persistence**: Fixed issue where premium themes (Dracula, One Dark, GitHub) would reset to default on restart by standardizing naming conventions.
+- **Theme Persistence (System Mode)**: Fixed issue where saved theme was ignored when user preference was 'system', causing themes to reset to base+systemMode instead of the explicitly selected theme.
+- **Brand Themes Visibility**: Fixed missing brand themes (Christmas, New Year, Rainy Aether) in Theme Store modal by standardizing naming to `base-mode` format and adding metadata.
 - **Monaco Minimap**: Resolved black minimap background issue with global CSS overrides.
 - **Monaco Syntax Highlighting**: Improved syntax highlighting stability for premium themes using explicit Monaco rules.
 - **Theme Metadata**: Added missing metadata for premium themes in ThemeStore to ensure correct display and selection.

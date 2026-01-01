@@ -27,9 +27,9 @@ const commonRules = (colors: {
  * Aesthetic: Deep Pine Green, Festive Accents
  */
 export const christmasNightTheme: Theme = {
-    name: 'christmas-2025-night',
+    name: 'christmas-night',
     mode: 'night',
-    displayName: 'Christmas 2025 (Night)',
+    displayName: 'Christmas (Night)',
     variables: {
         '--bg-primary': '#0f291e', // Deep Pine Green
         '--bg-secondary': '#0b2017',
@@ -73,9 +73,9 @@ export const christmasNightTheme: Theme = {
  * Aesthetic: Snowy White, Pine Green & Red Accents
  */
 export const christmasDayTheme: Theme = {
-    name: 'christmas-2025-day',
+    name: 'christmas-day',
     mode: 'day',
-    displayName: 'Christmas 2025 (Day)',
+    displayName: 'Christmas (Day)',
     variables: {
         '--bg-primary': '#f8fbf9', // Snowy White
         '--bg-secondary': '#eef6f2',
@@ -119,9 +119,9 @@ export const christmasDayTheme: Theme = {
  * Aesthetic: Light Yellow, Festive, Champagne, Gold
  */
 export const newYearDayTheme: Theme = {
-    name: 'new-year-2026-day',
+    name: 'newyear-day',
     mode: 'day',
-    displayName: 'New Year 2026 (Day)',
+    displayName: 'New Year (Day)',
     variables: {
         '--bg-primary': '#fffdf5', // Very Light Champagne/Yellow
         '--bg-secondary': '#fff9e6',
@@ -165,9 +165,9 @@ export const newYearDayTheme: Theme = {
  * Aesthetic: Dark, Gold, Fireworks, Celebration
  */
 export const newYearNightTheme: Theme = {
-    name: 'new-year-2026-night',
+    name: 'newyear-night',
     mode: 'night',
-    displayName: 'New Year 2026 (Night)',
+    displayName: 'New Year (Night)',
     variables: {
         '--bg-primary': '#1a1810', // Dark Gold/Black
         '--bg-secondary': '#262214',
@@ -211,7 +211,7 @@ export const newYearNightTheme: Theme = {
  * Aesthetic: Icy Blue, White, Fresh, "Comet" Light
  */
 export const rainyAetherDayTheme: Theme = {
-    name: 'rainy-aether-day',
+    name: 'rainyaether-day',
     mode: 'day',
     displayName: 'Rainy Aether (Day)',
     variables: {
@@ -257,7 +257,7 @@ export const rainyAetherDayTheme: Theme = {
  * Aesthetic: Dark, Neon Blue, Deep Purple, "Comet" Dark
  */
 export const rainyAetherNightTheme: Theme = {
-    name: 'rainy-aether-night',
+    name: 'rainyaether-night',
     mode: 'night',
     displayName: 'Rainy Aether (Night)',
     variables: {

@@ -52,6 +52,19 @@ const themeBaseMetadata: Record<string, { label: string; description: string }> 
   github: {
     label: 'GitHub',
     description: 'Classic GitHub look, clean and familiar.'
+  },
+  // Brand & Holiday Themes
+  christmas: {
+    label: 'Christmas',
+    description: 'Festive holiday theme with pine green and red accents.'
+  },
+  newyear: {
+    label: 'New Year',
+    description: 'Celebratory theme with gold and champagne tones.'
+  },
+  rainyaether: {
+    label: 'Rainy Aether',
+    description: 'Official Rainy Aether brand theme with neon blue and purple.'
   }
 };
 
@@ -119,11 +132,14 @@ const notifyThemeListeners = (theme: Theme) => {
 const getBaseThemeName = (theme: Theme | undefined) =>
   theme ? theme.name.split('-')[0] : defaultBaseThemeName;
 
-const persistThemeSelection = (baseName: string, themeName: string, persistVariant: boolean) => {
+const persistThemeSelection = (baseName: string, themeName: string) => {
+  // ALWAYS save the base theme
   void saveToStore(THEME_BASE_STORAGE_KEY, baseName);
-  if (persistVariant) {
-    void saveToStore(THEME_STORAGE_KEY, themeName);
-  }
+  // ALWAYS save the full theme name - this was the bug!
+  // Previously, when userPreference was 'system', the theme name was NOT saved,
+  // causing the theme to reset to default on restart.
+  void saveToStore(THEME_STORAGE_KEY, themeName);
+  console.log(`[ThemeStore] Persisted theme: base=${baseName}, name=${themeName}`);
 };
 
 const updateThemeState = (partial: Partial<ThemeState>) => {
@@ -161,7 +177,7 @@ interface SetCurrentThemeOptions {
 
 import { invoke } from '@tauri-apps/api/core';
 
-export const setCurrentTheme = async (theme: Theme, options: SetCurrentThemeOptions = {}) => {
+export const setCurrentTheme = async (theme: Theme, _options: SetCurrentThemeOptions = {}) => {
   // Validate theme accessibility before applying
   const validation = validateThemeAccessibility(theme.variables);
   if (!validation.isWCAGAACompliant) {
@@ -169,7 +185,6 @@ export const setCurrentTheme = async (theme: Theme, options: SetCurrentThemeOpti
   }
 
   const baseName = getBaseThemeName(theme);
-  const persistVariant = options.persistVariant ?? themeState.userPreference !== 'system';
 
   updateThemeState({ currentTheme: theme, baseTheme: baseName });
   await applyTheme(theme);
@@ -181,7 +196,7 @@ export const setCurrentTheme = async (theme: Theme, options: SetCurrentThemeOpti
     console.warn('[ThemeStore] Failed to sync theme with backend:', error);
   }
 
-  persistThemeSelection(baseName, theme.name, persistVariant);
+  persistThemeSelection(baseName, theme.name);
   notifyThemeListeners(theme);
 };
 
@@ -463,11 +478,24 @@ export const initializeTheme = async () => {
       userPreference: savedPreference
     });
 
+    // Always try to load the explicitly saved theme name first
+    const savedThemeName = await loadFromStore<string | null>(THEME_STORAGE_KEY, null);
+    console.log(`[ThemeStore] Init: savedThemeName=${savedThemeName}, savedBaseTheme=${savedBaseTheme}, savedPreference=${savedPreference}, systemMode=${systemMode}`);
+
     if (savedPreference === 'system') {
-      const candidateNames = [
+      // For 'system' mode, first try the saved theme, then fall back to base+systemMode
+      const candidateNames: string[] = [];
+
+      // Prioritize saved theme name if it exists
+      if (savedThemeName) {
+        candidateNames.push(savedThemeName);
+      }
+
+      // Then try base theme + system mode
+      candidateNames.push(
         `${savedBaseTheme}-${systemMode}`,
         `${defaultBaseThemeName}-${systemMode}`
-      ];
+      );
 
       let themeToApply = candidateNames
         .map(name => allThemes.find(t => t.name === name))
@@ -479,7 +507,7 @@ export const initializeTheme = async () => {
 
       await setCurrentTheme(themeToApply, { persistVariant: false });
     } else {
-      const savedThemeName = await loadFromStore<string | null>(THEME_STORAGE_KEY, null);
+      // For explicit day/night preference
       const candidateNames: string[] = [];
 
       if (savedThemeName) {
