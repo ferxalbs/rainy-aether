@@ -9,6 +9,8 @@ import {
   Moon,
   Sun,
   FilePlus,
+  ArrowRight,
+  Command,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { toggleDayNight, useThemeState, isExtensionThemeActive } from "../../stores/themeStore";
@@ -335,7 +337,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
   }, [isOpen]);
 
   const renderIcon = useCallback((icon?: CommandItem["icon"]) => {
-    const sharedProps = { size: 14, className: "opacity-70" };
+    const sharedProps = { size: 18, className: "opacity-70 group-hover:opacity-100 transition-opacity" };
     switch (icon) {
       case "settings":
         return <SettingsIcon {...sharedProps} />;
@@ -352,7 +354,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
       case "fileplus":
         return <FilePlus {...sharedProps} />;
       default:
-        return <Search {...sharedProps} />;
+        return <Command {...sharedProps} />;
     }
   }, []);
 
@@ -361,37 +363,50 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={handleClose}>
-      <div className="mx-auto mt-24 max-w-2xl" onClick={(event) => event.stopPropagation()}>
-        <div className="rounded-md border border-border bg-secondary text-foreground shadow-xl">
-          <div className="flex items-center gap-2 px-3 py-2 border-b">
-            <Search size={16} className="opacity-70" />
+    <div
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-start justify-center pt-[10vh] animate-in fade-in duration-200"
+      onClick={handleClose}
+    >
+      <div
+        className="w-full max-w-2xl mx-4 transition-all duration-200 ease-out animate-in zoom-in-95 slide-in-from-top-4"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="bg-background/90 dark:bg-background/10 backdrop-blur-3xl backdrop-saturate-150 border-2 dark:border border-border dark:border-border/50 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+          {/* Header / Input Area */}
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-border dark:border-border/30 bg-muted/20">
+            <Search className="w-5 h-5 text-muted-foreground" />
             <input
               ref={inputRef}
               type="text"
-              placeholder="Command Palette: type a command…"
+              placeholder="Type a command or search..."
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
                 setSelectedIndex(0);
               }}
-              className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+              className="flex-1 bg-transparent outline-none text-base placeholder:text-muted-foreground/60 text-foreground"
             />
-            <button className="text-xs text-muted-foreground" title="Close" onClick={handleClose}>
-              Esc
-            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground/50 bg-background/20 px-1.5 py-0.5 rounded border border-border/20">ESC</span>
+            </div>
           </div>
-          <div className="max-h-96 overflow-y-auto">
+
+          {/* Results List */}
+          <div className="max-h-[60vh] overflow-y-auto p-2 space-y-1 scrollbar-hide">
             {filteredCommands.map((item, index) => {
               const isActive = selectedIndex === index;
               const isDisabled = item.disabled;
+
               return (
                 <div
                   key={item.id}
                   className={cn(
-                    "px-3 py-2 text-sm flex items-center gap-2",
+                    "group px-4 py-3 text-sm flex items-center gap-4 rounded-xl transition-all duration-200",
                     isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-                    !isDisabled && (isActive ? "bg-muted" : "hover:bg-muted"),
+                    !isDisabled && (isActive
+                      ? "bg-primary/10 text-primary border border-primary/20"
+                      : "hover:bg-muted/50 border border-transparent hover:border-border/20"
+                    ),
                   )}
                   onMouseEnter={() => !isDisabled && setSelectedIndex(index)}
                   onClick={() => {
@@ -400,18 +415,48 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
                     runSelected();
                   }}
                 >
-                  {renderIcon(item.icon)}
-                  <div className="flex-1">
-                    <div className="font-medium">{item.title}</div>
+                  <div className={cn(
+                    "p-2 rounded-lg transition-colors",
+                    isActive ? "bg-primary/20 text-primary" : "bg-muted/50 text-muted-foreground group-hover:bg-background/80"
+                  )}>
+                    {renderIcon(item.icon)}
                   </div>
-                  {item.hint ? <div className="text-xs text-muted-foreground">{item.hint}</div> : null}
+
+                  <div className="flex-1 flex flex-col justify-center">
+                    <div className={cn("font-medium text-sm", isActive ? "text-foreground" : "text-foreground/90")}>
+                      {item.title}
+                    </div>
+                  </div>
+
+                  {item.hint && (
+                    <div className={cn(
+                      "text-xs px-2 py-1 rounded-md font-medium font-mono",
+                      isActive ? "bg-background/40 text-primary/80" : "bg-muted/30 text-muted-foreground group-hover:bg-background/40"
+                    )}>
+                      {item.hint}
+                    </div>
+                  )}
+
+                  {isActive && !isDisabled && (
+                    <ArrowRight className="w-4 h-4 text-primary opacity-50" />
+                  )}
                 </div>
               );
             })}
 
             {filteredCommands.length === 0 && (
-              <div className="px-3 py-4 text-sm text-muted-foreground">No matching commands</div>
+              <div className="px-4 py-12 text-center text-muted-foreground flex flex-col items-center gap-3">
+                <div className="p-4 bg-muted/30 rounded-full">
+                  <Search className="w-8 h-8 opacity-20" />
+                </div>
+                <p>No matching commands found</p>
+              </div>
             )}
+          </div>
+
+          <div className="px-4 py-2 bg-muted/20 border-t border-border/10 text-[10px] text-muted-foreground flex justify-between">
+            <span>{filteredCommands.length} commands available</span>
+            <span className="opacity-50">Rainy Aether</span>
           </div>
         </div>
       </div>
