@@ -577,7 +577,7 @@ export const allThemes: Theme[] = [
   enhanceThemeWithValidation(oneDarkProTheme),
   enhanceThemeWithValidation(oneLightProTheme),
   enhanceThemeWithValidation(githubDarkTheme),
-  enhanceThemeWithValidation(githubDarkTheme),
+
   enhanceThemeWithValidation(githubLightTheme),
   // Brand & Holiday Themes
   enhanceThemeWithValidation(christmasDayTheme),
