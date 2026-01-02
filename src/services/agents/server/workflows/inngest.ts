@@ -361,8 +361,15 @@ export const indexCodebaseWorkflow = inngest.createFunction(
 // Export all workflows
 // ===========================
 
+// Import AgentKit workflows
+import { agentKitWorkflows, inngestAgentKit } from './agentkit';
+
 export const allWorkflows = [
     executeTaskWorkflow,
     createProjectWorkflow,
     indexCodebaseWorkflow,
+    ...agentKitWorkflows,
 ];
+
+// Re-export AgentKit client for use elsewhere
+export { inngestAgentKit };
