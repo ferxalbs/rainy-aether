@@ -42,3 +42,18 @@ export {
     registerToolHandlers,
     createConfiguredExecutor,
 } from './bridge';
+
+// AgentKit tools (new)
+export {
+    allAgentKitTools,
+    readTools,
+    writeTools,
+    executeTools,
+    gitTools,
+    analysisTools,
+    plannerTools,
+    coderTools,
+    reviewerTools,
+    terminalTools,
+    docsTools,
+} from './agentkit';
