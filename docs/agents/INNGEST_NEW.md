@@ -1,0 +1,2 @@
+![System](../../public/system.svg)
+
