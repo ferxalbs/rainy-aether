@@ -53,6 +53,10 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const activeSplit = terminalState.layout.splits.find(s => s.id === terminalState.layout.activeSplitId);
   const activeTerminalId = activeSplit?.activeSessionId;
 
+  // Get current view and mode for conditional rendering
+  const currentView = snapshot.currentView;
+  const viewMode = snapshot.viewMode;
+
   const handleQuickOpen = () => onOpenQuickOpen?.();
   const handleCommandPalette = () => onOpenCommandPalette?.();
   const handleThemeSwitcher = () => onOpenThemeSwitcher?.();
@@ -282,8 +286,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Register native menu event listeners (only active on macOS)
   useNativeMenuEvents(nativeMenuHandlers);
 
-  // Right-aligned controls (always visible)
-  const RightControls = (
+  // Right-aligned controls (only visible in IDE mode, not Agents mode)
+  // These control sidebar, bottom panel, and right sidebar which are IDE-specific
+  const RightControls = viewMode === "ide" ? (
     <div className="ml-auto flex items-center pr-2 gap-1">
       <Button
         variant="ghost"
@@ -315,7 +320,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         <PanelRight size={16} />
       </Button>
     </div>
-  );
+  ) : null;
 
   // On macOS with native menu: render only the mode switcher and panel controls
   // Native traffic lights are handled by titleBarStyle: "Overlay"
@@ -329,18 +334,22 @@ const MenuBar: React.FC<MenuBarProps> = ({
         {/* Left padding for native macOS traffic lights */}
         <div className="w-[78px] shrink-0 h-full" data-tauri-drag-region />
 
-        {/* Mode Switcher - positioned to align with traffic lights (pt-[6px] puts center at ~14px) */}
-        <div className="flex items-center pt-[6px]">
-          <ModeSwitcher />
-        </div>
+        {/* Mode Switcher - only visible in editor view (not startup/settings) */}
+        {currentView === "editor" && (
+          <div className="flex items-center pt-[6px]">
+            <ModeSwitcher />
+          </div>
+        )}
 
         {/* Drag region spacer */}
         <div className="flex-1 h-full" data-tauri-drag-region />
 
-        {/* Right-aligned Layout Controls */}
-        <div className="flex items-center pt-[6px] pr-2">
-          {RightControls}
-        </div>
+        {/* Right-aligned Layout Controls - only visible in editor view with IDE mode */}
+        {currentView === "editor" && RightControls && (
+          <div className="flex items-center pt-[6px] pr-2">
+            {RightControls}
+          </div>
+        )}
       </div>
     );
   }
@@ -351,10 +360,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
       className="h-10 border-b border-border flex items-center w-full bg-background select-none"
     >
       <div className="flex items-center h-full">
-        {/* Mode Switcher */}
-        <div className="flex items-center px-2 h-full">
-          <ModeSwitcher />
-        </div>
+        {/* Mode Switcher - only visible in editor view (not startup/settings) */}
+        {currentView === "editor" && (
+          <div className="flex items-center px-2 h-full">
+            <ModeSwitcher />
+          </div>
+        )}
 
         <Menubar className="h-full border-none rounded-none px-1 py-0 gap-1 shadow-none bg-transparent">
 
@@ -1009,7 +1020,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
       <div className="flex-1 h-full" data-tauri-drag-region />
 
       <div className="flex items-center h-full gap-2 pr-2">
-        {RightControls}
+        {/* Layout controls only visible in editor view with IDE mode */}
+        {currentView === "editor" && RightControls}
         <WindowControls />
       </div>
     </div>
