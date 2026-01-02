@@ -2,6 +2,28 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.8] - 2026-01-02
+
+### Fixed
+- **MCP Manager Real Connections**: Fixed MCP server connections that were failing with "Check server configuration" error
+  - Workspace tools now use `internal` transport type (no subprocess spawn needed)
+  - Connect endpoint correctly returns 27 built-in tools from `TOOL_DEFINITIONS`
+  - Fixed `mcp-agents.ts` to handle internal transport type properly
+
+### Added
+- **MCP Connect/Disconnect API**: New endpoints for real MCP server management:
+  - `POST /mcp/servers/:name/connect` - Connect and fetch real tools
+  - `GET /mcp/servers/:name/tools` - List tools from connected server
+  - `POST /mcp/servers/:name/disconnect` - Disconnect from server
+  - `POST /mcp/servers/:name/tools/:tool/call` - Call tool on server
+  - `GET /mcp/connected` - Get all connected servers
+- **Internal Transport Type**: New transport type for built-in tools that don't need MCP subprocess
+
+### Improved
+- **MCPManager.tsx**: Rewrote to connect to real MCP servers via API with Connect button, status indicators, and proper error handling
+
+---
+
 ## [v0.1.7] - 2026-01-02
 
 ### Added
