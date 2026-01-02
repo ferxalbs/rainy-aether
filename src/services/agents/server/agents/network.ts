@@ -5,8 +5,9 @@
  * This is the core orchestration layer for multi-agent execution.
  */
 
-import { createNetwork, createAgent, gemini } from '@inngest/agent-kit';
+import { createNetwork, createAgent } from '@inngest/agent-kit';
 import { getSystemPrompt, buildEnhancedPrompt } from './prompts';
+import { getDefaultModel, getFastModel } from './models';
 import {
     plannerTools,
     coderTools,
@@ -62,7 +63,7 @@ export const createPlannerAgent = (workspace?: string) => createAgent({
     name: 'planner',
     description: 'Analyzes tasks and creates step-by-step implementation plans',
     system: buildEnhancedPrompt('planner', { workspace }),
-    model: gemini({ model: 'gemini-2.0-flash' }),
+    model: getDefaultModel(),
     tools: plannerTools,
 });
 
@@ -70,7 +71,7 @@ export const createCoderAgent = (workspace?: string) => createAgent({
     name: 'coder',
     description: 'Writes, edits, and refactors code',
     system: buildEnhancedPrompt('coder', { workspace }),
-    model: gemini({ model: 'gemini-2.0-flash' }),
+    model: getDefaultModel(),
     tools: coderTools,
 });
 
@@ -78,7 +79,7 @@ export const createReviewerAgent = (workspace?: string) => createAgent({
     name: 'reviewer',
     description: 'Reviews code for bugs, security, and best practices',
     system: buildEnhancedPrompt('reviewer', { workspace }),
-    model: gemini({ model: 'gemini-2.0-flash' }),
+    model: getDefaultModel(),
     tools: reviewerTools,
 });
 
@@ -86,7 +87,7 @@ export const createTerminalAgent = (workspace?: string) => createAgent({
     name: 'terminal',
     description: 'Executes commands, runs tests, manages processes',
     system: buildEnhancedPrompt('terminal', { workspace }),
-    model: gemini({ model: 'gemini-2.0-flash' }),
+    model: getFastModel(),
     tools: terminalTools,
 });
 
@@ -94,7 +95,7 @@ export const createDocsAgent = (workspace?: string) => createAgent({
     name: 'docs',
     description: 'Reads documentation and provides context',
     system: buildEnhancedPrompt('docs', { workspace }),
-    model: gemini({ model: 'gemini-2.0-flash' }),
+    model: getFastModel(),
     tools: docsTools,
 });
 
@@ -197,7 +198,7 @@ export function createAgentNetwork(options: {
     const network = createNetwork({
         name: 'rainy-brain-network',
         agents: Object.values(agents),
-        defaultModel: gemini({ model: 'gemini-2.0-flash' }),
+        defaultModel: getDefaultModel(),
         maxIter: maxIterations,
     });
 

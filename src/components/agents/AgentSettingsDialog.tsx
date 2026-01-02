@@ -42,7 +42,7 @@ const API_PROVIDERS: ApiKeyConfig[] = [
     storageKey: 'gemini_api_key',
     placeholder: 'AIza...',
     getKeyUrl: 'https://aistudio.google.com/app/apikey',
-    description: 'Gemini 2.0 Flash, Gemini 1.5 Pro, Flash Lite',
+    description: 'Gemini 3 Flash, Gemini 3 Pro',
   },
   {
     id: 'groq',
@@ -50,7 +50,7 @@ const API_PROVIDERS: ApiKeyConfig[] = [
     storageKey: 'groq_api_key',
     placeholder: 'gsk_...',
     getKeyUrl: 'https://console.groq.com/keys',
-    description: 'Llama 3.3, Mixtral (ultra-fast inference)',
+    description: 'Kimi K2 09-25 (ultra-fast inference)',
   },
   {
     id: 'openai',
@@ -58,7 +58,7 @@ const API_PROVIDERS: ApiKeyConfig[] = [
     storageKey: 'openai_api_key',
     placeholder: 'sk-...',
     getKeyUrl: 'https://platform.openai.com/api-keys',
-    description: 'GPT-4o, GPT-4o-mini, o1',
+    description: 'GPT-5.2, GPT-Codex-5.2 and more',
   },
   {
     id: 'anthropic',
@@ -66,7 +66,7 @@ const API_PROVIDERS: ApiKeyConfig[] = [
     storageKey: 'anthropic_api_key',
     placeholder: 'sk-ant-...',
     getKeyUrl: 'https://console.anthropic.com/settings/keys',
-    description: 'Claude 3.5 Sonnet, Claude 3 Opus',
+    description: 'Claude 4.5 Sonnet, Claude 4.5 Opus and Claude 4.5 Haiku',
   },
   {
     id: 'cerebras',
@@ -74,7 +74,7 @@ const API_PROVIDERS: ApiKeyConfig[] = [
     storageKey: 'cerebras_api_key',
     placeholder: 'csk-...',
     getKeyUrl: 'https://cloud.cerebras.ai/platform/',
-    description: 'Llama 3.1 (fastest inference)',
+    description: 'GML 4.5 and GPT-OSS (fastest inference)',
   },
 ];
 
