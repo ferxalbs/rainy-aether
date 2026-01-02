@@ -15,6 +15,13 @@ pub fn git_is_repo(path: String) -> Result<bool, String> {
     }
 }
 
+/// Initialize a new Git repository
+#[tauri::command]
+pub fn git_init(path: String) -> Result<String, String> {
+    Repository::init(&path).map_err(|e| GitError::from(e))?;
+    Ok(format!("Initialized empty Git repository in {}", path))
+}
+
 /// Get git status using native libgit2
 #[tauri::command]
 pub fn git_status(path: String) -> Result<Vec<StatusEntry>, String> {

@@ -302,6 +302,7 @@ pub fn run() {
         // Git integration - Native libgit2 implementation
         // Status operations
         git::status::git_is_repo,
+        git::status::git_init,
         git::status::git_status,
         git::status::git_stage_file,
         git::status::git_stage_all,

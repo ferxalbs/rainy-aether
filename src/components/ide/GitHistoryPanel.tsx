@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ChevronDown,
   RefreshCcw,
-  GitCommitVertical,
   Loader2,
   Plus,
   ArrowDown,
@@ -51,6 +50,7 @@ import CommitDiffViewer from "./CommitDiffViewer";
 import BranchManager from "./BranchManager";
 import StashManager from "./StashManager";
 import RemoteConfigDialog from "./RemoteConfigDialog";
+import GitWelcome from "./GitWelcome";
 
 const GitHistoryPanel: React.FC = () => {
   const [message, setMessage] = useState("");
@@ -371,13 +371,7 @@ const GitHistoryPanel: React.FC = () => {
             </div>
           </>
         ) : (
-          <div className="flex flex-1 items-center justify-center flex-col gap-2 p-6 text-center text-muted-foreground">
-            <div className="size-12 rounded-full bg-muted/30 flex items-center justify-center">
-              <GitCommitVertical className="size-6 opacity-50" />
-            </div>
-            <p className="text-sm">No repository open</p>
-            <p className="text-xs opacity-70">Open a folder with a Git repository to see source control.</p>
-          </div>
+          <GitWelcome />
         )}
 
         {/* Modals */}

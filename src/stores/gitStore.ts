@@ -565,6 +565,35 @@ export function getCurrentBranch() {
   return git.currentBranch;
 }
 
+/**
+ * Initialize a new Git repository in the current workspace
+ */
+export async function initRepository(): Promise<boolean> {
+  const wsPath = git.workspacePath;
+  if (!wsPath) {
+    showGitError(new Error("No workspace folder open"));
+    return false;
+  }
+
+  try {
+    await invoke("git_init", { path: wsPath });
+    showGitSuccess("Initialized Git repository");
+
+    // Refresh state after init
+    updateGitState({ isRepo: true });
+    await Promise.all([
+      refreshStatus(false),
+      refreshBranches(false),
+      refreshHistory(100, false),
+    ]);
+
+    return true;
+  } catch (error) {
+    showGitError(error);
+    return false;
+  }
+}
+
 // ============================================================================
 // CLONE & REMOTE OPERATIONS
 // ============================================================================

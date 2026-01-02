@@ -2,6 +2,22 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.6] - 2026-01-02
+
+### Added
+- **Git GUI Enhancement**: VS Code-style Git initialization panel in Source Control sidebar with:
+  - **Initialize Repository** button to create a new Git repository in the current workspace
+  - **Clone Repository** button to clone from a remote URL
+  - **Publish to GitHub** button (opens GitHub docs for repo creation)
+  - Documentation link for Git help
+- **`git_init` Command**: New native libgit2 Rust command for fast repository initialization
+- **`initRepository()` Function**: Frontend service method in gitStore for initializing repos
+
+### Improved
+- **Git Sidebar UX**: Source Control panel now shows helpful onboarding when no repository is detected instead of a minimal placeholder
+
+---
+
 ## [v0.1.5] - 2026-01-01
 
 ### Added
