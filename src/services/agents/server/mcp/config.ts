@@ -21,7 +21,7 @@ export interface MCPServerConfig {
     transport: MCPTransport;
     enabled: boolean;
     priority: 'local' | 'external';
-    category: 'workspace' | 'documentation' | 'development' | 'cloud';
+    category: 'workspace' | 'documentation' | 'development' | 'cloud' | 'custom';
 }
 
 // ===========================

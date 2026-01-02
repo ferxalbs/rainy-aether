@@ -325,23 +325,134 @@ agentkit.get('/state/stats', (c: Context) => {
 // MCP Configuration Endpoints
 // ===========================
 
+import {
+    hasMCPConfig,
+    loadMCPConfig,
+    getProjectMCPConfigs,
+    createDefaultMCPConfig,
+    addServerToConfig,
+    removeServerFromConfig,
+    toggleServerEnabled,
+    getAllHealthStatuses,
+    getCircuitBreakerStatus,
+    resetCircuitBreaker,
+} from '../mcp';
+import type { MCPServerEntry } from '../mcp';
+
 /**
- * Get MCP server configurations
+ * Get MCP server configurations (built-in + project)
  */
 agentkit.get('/mcp/servers', (c: Context) => {
-    const configs = getMCPConfigs();
+    const workspace = c.req.query('workspace') || process.cwd();
+
+    // Built-in configs
+    const builtIn = getMCPConfigs();
+
+    // Project configs from .rainy/rainy-mcp.json
+    const projectConfigs = getProjectMCPConfigs(workspace);
+
     return c.json({
-        servers: configs.map(cfg => ({
+        hasProjectConfig: hasMCPConfig(workspace),
+        servers: [...builtIn, ...projectConfigs].map(cfg => ({
             name: cfg.name,
             enabled: cfg.enabled,
             transport: cfg.transport.type,
             description: cfg.description,
+            category: cfg.category,
+            priority: cfg.priority,
         })),
     });
 });
 
 /**
- * Get MCP server details
+ * Get project MCP configuration
+ */
+agentkit.get('/mcp/config', (c: Context) => {
+    const workspace = c.req.query('workspace') || process.cwd();
+
+    if (!hasMCPConfig(workspace)) {
+        return c.json({
+            exists: false,
+            path: `${workspace}/.rainy/rainy-mcp.json`,
+        });
+    }
+
+    const config = loadMCPConfig(workspace);
+    return c.json({ exists: true, config });
+});
+
+/**
+ * Create default MCP configuration
+ */
+agentkit.post('/mcp/config', async (c: Context) => {
+    const { workspace } = await c.req.json<{ workspace?: string }>();
+    const ws = workspace || process.cwd();
+
+    if (hasMCPConfig(ws)) {
+        return c.json({ error: 'Configuration already exists' }, 409);
+    }
+
+    const configPath = createDefaultMCPConfig(ws);
+    return c.json({ created: true, path: configPath });
+});
+
+/**
+ * Add server to project config
+ */
+agentkit.post('/mcp/servers', async (c: Context) => {
+    const { workspace, server } = await c.req.json<{
+        workspace?: string;
+        server: MCPServerEntry;
+    }>();
+
+    const ws = workspace || process.cwd();
+    const success = addServerToConfig(ws, server);
+
+    if (!success) {
+        return c.json({ error: 'Failed to add server' }, 400);
+    }
+
+    return c.json({ added: true, server: server.name });
+});
+
+/**
+ * Remove server from project config
+ */
+agentkit.delete('/mcp/servers/:name', async (c: Context) => {
+    const name = c.req.param('name');
+    const workspace = c.req.query('workspace') || process.cwd();
+
+    const success = removeServerFromConfig(workspace, name);
+
+    if (!success) {
+        return c.json({ error: 'Server not found' }, 404);
+    }
+
+    return c.json({ removed: true, server: name });
+});
+
+/**
+ * Toggle server enabled/disabled
+ */
+agentkit.patch('/mcp/servers/:name', async (c: Context) => {
+    const name = c.req.param('name');
+    const { enabled, workspace } = await c.req.json<{
+        enabled: boolean;
+        workspace?: string;
+    }>();
+
+    const ws = workspace || process.cwd();
+    const success = toggleServerEnabled(ws, name, enabled);
+
+    if (!success) {
+        return c.json({ error: 'Server not found' }, 404);
+    }
+
+    return c.json({ updated: true, server: name, enabled });
+});
+
+/**
+ * Get MCP server details (built-in)
  */
 agentkit.get('/mcp/servers/:name', (c: Context) => {
     const name = c.req.param('name');
@@ -352,6 +463,33 @@ agentkit.get('/mcp/servers/:name', (c: Context) => {
     }
 
     return c.json(config);
+});
+
+// ===========================
+// MCP Health & Resilience Endpoints
+// ===========================
+
+/**
+ * Get health status of all MCP servers
+ */
+agentkit.get('/mcp/health', (c: Context) => {
+    const statuses = getAllHealthStatuses();
+    const circuitBreakers = getCircuitBreakerStatus();
+
+    return c.json({
+        servers: statuses,
+        circuitBreakers: Object.fromEntries(circuitBreakers),
+    });
+});
+
+/**
+ * Reset circuit breaker for a server
+ */
+agentkit.post('/mcp/health/:name/reset', (c: Context) => {
+    const name = c.req.param('name');
+    resetCircuitBreaker(name);
+
+    return c.json({ reset: true, server: name });
 });
 
 // ===========================
