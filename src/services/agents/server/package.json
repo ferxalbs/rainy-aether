@@ -10,6 +10,7 @@
     "build": "pnpm bundle && pnpm build:bin"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@browserbasehq/sdk": "^2.6.0",
     "@daytonaio/sdk": "^0.128.1",
     "@e2b/code-interpreter": "^2.3.3",
@@ -17,9 +18,12 @@
     "@hono/node-server": "^1.19.7",
     "@inngest/agent-kit": "^0.13.2",
     "@smithery/sdk": "^3.0.1",
+    "groq-sdk": "^0.37.0",
     "hono": "^4.11.3",
     "inngest": "^3.48.1",
-    "playwright-core": "^1.57.0"
+    "openai": "^6.15.0",
+    "playwright-core": "^1.57.0",
+    "zod": "^4.3.4"
   },
   "devDependencies": {
     "@types/node": "^20",
