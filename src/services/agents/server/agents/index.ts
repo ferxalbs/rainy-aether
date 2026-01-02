@@ -52,3 +52,30 @@ export {
     mcpAgentFactories,
 } from './mcp-agents';
 export type { MCPAgentOptions, MCPAgentType } from './mcp-agents';
+
+// Routing agent (Phase 4)
+export {
+    createRoutingAgent,
+    routeByHeuristics,
+    routeByLLM,
+    hybridRoute,
+} from './routing-agent';
+export type {
+    RoutingDecision,
+    RoutingContext,
+    ConversationTurn,
+    HybridRouterConfig,
+} from './routing-agent';
+
+// State management (Phase 4)
+export {
+    stateStore,
+    createConversationContext,
+} from './state';
+export type {
+    Message as StateMessage,
+    ToolCallRecord,
+    TaskState,
+    ConversationState,
+    MemoryItem,
+} from './state';
