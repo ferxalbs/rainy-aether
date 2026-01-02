@@ -10,21 +10,28 @@ export { MCPClientManager, mcpManager } from './client';
 export { createLocalMCPServer } from './local-server';
 export { getMCPConfigs, type MCPTransport, type MCPServerConfig } from './config';
 
-// Project configuration (.rainy/rainy-mcp.json)
+// Project configuration (.rainy/mcp.json - standard format)
 export {
     loadMCPConfig,
     getMCPConfigPath,
     hasMCPConfig,
     getProjectMCPConfigs,
+    getMCPServerNames,
+    getMCPServer,
     createDefaultMCPConfig,
-    addServerToConfig,
-    removeServerFromConfig,
-    toggleServerEnabled,
+    addMCPServer,
+    updateMCPServer,
+    removeMCPServer,
+    toggleMCPServer,
     validateMCPConfig,
     watchMCPConfig,
     clearConfigCache,
+    // Backward compat
+    addServerToConfig,
+    removeServerFromConfig,
+    toggleServerEnabled,
 } from './config-loader';
-export type { RainyMCPConfig, MCPServerEntry, ConfigValidationResult } from './config-loader';
+export type { MCPConfig, MCPServerEntry, ConfigValidationResult } from './config-loader';
 
 // Production resilience
 export {

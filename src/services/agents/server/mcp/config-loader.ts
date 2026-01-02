@@ -1,12 +1,21 @@
 /**
  * MCP Configuration Loader
  * 
- * Loads MCP server configurations from:
- * 1. Project-level: .rainy/rainy-mcp.json (highest priority)
- * 2. Environment variables (fallback)
- * 3. Built-in defaults (lowest priority)
+ * Loads MCP server configurations using the STANDARD MCP format.
+ * Compatible with Claude Desktop, Cursor, and other MCP clients.
  * 
- * This follows the standard IDE pattern of per-project configuration.
+ * Config file: .rainy/mcp.json (standard format)
+ * 
+ * Format:
+ * {
+ *   "mcpServers": {
+ *     "server-name": {
+ *       "command": "npx",
+ *       "args": ["-y", "package-name", "--api-key", "..."],
+ *       "env": {}
+ *     }
+ *   }
+ * }
  */
 
 import * as fs from 'fs';
@@ -14,74 +23,61 @@ import * as path from 'path';
 import type { MCPServerConfig, MCPTransport } from './config';
 
 // ===========================
-// Types
+// Standard MCP Config Format
 // ===========================
 
 /**
- * JSON schema for .rainy/rainy-mcp.json
+ * Standard MCP configuration format
+ * Compatible with Claude Desktop, Cursor, etc.
  */
-export interface RainyMCPConfig {
-    $schema?: string;
-    version: '1.0';
-    servers: MCPServerEntry[];
-    defaults?: {
-        timeout?: number;
-        retries?: number;
-        retryDelay?: number;
-    };
+export interface MCPConfig {
+    mcpServers: Record<string, MCPServerEntry>;
 }
 
+/**
+ * Standard MCP server entry
+ */
 export interface MCPServerEntry {
-    name: string;
-    description?: string;
+    command: string;
+    args?: string[];
+    env?: Record<string, string>;
+    // Extended fields for IDE
     enabled?: boolean;
-    transport: MCPTransportConfig;
-    category?: 'workspace' | 'documentation' | 'development' | 'cloud' | 'custom';
-    timeout?: number;
-    retries?: number;
+    description?: string;
 }
-
-export type MCPTransportConfig =
-    | { type: 'stdio'; command: string; args?: string[]; env?: Record<string, string> }
-    | { type: 'ws'; url: string }
-    | { type: 'sse'; url: string; headers?: Record<string, string> }
-    | { type: 'streamable-http'; url: string; headers?: Record<string, string> };
 
 // ===========================
 // Constants
 // ===========================
 
 const CONFIG_DIR = '.rainy';
-const CONFIG_FILE = 'rainy-mcp.json';
-const SCHEMA_URL = 'https://rainy-aether.dev/schemas/rainy-mcp.json';
+const CONFIG_FILE = 'mcp.json'; // Standard name, no custom prefix
 
 // ===========================
 // Config Loader
 // ===========================
 
 let cachedWorkspace: string | null = null;
-let cachedConfig: RainyMCPConfig | null = null;
+let cachedConfig: MCPConfig | null = null;
 
 /**
- * Get project-level MCP configuration path
+ * Get MCP configuration path for a workspace
  */
 export function getMCPConfigPath(workspace: string): string {
     return path.join(workspace, CONFIG_DIR, CONFIG_FILE);
 }
 
 /**
- * Check if project has MCP configuration
+ * Check if workspace has MCP configuration
  */
 export function hasMCPConfig(workspace: string): boolean {
-    const configPath = getMCPConfigPath(workspace);
-    return fs.existsSync(configPath);
+    return fs.existsSync(getMCPConfigPath(workspace));
 }
 
 /**
- * Load MCP configuration from .rainy/rainy-mcp.json
+ * Load MCP configuration from .rainy/mcp.json
  */
-export function loadMCPConfig(workspace: string): RainyMCPConfig | null {
-    // Return cached if same workspace
+export function loadMCPConfig(workspace: string): MCPConfig | null {
     if (cachedWorkspace === workspace && cachedConfig) {
         return cachedConfig;
     }
@@ -94,43 +90,65 @@ export function loadMCPConfig(workspace: string): RainyMCPConfig | null {
 
     try {
         const content = fs.readFileSync(configPath, 'utf-8');
-        const config = JSON.parse(content) as RainyMCPConfig;
+        const config = JSON.parse(content) as MCPConfig;
 
-        // Validate version
-        if (config.version !== '1.0') {
-            console.warn(`[MCP Config] Unsupported version: ${config.version}`);
+        if (!config.mcpServers) {
+            console.warn('[MCP] Invalid config: missing mcpServers');
             return null;
         }
 
-        // Cache for performance
         cachedWorkspace = workspace;
         cachedConfig = config;
 
-        console.log(`[MCP Config] Loaded ${config.servers.length} servers from ${configPath}`);
+        const serverCount = Object.keys(config.mcpServers).length;
+        console.log(`[MCP] Loaded ${serverCount} servers from ${configPath}`);
         return config;
     } catch (error) {
-        console.error(`[MCP Config] Failed to load ${configPath}:`, error);
+        console.error(`[MCP] Failed to load ${configPath}:`, error);
         return null;
     }
 }
 
 /**
- * Convert project config to MCPServerConfig[]
+ * Convert standard config to MCPServerConfig[]
  */
 export function getProjectMCPConfigs(workspace: string): MCPServerConfig[] {
     const config = loadMCPConfig(workspace);
     if (!config) return [];
 
-    return config.servers
-        .filter(s => s.enabled !== false)
-        .map(s => ({
-            name: s.name,
-            description: s.description || `MCP Server: ${s.name}`,
-            transport: s.transport as MCPTransport,
-            enabled: s.enabled !== false,
+    return Object.entries(config.mcpServers)
+        .filter(([, entry]) => entry.enabled !== false)
+        .map(([name, entry]) => ({
+            name,
+            description: entry.description || `MCP Server: ${name}`,
+            transport: {
+                type: 'stdio' as const,
+                command: entry.command,
+                args: entry.args,
+                env: entry.env,
+            } as MCPTransport,
+            enabled: entry.enabled !== false,
             priority: 'local' as const,
-            category: s.category || 'custom',
+            category: 'custom' as const,
         }));
+}
+
+/**
+ * Get server names from config
+ */
+export function getMCPServerNames(workspace: string): string[] {
+    const config = loadMCPConfig(workspace);
+    if (!config) return [];
+    return Object.keys(config.mcpServers);
+}
+
+/**
+ * Get specific server config
+ */
+export function getMCPServer(workspace: string, name: string): MCPServerEntry | null {
+    const config = loadMCPConfig(workspace);
+    if (!config) return null;
+    return config.mcpServers[name] || null;
 }
 
 /**
@@ -146,11 +164,9 @@ export function clearConfigCache(): void {
  */
 export function watchMCPConfig(workspace: string, onChange: () => void): () => void {
     const configPath = getMCPConfigPath(workspace);
-    const dir = path.dirname(configPath);
 
-    // Create directory if not exists
-    if (!fs.existsSync(dir)) {
-        return () => { }; // Nothing to watch
+    if (!fs.existsSync(configPath)) {
+        return () => { };
     }
 
     try {
@@ -160,7 +176,6 @@ export function watchMCPConfig(workspace: string, onChange: () => void): () => v
                 onChange();
             }
         });
-
         return () => watcher.close();
     } catch {
         return () => { };
@@ -172,68 +187,57 @@ export function watchMCPConfig(workspace: string, onChange: () => void): () => v
 // ===========================
 
 /**
- * Create default MCP configuration file
+ * Create default MCP configuration
  */
 export function createDefaultMCPConfig(workspace: string): string {
     const configDir = path.join(workspace, CONFIG_DIR);
     const configPath = getMCPConfigPath(workspace);
 
-    // Create .rainy directory if needed
     if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
     }
 
-    const defaultConfig: RainyMCPConfig = {
-        $schema: SCHEMA_URL,
-        version: '1.0',
-        servers: [
-            {
-                name: 'context7',
+    const defaultConfig: MCPConfig = {
+        mcpServers: {
+            'context7': {
+                command: 'npx',
+                args: ['-y', '@upstash/context7-mcp'],
+                env: {},
                 description: 'Live documentation and code examples',
-                enabled: true,
-                transport: {
-                    type: 'stdio',
-                    command: 'npx',
-                    args: ['-y', '@context7/mcp-server'],
-                },
-                category: 'documentation',
             },
-        ],
-        defaults: {
-            timeout: 30000,
-            retries: 3,
-            retryDelay: 1000,
         },
     };
 
     fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf-8');
-    console.log(`[MCP Config] Created default config at ${configPath}`);
+    console.log(`[MCP] Created config at ${configPath}`);
 
     clearConfigCache();
     return configPath;
 }
 
 /**
- * Add server to MCP configuration
+ * Add server to configuration
  */
-export function addServerToConfig(workspace: string, server: MCPServerEntry): boolean {
+export function addMCPServer(
+    workspace: string,
+    name: string,
+    server: MCPServerEntry
+): boolean {
     let config = loadMCPConfig(workspace);
 
     if (!config) {
-        // Create new config
         createDefaultMCPConfig(workspace);
         config = loadMCPConfig(workspace);
     }
 
     if (!config) return false;
 
-    // Check for duplicate
-    if (config.servers.some(s => s.name === server.name)) {
-        console.warn(`[MCP Config] Server ${server.name} already exists`);
+    if (config.mcpServers[name]) {
+        console.warn(`[MCP] Server ${name} already exists`);
         return false;
     }
 
-    config.servers.push(server);
+    config.mcpServers[name] = server;
 
     const configPath = getMCPConfigPath(workspace);
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
@@ -243,16 +247,17 @@ export function addServerToConfig(workspace: string, server: MCPServerEntry): bo
 }
 
 /**
- * Remove server from MCP configuration
+ * Update server configuration
  */
-export function removeServerFromConfig(workspace: string, serverName: string): boolean {
+export function updateMCPServer(
+    workspace: string,
+    name: string,
+    updates: Partial<MCPServerEntry>
+): boolean {
     const config = loadMCPConfig(workspace);
-    if (!config) return false;
+    if (!config || !config.mcpServers[name]) return false;
 
-    const index = config.servers.findIndex(s => s.name === serverName);
-    if (index === -1) return false;
-
-    config.servers.splice(index, 1);
+    config.mcpServers[name] = { ...config.mcpServers[name], ...updates };
 
     const configPath = getMCPConfigPath(workspace);
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
@@ -262,22 +267,26 @@ export function removeServerFromConfig(workspace: string, serverName: string): b
 }
 
 /**
- * Enable/disable server in configuration
+ * Remove server from configuration
  */
-export function toggleServerEnabled(workspace: string, serverName: string, enabled: boolean): boolean {
+export function removeMCPServer(workspace: string, name: string): boolean {
     const config = loadMCPConfig(workspace);
-    if (!config) return false;
+    if (!config || !config.mcpServers[name]) return false;
 
-    const server = config.servers.find(s => s.name === serverName);
-    if (!server) return false;
-
-    server.enabled = enabled;
+    delete config.mcpServers[name];
 
     const configPath = getMCPConfigPath(workspace);
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
     clearConfigCache();
 
     return true;
+}
+
+/**
+ * Toggle server enabled/disabled
+ */
+export function toggleMCPServer(workspace: string, name: string, enabled: boolean): boolean {
+    return updateMCPServer(workspace, name, { enabled });
 }
 
 // ===========================
@@ -303,54 +312,46 @@ export function validateMCPConfig(config: unknown): ConfigValidationResult {
 
     const cfg = config as Record<string, unknown>;
 
-    // Check version
-    if (cfg.version !== '1.0') {
-        errors.push(`Invalid version: ${cfg.version}. Expected "1.0"`);
+    if (!cfg.mcpServers || typeof cfg.mcpServers !== 'object') {
+        errors.push('Missing or invalid mcpServers object');
+        return { valid: false, errors, warnings };
     }
 
-    // Check servers
-    if (!Array.isArray(cfg.servers)) {
-        errors.push('servers must be an array');
-    } else {
-        for (let i = 0; i < cfg.servers.length; i++) {
-            const server = cfg.servers[i] as MCPServerEntry;
+    const servers = cfg.mcpServers as Record<string, unknown>;
 
-            if (!server.name || typeof server.name !== 'string') {
-                errors.push(`Server ${i}: name is required`);
-            }
+    for (const [name, server] of Object.entries(servers)) {
+        if (!server || typeof server !== 'object') {
+            errors.push(`${name}: Invalid server config`);
+            continue;
+        }
 
-            if (!server.transport || typeof server.transport !== 'object') {
-                errors.push(`Server ${i}: transport is required`);
-            } else {
-                const transport = server.transport;
-                const validTypes = ['stdio', 'ws', 'sse', 'streamable-http'];
-                if (!validTypes.includes(transport.type)) {
-                    errors.push(`Server ${i}: invalid transport type "${transport.type}"`);
-                }
+        const s = server as Record<string, unknown>;
 
-                if (transport.type === 'stdio' && !transport.command) {
-                    errors.push(`Server ${i}: stdio transport requires command`);
-                }
+        if (typeof s.command !== 'string') {
+            errors.push(`${name}: Missing command`);
+        }
 
-                if (['ws', 'sse', 'streamable-http'].includes(transport.type)) {
-                    const urlTransport = transport as { url?: string };
-                    if (!urlTransport.url) {
-                        errors.push(`Server ${i}: ${transport.type} transport requires url`);
-                    }
-                }
-            }
+        if (s.args !== undefined && !Array.isArray(s.args)) {
+            errors.push(`${name}: args must be an array`);
+        }
+
+        if (s.env !== undefined && typeof s.env !== 'object') {
+            errors.push(`${name}: env must be an object`);
         }
     }
 
-    // Warnings for best practices
-    const serverCount = Array.isArray(cfg.servers) ? cfg.servers.length : 0;
-    if (serverCount > 10) {
-        warnings.push('Consider reducing server count for performance');
+    if (Object.keys(servers).length > 10) {
+        warnings.push('Many servers configured - may impact performance');
     }
 
-    return {
-        valid: errors.length === 0,
-        errors,
-        warnings,
-    };
+    return { valid: errors.length === 0, errors, warnings };
 }
+
+// ===========================
+// Backward Compatibility
+// ===========================
+
+// Re-export with old names for compatibility
+export const addServerToConfig = addMCPServer;
+export const removeServerFromConfig = removeMCPServer;
+export const toggleServerEnabled = toggleMCPServer;

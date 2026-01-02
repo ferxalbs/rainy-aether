@@ -400,19 +400,24 @@ agentkit.post('/mcp/config', async (c: Context) => {
  * Add server to project config
  */
 agentkit.post('/mcp/servers', async (c: Context) => {
-    const { workspace, server } = await c.req.json<{
+    const { workspace, name, server } = await c.req.json<{
         workspace?: string;
+        name: string;
         server: MCPServerEntry;
     }>();
 
-    const ws = workspace || process.cwd();
-    const success = addServerToConfig(ws, server);
-
-    if (!success) {
-        return c.json({ error: 'Failed to add server' }, 400);
+    if (!name) {
+        return c.json({ error: 'Server name is required' }, 400);
     }
 
-    return c.json({ added: true, server: server.name });
+    const ws = workspace || process.cwd();
+    const success = addServerToConfig(ws, name, server);
+
+    if (!success) {
+        return c.json({ error: 'Failed to add server (may already exist)' }, 400);
+    }
+
+    return c.json({ added: true, server: name });
 });
 
 /**
