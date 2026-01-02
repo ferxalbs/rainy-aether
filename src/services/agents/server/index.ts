@@ -17,8 +17,9 @@ import type { Context } from 'hono';
 
 // Import modules
 import brainRoutes from './routes/brain';
+import agentkitRoutes from './routes/agentkit';
 import { inngest, allWorkflows } from './workflows';
-import { getAgentTypes } from './agents';
+import { getAgentTypes, agentFactories } from './agents';
 
 // ===========================
 // Hono App
@@ -42,8 +43,11 @@ app.get('/health', (c: Context) => c.json({
     features: ['brain', 'tools', 'agents', 'inngest'],
 }));
 
-// Mount brain routes
+// Mount brain routes (legacy)
 app.route('/api/brain', brainRoutes);
+
+// Mount AgentKit routes (new)
+app.route('/api/agentkit', agentkitRoutes);
 
 // Inngest endpoint
 app.on(['GET', 'POST', 'PUT'], '/api/inngest', serveInngest({
@@ -62,7 +66,7 @@ app.get('/api/brain/status', (c: Context) => c.json({
 // Root info
 app.get('/', (c: Context) => c.json({
     name: 'Rainy Agents Server',
-    version: '0.3.0',
+    version: '0.4.0',
     endpoints: {
         health: '/health',
         brain: {
@@ -75,9 +79,20 @@ app.get('/', (c: Context) => c.json({
             tool: 'POST /api/brain/tool',
             batch: 'POST /api/brain/tools/batch',
         },
+        agentkit: {
+            execute: 'POST /api/agentkit/execute',
+            status: 'GET /api/agentkit/tasks/:id',
+            stream: 'GET /api/agentkit/tasks/:id/stream',
+            route: 'POST /api/agentkit/route',
+            agent: 'POST /api/agentkit/agent/:type',
+            agents: 'GET /api/agentkit/agents',
+            conversations: 'GET /api/agentkit/conversations/:id',
+            mcp: 'GET /api/agentkit/mcp/servers',
+        },
         inngest: '/api/inngest',
     },
     agents: getAgentTypes(),
+    agentkitAgents: Object.keys(agentFactories),
 }));
 
 // ===========================
@@ -91,13 +106,15 @@ serve({
     port,
 }, (info: { port: number }) => {
     console.log('');
-    console.log('🧠 Rainy Agents Server v0.3.0');
+    console.log('🧠 Rainy Agents Server v0.4.0');
     console.log('═══════════════════════════════════════');
     console.log(`   Server:    http://localhost:${info.port}`);
     console.log(`   Brain:     http://localhost:${info.port}/api/brain`);
+    console.log(`   AgentKit:  http://localhost:${info.port}/api/agentkit`);
     console.log(`   Inngest:   http://localhost:${info.port}/api/inngest`);
     console.log(`   Tools:     18 registered`);
     console.log(`   Agents:    ${getAgentTypes().join(', ')}`);
+    console.log(`   AgentKit:  ${Object.keys(agentFactories).join(', ')}`);
     console.log(`   Workflows: ${allWorkflows.length} durable`);
     console.log('═══════════════════════════════════════');
     console.log('');
