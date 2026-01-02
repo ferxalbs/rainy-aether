@@ -2,6 +2,38 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.7] - 2026-01-02
+
+### Added
+- **MCP Server Manager**: New UI to manage MCP servers (similar design to Extension Marketplace) with:
+  - Server sidebar showing connection status and tool counts
+  - Tool list with descriptions and individual enable/disable toggles
+  - Server enable/disable switches
+  - View raw config and refresh buttons
+- **AgentKit Integration**: Complete server-side agent architecture migration:
+  - Durable agent execution via Inngest workflows
+  - LLM-based hybrid routing (heuristics + AI)
+  - Persistent state management for conversations
+  - Real-time SSE streaming for agent events
+- **MCP Configuration**: Standard MCP config format (`.rainy/mcp.json`) compatible with Claude Desktop/Cursor
+- **MCP Resilience Layer**: Production-ready MCP connections with:
+  - Circuit breakers for fault tolerance
+  - Exponential backoff retry with jitter
+  - Rate limiting (token bucket algorithm)
+  - Health monitoring and logging
+- **AgentKit API**: New REST endpoints at `/api/agentkit/` for:
+  - Task execution with network routing
+  - SSE streaming for real-time events
+  - MCP configuration management
+  - Health and circuit breaker status
+- **useAgentKit Hook**: React hook for frontend AgentKit integration with task execution and event streaming
+
+### Improved
+- **Tool Execution Display**: Added MCP tool icons (Context7, Firebase, Dart) to chat tool call visualization
+- **Agent Architecture**: Migrated from ad-hoc agent system to structured AgentKit-based network
+
+---
+
 ## [v0.1.6] - 2026-01-02
 
 ### Added

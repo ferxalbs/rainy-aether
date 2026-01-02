@@ -47,6 +47,7 @@ interface ToolExecutionListProps {
 
 // Map tool names to icons
 const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+    // File operations
     'read_file': FileText,
     'write_file': FileText,
     'create_file': FileText,
@@ -56,18 +57,35 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
     'list_dir': FolderOpen,
     'list_files': FolderOpen,
     'read_directory_tree': FolderOpen,
+    // Search & commands
     'search_code': Search,
     'run_command': Terminal,
     'run_tests': Play,
     'get_workspace_info': FolderOpen,
+    // Git
     'git_status': GitBranch,
     'git_diff': GitBranch,
     'git_commit': GitBranch,
     'git_add': GitBranch,
+    // Web & media
     'search_web': Globe,
     'generate_image': ImageIcon,
     'analyze_code': Cpu,
     'query_db': Database,
+    // MCP Context7 tools
+    'resolve-library-id': Globe,
+    'query-docs': Globe,
+    // MCP Firebase tools
+    'firebase_auth': Globe,
+    'firebase_firestore': Database,
+    'firebase_storage': Database,
+    'firebase_functions': Cpu,
+    'firebase_hosting': Globe,
+    // MCP Dart tools
+    'dart_analyze': Code2,
+    'dart_format': Code2,
+    'flutter_run': Play,
+    'flutter_test': Play,
 };
 
 function getToolIcon(toolName: string) {
