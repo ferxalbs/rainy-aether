@@ -30,6 +30,7 @@ import { initializeUpdateService, startAutoUpdateCheck } from "../../services/up
 import ProblemsPanel from "./ProblemsPanel";
 import PreviewBrowserPanel from "./PreviewBrowserPanel";
 import { RightSidebar } from "./RightSidebar";
+import MCPManager from "../agents/MCPManager";
 
 import { useDiffState } from "@/stores/diffStore";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
@@ -50,6 +51,7 @@ const IDE: React.FC = () => {
   const [isExtensionManagerOpen, setIsExtensionManagerOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isMCPManagerOpen, setIsMCPManagerOpen] = useState(false);
 
   // Subscribe to diff state to auto-open diff panel
   const diffState = useDiffState();
@@ -585,6 +587,7 @@ const IDE: React.FC = () => {
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         onOpenThemeSwitcher={() => setIsThemeSwitcherOpen(true)}
+        onOpenMCPManager={() => setIsMCPManagerOpen(true)}
       />
 
       <GoToLineDialog
@@ -619,6 +622,13 @@ const IDE: React.FC = () => {
       <AboutDialog
         open={isAboutOpen}
         onOpenChange={setIsAboutOpen}
+      />
+
+      {/* MCP Manager */}
+      <MCPManager
+        isOpen={isMCPManagerOpen}
+        onClose={() => setIsMCPManagerOpen(false)}
+        workspace={snapshot.workspace?.path || undefined}
       />
 
       {/* Update notification */}

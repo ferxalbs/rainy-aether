@@ -11,6 +11,7 @@ import {
   FilePlus,
   ArrowRight,
   Command,
+  Server,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { toggleDayNight, useThemeState, isExtensionThemeActive } from "../../stores/themeStore";
@@ -21,6 +22,7 @@ interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenThemeSwitcher: () => void;
+  onOpenMCPManager?: () => void;
 }
 
 type CommandItem = {
@@ -28,7 +30,7 @@ type CommandItem = {
   title: string;
   hint?: string;
   run: () => void;
-  icon?: "settings" | "folder" | "save" | "palette" | "moon" | "sun" | "fileplus";
+  icon?: "settings" | "folder" | "save" | "palette" | "moon" | "sun" | "fileplus" | "server";
   disabled?: boolean;
 };
 
@@ -40,7 +42,7 @@ function matchScore(query: string, title: string): number {
   return -1;
 }
 
-const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpenThemeSwitcher }) => {
+const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpenThemeSwitcher, onOpenMCPManager }) => {
   const { actions, state } = useIDEStore();
   const theme = useThemeState();
 
@@ -157,15 +159,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
         title: "Toggle Fold",
         run: () => editorActions.toggleFold(),
       },
+      // MCP Manager
       {
-        id: "fold-recursively",
-        title: "Fold Recursively",
-        run: () => editorActions.foldRecursively(),
-      },
-      {
-        id: "unfold-recursively",
-        title: "Unfold Recursively",
-        run: () => editorActions.unfoldRecursively(),
+        id: "open-mcp-manager",
+        title: "Manage MCP Servers",
+        run: () => onOpenMCPManager?.(),
+        icon: "server",
+        disabled: !onOpenMCPManager,
       },
       // View commands
       {
@@ -255,7 +255,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
         run: () => actions.toggleZenMode(),
       },
     ],
-    [actions, getActiveFile, onOpenThemeSwitcher, theme.currentTheme.mode],
+    [actions, getActiveFile, onOpenThemeSwitcher, onOpenMCPManager, theme.currentTheme.mode],
   );
 
   const filteredCommands = useMemo(() => {
@@ -353,6 +353,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
         return <Sun {...sharedProps} />;
       case "fileplus":
         return <FilePlus {...sharedProps} />;
+      case "server":
+        return <Server {...sharedProps} />;
       default:
         return <Command {...sharedProps} />;
     }
