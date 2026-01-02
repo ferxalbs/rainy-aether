@@ -22,6 +22,35 @@ pub fn git_init(path: String) -> Result<String, String> {
     Ok(format!("Initialized empty Git repository in {}", path))
 }
 
+/// Delete the .git folder to reset a local repository
+/// Only works on local repositories (no remote configured)
+#[tauri::command]
+pub fn git_delete_repo(path: String, force: Option<bool>) -> Result<String, String> {
+    let git_dir = std::path::Path::new(&path).join(".git");
+
+    if !git_dir.exists() {
+        return Err("No .git directory found".to_string());
+    }
+
+    // Check if it has remotes (unless force is true)
+    if !force.unwrap_or(false) {
+        if let Ok(repo) = Repository::open(&path) {
+            if let Ok(remotes) = repo.remotes() {
+                if !remotes.is_empty() {
+                    return Err("Repository has remotes configured. Use force=true to delete anyway or remove remotes first.".to_string());
+                }
+            }
+        }
+    }
+
+    // Delete the .git directory
+    std::fs::remove_dir_all(&git_dir)
+        .map_err(|e| format!("Failed to delete .git directory: {}", e))?;
+
+    println!("[Git] Deleted .git directory at {}", path);
+    Ok("Repository deleted successfully".to_string())
+}
+
 /// Get git status using native libgit2
 #[tauri::command]
 pub fn git_status(path: String) -> Result<Vec<StatusEntry>, String> {

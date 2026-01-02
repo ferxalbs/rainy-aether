@@ -16,6 +16,13 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ### Improved
 - **Git Sidebar UX**: Source Control panel now shows helpful onboarding when no repository is detected instead of a minimal placeholder
 
+### Fixed
+- **Git Commit Staging**: Fixed critical bug where `git_commit` ignored the "Stage all" option, causing commits to be empty when files hadn't been manually staged. Now properly stages all files (including untracked) before committing when enabled.
+
+### Added in Patch
+- **Delete Repository**: New option to delete the `.git` folder for resetting local repositories (accessible via "More options" dropdown in Git panel)
+- **`git_delete_repo` Command**: Native Rust command to safely delete `.git` folder, with protection for repos that have remotes configured
+
 ---
 
 ## [v0.1.5] - 2026-01-01

@@ -6,17 +6,77 @@ use super::error::GitError;
 use git2::Repository;
 
 /// Create a commit
+/// If stage_all is true, stages all tracked modified files AND untracked files before committing
 #[tauri::command]
-pub fn git_commit(path: String, message: String) -> Result<String, String> {
+pub fn git_commit(
+    path: String,
+    message: String,
+    stage_all: Option<bool>,
+) -> Result<String, String> {
     let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+
+    // Stage all files if requested (including untracked files)
+    if stage_all.unwrap_or(false) {
+        // Get status to find all modified and untracked files
+        let mut status_opts = git2::StatusOptions::new();
+        status_opts
+            .include_untracked(true)
+            .recurse_untracked_dirs(true)
+            .include_ignored(false);
+
+        let statuses = repo
+            .statuses(Some(&mut status_opts))
+            .map_err(|e| format!("Failed to get status: {}", e))?;
+
+        let mut index = repo.index().map_err(|e| GitError::from(e))?;
+        let mut staged_count = 0;
+
+        for entry in statuses.iter() {
+            if let Some(file_path) = entry.path() {
+                let status = entry.status();
+
+                // Skip ignored files
+                if status.contains(git2::Status::IGNORED) {
+                    continue;
+                }
+
+                // Stage untracked and modified files
+                if status.contains(git2::Status::WT_NEW)
+                    || status.contains(git2::Status::WT_MODIFIED)
+                    || status.contains(git2::Status::WT_DELETED)
+                    || status.contains(git2::Status::WT_RENAMED)
+                    || status.contains(git2::Status::WT_TYPECHANGE)
+                {
+                    if status.contains(git2::Status::WT_DELETED) {
+                        // For deleted files, remove from index
+                        let _ = index.remove_path(std::path::Path::new(file_path));
+                    } else {
+                        // For new/modified files, add to index
+                        index
+                            .add_path(std::path::Path::new(file_path))
+                            .map_err(|e| format!("Failed to stage {}: {}", file_path, e))?;
+                    }
+                    staged_count += 1;
+                    println!("[GitCommit] Staged: {}", file_path);
+                }
+            }
+        }
+
+        index
+            .write()
+            .map_err(|e| format!("Failed to write index: {}", e))?;
+        println!("[GitCommit] Total staged: {} files", staged_count);
+    }
 
     // Get the signature from git config
     let sig = repo.signature().map_err(|e| GitError::from(e))?;
 
-    // Get the tree from index
+    // Re-read the index to get the updated tree
     let mut index = repo.index().map_err(|e| GitError::from(e))?;
     let tree_id = index.write_tree().map_err(|e| GitError::from(e))?;
     let tree = repo.find_tree(tree_id).map_err(|e| GitError::from(e))?;
+
+    println!("[GitCommit] Tree has {} entries", tree.len());
 
     // Get parent commit (if any)
     let parent = match repo.head() {
@@ -29,6 +89,8 @@ pub fn git_commit(path: String, message: String) -> Result<String, String> {
     let commit_id = repo
         .commit(Some("HEAD"), &sig, &sig, &message, &tree, &parents)
         .map_err(|e| GitError::from(e))?;
+
+    println!("[GitCommit] Created commit: {}", commit_id);
 
     Ok(commit_id.to_string())
 }

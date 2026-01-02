@@ -303,6 +303,7 @@ pub fn run() {
         // Status operations
         git::status::git_is_repo,
         git::status::git_init,
+        git::status::git_delete_repo,
         git::status::git_status,
         git::status::git_stage_file,
         git::status::git_stage_all,

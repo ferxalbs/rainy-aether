@@ -10,6 +10,8 @@ import {
   EyeOff,
   RotateCcw,
   Check,
+  MoreVertical,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -28,6 +30,7 @@ import {
   useGitState,
   Commit,
   showGitError,
+  deleteRepository,
 } from "@/stores/gitStore";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -195,6 +198,32 @@ const GitHistoryPanel: React.FC = () => {
             >
               <RefreshCcw className="size-3.5" />
             </Button>
+            {/* More options dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  title="More options"
+                >
+                  <MoreVertical className="size-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-background/10 backdrop-blur-3xl">
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => {
+                    if (confirm("Are you sure you want to delete the .git folder? This cannot be undone.")) {
+                      deleteRepository();
+                    }
+                  }}
+                >
+                  <Trash2 className="size-4 mr-2" />
+                  Delete Repository
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

@@ -382,7 +382,8 @@ export async function commit(message: string, stageAll = true) {
   if (!wsPath) throw new Error("No workspace open");
 
   try {
-    await invoke<string>("git_commit", { path: wsPath, message, stageAll });
+    // Note: Tauri requires snake_case parameter names to match Rust
+    await invoke<string>("git_commit", { path: wsPath, message, stage_all: stageAll });
     await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
     showGitSuccess("Changes committed successfully");
   } catch (error) {
@@ -586,6 +587,39 @@ export async function initRepository(): Promise<boolean> {
       refreshBranches(false),
       refreshHistory(100, false),
     ]);
+
+    return true;
+  } catch (error) {
+    showGitError(error);
+    return false;
+  }
+}
+
+/**
+ * Delete the .git folder to reset a local repository
+ * Only works on local repositories without remotes (unless force is true)
+ */
+export async function deleteRepository(force = false): Promise<boolean> {
+  const wsPath = git.workspacePath;
+  if (!wsPath) {
+    showGitError(new Error("No workspace folder open"));
+    return false;
+  }
+
+  try {
+    await invoke("git_delete_repo", { path: wsPath, force });
+    showGitSuccess("Repository deleted");
+
+    // Reset git state
+    updateGitState({
+      isRepo: false,
+      commits: [],
+      status: [],
+      branches: [],
+      stashes: [],
+      remotes: [],
+      currentBranch: undefined,
+    });
 
     return true;
   } catch (error) {
