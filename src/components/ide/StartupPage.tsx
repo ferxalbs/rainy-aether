@@ -268,7 +268,7 @@ const StartupPage: React.FC = () => {
                   <div className="w-8 h-8 rounded bg-primary text-primary-foreground flex items-center justify-center">
                     <Zap size={16} />
                   </div>
-                  <CardTitle className="text-base">Get Started with Rainy Coder</CardTitle>
+                  <CardTitle className="text-base">Get Started with Rainy Aether</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>

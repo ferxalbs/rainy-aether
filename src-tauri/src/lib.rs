@@ -13,6 +13,7 @@ mod language_server_manager;
 #[cfg(target_os = "macos")]
 mod menu_manager; // Native macOS menu support
 mod project_manager;
+mod state_manager; // Session state management (Rust-based persistence)
 mod terminal_manager;
 mod theme_manager; // Core Rust theme management
 mod update_manager;
@@ -57,6 +58,21 @@ fn open_in_directory(app: tauri::AppHandle, path: String) -> Result<(), String> 
     }
 }
 
+/// Set menu mode - macOS implementation
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn set_menu_mode(app: tauri::AppHandle, mode: String) -> Result<(), String> {
+    menu_manager::set_menu_mode(app, mode)
+}
+
+/// Set menu mode - stub for non-macOS platforms (no-op)
+#[cfg(not(target_os = "macos"))]
+#[tauri::command]
+fn set_menu_mode(_app: tauri::AppHandle, _mode: String) -> Result<(), String> {
+    // Menu mode switching is macOS-only
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default()
@@ -69,6 +85,7 @@ pub fn run() {
         .manage(browser_manager::BrowserManagerState::new())
         .manage(icon_theme_manager::IconThemeManagerState::new())
         .manage(theme_manager::ThemeManagerState::new())
+        .manage(state_manager::SessionStateManager::new())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -82,15 +99,16 @@ pub fn run() {
     {
         use tauri::Emitter;
         builder = builder.setup(|app| {
-            // macOS-only: Set up native application menu
+            // macOS-only: Set up native application menu (starts with minimal startup menu)
             #[cfg(target_os = "macos")]
             {
-                match menu_manager::build_menu(app.handle()) {
+                // Start with startup (minimal) menu - will switch to full menu when project opens
+                match menu_manager::build_startup_menu(app.handle()) {
                     Ok(menu) => {
                         if let Err(e) = app.set_menu(menu) {
                             eprintln!("Failed to set macOS menu: {}", e);
                         } else {
-                            println!("[MenuManager] ✓ Native macOS menu set successfully");
+                            println!("[MenuManager] ✓ Native macOS startup menu set successfully");
                         }
                     }
                     Err(e) => {
@@ -427,6 +445,12 @@ pub fn run() {
         icon_theme_manager::get_icons_batch,
         icon_theme_manager::unregister_icon_theme,
         icon_theme_manager::get_loaded_icon_themes,
+        // Session state management (Rust-based persistence)
+        state_manager::get_session_state,
+        state_manager::save_session_state,
+        state_manager::clear_session_state,
+        // Menu mode switching (cross-platform, macOS has real implementation)
+        set_menu_mode,
     ]);
 
     if let Err(error) = builder.run(tauri::generate_context!()) {

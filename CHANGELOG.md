@@ -2,6 +2,22 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.5] - 2026-01-01
+
+### Added
+- **Rust State Manager**: New `state_manager` module for centralized session state persistence, replacing fragmented TypeScript persistence.
+- **Session State Commands**: `get_session_state`, `save_session_state`, `clear_session_state` Tauri commands for reliable session management.
+- **Dynamic Menu Switching**: macOS menu bar now switches between minimal (startup) and full (editor) menus based on current view.
+- **Startup Menu**: Minimal startup menu with only essential items (Rainy Aether, File, Window, Help).
+
+### Fixed
+- **Project Closure Bug**: Closing a project and restarting the app no longer reopens the closed project. Session state now correctly tracks `is_project_open` flag.
+- **Version Display**: Synchronized versions across `package.json`, `tauri.conf.json`, and `Cargo.toml` to 0.1.5.
+
+### Improved
+- **Menu Bar on Startup Page**: Menu bar is now minimal on startup page, showing only relevant options.
+- **State Persistence**: Consolidated session state in Rust backend, eliminating duplicate frontend persistence.
+
 ## [v0.1.4] - 2025-12-31
 
 ### Fixed

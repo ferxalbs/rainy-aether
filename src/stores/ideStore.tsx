@@ -171,7 +171,20 @@ const refreshWorkspaceContents = async (workspace: Workspace) => {
 
 const setCurrentView = (view: IDEView) => {
   setState((prev) => ({ ...prev, currentView: view }));
-  safeSaveToStore("rainy-coder-current-view", view);
+
+  // Save session state via Rust backend (replaces old safeSaveToStore)
+  const workspace = getState().workspace;
+  invoke('save_session_state', {
+    session: {
+      current_view: view,
+      active_workspace_path: workspace?.path ?? null,
+      is_project_open: view === 'editor' && !!workspace
+    }
+  }).catch(err => console.warn('[IDE] Failed to save session state:', err));
+
+  // Update menu mode on macOS (startup = minimal, otherwise = full)
+  invoke('set_menu_mode', { mode: view === 'startup' ? 'startup' : 'full' })
+    .catch(err => console.warn('[IDE] Failed to set menu mode:', err));
 };
 
 const setViewMode = (mode: ViewMode) => {
@@ -629,7 +642,18 @@ const openWorkspace = async (workspace: Workspace, saveToRecents: boolean = true
       };
     });
 
-    safeSaveToStore("rainy-coder-current-view", "editor");
+    // Save session state via Rust backend - project is now open
+    await invoke('save_session_state', {
+      session: {
+        current_view: 'editor',
+        active_workspace_path: workspace.path,
+        is_project_open: true
+      }
+    }).catch(err => console.warn('[IDE] Failed to save session state:', err));
+
+    // Switch to full menu on macOS since we have a project open
+    invoke('set_menu_mode', { mode: 'full' })
+      .catch(err => console.warn('[IDE] Failed to set menu mode:', err));
 
     try {
       const { setWorkspacePath, refreshHistory, refreshStatus, refreshRepoDetection, refreshBranches, refreshStashes } = await import("./gitStore");
@@ -1036,6 +1060,19 @@ const closeProject = async () => {
     safeSaveToStore("rainy-coder-recent-workspaces", recentWorkspaces);
   }
 
+  // Save session state via Rust backend - project is now closed
+  await invoke('save_session_state', {
+    session: {
+      current_view: 'startup',
+      active_workspace_path: null,
+      is_project_open: false
+    }
+  }).catch(err => console.warn('[IDE] Failed to save session state:', err));
+
+  // Switch to minimal startup menu on macOS
+  invoke('set_menu_mode', { mode: 'startup' })
+    .catch(err => console.warn('[IDE] Failed to set menu mode:', err));
+
   setState((prev) => ({
     ...prev,
     currentView: "startup",
@@ -1045,8 +1082,6 @@ const closeProject = async () => {
     projectTree: null,
     recentWorkspaces,
   }));
-
-  safeSaveToStore("rainy-coder-current-view", "startup");
 };
 
 // Lazy load children for a directory node
@@ -1169,67 +1204,35 @@ interface IDEContextValue {
 
 const IDEContext = createContext<IDEContextValue | undefined>(undefined);
 
-/**
- * Parse workspace path from URL query parameters
- * Used when a new window is opened with a specific workspace
- */
-const getWorkspaceFromURL = (): string | null => {
-  try {
-    if (typeof window === 'undefined') return null;
-
-    // Debug: Log the current location
-    console.log('[IDE] Current URL:', window.location.href);
-    console.log('[IDE] Search params:', window.location.search);
-
-    // Method 1: Try URLSearchParams (standard approach)
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const workspacePath = urlParams.get('workspace');
-
-      if (workspacePath) {
-        // Decode the workspace path
-        const decodedPath = decodeURIComponent(workspacePath);
-        console.log('[IDE] ✓ Found workspace in URL via URLSearchParams:', decodedPath);
-        return decodedPath;
-      }
-    } catch (e) {
-      console.warn('[IDE] URLSearchParams method failed:', e);
-    }
-
-    // Method 2: Manual parsing as fallback
-    if (window.location.search) {
-      const searchString = window.location.search.substring(1); // Remove leading '?'
-      const params = searchString.split('&');
-
-      for (const param of params) {
-        const [key, value] = param.split('=');
-        if (key === 'workspace' && value) {
-          const decodedPath = decodeURIComponent(value);
-          console.log('[IDE] ✓ Found workspace in URL via manual parsing:', decodedPath);
-          return decodedPath;
-        }
-      }
-    }
-
-    console.log('[IDE] No workspace parameter found in URL');
-    return null;
-  } catch (error) {
-    console.error('[IDE] Failed to parse workspace from URL:', error);
-    return null;
-  }
-};
+// SessionState type from Rust backend
+interface SessionState {
+  current_view: string;
+  active_workspace_path: string | null;
+  is_project_open: boolean;
+}
 
 const initializeFromStorage = async () => {
   console.log('[IDE] Initializing IDE from storage...');
+
+  // Load session state from Rust backend (single source of truth)
+  let sessionState: SessionState = {
+    current_view: 'startup',
+    active_workspace_path: null,
+    is_project_open: false
+  };
+
+  try {
+    sessionState = await invoke<SessionState>('get_session_state');
+    console.log('[IDE] Loaded session state from Rust:', sessionState);
+  } catch (error) {
+    console.warn('[IDE] Failed to load session state from Rust, using defaults:', error);
+  }
+
+  // Load recent workspaces (still from app-store since this is not session-related)
   const savedRecentWorkspaces = await loadFromStore<Workspace[]>("rainy-coder-recent-workspaces", []);
   console.log('[IDE] Loaded recent workspaces from storage:', savedRecentWorkspaces.length);
 
-  // IMPORTANT: New windows should NOT auto-load last workspace
-  // They will either:
-  // 1. Receive a 'rainy:load-workspace' event (for Duplicate Workspace)
-  // 2. Stay on StartupPage (for New Window)
-  //
-  // Only the MAIN window (first startup) should load last workspace
+  // Determine if we should load a workspace based on session state
   let initialWorkspace: Workspace | null = null;
 
   // Check if this is the main window by checking the window label
@@ -1242,12 +1245,20 @@ const initializeFromStorage = async () => {
 
     // Main window has label "main", new windows have "main-{timestamp}"
     if (label === 'main') {
-      // Main window: load last workspace from storage
-      initialWorkspace = savedRecentWorkspaces[0] ?? null;
-      if (initialWorkspace) {
-        console.log('[IDE] Main window - loading last workspace from storage:', initialWorkspace);
+      // Main window: ONLY load workspace if session state says project was open
+      if (sessionState.is_project_open && sessionState.active_workspace_path) {
+        // Find matching workspace from recent workspaces
+        initialWorkspace = savedRecentWorkspaces.find(
+          w => w.path === sessionState.active_workspace_path
+        ) ?? null;
+
+        if (initialWorkspace) {
+          console.log('[IDE] Main window - restoring previous workspace:', initialWorkspace.path);
+        } else {
+          console.log('[IDE] Main window - workspace path not in recent list, showing StartupPage');
+        }
       } else {
-        console.log('[IDE] Main window - no workspace found, will show StartupPage');
+        console.log('[IDE] Main window - session says no project open, showing StartupPage');
       }
     } else {
       // New window: don't load workspace, wait for event or stay on startup
@@ -1255,9 +1266,13 @@ const initializeFromStorage = async () => {
       initialWorkspace = null;
     }
   } catch (error) {
-    console.error('[IDE] Failed to get window label, assuming main window:', error);
-    // Fallback: assume main window
-    initialWorkspace = savedRecentWorkspaces[0] ?? null;
+    console.error('[IDE] Failed to get window label:', error);
+    // Fallback: Check session state
+    if (sessionState.is_project_open && sessionState.active_workspace_path) {
+      initialWorkspace = savedRecentWorkspaces.find(
+        w => w.path === sessionState.active_workspace_path
+      ) ?? null;
+    }
   }
 
   const [sidebarOpen, autoSaveEnabled, zenModeEnabled, sidebarActive, viewMode] = await Promise.all([
@@ -1278,23 +1293,27 @@ const initializeFromStorage = async () => {
       isZenMode: zenModeEnabled,
       sidebarActive,
       viewMode,
-      // If no workspace, stay on startup; otherwise, we'll open the workspace which sets currentView to editor
-      currentView: initialWorkspace ? prev.currentView : "startup",
+      // Use session state's current_view, default to startup if no workspace
+      currentView: initialWorkspace ? "editor" as IDEView : "startup" as IDEView,
     };
     console.log('[IDE] State after loading preferences:', {
       currentView: nextState.currentView,
       hasWorkspace: !!initialWorkspace,
+      sessionState,
     });
     return nextState;
   });
 
   // Open workspace after setting other preferences
-  // This ensures openWorkspace's state changes aren't overwritten
   if (initialWorkspace) {
     console.log('[IDE] Opening workspace...');
     await openWorkspace(initialWorkspace, false);
+    // Switch to full menu on macOS since we have a project open
+    invoke('set_menu_mode', { mode: 'full' })
+      .catch(err => console.warn('[IDE] Failed to set menu mode:', err));
   } else {
     console.log('[IDE] No workspace to open - staying on StartupPage');
+    // Menu is already startup mode from Rust initialization
   }
 };
 

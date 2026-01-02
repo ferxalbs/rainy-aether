@@ -1,10 +1,127 @@
 // Native macOS menu manager for Rainy Aether IDE
 // This module builds the native menu bar for macOS only
+// Supports dynamic menu switching between startup (minimal) and editor (full) modes
 
 use tauri::{
     menu::{AboutMetadata, Menu, MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder},
-    AppHandle,
+    AppHandle, Emitter,
 };
+
+/// Build a minimal menu for the startup page (macOS)
+/// Only includes: Rainy Aether, File (Open Project), Window, Help
+pub fn build_startup_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, Box<dyn std::error::Error>> {
+    // ===== Rainy Aether (App) Menu =====
+    let app_menu = SubmenuBuilder::new(app, "Rainy Aether")
+        .item(&PredefinedMenuItem::about(
+            app,
+            Some("About Rainy Aether"),
+            Some(AboutMetadata::default()),
+        )?)
+        .separator()
+        .item(
+            &MenuItemBuilder::with_id("app:settings", "Settings...")
+                .accelerator("Cmd+,")
+                .build(app)?,
+        )
+        .separator()
+        .item(&PredefinedMenuItem::services(app, Some("Services"))?)
+        .separator()
+        .item(&PredefinedMenuItem::hide(app, Some("Hide Rainy Aether"))?)
+        .item(&PredefinedMenuItem::hide_others(app, Some("Hide Others"))?)
+        .item(&PredefinedMenuItem::show_all(app, Some("Show All"))?)
+        .separator()
+        .item(&PredefinedMenuItem::quit(app, Some("Quit Rainy Aether"))?)
+        .build()?;
+
+    // ===== File Menu (minimal - only open project) =====
+    let file_menu = SubmenuBuilder::new(app, "File")
+        .item(
+            &MenuItemBuilder::with_id("file:open-project", "Open Project...")
+                .accelerator("Cmd+O")
+                .build(app)?,
+        )
+        .item(
+            &MenuItemBuilder::with_id("file:quick-open", "Quick Open...")
+                .accelerator("Cmd+P")
+                .build(app)?,
+        )
+        .separator()
+        .item(
+            &MenuItemBuilder::with_id("file:new-file", "New Untitled File")
+                .accelerator("Cmd+N")
+                .build(app)?,
+        )
+        .build()?;
+
+    // ===== Window Menu =====
+    let window_menu = SubmenuBuilder::new(app, "Window")
+        .item(
+            &MenuItemBuilder::with_id("window:new", "New Window")
+                .accelerator("Cmd+Shift+N")
+                .build(app)?,
+        )
+        .separator()
+        .item(&PredefinedMenuItem::minimize(app, Some("Minimize"))?)
+        .item(&PredefinedMenuItem::maximize(app, Some("Zoom"))?)
+        .separator()
+        .item(&PredefinedMenuItem::close_window(
+            app,
+            Some("Close Window"),
+        )?)
+        .build()?;
+
+    // ===== Help Menu =====
+    let help_menu = SubmenuBuilder::new(app, "Help")
+        .item(
+            &MenuItemBuilder::with_id("help:commands", "Show All Commands")
+                .accelerator("Cmd+Shift+P")
+                .build(app)?,
+        )
+        .separator()
+        .item(&MenuItemBuilder::with_id("help:getting-started", "Getting Started").build(app)?)
+        .item(&MenuItemBuilder::with_id("help:documentation", "Documentation").build(app)?)
+        .separator()
+        .item(&MenuItemBuilder::with_id("help:about", "About Rainy Aether").build(app)?)
+        .build()?;
+
+    // Build the minimal startup menu bar
+    let menu = MenuBuilder::new(app)
+        .item(&app_menu)
+        .item(&file_menu)
+        .item(&window_menu)
+        .item(&help_menu)
+        .build()?;
+
+    Ok(menu)
+}
+
+/// Set menu mode: "startup" for minimal menu, "full" for complete editor menu
+/// Called from lib.rs wrapper (not directly as a Tauri command here)
+pub fn set_menu_mode(app: AppHandle, mode: String) -> Result<(), String> {
+    let menu_result = if mode == "startup" {
+        eprintln!("[MenuManager] Switching to startup (minimal) menu");
+        build_startup_menu(&app)
+    } else {
+        eprintln!("[MenuManager] Switching to full editor menu");
+        build_menu(&app)
+    };
+
+    match menu_result {
+        Ok(menu) => {
+            if let Err(e) = app.set_menu(menu) {
+                eprintln!("[MenuManager] Failed to set menu: {}", e);
+                return Err(format!("Failed to set menu: {}", e));
+            }
+            // Emit event to notify frontend of menu change
+            let _ = app.emit("menu-mode-changed", &mode);
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("[MenuManager] Failed to build menu: {}", e);
+            Err(format!("Failed to build menu: {}", e))
+        }
+    }
+}
 
 /// Build the native macOS application menu
 /// This is only called on macOS platforms
