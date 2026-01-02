@@ -3,14 +3,14 @@
  * 
  * Agents with MCP server connections for external capabilities.
  * Supports Context7 for documentation and other MCP extensions.
+ * 
+ * Uses model IDs aligned with src/services/agent/providers
  */
 
-import { createAgent } from '@inngest/agent-kit';
+import { createAgent, gemini } from '@inngest/agent-kit';
 import { buildEnhancedPrompt } from './prompts';
-import { getDefaultModel, getFastModel, getSmartModel } from './models';
 import { plannerTools, coderTools, reviewerTools, docsTools } from '../tools/agentkit';
 import { getMCPConfigs } from '../mcp/config';
-import type { MCPServerConfig } from '../mcp/config';
 
 // ===========================
 // Types
@@ -21,6 +21,17 @@ export interface MCPAgentOptions {
     enableMCP?: boolean;
     mcpServers?: string[]; // List of MCP server names to enable
 }
+
+// ===========================
+// Model Configuration
+// ===========================
+
+// Aligned with src/services/agent/providers/index.ts
+const MODELS = {
+    default: 'gemini-3-flash-preview',
+    fast: 'gemini-3-flash-preview',
+    smart: 'gemini-3-pro-preview',
+} as const;
 
 // ===========================
 // MCP Server Configuration Helpers
@@ -76,9 +87,9 @@ export function createMCPPlannerAgent(options: MCPAgentOptions = {}) {
                 ? 'You have access to live documentation via Context7. Use query-docs to get up-to-date information.'
                 : undefined,
         }),
-        model: getSmartModel(),
+        model: gemini({ model: MODELS.smart }), // Planner needs reasoning
         tools: plannerTools,
-        mcpServers: mcpConfig as any, // Cast due to AgentKit type definition
+        mcpServers: mcpConfig as unknown as Parameters<typeof createAgent>[0]['mcpServers'],
     });
 }
 
@@ -99,9 +110,9 @@ export function createMCPCoderAgent(options: MCPAgentOptions = {}) {
                 ? 'You can query live documentation using Context7 for accurate API references.'
                 : undefined,
         }),
-        model: getDefaultModel(),
+        model: gemini({ model: MODELS.default }),
         tools: coderTools,
-        mcpServers: mcpConfig as any,
+        mcpServers: mcpConfig as unknown as Parameters<typeof createAgent>[0]['mcpServers'],
     });
 }
 
@@ -131,9 +142,9 @@ export function createMCPDocsAgent(options: MCPAgentOptions = {}) {
 - Always cite the library version
 - Include code examples when helpful
 - Link to relevant documentation sections`,
-        model: getFastModel(),
+        model: gemini({ model: MODELS.fast }),
         tools: docsTools,
-        mcpServers: mcpConfig as any,
+        mcpServers: mcpConfig as unknown as Parameters<typeof createAgent>[0]['mcpServers'],
     });
 }
 
@@ -154,9 +165,9 @@ export function createMCPReviewerAgent(options: MCPAgentOptions = {}) {
                 ? 'Query Context7 for latest best practices and security guidelines when reviewing.'
                 : undefined,
         }),
-        model: getDefaultModel(),
+        model: gemini({ model: MODELS.default }),
         tools: reviewerTools,
-        mcpServers: mcpConfig as any,
+        mcpServers: mcpConfig as unknown as Parameters<typeof createAgent>[0]['mcpServers'],
     });
 }
 

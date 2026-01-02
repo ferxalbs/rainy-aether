@@ -22,7 +22,7 @@ export type { AgentType, AgentMetadata } from './specialized';
 export { SmartRouter, router } from './router';
 export type { RouteDecision, NetworkResult } from './router';
 
-// AgentKit integration (new)
+// AgentKit integration
 export { getSystemPrompt, buildEnhancedPrompt, getAllPrompts } from './prompts';
 export {
     createAgentNetwork,
@@ -33,23 +33,13 @@ export {
     createReviewerAgent,
     createTerminalAgent,
     createDocsAgent,
-} from './network';
-export type { NetworkStateData, AgentPhase, AgentKitAgentType } from './network';
-
-// Model router
-export {
-    getModel,
+    agentFactories,
     getDefaultModel,
     getFastModel,
     getSmartModel,
-    getModelBySpeed,
-    getModelsByProvider,
-    getFirstAvailableModel,
-    isProviderConfigured,
-    AVAILABLE_MODELS,
-    DEFAULT_MODELS,
-} from './models';
-export type { ModelProvider, ModelSpeed, ModelConfig } from './models';
+    MODELS,
+} from './network';
+export type { NetworkStateData, AgentPhase, AgentKitAgentType } from './network';
 
 // MCP-enhanced agents
 export {

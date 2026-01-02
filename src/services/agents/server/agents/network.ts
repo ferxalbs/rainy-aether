@@ -3,11 +3,12 @@
  * 
  * Creates an Inngest AgentKit network with state-based routing.
  * This is the core orchestration layer for multi-agent execution.
+ * 
+ * Uses model IDs from existing provider system at @/services/agent/providers
  */
 
-import { createNetwork, createAgent } from '@inngest/agent-kit';
+import { createNetwork, createAgent, gemini } from '@inngest/agent-kit';
 import { getSystemPrompt, buildEnhancedPrompt } from './prompts';
-import { getDefaultModel, getFastModel } from './models';
 import {
     plannerTools,
     coderTools,
@@ -56,6 +57,36 @@ export interface NetworkStateData {
 }
 
 // ===========================
+// Model Configuration
+// ===========================
+
+// Model IDs aligned with src/services/agent/providers/index.ts
+const MODELS = {
+    // Default model for most tasks - Gemini 3 Flash
+    default: 'gemini-3-flash-preview',
+    // Fast model for quick operations
+    fast: 'gemini-3-flash-preview',
+    // Smart model for complex reasoning
+    smart: 'gemini-3-pro-preview',
+} as const;
+
+/**
+ * Get AgentKit model instance
+ * Uses Gemini 3 Flash/Pro aligned with existing provider system
+ */
+function getDefaultModel() {
+    return gemini({ model: MODELS.default });
+}
+
+function getFastModel() {
+    return gemini({ model: MODELS.fast });
+}
+
+function getSmartModel() {
+    return gemini({ model: MODELS.smart });
+}
+
+// ===========================
 // AgentKit Agent Factories
 // ===========================
 
@@ -63,7 +94,7 @@ export const createPlannerAgent = (workspace?: string) => createAgent({
     name: 'planner',
     description: 'Analyzes tasks and creates step-by-step implementation plans',
     system: buildEnhancedPrompt('planner', { workspace }),
-    model: getDefaultModel(),
+    model: getSmartModel(), // Planner needs reasoning
     tools: plannerTools,
 });
 
@@ -339,3 +370,4 @@ export async function executeWithAgent(options: {
 // ===========================
 
 export { getSystemPrompt };
+export { getDefaultModel, getFastModel, getSmartModel, MODELS };
