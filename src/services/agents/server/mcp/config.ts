@@ -13,7 +13,8 @@ export type MCPTransport =
     | { type: 'stdio'; command: string; args?: string[]; env?: Record<string, string> }
     | { type: 'ws'; url: string }
     | { type: 'sse'; url: string; headers?: Record<string, string> }
-    | { type: 'streamable-http'; url: string; headers?: Record<string, string> };
+    | { type: 'streamable-http'; url: string; headers?: Record<string, string> }
+    | { type: 'internal' }; // Built-in tools, no external process
 
 export interface MCPServerConfig {
     name: string;
@@ -35,14 +36,13 @@ export interface MCPServerConfig {
 export function getMCPConfigs(): MCPServerConfig[] {
     const configs: MCPServerConfig[] = [];
 
-    // --- Local Workspace Server (Always enabled) ---
+    // --- Local Workspace Server (Always enabled, internal) ---
+    // Uses built-in tools from the agent system, no MCP spawn needed
     configs.push({
         name: 'workspace',
         description: 'Local workspace tools: file operations, code search, git, terminal',
         transport: {
-            type: 'stdio',
-            command: 'node',
-            args: ['./mcp/local-server.js'],
+            type: 'internal', // Built-in, no external process
         },
         enabled: true,
         priority: 'local',

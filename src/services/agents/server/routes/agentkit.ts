@@ -498,6 +498,171 @@ agentkit.post('/mcp/health/:name/reset', (c: Context) => {
 });
 
 // ===========================
+// Real MCP Client Connections
+// ===========================
+
+import { mcpManager } from '../mcp/client';
+import { TOOL_DEFINITIONS } from '../tools/schema';
+
+/**
+ * Connect to an MCP server and get its tools
+ */
+agentkit.post('/mcp/servers/:name/connect', async (c: Context) => {
+    const name = c.req.param('name');
+    const workspace = c.req.query('workspace') || process.cwd();
+
+    // Get config for this server
+    const builtInConfig = getConfigByName(name);
+    const projectConfigs = getProjectMCPConfigs(workspace);
+    const projectConfig = projectConfigs.find(cfg => cfg.name === name);
+
+    const config = projectConfig || builtInConfig;
+
+    if (!config) {
+        return c.json({ error: 'Server not found' }, 404);
+    }
+
+    if (!config.enabled) {
+        return c.json({ error: 'Server is disabled' }, 400);
+    }
+
+    // Handle internal servers (workspace tools are built-in)
+    if (config.transport.type === 'internal') {
+        const tools = TOOL_DEFINITIONS.map(t => ({
+            name: t.name,
+            description: t.description,
+            inputSchema: t.parameters,
+        }));
+
+        return c.json({
+            connected: true,
+            server: name,
+            status: 'connected',
+            internal: true,
+            tools,
+            toolCount: tools.length,
+        });
+    }
+
+    // Handle external MCP servers
+    try {
+        const connected = await mcpManager.connect(config);
+
+        if (!connected) {
+            return c.json({
+                error: 'Failed to connect',
+                status: mcpManager.getStatus(name),
+            }, 500);
+        }
+
+        // Get tools from the connected server
+        const tools = mcpManager.getAvailableTools(name);
+
+        return c.json({
+            connected: true,
+            server: name,
+            status: mcpManager.getStatus(name),
+            tools: tools.map(t => ({
+                name: t.name,
+                description: t.description,
+                inputSchema: t.inputSchema,
+            })),
+            toolCount: tools.length,
+        });
+    } catch (error) {
+        return c.json({
+            error: error instanceof Error ? error.message : 'Connection failed',
+            status: 'error',
+        }, 500);
+    }
+});
+
+/**
+ * Get tools from a connected MCP server
+ */
+agentkit.get('/mcp/servers/:name/tools', (c: Context) => {
+    const name = c.req.param('name');
+    const status = mcpManager.getStatus(name);
+
+    if (status !== 'connected') {
+        return c.json({
+            error: 'Server not connected',
+            status: status || 'disconnected',
+            hint: 'Call POST /mcp/servers/:name/connect first',
+        }, 400);
+    }
+
+    const tools = mcpManager.getAvailableTools(name);
+
+    return c.json({
+        server: name,
+        status,
+        tools: tools.map(t => ({
+            name: t.name,
+            description: t.description,
+            inputSchema: t.inputSchema,
+        })),
+        toolCount: tools.length,
+    });
+});
+
+/**
+ * Disconnect from an MCP server
+ */
+agentkit.post('/mcp/servers/:name/disconnect', async (c: Context) => {
+    const name = c.req.param('name');
+
+    await mcpManager.disconnect(name);
+
+    return c.json({
+        disconnected: true,
+        server: name,
+        status: mcpManager.getStatus(name),
+    });
+});
+
+/**
+ * Call a tool on a connected MCP server
+ */
+agentkit.post('/mcp/servers/:name/tools/:tool/call', async (c: Context) => {
+    const serverName = c.req.param('name');
+    const toolName = c.req.param('tool');
+    const { arguments: args } = await c.req.json<{ arguments: Record<string, unknown> }>();
+
+    const status = mcpManager.getStatus(serverName);
+    if (status !== 'connected') {
+        return c.json({
+            error: 'Server not connected',
+            status: status || 'disconnected',
+        }, 400);
+    }
+
+    const result = await mcpManager.callTool(serverName, toolName, args || {});
+
+    return c.json(result);
+});
+
+/**
+ * Get all connected servers and their tool counts
+ */
+agentkit.get('/mcp/connected', (c: Context) => {
+    const connectedServers = mcpManager.getConnectedServers();
+
+    return c.json({
+        connected: connectedServers.map(name => ({
+            name,
+            status: mcpManager.getStatus(name),
+            toolCount: mcpManager.getAvailableTools(name).length,
+        })),
+        totalServers: connectedServers.length,
+        totalTools: connectedServers.reduce(
+            (sum, name) => sum + mcpManager.getAvailableTools(name).length,
+            0
+        ),
+    });
+});
+
+// ===========================
 // Helper Functions
 // ===========================
 

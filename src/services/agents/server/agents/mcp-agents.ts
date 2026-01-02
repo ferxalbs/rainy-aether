@@ -51,19 +51,36 @@ function getMCPServersForAgent(serverNames?: string[]): Array<{
 
     return targetServers
         .filter(config => config.enabled)
-        .map(config => ({
-            name: config.name,
-            transport: config.transport.type === 'stdio'
-                ? {
-                    type: 'stdio' as const,
-                    command: config.transport.command,
-                    args: config.transport.args,
-                }
-                : {
-                    type: config.transport.type,
-                    url: config.transport.url,
-                },
-        }));
+        // Skip internal servers - their tools are built-in
+        .filter(config => config.transport.type !== 'internal')
+        .map(config => {
+            const transport = config.transport;
+            if (transport.type === 'stdio') {
+                return {
+                    name: config.name,
+                    transport: {
+                        type: 'stdio' as const,
+                        command: transport.command,
+                        args: transport.args,
+                    },
+                };
+            }
+            // ws, sse, streamable-http all have url
+            if ('url' in transport) {
+                return {
+                    name: config.name,
+                    transport: {
+                        type: transport.type,
+                        url: transport.url,
+                    },
+                };
+            }
+            // Fallback (shouldn't happen)
+            return {
+                name: config.name,
+                transport: { type: transport.type } as { type: string },
+            };
+        });
 }
 
 // ===========================

@@ -2,13 +2,13 @@
  * MCP Manager Component
  * 
  * Manages MCP servers and displays their tools.
- * Similar design pattern to ExtensionMarketplace.
+ * Connects to real MCP servers via the agent server API.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     RefreshCw, Power, PowerOff,
-    Wrench, AlertCircle, Loader2, FileJson, FolderOpen
+    Wrench, AlertCircle, Loader2, FileJson, FolderOpen, Plug, PlugZap
 } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { Switch } from '../ui/switch';
@@ -32,11 +32,7 @@ interface MCPServer {
 interface MCPTool {
     name: string;
     description: string;
-    inputSchema?: {
-        type: string;
-        properties?: Record<string, unknown>;
-        required?: string[];
-    };
+    inputSchema?: Record<string, unknown>;
 }
 
 interface MCPManagerProps {
@@ -46,70 +42,6 @@ interface MCPManagerProps {
     onOpenFile?: (path: string) => void;
 }
 
-// Built-in MCP tools (these are always available via the IDE)
-const BUILTIN_TOOLS: Record<string, MCPTool[]> = {
-    'workspace': [
-        { name: 'read_file', description: 'Read the contents of a file from the workspace' },
-        { name: 'write_file', description: 'Write content to a file in the workspace' },
-        { name: 'create_file', description: 'Create a new file with content' },
-        { name: 'delete_file', description: 'Delete a file from the workspace' },
-        { name: 'list_dir', description: 'List contents of a directory' },
-        { name: 'read_directory_tree', description: 'Get the full directory tree structure' },
-        { name: 'search_code', description: 'Search for code patterns across the workspace' },
-        { name: 'run_command', description: 'Execute a shell command in the workspace' },
-        { name: 'get_project_context', description: 'Get comprehensive project information' },
-        { name: 'fs_batch_read', description: 'Read multiple files in a single operation' },
-        { name: 'edit_file_lines', description: 'Edit specific lines in a file' },
-        { name: 'multi_edit', description: 'Apply multiple edits atomically' },
-        { name: 'analyze_file', description: 'Analyze a file for structure and content' },
-        { name: 'git_status', description: 'Get git repository status' },
-        { name: 'git_diff', description: 'Get git diff for changes' },
-        { name: 'git_commit', description: 'Commit changes to git' },
-    ],
-    'context7': [
-        {
-            name: 'resolve-library-id',
-            description: 'Resolves a package/product name to a Context7-compatible library ID. You MUST call this before query-docs.'
-        },
-        {
-            name: 'query-docs',
-            description: 'Retrieves up-to-date documentation and code examples from Context7 for any programming library.'
-        },
-    ],
-    'dart-mcp-server': [
-        { name: 'analyze_files', description: 'Analyze Dart/Flutter files for errors' },
-        { name: 'create_project', description: 'Create a new Dart or Flutter project' },
-        { name: 'dart_fix', description: 'Run dart fix --apply' },
-        { name: 'dart_format', description: 'Format Dart code' },
-        { name: 'flutter_driver', description: 'Run Flutter driver commands' },
-        { name: 'get_widget_tree', description: 'Get Flutter widget tree' },
-        { name: 'hot_reload', description: 'Hot reload Flutter app' },
-        { name: 'hot_restart', description: 'Hot restart Flutter app' },
-        { name: 'launch_app', description: 'Launch Flutter application' },
-        { name: 'list_devices', description: 'List available Flutter devices' },
-        { name: 'pub', description: 'Run pub commands (get, add, upgrade)' },
-        { name: 'pub_dev_search', description: 'Search pub.dev for packages' },
-        { name: 'run_tests', description: 'Run Dart/Flutter tests' },
-    ],
-    'firebase-mcp-server': [
-        { name: 'firebase_get_environment', description: 'Get Firebase environment configuration' },
-        { name: 'firebase_get_project', description: 'Get active Firebase project info' },
-        { name: 'firebase_list_projects', description: 'List Firebase projects' },
-        { name: 'firebase_create_project', description: 'Create new Firebase project' },
-        { name: 'firebase_list_apps', description: 'List Firebase apps' },
-        { name: 'firebase_create_app', description: 'Create new Firebase app' },
-        { name: 'firebase_get_sdk_config', description: 'Get Firebase SDK configuration' },
-        { name: 'firebase_init', description: 'Initialize Firebase services' },
-        { name: 'firebase_get_security_rules', description: 'Get security rules' },
-        { name: 'firebase_login', description: 'Sign into Firebase' },
-        { name: 'firebase_logout', description: 'Sign out of Firebase' },
-    ],
-};
-
-// ===========================
-// Component
-// ===========================
-
 const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onOpenFile }) => {
     const [servers, setServers] = useState<MCPServer[]>([]);
     const [selectedServer, setSelectedServer] = useState<string | null>(null);
@@ -117,10 +49,11 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [configExists, setConfigExists] = useState(false);
+    const [connecting, setConnecting] = useState<string | null>(null);
 
     const serverUrl = 'http://localhost:3847';
 
-    // Load servers with built-in tool counts
+    // Load servers from API
     const loadServers = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -135,62 +68,95 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
             const data = await res.json();
             setConfigExists(data.hasProjectConfig || false);
 
-            // Format servers with tool counts from built-in definitions
-            const formattedServers: MCPServer[] = (data.servers || []).map((s: MCPServer) => {
-                const builtinTools = BUILTIN_TOOLS[s.name] || [];
-                return {
-                    ...s,
-                    status: s.enabled ? 'connected' : 'disconnected',
-                    tools: builtinTools,
-                    toolCount: builtinTools.length,
-                };
-            });
+            // Format servers
+            const formattedServers: MCPServer[] = (data.servers || []).map((s: MCPServer) => ({
+                ...s,
+                status: 'disconnected' as const,
+                tools: [],
+                toolCount: 0,
+            }));
 
-            // If no servers from API, show built-in ones
             if (formattedServers.length === 0) {
-                const defaultServers: MCPServer[] = [
-                    {
-                        name: 'workspace',
-                        enabled: true,
-                        transport: 'internal',
-                        description: 'Built-in workspace tools',
-                        category: 'workspace',
-                        priority: 'local',
-                        status: 'connected',
-                        tools: BUILTIN_TOOLS['workspace'],
-                        toolCount: BUILTIN_TOOLS['workspace'].length,
-                    },
-                ];
-                setServers(defaultServers);
-                setSelectedServer('workspace');
-            } else {
-                setServers(formattedServers);
-                if (formattedServers.length > 0 && !selectedServer) {
-                    setSelectedServer(formattedServers[0].name);
+                setError('No MCP servers configured. Create a config file to add servers.');
+            }
+
+            setServers(formattedServers);
+            if (formattedServers.length > 0 && !selectedServer) {
+                setSelectedServer(formattedServers[0].name);
+                // Auto-connect to first server if enabled
+                if (formattedServers[0].enabled) {
+                    connectToServer(formattedServers[0].name);
                 }
             }
         } catch (err) {
-            // Fallback to showing built-in workspace tools
-            const defaultServers: MCPServer[] = [
-                {
-                    name: 'workspace',
-                    enabled: true,
-                    transport: 'internal',
-                    description: 'Built-in workspace tools (agent server offline)',
-                    category: 'workspace',
-                    priority: 'local',
-                    status: 'connected',
-                    tools: BUILTIN_TOOLS['workspace'],
-                    toolCount: BUILTIN_TOOLS['workspace'].length,
-                },
-            ];
-            setServers(defaultServers);
-            setSelectedServer('workspace');
             setError(err instanceof Error ? err.message : 'Failed to load servers');
+            setServers([]);
         } finally {
             setLoading(false);
         }
-    }, [workspace, selectedServer]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workspace]);
+
+    // Connect to an MCP server and fetch real tools
+    const connectToServer = async (serverName: string) => {
+        setConnecting(serverName);
+        setServers(prev => prev.map(s =>
+            s.name === serverName ? { ...s, status: 'connecting' } : s
+        ));
+
+        try {
+            const params = workspace ? `?workspace=${encodeURIComponent(workspace)}` : '';
+            const res = await fetch(
+                `${serverUrl}/api/agentkit/mcp/servers/${serverName}/connect${params}`,
+                { method: 'POST' }
+            );
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to connect');
+            }
+
+            // Update server with real tools from MCP
+            setServers(prev => prev.map(s =>
+                s.name === serverName
+                    ? {
+                        ...s,
+                        status: 'connected',
+                        tools: data.tools || [],
+                        toolCount: data.toolCount || data.tools?.length || 0,
+                    }
+                    : s
+            ));
+        } catch (err) {
+            setServers(prev => prev.map(s =>
+                s.name === serverName
+                    ? { ...s, status: 'error', tools: [], toolCount: 0 }
+                    : s
+            ));
+            console.error(`Failed to connect to ${serverName}:`, err);
+        } finally {
+            setConnecting(null);
+        }
+    };
+
+    // Disconnect from an MCP server
+    const disconnectFromServer = async (serverName: string) => {
+        try {
+            await fetch(
+                `${serverUrl}/api/agentkit/mcp/servers/${serverName}/disconnect`,
+                { method: 'POST' }
+            );
+
+            setServers(prev => prev.map(s =>
+                s.name === serverName
+                    ? { ...s, status: 'disconnected', tools: [], toolCount: 0 }
+                    : s
+            ));
+        } catch (err) {
+            console.error(`Failed to disconnect from ${serverName}:`, err);
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -205,9 +171,9 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
     };
 
     const handleToggleServer = async (serverName: string, enabled: boolean) => {
-        // Update local state immediately for responsiveness
+        // Update local state immediately
         setServers(prev => prev.map(s =>
-            s.name === serverName ? { ...s, enabled, status: enabled ? 'connected' : 'disconnected' } : s
+            s.name === serverName ? { ...s, enabled } : s
         ));
 
         try {
@@ -216,8 +182,26 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabled, workspace }),
             });
+
+            // If enabling, connect; if disabling, disconnect
+            if (enabled) {
+                await connectToServer(serverName);
+            } else {
+                await disconnectFromServer(serverName);
+            }
         } catch (err) {
             console.error('Failed to toggle server:', err);
+        }
+    };
+
+    const handleConnectClick = async (serverName: string) => {
+        const server = servers.find(s => s.name === serverName);
+        if (!server) return;
+
+        if (server.status === 'connected') {
+            await disconnectFromServer(serverName);
+        } else {
+            await connectToServer(serverName);
         }
     };
 
@@ -226,19 +210,16 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
 
         const configPath = `${workspace}/.rainy/mcp.json`;
 
-        // Use callback to open file in IDE editor
         if (onOpenFile) {
             onOpenFile(configPath);
-            onClose(); // Close modal after opening file
+            onClose();
             return;
         }
 
-        // Fallback: try Tauri opener plugin
         try {
             const { openPath } = await import('@tauri-apps/plugin-opener');
             await openPath(configPath);
         } catch {
-            // Last fallback: show the path
             alert(`Config file: ${configPath}`);
         }
     };
@@ -275,6 +256,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
 
     const selectedServerData = servers.find(s => s.name === selectedServer);
     const totalTools = servers.reduce((sum, s) => sum + (s.toolCount || s.tools?.length || 0), 0);
+    const connectedCount = servers.filter(s => s.status === 'connected').length;
 
     if (!isOpen) return null;
 
@@ -286,7 +268,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
                     <h2 className="text-xl font-semibold">Manage MCP servers</h2>
                     <div className="flex items-center gap-4">
                         <span className="text-sm text-muted-foreground">
-                            {totalTools} tools
+                            {connectedCount}/{servers.length} connected • {totalTools} tools
                         </span>
                         {configExists ? (
                             <button
@@ -346,6 +328,10 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
                             <div className="flex items-center justify-center py-8">
                                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
                             </div>
+                        ) : servers.length === 0 ? (
+                            <div className="p-4 text-sm text-muted-foreground text-center">
+                                No servers configured
+                            </div>
                         ) : (
                             <div className="py-2">
                                 {servers.map(server => (
@@ -388,8 +374,35 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
                                     <div className="flex items-center gap-3">
                                         <h3 className="text-lg font-semibold">{selectedServerData.name}</h3>
                                         <span className="px-2 py-0.5 text-xs bg-muted/50 rounded-md text-muted-foreground">
-                                            {selectedServerData.category}
+                                            {selectedServerData.transport}
                                         </span>
+                                        <button
+                                            onClick={() => handleConnectClick(selectedServerData.name)}
+                                            disabled={connecting === selectedServerData.name}
+                                            className={cn(
+                                                "px-3 py-1 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors",
+                                                selectedServerData.status === 'connected'
+                                                    ? "bg-green-500/10 text-green-500 hover:bg-green-500/20"
+                                                    : "bg-primary/10 text-primary hover:bg-primary/20"
+                                            )}
+                                        >
+                                            {connecting === selectedServerData.name ? (
+                                                <>
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                    Connecting...
+                                                </>
+                                            ) : selectedServerData.status === 'connected' ? (
+                                                <>
+                                                    <PlugZap className="w-3 h-3" />
+                                                    Connected
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Plug className="w-3 h-3" />
+                                                    Connect
+                                                </>
+                                            )}
+                                        </button>
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <span className="text-sm text-muted-foreground">Enabled</span>
@@ -407,38 +420,53 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
                                     </p>
                                 )}
 
-                                {/* Tools List */}
-                                <div className="space-y-3">
-                                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                        Available Tools ({selectedServerData.tools?.length || 0})
-                                    </h4>
-                                    {selectedServerData.tools?.map((tool, index) => (
-                                        <div
-                                            key={tool.name}
-                                            className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl"
-                                        >
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-medium text-muted-foreground">
-                                                        {index + 1}.
-                                                    </span>
-                                                    <h4 className="font-medium font-mono text-sm">{tool.name}</h4>
-                                                </div>
-                                            </div>
-                                            <p className="text-sm text-muted-foreground leading-relaxed pl-6">
-                                                {tool.description}
-                                            </p>
-                                        </div>
-                                    ))}
+                                {/* Connection Status */}
+                                {selectedServerData.status !== 'connected' && (
+                                    <div className="mb-6 p-4 bg-muted/20 rounded-xl border border-border/30 text-center">
+                                        <Plug className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                        <p className="text-sm text-muted-foreground">
+                                            {selectedServerData.status === 'connecting'
+                                                ? 'Connecting to server...'
+                                                : selectedServerData.status === 'error'
+                                                    ? 'Failed to connect. Check server configuration.'
+                                                    : 'Click "Connect" to load tools from this server'}
+                                        </p>
+                                    </div>
+                                )}
 
-                                    {(!selectedServerData.tools || selectedServerData.tools.length === 0) && (
-                                        <div className="text-center py-8 text-muted-foreground">
-                                            <Wrench className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                            <p>No tools available</p>
-                                            <p className="text-xs mt-1">This server doesn't expose any tools</p>
-                                        </div>
-                                    )}
-                                </div>
+                                {/* Tools List */}
+                                {selectedServerData.status === 'connected' && (
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            Available Tools ({selectedServerData.tools?.length || 0})
+                                        </h4>
+                                        {selectedServerData.tools?.map((tool, index) => (
+                                            <div
+                                                key={tool.name}
+                                                className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl"
+                                            >
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-medium text-muted-foreground">
+                                                            {index + 1}.
+                                                        </span>
+                                                        <h4 className="font-medium font-mono text-sm">{tool.name}</h4>
+                                                    </div>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground leading-relaxed pl-6">
+                                                    {tool.description || 'No description available'}
+                                                </p>
+                                            </div>
+                                        ))}
+
+                                        {(!selectedServerData.tools || selectedServerData.tools.length === 0) && (
+                                            <div className="text-center py-8 text-muted-foreground">
+                                                <Wrench className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                                <p>No tools exposed by this server</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="flex items-center justify-center h-full text-muted-foreground">
