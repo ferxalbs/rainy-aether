@@ -629,6 +629,11 @@ const IDE: React.FC = () => {
         isOpen={isMCPManagerOpen}
         onClose={() => setIsMCPManagerOpen(false)}
         workspace={snapshot.workspace?.path || undefined}
+        onOpenFile={(path) => {
+          // Create a FileNode and open the file in editor
+          const name = path.split('/').pop() || path;
+          actions.openFile({ name, path, is_directory: false });
+        }}
       />
 
       {/* Update notification */}
