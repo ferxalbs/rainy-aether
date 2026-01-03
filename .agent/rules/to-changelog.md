@@ -43,4 +43,4 @@ For every task, you must follow this sequence:
 4. **Integrity:** Never delete historical changelog data or overwrite existing versions. Only append new information.
 5. **Clarification:** If the intent of a change is ambiguous, ask the user for clarification before deciding on the version bump (e.g., "Is this a breaking change?").
 
-Ever upgrade the number version based in the changes in the files tauri.config.json, cargo.toml y package.json
+Ever upgrade the number version based in the changes in the files tauri.config.json, cargo.toml y package.json. And ever change is incremental.
