@@ -11,6 +11,16 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Applied sanitization in `convertToolsToGemini` to ensure valid tool parameters and prevent API errors
 
 ### Improved
+- **#1 [Improvements] Agent Settings UI**: Enhanced Agent Settings dialog with premium glassmorphism design matching Extension Manager
+  - Applied `backdrop-blur-3xl` and `backdrop-saturate-150` for rich glassmorphism effects (consistent with blur rules)
+  - Added `backdrop-blur-sm` to dialog overlay for blurred background effect behind the dialog
+  - Server Status card now uses premium glassmorphic card with enhanced borders and hover effects
+  - Each API provider has individual glassmorphic card with interactive transitions
+  - Added scale animations to all interactive elements (`hover:scale-105`, `active:scale-95`)
+  - Enhanced visual hierarchy with improved spacing (`p-5`), rounded corners (`rounded-xl`, `rounded-2xl`), and shadows
+  - Improved button hover states with colored backgrounds (red/green for server controls, destructive for Clear buttons)
+  - Security info section now uses glassmorphism with enhanced borders
+  - Dialog footer buttons have scale animations for better interactivity
 - **Premium Code Block UI**: Redesigned agent chat code blocks with a glassy, high-end aesthetic
   - Implemented glassmorphism using `backdrop-blur-3xl`, `bg-background/10`, and `backdrop-saturate-150`
   - Added macOS-style window control dots (red, yellow, green) for a "windowed" look

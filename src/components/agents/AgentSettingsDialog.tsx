@@ -181,10 +181,10 @@ export function AgentSettingsDialog() {
           <Settings className="h-3.5 w-3.5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Agent Settings</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-hidden flex flex-col bg-background/95 dark:bg-background/5 backdrop-blur-3xl backdrop-saturate-150 border-2 dark:border border-border dark:border-border/50 rounded-2xl shadow-2xl">
+        <DialogHeader className="border-b border-border dark:border-border/30 pb-4">
+          <DialogTitle className="text-xl font-semibold">Agent Settings</DialogTitle>
+          <DialogDescription className="text-sm">
             Configure API keys and manage the agent server.
           </DialogDescription>
         </DialogHeader>
@@ -194,9 +194,9 @@ export function AgentSettingsDialog() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto space-y-6 py-4 pr-2">
+          <div className="flex-1 overflow-y-auto space-y-6 py-5 pr-2">
             {/* Server Status Section */}
-            <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+            <div className="rounded-xl border dark:border border-border dark:border-border/30 bg-background/5 dark:bg-background/5 backdrop-blur-lg backdrop-saturate-150 hover:bg-background/8 dark:hover:bg-background/10 p-5 space-y-3 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 mx-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Server className="h-4 w-4 text-muted-foreground" />
@@ -215,7 +215,7 @@ export function AgentSettingsDialog() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-8 w-8 rounded-lg transition-all duration-200 hover:bg-background/20 hover:backdrop-blur-lg hover:scale-105 active:scale-95"
                     onClick={refresh}
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
@@ -226,7 +226,7 @@ export function AgentSettingsDialog() {
                       size="sm"
                       onClick={stop}
                       disabled={isStopping}
-                      className="text-red-500 hover:text-red-500"
+                      className="text-red-500 hover:text-red-500 transition-all duration-200 hover:scale-105 active:scale-95 hover:bg-red-500/10"
                     >
                       {isStopping ? (
                         <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -241,7 +241,7 @@ export function AgentSettingsDialog() {
                       size="sm"
                       onClick={start}
                       disabled={isStarting}
-                      className="text-green-500 hover:text-green-500"
+                      className="text-green-500 hover:text-green-500 transition-all duration-200 hover:scale-105 active:scale-95 hover:bg-green-500/10"
                     >
                       {isStarting ? (
                         <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
@@ -268,14 +268,14 @@ export function AgentSettingsDialog() {
             <Separator />
 
             {/* API Keys Section */}
-            <div className="space-y-4">
+            <div className="space-y-4 mx-2">
               <div className="flex items-center gap-2">
                 <Key className="h-4 w-4 text-muted-foreground" />
                 <Label className="text-sm font-medium">API Keys</Label>
               </div>
 
               {API_PROVIDERS.map((provider) => (
-                <div key={provider.id} className="space-y-2">
+                <div key={provider.id} className="space-y-2 p-4 rounded-xl border dark:border border-border dark:border-border/30 bg-background/5 dark:bg-background/5 backdrop-blur-lg backdrop-saturate-150 hover:bg-background/8 dark:hover:bg-background/10 transition-all duration-300 hover:shadow-md">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Label htmlFor={`${provider.id}-key`} className="text-sm">
@@ -289,7 +289,7 @@ export function AgentSettingsDialog() {
                       href={provider.getKeyUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[10px] text-primary hover:underline"
+                      className="text-xs text-primary hover:underline transition-all duration-200 hover:scale-105 font-medium"
                     >
                       Get Key
                     </a>
@@ -308,7 +308,7 @@ export function AgentSettingsDialog() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent transition-all duration-200 hover:scale-110 active:scale-95"
                         onClick={() => toggleShowKey(provider.id)}
                       >
                         {showKeys[provider.id] ? (
@@ -323,7 +323,7 @@ export function AgentSettingsDialog() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleClear(provider.id)}
-                        className="h-9"
+                        className="h-9 transition-all duration-200 hover:scale-105 active:scale-95 hover:bg-destructive/10 text-destructive"
                       >
                         Clear
                       </Button>
@@ -339,7 +339,7 @@ export function AgentSettingsDialog() {
             <Separator />
 
             {/* Security Info */}
-            <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+            <div className="rounded-xl bg-background/8 dark:bg-background/5 backdrop-blur-lg backdrop-saturate-150 border dark:border border-border dark:border-border/30 p-5 space-y-2 mx-2">
               <h4 className="text-sm font-medium">Security & Privacy</h4>
               <ul className="text-[11px] text-muted-foreground space-y-1 ml-4 list-disc">
                 <li>API keys are stored securely using your system's keychain</li>
@@ -351,11 +351,11 @@ export function AgentSettingsDialog() {
           </div>
         )}
 
-        <DialogFooter className="pt-4 border-t">
-          <Button variant="outline" onClick={() => setOpen(false)}>
+        <DialogFooter className="pt-5 border-t border-border dark:border-border/30">
+          <Button variant="outline" onClick={() => setOpen(false)} className="transition-all duration-200 hover:scale-105 active:scale-95">
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving || loading}>
+          <Button onClick={handleSave} disabled={saving || loading} className="transition-all duration-200 hover:scale-105 active:scale-95">
             {saving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
