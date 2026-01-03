@@ -40,6 +40,16 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Usage tracking with risk profile analysis (safe/moderate/destructive)
   - Violation detection and reporting
   - Recommended tool sets for different task types (read-only, write, execute, full)
+- **Backend API Integration**: Complete REST API for subagent management
+  - 14 HTTP endpoints for CRUD operations, validation, testing, and analytics
+  - `subagent-routes.ts`: Express router with filtering, search, and bulk operations
+  - AI-powered tool suggestion endpoint for agent creation assistance
+  - Usage statistics and violation tracking per agent
+- **Inngest Workflows**: Durable async workflows for lifecycle management
+  - 5 workflows: reload, execute, create, update, delete
+  - Automatic analytics tracking during execution
+  - Success rate calculation and usage counting
+  - Tool permission recording during agent runs
 
 ### Improved
 - **Tool Management**: Added categorization (read/write/execute/git/analysis) and risk level classification (safe/moderate/destructive)
