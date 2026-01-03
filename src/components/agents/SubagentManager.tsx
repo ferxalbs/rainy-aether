@@ -7,13 +7,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    RefreshCw, AlertCircle, Loader2, Plus,
-    Trash2, CheckCircle2, Circle, Sparkles
+    RefreshCw, Loader2, Plus,
+    Trash2, CheckCircle2, Circle, Sparkles, Settings2, Zap
 } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { Switch } from '../ui/switch';
 import { SubagentFormDialog } from './SubagentFormDialog';
-import { getApiUrl } from '../../config/server-config';
+import { ScrollArea } from '../ui/scroll-area';
 
 // ===========================
 // Types
@@ -46,42 +46,36 @@ interface SubagentManagerProps {
     onClose: () => void;
 }
 
+const API_BASE = 'http://localhost:3847/api/agentkit/subagents';
+
 const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) => {
     const [agents, setAgents] = useState<SubagentConfig[]>([]);
     const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [editingAgent, setEditingAgent] = useState<SubagentConfig | null>(null);
 
-    const serverUrl = getApiUrl('subagents');
-
     // Load agents from API
     const loadAgents = useCallback(async () => {
         setLoading(true);
-        setError(null);
         try {
-            const res = await fetch(serverUrl);
+            const res = await fetch(API_BASE);
 
-            if (!res.ok) {
-                throw new Error('Agent server not running. Start with: pnpm tauri dev');
+            if (res.ok) {
+                const data = await res.json();
+                const formattedAgents: SubagentConfig[] = data.agents || [];
+                setAgents(formattedAgents);
+
+                if (formattedAgents.length > 0 && !selectedAgent) {
+                    setSelectedAgent(formattedAgents[0].id);
+                }
+            } else {
+                // Server returned error - probably no agents configured
+                setAgents([]);
             }
-
-            const data = await res.json();
-            const formattedAgents: SubagentConfig[] = data.agents || [];
-
-            if (formattedAgents.length === 0) {
-                setError('No custom subagents configured. Create one to get started.');
-            }
-
-            setAgents(formattedAgents);
-
-            if (formattedAgents.length > 0 && !selectedAgent) {
-                setSelectedAgent(formattedAgents[0].id);
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load agents');
+        } catch {
+            // Server not reachable - this is fine, just show empty state
             setAgents([]);
         } finally {
             setLoading(false);
@@ -107,7 +101,7 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
         ));
 
         try {
-            await fetch(`${getApiUrl('subagents')}/${agentId}`, {
+            await fetch(`${API_BASE}/${agentId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabled }),
@@ -123,7 +117,7 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
         if (!confirm('Delete this subagent? This cannot be undone.')) return;
 
         try {
-            await fetch(`${getApiUrl('subagents')}/${agentId}`, {
+            await fetch(`${API_BASE}/${agentId}`, {
                 method: 'DELETE',
             });
 
@@ -177,213 +171,169 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
                     </div>
                 </div>
 
-                {/* Error banner */}
-                {error && (
-                    <div className="px-5 py-2 bg-yellow-500/10 border-b border-yellow-500/20 text-yellow-400 text-sm flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4" />
-                        {error}
-                    </div>
-                )}
-
                 {/* Content */}
                 <div className="flex flex-1 overflow-hidden">
                     {/* Agent Sidebar */}
-                    <div className="w-64 border-r border-border dark:border-border/30 overflow-y-auto">
-                        {loading ? (
-                            <div className="flex items-center justify-center py-8">
-                                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                            </div>
-                        ) : agents.length === 0 ? (
-                            <div className="p-4 text-sm text-muted-foreground text-center">
-                                No agents configured
-                            </div>
-                        ) : (
-                            <div className="py-2">
-                                {agents.map(agent => (
+                    <div className="w-64 border-r border-border dark:border-border/30 flex flex-col">
+                        <ScrollArea className="flex-1">
+                            {loading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : agents.length === 0 ? (
+                                <div className="p-6 text-center">
+                                    <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <Sparkles className="w-6 h-6 text-primary" />
+                                    </div>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        No custom subagents yet
+                                    </p>
                                     <button
-                                        key={agent.id}
-                                        onClick={() => setSelectedAgent(agent.id)}
-                                        className={cn(
-                                            "w-full px-4 py-3 flex items-center justify-between text-left transition-all",
-                                            "hover:bg-background/20 hover:backdrop-blur-lg",
-                                            selectedAgent === agent.id && "bg-background/30 border-l-2 border-primary"
-                                        )}
+                                        onClick={() => setShowCreateDialog(true)}
+                                        className="px-4 py-2 text-sm bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors"
                                     >
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                            {agent.enabled ? (
-                                                <Circle className="w-3 h-3 text-green-500 fill-green-500 shrink-0" />
-                                            ) : (
-                                                <Circle className="w-3 h-3 text-muted-foreground shrink-0" />
-                                            )}
-                                            <span className="text-sm font-medium truncate">{agent.name}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {agent.usageCount > 0 && (
-                                                <span className="text-xs text-muted-foreground">
-                                                    {agent.usageCount}
-                                                </span>
-                                            )}
-                                        </div>
+                                        Create your first
                                     </button>
-                                ))}
-                            </div>
-                        )}
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-border/30">
+                                    {agents.map(agent => (
+                                        <button
+                                            key={agent.id}
+                                            onClick={() => setSelectedAgent(agent.id)}
+                                            className={cn(
+                                                "w-full p-3 text-left transition-colors",
+                                                selectedAgent === agent.id
+                                                    ? "bg-primary/10"
+                                                    : "hover:bg-background/30"
+                                            )}
+                                        >
+                                            <div className="flex items-start gap-2">
+                                                {agent.enabled ? (
+                                                    <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
+                                                ) : (
+                                                    <Circle className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                                                )}
+                                                <div className="min-w-0">
+                                                    <div className="font-medium text-sm truncate">{agent.name}</div>
+                                                    <div className="text-xs text-muted-foreground truncate">{agent.description}</div>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={cn(
+                                                            "text-xs px-1.5 py-0.5 rounded",
+                                                            agent.scope === 'project' ? "bg-blue-500/20 text-blue-400" : "bg-purple-500/20 text-purple-400"
+                                                        )}>
+                                                            {agent.scope}
+                                                        </span>
+                                                        {agent.usageCount > 0 && (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {agent.usageCount} uses
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </ScrollArea>
                     </div>
 
                     {/* Agent Details */}
-                    <div className="flex-1 overflow-y-auto p-6">
+                    <div className="flex-1 overflow-y-auto">
                         {selectedAgentData ? (
-                            <div>
+                            <div className="p-6 space-y-6">
                                 {/* Agent Header */}
-                                <div className="flex items-center justify-between mb-6">
-                                    <div className="flex items-center gap-3">
-                                        <h3 className="text-lg font-semibold">{selectedAgentData.name}</h3>
-                                        <span className="px-2 py-0.5 text-xs bg-muted/50 rounded-md text-muted-foreground">
-                                            {selectedAgentData.scope}
-                                        </span>
-                                        {selectedAgentData.priority > 70 && (
-                                            <span className="px-2 py-0.5 text-xs bg-orange-500/10 text-orange-500 rounded-md">
-                                                High Priority
-                                            </span>
-                                        )}
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <h3 className="text-2xl font-bold">{selectedAgentData.name}</h3>
+                                        <p className="text-muted-foreground mt-1">{selectedAgentData.description}</p>
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-muted-foreground">Enabled</span>
-                                            <Switch
-                                                checked={selectedAgentData.enabled}
-                                                onCheckedChange={(checked) => handleToggleEnabled(selectedAgentData.id, checked)}
-                                            />
-                                        </div>
+                                    <div className="flex items-center gap-3">
+                                        <Switch
+                                            checked={selectedAgentData.enabled}
+                                            onCheckedChange={(enabled) => handleToggleEnabled(selectedAgentData.id, enabled)}
+                                        />
                                         <button
                                             onClick={() => setEditingAgent(selectedAgentData)}
-                                            className="p-2 hover:bg-primary/10 text-primary rounded-lg transition-all mr-2"
+                                            className="p-2 hover:bg-background/30 rounded-lg transition-colors"
                                         >
-                                            <Sparkles className="w-4 h-4" />
+                                            <Settings2 className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(selectedAgentData.id)}
-                                            className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-all"
+                                            className="p-2 hover:bg-destructive/20 text-destructive rounded-lg transition-colors"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
                                 </div>
 
-                                {/* Description */}
-                                {selectedAgentData.description && (
-                                    <p className="text-sm text-muted-foreground mb-6">
-                                        {selectedAgentData.description}
-                                    </p>
-                                )}
-
                                 {/* Stats */}
-                                {(selectedAgentData.usageCount > 0 || selectedAgentData.successRate !== undefined) && (
-                                    <div className="grid grid-cols-2 gap-4 mb-6">
-                                        {selectedAgentData.usageCount > 0 && (
-                                            <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
-                                                <div className="text-2xl font-bold">{selectedAgentData.usageCount}</div>
-                                                <div className="text-xs text-muted-foreground">Total Uses</div>
-                                            </div>
-                                        )}
-                                        {selectedAgentData.successRate !== undefined && (
-                                            <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
-                                                <div className="text-2xl font-bold text-green-500">
-                                                    {Math.round(selectedAgentData.successRate * 100)}%
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">Success Rate</div>
-                                            </div>
-                                        )}
+                                <div className="grid grid-cols-4 gap-4">
+                                    <div className="p-4 bg-background/30 rounded-xl border border-border/30">
+                                        <div className="text-2xl font-bold">{selectedAgentData.usageCount}</div>
+                                        <div className="text-xs text-muted-foreground">Total Uses</div>
                                     </div>
-                                )}
+                                    <div className="p-4 bg-background/30 rounded-xl border border-border/30">
+                                        <div className="text-2xl font-bold">
+                                            {selectedAgentData.successRate ? `${(selectedAgentData.successRate * 100).toFixed(0)}%` : 'N/A'}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">Success Rate</div>
+                                    </div>
+                                    <div className="p-4 bg-background/30 rounded-xl border border-border/30">
+                                        <div className="text-2xl font-bold">{selectedAgentData.priority}</div>
+                                        <div className="text-xs text-muted-foreground">Priority</div>
+                                    </div>
+                                    <div className="p-4 bg-background/30 rounded-xl border border-border/30">
+                                        <div className="text-2xl font-bold">{selectedAgentData.temperature}</div>
+                                        <div className="text-xs text-muted-foreground">Temperature</div>
+                                    </div>
+                                </div>
 
                                 {/* Configuration */}
-                                <div className="space-y-3">
-                                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                        Configuration
-                                    </h4>
-
-                                    {/* Model */}
-                                    <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
-                                        <div className="text-xs text-muted-foreground mb-1">AI Model</div>
-                                        <div className="font-medium text-sm">{selectedAgentData.model}</div>
-                                    </div>
-
-                                    {/* Temperature & Priority */}
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-medium text-muted-foreground">Configuration</h4>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
-                                            <div className="text-xs text-muted-foreground mb-1">Temperature</div>
-                                            <div className="font-medium text-sm">{selectedAgentData.temperature}</div>
+                                        <div className="p-4 bg-background/30 rounded-xl border border-border/30">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Zap className="w-4 h-4 text-primary" />
+                                                <span className="text-sm font-medium">Model</span>
+                                            </div>
+                                            <div className="text-sm text-muted-foreground">{selectedAgentData.model}</div>
                                         </div>
-                                        <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
-                                            <div className="text-xs text-muted-foreground mb-1">Priority</div>
-                                            <div className="font-medium text-sm">{selectedAgentData.priority}</div>
+                                        <div className="p-4 bg-background/30 rounded-xl border border-border/30">
+                                            <div className="text-sm font-medium mb-2">Tools</div>
+                                            <div className="text-sm text-muted-foreground">
+                                                {selectedAgentData.tools === 'all'
+                                                    ? 'All tools granted'
+                                                    : `${(selectedAgentData.tools as string[]).length} tools selected`}
+                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Keywords */}
                                     {selectedAgentData.keywords.length > 0 && (
-                                        <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
-                                            <div className="text-xs text-muted-foreground mb-2">Routing Keywords</div>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {selectedAgentData.keywords.map(keyword => (
-                                                    <span
-                                                        key={keyword}
-                                                        className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded"
-                                                    >
-                                                        {keyword}
+                                        <div className="p-4 bg-background/30 rounded-xl border border-border/30">
+                                            <div className="text-sm font-medium mb-2">Routing Keywords</div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {selectedAgentData.keywords.map(kw => (
+                                                    <span key={kw} className="px-2 py-1 text-xs bg-background/50 rounded-md border border-border/30">
+                                                        {kw}
                                                     </span>
                                                 ))}
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* Tools */}
-                                    <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
-                                        <div className="text-xs text-muted-foreground mb-2">
-                                            Tools ({selectedAgentData.tools === 'all' ? 'All' : selectedAgentData.tools.length})
-                                        </div>
-                                        {selectedAgentData.tools === 'all' ? (
-                                            <div className="text-sm text-green-500 flex items-center gap-1.5">
-                                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                                Access to all available tools
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {selectedAgentData.tools.map(tool => (
-                                                    <span
-                                                        key={tool}
-                                                        className="px-2 py-0.5 text-xs bg-muted/50 text-muted-foreground rounded font-mono"
-                                                    >
-                                                        {tool}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* System Prompt */}
-                                    <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
-                                        <div className="text-xs text-muted-foreground mb-2">System Prompt</div>
-                                        <div className="text-sm leading-relaxed whitespace-pre-wrap font-mono text-xs">
-                                            {selectedAgentData.systemPrompt}
-                                        </div>
-                                    </div>
-
-                                    {/* Tags */}
-                                    {selectedAgentData.tags.length > 0 && (
-                                        <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
-                                            <div className="text-xs text-muted-foreground mb-2">Tags</div>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {selectedAgentData.tags.map(tag => (
-                                                    <span
-                                                        key={tag}
-                                                        className="px-2 py-0.5 text-xs bg-muted/50 text-muted-foreground rounded"
-                                                    >
-                                                        #{tag}
-                                                    </span>
-                                                ))}
-                                            </div>
+                                    {/* System Prompt Preview */}
+                                    {selectedAgentData.systemPrompt && (
+                                        <div className="p-4 bg-background/30 rounded-xl border border-border/30">
+                                            <div className="text-sm font-medium mb-2">System Prompt</div>
+                                            <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono max-h-32 overflow-y-auto">
+                                                {selectedAgentData.systemPrompt.substring(0, 500)}
+                                                {selectedAgentData.systemPrompt.length > 500 && '...'}
+                                            </pre>
                                         </div>
                                     )}
                                 </div>
@@ -398,7 +348,7 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
                 </div>
             </div>
 
-            {/* SubagentFormDialog for Create/Edit */}
+            {/* Create/Edit Dialog */}
             <SubagentFormDialog
                 open={showCreateDialog || editingAgent !== null}
                 onOpenChange={(open) => {
@@ -411,7 +361,7 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
                 onSuccess={() => {
                     setShowCreateDialog(false);
                     setEditingAgent(null);
-                    loadAgents(); // Reload agents after successful create/edit
+                    loadAgents();
                 }}
             />
         </div>

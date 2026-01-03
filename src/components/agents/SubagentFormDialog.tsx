@@ -8,14 +8,6 @@
 import { useState, useEffect } from "react";
 import { Plus, X, Wand2, Loader2 } from "lucide-react";
 
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,9 +23,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { getModelsByProvider } from "@/services/agents/server/factory/ModelMapper";
-import { getApiUrl } from "@/config/server-config";
 
 // ===========================
 // Types
@@ -64,8 +55,17 @@ interface SubagentFormDialogProps {
     onSuccess: () => void;
 }
 
-// Get actual available models from legacy providers via ModelMapper
-const MODELS_BY_PROVIDER = getModelsByProvider();
+// Models directly from the legacy providers (no external imports)
+const AVAILABLE_MODELS = [
+    { id: 'gemini-flash-lite-latest', name: 'Gemini Flash Lite', provider: 'Google', description: 'Fastest, lightweight model' },
+    { id: 'gemini-flash-latest', name: 'Gemini 3 Flash', provider: 'Google', description: 'Latest with improved performance' },
+    { id: 'gemini-3-flash-thinking-exp', name: 'Gemini 3 Flash (Thinking)', provider: 'Google', description: 'Dynamic thinking budget' },
+    { id: 'gemini-3-pro-thinking-low', name: 'Gemini 3 Pro (Low)', provider: 'Google', description: 'Pro reasoning - economical' },
+    { id: 'gemini-3-pro-thinking-high', name: 'Gemini 3 Pro (High)', provider: 'Google', description: 'Pro with high thinking budget' },
+    { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', provider: 'Groq', description: 'Fast via Groq' },
+    { id: 'qwen-qwq-32b', name: 'Qwen QWQ 32B', provider: 'Groq', description: 'Deep reasoning model' },
+    { id: 'kimi-k2-instruct', name: 'Kimi K2', provider: 'Groq', description: 'Instruction tuned' },
+];
 
 const COMMON_TOOLS = [
     { name: 'read_file', category: 'read', description: 'Read file contents' },
@@ -78,12 +78,14 @@ const COMMON_TOOLS = [
     { name: 'git_diff', category: 'git', description: 'Git diff' },
 ];
 
+const API_BASE = 'http://localhost:3847/api/agentkit/subagents';
+
 // ===========================
 // API Functions
 // ===========================
 
 async function createSubagent(config: Partial<SubagentConfig>): Promise<SubagentConfig> {
-    const response = await fetch(getApiUrl('subagents'), {
+    const response = await fetch(API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
@@ -97,7 +99,7 @@ async function createSubagent(config: Partial<SubagentConfig>): Promise<Subagent
 }
 
 async function updateSubagent(id: string, config: Partial<SubagentConfig>): Promise<SubagentConfig> {
-    const response = await fetch(`${getApiUrl('subagents')}/${id}`, {
+    const response = await fetch(`${API_BASE}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
@@ -111,7 +113,7 @@ async function updateSubagent(id: string, config: Partial<SubagentConfig>): Prom
 }
 
 async function suggestTools(description: string): Promise<{ suggested: string[]; reasoning: string[] }> {
-    const response = await fetch(`${getApiUrl('subagents')}/suggest-tools`, {
+    const response = await fetch(`${API_BASE}/suggest-tools`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description }),
@@ -129,6 +131,7 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
     const isEdit = !!agent;
     const [isLoading, setIsLoading] = useState(false);
     const [isSuggesting, setIsSuggesting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Form state
     const [formData, setFormData] = useState<Partial<SubagentConfig>>({
@@ -149,10 +152,7 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
 
     const [keywordInput, setKeywordInput] = useState('');
     const [tagInput, setTagInput] = useState('');
-    const [selectedTools, setSelectedTools] = useState<Set<string>>(
-        new Set(Array.isArray(agent?.tools) ? agent.tools : [])
-    );
-    const [useAllTools, setUseAllTools] = useState(agent?.tools === 'all');
+    const [grantAllTools, setGrantAllTools] = useState(formData.tools === 'all');
 
     // Reset form when agent changes
     useEffect(() => {
@@ -172,10 +172,8 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
                 temperature: agent.temperature,
                 maxIterations: agent.maxIterations,
             });
-            setSelectedTools(new Set(Array.isArray(agent.tools) ? agent.tools : []));
-            setUseAllTools(agent.tools === 'all');
+            setGrantAllTools(agent.tools === 'all');
         } else {
-            // Reset to defaults
             setFormData({
                 name: '',
                 description: '',
@@ -191,121 +189,140 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
                 temperature: 0.7,
                 maxIterations: 10,
             });
-            setSelectedTools(new Set());
-            setUseAllTools(false);
+            setGrantAllTools(false);
         }
+        setError(null);
     }, [agent, open]);
-
-    const handleSuggestTools = async () => {
-        if (!formData.description) {
-            alert('Please enter a description first');
-            return;
-        }
-
-        setIsSuggesting(true);
-        try {
-            const result = await suggestTools(formData.description);
-            const newTools = new Set([...selectedTools, ...result.suggested]);
-            setSelectedTools(newTools);
-            alert(`Added ${result.suggested.length} suggested tools!\n\n${result.reasoning.join('\n')}`);
-        } catch (error) {
-            console.error('Failed to suggest tools:', error);
-            alert('Failed to get tool suggestions');
-        } finally {
-            setIsSuggesting(false);
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
+        setError(null);
 
         try {
-            // Generate ID if creating new
-            const id = isEdit ? agent!.id : formData.name!.toLowerCase().replace(/\s+/g, '-');
+            const id = formData.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || 'custom-agent';
 
-            const config: Partial<SubagentConfig> = {
+            const config = {
                 ...formData,
-                id,
-                tools: useAllTools ? 'all' : Array.from(selectedTools),
+                id: agent?.id || id,
+                tools: grantAllTools ? 'all' : formData.tools,
             };
 
-            if (isEdit) {
-                await updateSubagent(agent!.id, config);
+            if (isEdit && agent) {
+                await updateSubagent(agent.id, config);
             } else {
                 await createSubagent(config);
             }
 
             onSuccess();
-        } catch (error) {
-            console.error('Failed to save subagent:', error);
-            alert(error instanceof Error ? error.message : 'Failed to save subagent');
+            onOpenChange(false);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to save subagent');
         } finally {
             setIsLoading(false);
         }
     };
 
+    const handleSuggestTools = async () => {
+        if (!formData.description) return;
+
+        setIsSuggesting(true);
+        try {
+            const { suggested } = await suggestTools(formData.description);
+            if (suggested.length > 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    tools: [...new Set([...(Array.isArray(prev.tools) ? prev.tools : []), ...suggested])],
+                }));
+            }
+        } catch (err) {
+            console.error('Failed to suggest tools:', err);
+        } finally {
+            setIsSuggesting(false);
+        }
+    };
+
     const addKeyword = () => {
         if (keywordInput.trim() && !formData.keywords?.includes(keywordInput.trim())) {
-            setFormData({
-                ...formData,
-                keywords: [...(formData.keywords || []), keywordInput.trim()],
-            });
+            setFormData(prev => ({
+                ...prev,
+                keywords: [...(prev.keywords || []), keywordInput.trim()],
+            }));
             setKeywordInput('');
         }
     };
 
     const removeKeyword = (keyword: string) => {
-        setFormData({
-            ...formData,
-            keywords: formData.keywords?.filter(k => k !== keyword) || [],
-        });
+        setFormData(prev => ({
+            ...prev,
+            keywords: prev.keywords?.filter(k => k !== keyword) || [],
+        }));
     };
 
     const addTag = () => {
         if (tagInput.trim() && !formData.tags?.includes(tagInput.trim())) {
-            setFormData({
-                ...formData,
-                tags: [...(formData.tags || []), tagInput.trim()],
-            });
+            setFormData(prev => ({
+                ...prev,
+                tags: [...(prev.tags || []), tagInput.trim()],
+            }));
             setTagInput('');
         }
     };
 
     const removeTag = (tag: string) => {
-        setFormData({
-            ...formData,
-            tags: formData.tags?.filter(t => t !== tag) || [],
+        setFormData(prev => ({
+            ...prev,
+            tags: prev.tags?.filter(t => t !== tag) || [],
+        }));
+    };
+
+    const toggleTool = (toolName: string) => {
+        if (grantAllTools) return;
+        setFormData(prev => {
+            const tools = Array.isArray(prev.tools) ? prev.tools : [];
+            if (tools.includes(toolName)) {
+                return { ...prev, tools: tools.filter(t => t !== toolName) };
+            }
+            return { ...prev, tools: [...tools, toolName] };
         });
     };
 
-    const toggleTool = (tool: string) => {
-        const newTools = new Set(selectedTools);
-        if (newTools.has(tool)) {
-            newTools.delete(tool);
-        } else {
-            newTools.add(tool);
-        }
-        setSelectedTools(newTools);
-    };
+    if (!open) return null;
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-6xl max-h-[88vh] p-0 bg-background/90 dark:bg-background/10 backdrop-blur-3xl backdrop-saturate-150">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center">
+            <div className="bg-background/90 dark:bg-background/10 backdrop-blur-3xl backdrop-saturate-150 border-2 dark:border border-border dark:border-border/50 rounded-2xl shadow-2xl w-[90%] h-[88%] max-w-6xl flex flex-col overflow-hidden">
                 <form onSubmit={handleSubmit} className="flex flex-col h-full">
-                    <DialogHeader className="px-6 pt-6 pb-4">
-                        <DialogTitle>{isEdit ? 'Edit' : 'Create'} Custom Subagent</DialogTitle>
-                        <DialogDescription>
-                            {isEdit ? 'Update your custom subagent configuration' : 'Create a new specialized AI agent for specific tasks'}
-                        </DialogDescription>
-                    </DialogHeader>
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-5 border-b border-border dark:border-border/30">
+                        <div>
+                            <h2 className="text-xl font-semibold">{isEdit ? 'Edit' : 'Create'} Custom Subagent</h2>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                {isEdit ? 'Update your custom subagent configuration' : 'Create a new specialized AI agent for specific tasks'}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => onOpenChange(false)}
+                            className="p-2 hover:bg-background/20 hover:backdrop-blur-lg rounded-lg transition-all duration-200 hover:scale-105"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
 
-                    <ScrollArea className="flex-1 px-6">
-                        <div className="space-y-6 pb-6">
-                            {/* Basic Info */}
+                    {/* Error Banner */}
+                    {error && (
+                        <div className="px-5 py-2 bg-red-500/10 border-b border-red-500/20 text-red-400 text-sm">
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Scrollable Content */}
+                    <ScrollArea className="flex-1">
+                        <div className="p-6 space-y-6">
+                            {/* Basic Information */}
                             <div className="space-y-4">
-                                <h3 className="text-sm font-medium">Basic Information</h3>
-
+                                <h3 className="text-sm font-medium text-muted-foreground">Basic Information</h3>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="name">Name *</Label>
@@ -315,26 +332,25 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                             placeholder="Code Reviewer"
                                             required
+                                            className="bg-background/50"
                                         />
                                     </div>
-
                                     <div className="space-y-2">
                                         <Label htmlFor="scope">Scope</Label>
                                         <Select
                                             value={formData.scope}
-                                            onValueChange={(value) => setFormData({ ...formData, scope: value as any })}
+                                            onValueChange={(value: 'user' | 'project' | 'plugin') => setFormData({ ...formData, scope: value })}
                                         >
-                                            <SelectTrigger id="scope">
+                                            <SelectTrigger id="scope" className="bg-background/50">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="user">User (Personal)</SelectItem>
-                                                <SelectItem value="project">Project (Local)</SelectItem>
+                                                <SelectItem value="project">Project (Team)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
                                 </div>
-
                                 <div className="space-y-2">
                                     <Label htmlFor="description">Description *</Label>
                                     <Textarea
@@ -344,12 +360,12 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
                                         placeholder="Reviews code for security vulnerabilities and best practices"
                                         rows={2}
                                         required
+                                        className="bg-background/50"
                                     />
                                 </div>
-
-                                <div className="flex items-center justify-between p-3 rounded-lg border">
-                                    <div className="space-y-0.5">
-                                        <Label htmlFor="enabled" className="cursor-pointer">Enable Agent</Label>
+                                <div className="flex items-center justify-between p-3 bg-background/30 rounded-lg border border-border/30">
+                                    <div>
+                                        <Label htmlFor="enabled">Enable Agent</Label>
                                         <p className="text-xs text-muted-foreground">Make this agent available for use</p>
                                     </div>
                                     <Switch
@@ -360,79 +376,55 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
                                 </div>
                             </div>
 
-                            <Separator />
+                            <Separator className="bg-border/30" />
 
                             {/* Model & Configuration */}
                             <div className="space-y-4">
-                                <h3 className="text-sm font-medium">Model & Configuration</h3>
-
+                                <h3 className="text-sm font-medium text-muted-foreground">Model & Configuration</h3>
                                 <div className="space-y-2">
                                     <Label htmlFor="model">AI Model</Label>
                                     <Select
                                         value={formData.model}
                                         onValueChange={(value) => setFormData({ ...formData, model: value })}
                                     >
-                                        <SelectTrigger id="model">
+                                        <SelectTrigger id="model" className="bg-background/50">
                                             <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent className="max-h-[400px]">
-                                            {Object.entries(MODELS_BY_PROVIDER).map(([provider, models]) => {
-                                                // Filter out thinking variants from the list
-                                                const standardModels = models.filter(m => !m.isThinking);
-                                                if (standardModels.length === 0) return null;
-
-                                                return (
-                                                    <div key={provider}>
-                                                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                                                            {provider}
-                                                        </div>
-                                                        {standardModels.map(model => (
-                                                            <SelectItem key={model.id} value={model.id}>
-                                                                <div className="flex flex-col">
-                                                                    <span>{model.name}</span>
-                                                                    {model.description && (
-                                                                        <span className="text-xs text-muted-foreground">
-                                                                            {model.description}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </SelectItem>
-                                                        ))}
+                                        <SelectContent>
+                                            {AVAILABLE_MODELS.map(model => (
+                                                <SelectItem key={model.id} value={model.id}>
+                                                    <div className="flex flex-col">
+                                                        <span>{model.name}</span>
+                                                        <span className="text-xs text-muted-foreground">{model.description}</span>
                                                     </div>
-                                                );
-                                            })}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
-                                    <p className="text-xs text-muted-foreground">
-                                        Models from your configured providers
-                                    </p>
+                                    <p className="text-xs text-muted-foreground">Models from your configured providers</p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="temperature">Temperature: {formData.temperature}</Label>
-                                        <input
-                                            id="temperature"
-                                            type="range"
-                                            min="0"
-                                            max="2"
-                                            step="0.1"
-                                            value={formData.temperature}
-                                            onChange={(e) => setFormData({ ...formData, temperature: parseFloat(e.target.value) })}
+                                        <Label>Temperature: {formData.temperature?.toFixed(1)}</Label>
+                                        <Slider
+                                            value={[formData.temperature ?? 0.7]}
+                                            onValueChange={([value]) => setFormData({ ...formData, temperature: value })}
+                                            min={0}
+                                            max={1}
+                                            step={0.1}
                                             className="w-full"
                                         />
                                         <p className="text-xs text-muted-foreground">Lower = focused, Higher = creative</p>
                                     </div>
-
                                     <div className="space-y-2">
-                                        <Label htmlFor="priority">Priority: {formData.priority}</Label>
-                                        <input
-                                            id="priority"
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            value={formData.priority}
-                                            onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) })}
+                                        <Label>Priority: {formData.priority}</Label>
+                                        <Slider
+                                            value={[formData.priority ?? 50]}
+                                            onValueChange={([value]) => setFormData({ ...formData, priority: value })}
+                                            min={0}
+                                            max={100}
+                                            step={1}
                                             className="w-full"
                                         />
                                         <p className="text-xs text-muted-foreground">Higher priority routes tasks first</p>
@@ -440,150 +432,135 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
                                 </div>
                             </div>
 
-                            <Separator />
+                            <Separator className="bg-border/30" />
 
-                            {/* Tools */}
+                            {/* Tools & Permissions */}
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between">
-                                    <h3 className="text-sm font-medium">Tools & Permissions</h3>
+                                    <h3 className="text-sm font-medium text-muted-foreground">Tools & Permissions</h3>
                                     <Button
                                         type="button"
-                                        size="sm"
                                         variant="outline"
+                                        size="sm"
                                         onClick={handleSuggestTools}
                                         disabled={isSuggesting || !formData.description}
+                                        className="text-xs"
                                     >
-                                        {isSuggesting ? (
-                                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                        ) : (
-                                            <Wand2 className="h-3.5 w-3.5 mr-1.5" />
-                                        )}
+                                        {isSuggesting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Wand2 className="w-3 h-3 mr-1" />}
                                         AI Suggest
                                     </Button>
                                 </div>
 
-                                <div className="flex items-center justify-between p-3 rounded-lg border">
-                                    <div className="space-y-0.5">
-                                        <Label htmlFor="all-tools" className="cursor-pointer">Grant All Tools</Label>
+                                <div className="flex items-center justify-between p-3 bg-background/30 rounded-lg border border-border/30">
+                                    <div>
+                                        <Label htmlFor="allTools">Grant All Tools</Label>
                                         <p className="text-xs text-muted-foreground">Allow access to all available tools</p>
                                     </div>
                                     <Switch
-                                        id="all-tools"
-                                        checked={useAllTools}
-                                        onCheckedChange={setUseAllTools}
+                                        id="allTools"
+                                        checked={grantAllTools}
+                                        onCheckedChange={setGrantAllTools}
                                     />
                                 </div>
 
-                                {!useAllTools && (
+                                {!grantAllTools && (
                                     <div className="grid grid-cols-2 gap-2">
-                                        {COMMON_TOOLS.map(tool => (
-                                            <div
-                                                key={tool.name}
-                                                onClick={() => toggleTool(tool.name)}
-                                                className={cn(
-                                                    "flex items-start gap-2 p-2.5 rounded-md border cursor-pointer transition-colors",
-                                                    selectedTools.has(tool.name)
-                                                        ? "bg-primary/10 border-primary/50"
-                                                        : "hover:bg-muted"
-                                                )}
-                                            >
-                                                <div className={cn(
-                                                    "h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 mt-0.5",
-                                                    selectedTools.has(tool.name) ? "bg-primary border-primary" : "border-border"
-                                                )}>
-                                                    {selectedTools.has(tool.name) && (
-                                                        <svg className="h-2.5 w-2.5 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                        </svg>
+                                        {COMMON_TOOLS.map(tool => {
+                                            const isSelected = Array.isArray(formData.tools) && formData.tools.includes(tool.name);
+                                            return (
+                                                <button
+                                                    key={tool.name}
+                                                    type="button"
+                                                    onClick={() => toggleTool(tool.name)}
+                                                    className={cn(
+                                                        "p-2 text-left rounded-lg border transition-all text-sm",
+                                                        isSelected
+                                                            ? "bg-primary/20 border-primary/40 text-primary"
+                                                            : "bg-background/30 border-border/30 hover:border-border/50"
                                                     )}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-medium truncate">{tool.name}</p>
-                                                    <p className="text-[10px] text-muted-foreground">{tool.description}</p>
-                                                </div>
-                                            </div>
-                                        ))}
+                                                >
+                                                    <div className="font-medium">{tool.name}</div>
+                                                    <div className="text-xs text-muted-foreground">{tool.description}</div>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
-                                )}
-
-                                {!useAllTools && selectedTools.size > 0 && (
-                                    <p className="text-xs text-muted-foreground">
-                                        {selectedTools.size} tool{selectedTools.size !== 1 ? 's' : ''} selected
-                                    </p>
                                 )}
                             </div>
 
-                            <Separator />
+                            <Separator className="bg-border/30" />
 
                             {/* System Prompt */}
                             <div className="space-y-4">
-                                <h3 className="text-sm font-medium">System Prompt *</h3>
+                                <h3 className="text-sm font-medium text-muted-foreground">System Prompt</h3>
                                 <Textarea
                                     value={formData.systemPrompt}
                                     onChange={(e) => setFormData({ ...formData, systemPrompt: e.target.value })}
-                                    placeholder="You are a specialized code reviewer focused on security and best practices. You analyze code for potential vulnerabilities..."
-                                    rows={6}
-                                    required
-                                    className="font-mono text-xs"
+                                    placeholder="You are a specialized AI agent that..."
+                                    rows={4}
+                                    className="bg-background/50 font-mono text-sm"
                                 />
                             </div>
 
-                            <Separator />
+                            <Separator className="bg-border/30" />
 
-                            {/* Keywords */}
+                            {/* Keywords & Tags */}
                             <div className="space-y-4">
-                                <h3 className="text-sm font-medium">Keywords for Routing</h3>
+                                <h3 className="text-sm font-medium text-muted-foreground">Routing Keywords</h3>
                                 <div className="flex gap-2">
                                     <Input
                                         value={keywordInput}
                                         onChange={(e) => setKeywordInput(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addKeyword())}
-                                        placeholder="review, security, audit"
+                                        placeholder="Add keyword..."
+                                        className="flex-1 bg-background/50"
                                     />
-                                    <Button type="button" variant="outline" size="icon" onClick={addKeyword}>
-                                        <Plus className="h-4 w-4" />
+                                    <Button type="button" variant="outline" size="sm" onClick={addKeyword}>
+                                        <Plus className="w-4 h-4" />
                                     </Button>
                                 </div>
                                 {formData.keywords && formData.keywords.length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5">
+                                    <div className="flex flex-wrap gap-2">
                                         {formData.keywords.map(keyword => (
-                                            <Badge key={keyword} variant="secondary" className="gap-1">
+                                            <Badge
+                                                key={keyword}
+                                                variant="secondary"
+                                                className="cursor-pointer hover:bg-destructive/20"
+                                                onClick={() => removeKeyword(keyword)}
+                                            >
                                                 {keyword}
-                                                <X
-                                                    className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                                    onClick={() => removeKeyword(keyword)}
-                                                />
+                                                <X className="w-3 h-3 ml-1" />
                                             </Badge>
                                         ))}
                                     </div>
                                 )}
                             </div>
 
-                            <Separator />
-
-                            {/* Tags */}
                             <div className="space-y-4">
-                                <h3 className="text-sm font-medium">Tags (Optional)</h3>
+                                <h3 className="text-sm font-medium text-muted-foreground">Tags</h3>
                                 <div className="flex gap-2">
                                     <Input
                                         value={tagInput}
                                         onChange={(e) => setTagInput(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                                        placeholder="security, code-quality"
+                                        placeholder="Add tag..."
+                                        className="flex-1 bg-background/50"
                                     />
-                                    <Button type="button" variant="outline" size="icon" onClick={addTag}>
-                                        <Plus className="h-4 w-4" />
+                                    <Button type="button" variant="outline" size="sm" onClick={addTag}>
+                                        <Plus className="w-4 h-4" />
                                     </Button>
                                 </div>
                                 {formData.tags && formData.tags.length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5">
+                                    <div className="flex flex-wrap gap-2">
                                         {formData.tags.map(tag => (
-                                            <Badge key={tag} variant="outline" className="gap-1">
-                                                #{tag}
-                                                <X
-                                                    className="h-3 w-3 cursor-pointer hover:text-destructive"
-                                                    onClick={() => removeTag(tag)}
-                                                />
+                                            <Badge
+                                                key={tag}
+                                                variant="outline"
+                                                className="cursor-pointer hover:bg-destructive/20"
+                                                onClick={() => removeTag(tag)}
+                                            >
+                                                {tag}
+                                                <X className="w-3 h-3 ml-1" />
                                             </Badge>
                                         ))}
                                     </div>
@@ -592,17 +569,23 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
                         </div>
                     </ScrollArea>
 
-                    <DialogFooter className="px-6 py-4 border-t">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+                    {/* Footer */}
+                    <div className="flex justify-end gap-3 p-5 border-t border-border dark:border-border/30">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
+                            disabled={isLoading}
+                        >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading || !formData.name || !formData.description || !formData.systemPrompt}>
-                            {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            {isEdit ? 'Update' : 'Create'} Subagent
+                        <Button type="submit" disabled={isLoading || !formData.name || !formData.description}>
+                            {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            {isEdit ? 'Save Changes' : 'Create Subagent'}
                         </Button>
-                    </DialogFooter>
+                    </div>
                 </form>
-            </DialogContent>
-        </Dialog>
+            </div>
+        </div>
     );
 }
