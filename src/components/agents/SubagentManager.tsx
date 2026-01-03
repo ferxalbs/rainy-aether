@@ -1,34 +1,17 @@
 /**
  * Subagent Manager Component
  * 
- * Full-featured UI for managing custom subagents:
- * - Browse and search subagents
- * - Create new subagents
- * - Edit existing subagents  
- * - View analytics and usage stats
+ * Professional interface for managing custom AI subagents.
+ * Matches the MCP Manager design pattern.
  */
 
-import { Plus, Search, Trash2, Edit2, MoreHorizontal, Zap, Circle, TrendingUp, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { SubagentFormDialog } from "./SubagentFormDialog";
+    RefreshCw, AlertCircle, Loader2, Plus,
+    Trash2, CheckCircle2, Circle, Sparkles
+} from 'lucide-react';
+import { cn } from '../../lib/cn';
+import { Switch } from '../ui/switch';
 
 // ===========================
 // Types
@@ -42,417 +25,388 @@ interface SubagentConfig {
     scope: 'user' | 'project' | 'plugin';
     model: string;
     tools: string[] | 'all';
+    systemPrompt: string;
     keywords: string[];
+    patterns: string[];
     tags: string[];
     priority: number;
+    temperature: number;
+    maxTokens?: number;
+    maxIterations: number;
     usageCount: number;
     successRate?: number;
     createdAt: string;
     updatedAt: string;
 }
 
-interface SubagentStats {
-    total: number;
-    enabled: number;
-    disabled: number;
+interface SubagentManagerProps {
+    isOpen: boolean;
+    onClose: () => void;
 }
 
-// ===========================
-// API Functions
-// ===========================
-
-async function fetchSubagents(filters?: {
-    scope?: string;
-    enabled?: boolean;
-    tag?: string;
-    search?: string;
-}): Promise<{ agents: SubagentConfig[]; count: number }> {
-    const params = new URLSearchParams();
-    if (filters?.scope) params.append('scope', filters.scope);
-    if (filters?.enabled !== undefined) params.append('enabled', String(filters.enabled));
-    if (filters?.tag) params.append('tag', filters.tag);
-    if (filters?.search) params.append('search', filters.search);
-
-    const response = await fetch(`http://localhost:3001/api/agentkit/subagents?${params}`);
-    if (!response.ok) throw new Error('Failed to fetch subagents');
-    const data = await response.json();
-    return { agents: data.agents || [], count: data.count || 0 };
-}
-
-async function fetchSubagentStats(): Promise<SubagentStats> {
-    const response = await fetch('http://localhost:3001/api/agentkit/subagents/stats');
-    if (!response.ok) throw new Error('Failed to fetch stats');
-    const data = await response.json();
-    return data.stats;
-}
-
-async function deleteSubagent(id: string): Promise<void> {
-    const response = await fetch(`http://localhost:3001/api/agentkit/subagents/${id}`, {
-        method: 'DELETE',
-    });
-    if (!response.ok) throw new Error('Failed to delete subagent');
-}
-
-async function reloadSubagents(): Promise<void> {
-    const response = await fetch('http://localhost:3001/api/agentkit/subagents/reload', {
-        method: 'POST',
-    });
-    if (!response.ok) throw new Error('Failed to reload subagents');
-}
-
-// ===========================
-// Components
-// ===========================
-
-function SubagentCard({ agent, onEdit, onDelete }: {
-    agent: SubagentConfig;
-    onEdit: () => void;
-    onDelete: () => void;
-}) {
-    const getModelBadgeColor = (model: string) => {
-        if (model.includes('gemini')) return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-        if (model.includes('claude')) return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
-        if (model.includes('gpt')) return 'bg-green-500/10 text-green-500 border-green-500/20';
-        if (model.includes('grok')) return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
-        return 'bg-muted text-muted-foreground border-border';
-    };
-
-    const getScopeBadgeColor = (scope: string) => {
-        if (scope === 'project') return 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
-        if (scope === 'user') return 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20';
-        return 'bg-muted text-muted-foreground border-border';
-    };
-
-    return (
-        <div className={cn(
-            "group relative p-4 rounded-lg border transition-all duration-200",
-            !agent.enabled
-                ? "bg-muted/30 border-border/30 opacity-60"
-                : "bg-background border-border hover:border-primary/50 hover:shadow-sm"
-        )}>
-            {/* Header */}
-            <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="flex items-start gap-2 flex-1 min-w-0">
-                    <div className={cn(
-                        "h-8 w-8 rounded-md flex items-center justify-center shrink-0",
-                        agent.enabled ? "bg-primary/10" : "bg-muted"
-                    )}>
-                        <Zap className={cn("h-4 w-4", agent.enabled ? "text-primary" : "text-muted-foreground")} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold text-foreground truncate">{agent.name}</h3>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{agent.description}</p>
-                    </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1">
-                    <Circle className={cn(
-                        "h-2 w-2 shrink-0",
-                        agent.enabled ? "fill-green-500 text-green-500" : "fill-muted-foreground text-muted-foreground"
-                    )} />
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <MoreHorizontal className="h-3.5 w-3.5" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-32">
-                            <DropdownMenuItem onClick={onEdit} className="text-xs">
-                                <Edit2 className="h-3 w-3 mr-2" />
-                                Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={onDelete} className="text-xs text-red-500 focus:text-red-500">
-                                <Trash2 className="h-3 w-3 mr-2" />
-                                Delete
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-
-            {/* Badges */}
-            <div className="flex flex-wrap gap-1.5 mt-3">
-                <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5", getModelBadgeColor(agent.model))}>
-                    {agent.model}
-                </Badge>
-                <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0.5", getScopeBadgeColor(agent.scope))}>
-                    {agent.scope}
-                </Badge>
-                {agent.priority > 70 && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-orange-500/10 text-orange-500 border-orange-500/20">
-                        High Priority
-                    </Badge>
-                )}
-            </div>
-
-            {/* Stats */}
-            {(agent.usageCount > 0 || agent.successRate !== undefined) && (
-                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
-                    {agent.usageCount > 0 && (
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                            <TrendingUp className="h-3 w-3" />
-                            <span>{agent.usageCount} uses</span>
-                        </div>
-                    )}
-                    {agent.successRate !== undefined && (
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                            <CheckCircle2 className="h-3 w-3" />
-                            <span>{Math.round(agent.successRate * 100)}% success</span>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Tags */}
-            {agent.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-2">
-                    {agent.tags.slice(0, 3).map(tag => (
-                        <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                            #{tag}
-                        </span>
-                    ))}
-                    {agent.tags.length > 3 && (
-                        <span className="text-[9px] px-1.5 py-0.5 text-muted-foreground">
-                            +{agent.tags.length - 3}
-                        </span>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
-
-export function SubagentManager({ className }: { className?: string }) {
+const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) => {
     const [agents, setAgents] = useState<SubagentConfig[]>([]);
-    const [stats, setStats] = useState<SubagentStats | null>(null);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-    const [filter, setFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
-    const [selectedAgent, setSelectedAgent] = useState<SubagentConfig | null>(null);
+    const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
     const [showCreateDialog, setShowCreateDialog] = useState(false);
-    const [showEditDialog, setShowEditDialog] = useState(false);
 
-    // Load agents on mount
-    useEffect(() => {
-        loadAgents();
-        loadStats();
-    }, []);
+    const serverUrl = 'http://localhost:3001';
 
-    const loadAgents = async () => {
-        setIsLoading(true);
+    // Load agents from API
+    const loadAgents = useCallback(async () => {
+        setLoading(true);
+        setError(null);
         try {
-            const result = await fetchSubagents({
-                search: searchQuery || undefined,
-                enabled: filter === 'all' ? undefined : filter === 'enabled',
-            });
-            setAgents(result.agents);
-        } catch (error) {
-            console.error('[SubagentManager] Failed to load agents:', error);
+            const res = await fetch(`${serverUrl}/api/agentkit/subagents`);
+
+            if (!res.ok) {
+                throw new Error('Agent server not running. Start with: pnpm tauri dev');
+            }
+
+            const data = await res.json();
+            const formattedAgents: SubagentConfig[] = data.agents || [];
+
+            if (formattedAgents.length === 0) {
+                setError('No custom subagents configured. Create one to get started.');
+            }
+
+            setAgents(formattedAgents);
+
+            if (formattedAgents.length > 0 && !selectedAgent) {
+                setSelectedAgent(formattedAgents[0].id);
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load agents');
+            setAgents([]);
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
+    }, [selectedAgent]);
+
+    useEffect(() => {
+        if (isOpen) {
+            loadAgents();
+        }
+    }, [isOpen, loadAgents]);
+
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        await loadAgents();
+        setRefreshing(false);
     };
 
-    const loadStats = async () => {
-        try {
-            const result = await fetchSubagentStats();
-            setStats(result);
-        } catch (error) {
-            console.error('[SubagentManager] Failed to load stats:', error);
-        }
-    };
-
-    const handleDelete = async (agent: SubagentConfig) => {
-        if (!confirm(`Delete "${agent.name}"? This cannot be undone.`)) return;
+    const handleToggleEnabled = async (agentId: string, enabled: boolean) => {
+        // Update local state immediately
+        setAgents(prev => prev.map(a =>
+            a.id === agentId ? { ...a, enabled } : a
+        ));
 
         try {
-            await deleteSubagent(agent.id);
+            await fetch(`${serverUrl}/api/agentkit/subagents/${agentId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled }),
+            });
+        } catch (err) {
+            console.error('Failed to toggle agent:', err);
+            // Revert on error
             await loadAgents();
-            await loadStats();
-        } catch (error) {
-            console.error('[SubagentManager] Failed to delete agent:', error);
-            alert('Failed to delete agent');
         }
     };
 
-    const handleReload = async () => {
+    const handleDelete = async (agentId: string) => {
+        if (!confirm('Delete this subagent? This cannot be undone.')) return;
+
         try {
-            await reloadSubagents();
-            await loadAgents();
-            await loadStats();
-        } catch (error) {
-            console.error('[SubagentManager] Failed to reload:', error);
+            await fetch(`${serverUrl}/api/agentkit/subagents/${agentId}`, {
+                method: 'DELETE',
+            });
+
+            setAgents(prev => prev.filter(a => a.id !== agentId));
+            if (selectedAgent === agentId) {
+                setSelectedAgent(agents[0]?.id || null);
+            }
+        } catch (err) {
+            console.error('Failed to delete agent:', err);
         }
     };
 
-    const handleEdit = (agent: SubagentConfig) => {
-        setSelectedAgent(agent);
-        setShowEditDialog(true);
-    };
+    const selectedAgentData = agents.find(a => a.id === selectedAgent);
+    const totalAgents = agents.length;
+    const enabledCount = agents.filter(a => a.enabled).length;
 
-    const handleFormSuccess = () => {
-        setShowCreateDialog(false);
-        setShowEditDialog(false);
-        setSelectedAgent(null);
-        loadAgents();
-        loadStats();
-    };
-
-    const filteredAgents = agents.filter(agent => {
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            return (
-                agent.name.toLowerCase().includes(query) ||
-                agent.description.toLowerCase().includes(query) ||
-                agent.tags.some(tag => tag.toLowerCase().includes(query))
-            );
-        }
-        return true;
-    });
+    if (!isOpen) return null;
 
     return (
-        <div className={cn("flex flex-col h-full bg-muted/40", className)}>
-            {/* Header */}
-            <div className="p-4 border-b border-border bg-background/50 backdrop-blur-sm">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                        <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-purple-500/20 to-indigo-500/20 flex items-center justify-center border border-white/10">
-                            <Zap className="h-4 w-4 text-purple-400" />
-                        </div>
-                        <div>
-                            <h2 className="text-sm font-semibold text-foreground">Custom Subagents</h2>
-                            {stats && (
-                                <p className="text-[10px] text-muted-foreground">
-                                    {stats.total} total · {stats.enabled} enabled
-                                </p>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-7 w-7"
-                                        onClick={handleReload}
-                                        disabled={isLoading}
-                                    >
-                                        <Loader2 className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Reload from disk</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-
-                        <Button
-                            size="sm"
-                            className="h-7 px-2.5 text-xs bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-background/90 dark:bg-background/10 backdrop-blur-3xl backdrop-saturate-150 border-2 dark:border border-border dark:border-border/50 rounded-2xl shadow-2xl w-[90%] h-[88%] max-w-6xl flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between p-5 border-b border-border dark:border-border/30">
+                    <h2 className="text-xl font-semibold">Manage Custom Subagents</h2>
+                    <div className="flex items-center gap-4">
+                        <span className="text-sm text-muted-foreground">
+                            {enabledCount}/{totalAgents} enabled
+                        </span>
+                        <button
                             onClick={() => setShowCreateDialog(true)}
+                            className="px-3 py-1.5 text-sm text-primary hover:text-primary/80 flex items-center gap-1.5 transition-colors bg-primary/10 hover:bg-primary/20 rounded-lg"
                         >
-                            <Plus className="h-3.5 w-3.5 mr-1" />
+                            <Plus className="w-3.5 h-3.5" />
                             New Subagent
-                        </Button>
+                        </button>
+                        <button
+                            onClick={handleRefresh}
+                            disabled={refreshing}
+                            className="p-2 hover:bg-background/20 hover:backdrop-blur-lg rounded-lg transition-all duration-200 hover:scale-105 disabled:opacity-50"
+                            aria-label="Refresh"
+                        >
+                            <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-background/20 hover:backdrop-blur-lg rounded-lg transition-all duration-200 hover:scale-105"
+                            aria-label="Close"
+                        >
+                            ✕
+                        </button>
                     </div>
                 </div>
 
-                {/* Search and Filters */}
-                <div className="flex gap-2">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                        <Input
-                            placeholder="Search subagents..."
-                            className="pl-8 h-8 bg-background border-border text-xs"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                {/* Error banner */}
+                {error && (
+                    <div className="px-5 py-2 bg-yellow-500/10 border-b border-yellow-500/20 text-yellow-400 text-sm flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        {error}
                     </div>
-                    <div className="flex gap-1 bg-muted rounded-md p-0.5">
-                        <Button
-                            size="sm"
-                            variant={filter === 'all' ? 'secondary' : 'ghost'}
-                            className="h-7 px-2.5 text-[10px]"
-                            onClick={() => setFilter('all')}
-                        >
-                            All
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant={filter === 'enabled' ? 'secondary' : 'ghost'}
-                            className="h-7 px-2.5 text-[10px]"
-                            onClick={() => setFilter('enabled')}
-                        >
-                            Enabled
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant={filter === 'disabled' ? 'secondary' : 'ghost'}
-                            className="h-7 px-2.5 text-[10px]"
-                            onClick={() => setFilter('disabled')}
-                        >
-                            Disabled
-                        </Button>
+                )}
+
+                {/* Content */}
+                <div className="flex flex-1 overflow-hidden">
+                    {/* Agent Sidebar */}
+                    <div className="w-64 border-r border-border dark:border-border/30 overflow-y-auto">
+                        {loading ? (
+                            <div className="flex items-center justify-center py-8">
+                                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                            </div>
+                        ) : agents.length === 0 ? (
+                            <div className="p-4 text-sm text-muted-foreground text-center">
+                                No agents configured
+                            </div>
+                        ) : (
+                            <div className="py-2">
+                                {agents.map(agent => (
+                                    <button
+                                        key={agent.id}
+                                        onClick={() => setSelectedAgent(agent.id)}
+                                        className={cn(
+                                            "w-full px-4 py-3 flex items-center justify-between text-left transition-all",
+                                            "hover:bg-background/20 hover:backdrop-blur-lg",
+                                            selectedAgent === agent.id && "bg-background/30 border-l-2 border-primary"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                            {agent.enabled ? (
+                                                <Circle className="w-3 h-3 text-green-500 fill-green-500 shrink-0" />
+                                            ) : (
+                                                <Circle className="w-3 h-3 text-muted-foreground shrink-0" />
+                                            )}
+                                            <span className="text-sm font-medium truncate">{agent.name}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {agent.usageCount > 0 && (
+                                                <span className="text-xs text-muted-foreground">
+                                                    {agent.usageCount}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Agent Details */}
+                    <div className="flex-1 overflow-y-auto p-6">
+                        {selectedAgentData ? (
+                            <div>
+                                {/* Agent Header */}
+                                <div className="flex items-center justify-between mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-lg font-semibold">{selectedAgentData.name}</h3>
+                                        <span className="px-2 py-0.5 text-xs bg-muted/50 rounded-md text-muted-foreground">
+                                            {selectedAgentData.scope}
+                                        </span>
+                                        {selectedAgentData.priority > 70 && (
+                                            <span className="px-2 py-0.5 text-xs bg-orange-500/10 text-orange-500 rounded-md">
+                                                High Priority
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-muted-foreground">Enabled</span>
+                                            <Switch
+                                                checked={selectedAgentData.enabled}
+                                                onCheckedChange={(checked) => handleToggleEnabled(selectedAgentData.id, checked)}
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => handleDelete(selectedAgentData.id)}
+                                            className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-all"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Description */}
+                                {selectedAgentData.description && (
+                                    <p className="text-sm text-muted-foreground mb-6">
+                                        {selectedAgentData.description}
+                                    </p>
+                                )}
+
+                                {/* Stats */}
+                                {(selectedAgentData.usageCount > 0 || selectedAgentData.successRate !== undefined) && (
+                                    <div className="grid grid-cols-2 gap-4 mb-6">
+                                        {selectedAgentData.usageCount > 0 && (
+                                            <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
+                                                <div className="text-2xl font-bold">{selectedAgentData.usageCount}</div>
+                                                <div className="text-xs text-muted-foreground">Total Uses</div>
+                                            </div>
+                                        )}
+                                        {selectedAgentData.successRate !== undefined && (
+                                            <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
+                                                <div className="text-2xl font-bold text-green-500">
+                                                    {Math.round(selectedAgentData.successRate * 100)}%
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">Success Rate</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Configuration */}
+                                <div className="space-y-3">
+                                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                        Configuration
+                                    </h4>
+
+                                    {/* Model */}
+                                    <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
+                                        <div className="text-xs text-muted-foreground mb-1">AI Model</div>
+                                        <div className="font-medium text-sm">{selectedAgentData.model}</div>
+                                    </div>
+
+                                    {/* Temperature & Priority */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
+                                            <div className="text-xs text-muted-foreground mb-1">Temperature</div>
+                                            <div className="font-medium text-sm">{selectedAgentData.temperature}</div>
+                                        </div>
+                                        <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
+                                            <div className="text-xs text-muted-foreground mb-1">Priority</div>
+                                            <div className="font-medium text-sm">{selectedAgentData.priority}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Keywords */}
+                                    {selectedAgentData.keywords.length > 0 && (
+                                        <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
+                                            <div className="text-xs text-muted-foreground mb-2">Routing Keywords</div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {selectedAgentData.keywords.map(keyword => (
+                                                    <span
+                                                        key={keyword}
+                                                        className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded"
+                                                    >
+                                                        {keyword}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Tools */}
+                                    <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
+                                        <div className="text-xs text-muted-foreground mb-2">
+                                            Tools ({selectedAgentData.tools === 'all' ? 'All' : selectedAgentData.tools.length})
+                                        </div>
+                                        {selectedAgentData.tools === 'all' ? (
+                                            <div className="text-sm text-green-500 flex items-center gap-1.5">
+                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                                Access to all available tools
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {selectedAgentData.tools.map(tool => (
+                                                    <span
+                                                        key={tool}
+                                                        className="px-2 py-0.5 text-xs bg-muted/50 text-muted-foreground rounded font-mono"
+                                                    >
+                                                        {tool}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* System Prompt */}
+                                    <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
+                                        <div className="text-xs text-muted-foreground mb-2">System Prompt</div>
+                                        <div className="text-sm leading-relaxed whitespace-pre-wrap font-mono text-xs">
+                                            {selectedAgentData.systemPrompt}
+                                        </div>
+                                    </div>
+
+                                    {/* Tags */}
+                                    {selectedAgentData.tags.length > 0 && (
+                                        <div className="p-4 bg-background/5 backdrop-blur-xl border border-border/30 rounded-xl">
+                                            <div className="text-xs text-muted-foreground mb-2">Tags</div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {selectedAgentData.tags.map(tag => (
+                                                    <span
+                                                        key={tag}
+                                                        className="px-2 py-0.5 text-xs bg-muted/50 text-muted-foreground rounded"
+                                                    >
+                                                        #{tag}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                                <Sparkles className="w-12 h-12 mb-4 opacity-50" />
+                                <p>Select an agent to view details</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Agent Grid */}
-            <ScrollArea className="flex-1">
-                <div className="p-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {isLoading ? (
-                        <div className="col-span-full flex items-center justify-center py-12">
-                            <div className="flex flex-col items-center gap-2">
-                                <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
-                                <p className="text-sm text-muted-foreground">Loading subagents...</p>
-                            </div>
-                        </div>
-                    ) : filteredAgents.length === 0 ? (
-                        <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
-                            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-3">
-                                <AlertCircle className="h-8 w-8 text-muted-foreground/50" />
-                            </div>
-                            <h3 className="text-sm font-medium text-foreground mb-1">No subagents found</h3>
-                            <p className="text-xs text-muted-foreground mb-4">
-                                {searchQuery ? "Try a different search query" : "Create your first custom subagent"}
-                            </p>
-                            {!searchQuery && (
-                                <Button
-                                    size="sm"
-                                    onClick={() => setShowCreateDialog(true)}
-                                >
-                                    <Plus className="h-3.5 w-3.5 mr-1.5" />
-                                    Create Subagent
-                                </Button>
-                            )}
-                        </div>
-                    ) : (
-                        filteredAgents.map(agent => (
-                            <SubagentCard
-                                key={agent.id}
-                                agent={agent}
-                                onEdit={() => handleEdit(agent)}
-                                onDelete={() => handleDelete(agent)}
-                            />
-                        ))
-                    )}
+            {/* Create Dialog Placeholder - Will be integrated with the form dialog */}
+            {showCreateDialog && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                    <div className="bg-background p-6 rounded-xl border border-border max-w-md">
+                        <p className="text-muted-foreground mb-4">
+                            Create dialog integration coming next...
+                        </p>
+                        <button
+                            onClick={() => setShowCreateDialog(false)}
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg"
+                        >
+                            Close
+                        </button>
+                    </div>
                 </div>
-            </ScrollArea>
-
-            {/* Dialogs */}
-            <SubagentFormDialog
-                open={showCreateDialog}
-                onOpenChange={setShowCreateDialog}
-                onSuccess={handleFormSuccess}
-            />
-            <SubagentFormDialog
-                open={showEditDialog}
-                onOpenChange={setShowEditDialog}
-                agent={selectedAgent || undefined}
-                onSuccess={handleFormSuccess}
-            />
+            )}
         </div>
     );
-}
+};
+
+export default SubagentManager;

@@ -31,6 +31,7 @@ import ProblemsPanel from "./ProblemsPanel";
 import PreviewBrowserPanel from "./PreviewBrowserPanel";
 import { RightSidebar } from "./RightSidebar";
 import MCPManager from "../agents/MCPManager";
+import SubagentManager from "../agents/SubagentManager";
 
 import { useDiffState } from "@/stores/diffStore";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
@@ -52,6 +53,7 @@ const IDE: React.FC = () => {
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isMCPManagerOpen, setIsMCPManagerOpen] = useState(false);
+  const [isSubagentManagerOpen, setIsSubagentManagerOpen] = useState(false);
 
   // Subscribe to diff state to auto-open diff panel
   const diffState = useDiffState();
@@ -588,6 +590,7 @@ const IDE: React.FC = () => {
         onClose={() => setIsCommandPaletteOpen(false)}
         onOpenThemeSwitcher={() => setIsThemeSwitcherOpen(true)}
         onOpenMCPManager={() => setIsMCPManagerOpen(true)}
+        onOpenSubagentManager={() => setIsSubagentManagerOpen(true)}
       />
 
       <GoToLineDialog
@@ -634,6 +637,12 @@ const IDE: React.FC = () => {
           const name = path.split('/').pop() || path;
           actions.openFile({ name, path, is_directory: false });
         }}
+      />
+
+      {/* Subagent Manager */}
+      <SubagentManager
+        isOpen={isSubagentManagerOpen}
+        onClose={() => setIsSubagentManagerOpen(false)}
       />
 
       {/* Update notification */}

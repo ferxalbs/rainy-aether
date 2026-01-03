@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Command,
   Server,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { toggleDayNight, useThemeState, isExtensionThemeActive } from "../../stores/themeStore";
@@ -23,6 +24,7 @@ interface CommandPaletteProps {
   onClose: () => void;
   onOpenThemeSwitcher: () => void;
   onOpenMCPManager?: () => void;
+  onOpenSubagentManager?: () => void;
 }
 
 type CommandItem = {
@@ -30,7 +32,7 @@ type CommandItem = {
   title: string;
   hint?: string;
   run: () => void;
-  icon?: "settings" | "folder" | "save" | "palette" | "moon" | "sun" | "fileplus" | "server";
+  icon?: "settings" | "folder" | "save" | "palette" | "moon" | "sun" | "fileplus" | "server" | "sparkles";
   disabled?: boolean;
 };
 
@@ -42,7 +44,7 @@ function matchScore(query: string, title: string): number {
   return -1;
 }
 
-const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpenThemeSwitcher, onOpenMCPManager }) => {
+const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpenThemeSwitcher, onOpenMCPManager, onOpenSubagentManager }) => {
   const { actions, state } = useIDEStore();
   const theme = useThemeState();
 
@@ -167,6 +169,14 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
         icon: "server",
         disabled: !onOpenMCPManager,
       },
+      // Custom Subagents Manager
+      {
+        id: "open-subagent-manager",
+        title: " Manage Custom Subagents",
+        run: () => onOpenSubagentManager?.(),
+        icon: "sparkles",
+        disabled: !onOpenSubagentManager,
+      },
       // View commands
       {
         id: "toggle-minimap",
@@ -255,7 +265,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
         run: () => actions.toggleZenMode(),
       },
     ],
-    [actions, getActiveFile, onOpenThemeSwitcher, onOpenMCPManager, theme.currentTheme.mode],
+    [actions, getActiveFile, onOpenThemeSwitcher, onOpenMCPManager, onOpenSubagentManager, theme.currentTheme.mode],
   );
 
   const filteredCommands = useMemo(() => {
@@ -355,6 +365,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
         return <FilePlus {...sharedProps} />;
       case "server":
         return <Server {...sharedProps} />;
+      case "sparkles":
+        return <Sparkles {...sharedProps} />;
       default:
         return <Command {...sharedProps} />;
     }

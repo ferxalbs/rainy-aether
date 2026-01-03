@@ -77,13 +77,11 @@ const API_PROVIDERS: ApiKeyConfig[] = [
     description: 'GML 4.5 and GPT-OSS (fastest inference)',
   },
 ];
-import { SubagentManager } from "./SubagentManager";
 
 export function AgentSettingsDialog() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showSubagentManager, setShowSubagentManager] = useState(false);
 
   const { status, isRunning, isStarting, isStopping, start, stop, refresh, error: serverError } = useAgentServer();
 
@@ -371,15 +369,6 @@ export function AgentSettingsDialog() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Subagent Manager in separate Dialog */}
-      {showSubagentManager && (
-        <Dialog open={showSubagentManager} onOpenChange={setShowSubagentManager}>
-          <DialogContent className="max-w-[95vw] h-[90vh] p-0">
-            <SubagentManager className="h-full" />
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   );
 }
