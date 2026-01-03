@@ -334,6 +334,8 @@ import {
     removeServerFromConfig,
     toggleServerEnabled,
     updateMCPServer,
+    setServerOverride,
+    getServerOverride,
     getAllHealthStatuses,
     getCircuitBreakerStatus,
     resetCircuitBreaker,
@@ -343,6 +345,8 @@ import type { MCPServerEntry } from '../mcp';
 
 /**
  * Get MCP server configurations (built-in + project)
+ * Includes live connection status from mcpManager
+ * Applies persisted overrides for built-in servers
  */
 agentkit.get('/mcp/servers', (c: Context) => {
     const workspace = c.req.query('workspace') || process.cwd();
@@ -355,16 +359,30 @@ agentkit.get('/mcp/servers', (c: Context) => {
 
     return c.json({
         hasProjectConfig: hasMCPConfig(workspace),
-        servers: [...builtIn, ...projectConfigs].map(cfg => ({
-            name: cfg.name,
-            enabled: cfg.enabled,
-            transport: cfg.transport.type,
-            description: cfg.description,
-            category: cfg.category,
-            priority: cfg.priority,
-            autoApprove: cfg.autoApprove ?? false,
-            trustLevel: cfg.trustLevel ?? 'untrusted',
-        })),
+        servers: [...builtIn, ...projectConfigs].map(cfg => {
+            // Get live connection status from mcpManager
+            const status = mcpManager.getStatus(cfg.name);
+            const tools = mcpManager.getAvailableTools(cfg.name);
+
+            // Apply persisted overrides for this server
+            const override = getServerOverride(workspace, cfg.name);
+            const enabled = override?.enabled ?? cfg.enabled;
+            const autoApprove = override?.autoApprove ?? cfg.autoApprove ?? false;
+
+            return {
+                name: cfg.name,
+                enabled,
+                transport: cfg.transport.type,
+                description: cfg.description,
+                category: cfg.category,
+                priority: cfg.priority,
+                autoApprove,
+                trustLevel: cfg.trustLevel ?? 'untrusted',
+                // Include live connection state
+                status: status || 'disconnected',
+                toolCount: tools.length,
+            };
+        }),
     });
 });
 
@@ -712,7 +730,7 @@ agentkit.patch('/mcp/servers/:name/auto-approve', async (c: Context) => {
     // Also persist to config file if workspace provided
     let persisted = false;
     if (workspace) {
-        persisted = updateMCPServer(workspace, serverName, { autoApprove });
+        persisted = setServerOverride(workspace, serverName, { autoApprove });
     }
 
     return c.json({

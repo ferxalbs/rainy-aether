@@ -32,6 +32,8 @@ import type { MCPServerConfig, MCPTransport } from './config';
  */
 export interface MCPConfig {
     mcpServers: Record<string, MCPServerEntry>;
+    /** Overrides for built-in server settings (enabled, autoApprove) */
+    serverOverrides?: Record<string, { enabled?: boolean; autoApprove?: boolean }>;
 }
 
 /**
@@ -287,10 +289,72 @@ export function removeMCPServer(workspace: string, name: string): boolean {
 }
 
 /**
+ * Set override for a built-in server (or update project server)
+ * Works for both project-added and built-in servers
+ */
+export function setServerOverride(
+    workspace: string,
+    name: string,
+    overrides: { enabled?: boolean; autoApprove?: boolean }
+): boolean {
+    let config = loadMCPConfig(workspace);
+
+    // Create config if it doesn't exist
+    if (!config) {
+        createDefaultMCPConfig(workspace);
+        config = loadMCPConfig(workspace);
+    }
+    if (!config) return false;
+
+    // If it's a project server, update it directly
+    if (config.mcpServers[name]) {
+        config.mcpServers[name] = { ...config.mcpServers[name], ...overrides };
+    } else {
+        // Otherwise, it's a built-in server - use overrides
+        if (!config.serverOverrides) {
+            config.serverOverrides = {};
+        }
+        config.serverOverrides[name] = {
+            ...config.serverOverrides[name],
+            ...overrides,
+        };
+    }
+
+    const configPath = getMCPConfigPath(workspace);
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    clearConfigCache();
+
+    return true;
+}
+
+/**
+ * Get override for a server (project or built-in)
+ */
+export function getServerOverride(
+    workspace: string,
+    name: string
+): { enabled?: boolean; autoApprove?: boolean } | undefined {
+    const config = loadMCPConfig(workspace);
+    if (!config) return undefined;
+
+    // Check project server first
+    if (config.mcpServers[name]) {
+        return {
+            enabled: config.mcpServers[name].enabled,
+            autoApprove: config.mcpServers[name].autoApprove,
+        };
+    }
+
+    // Check overrides for built-in servers
+    return config.serverOverrides?.[name];
+}
+
+/**
  * Toggle server enabled/disabled
+ * Works for both project and built-in servers
  */
 export function toggleMCPServer(workspace: string, name: string, enabled: boolean): boolean {
-    return updateMCPServer(workspace, name, { enabled });
+    return setServerOverride(workspace, name, { enabled });
 }
 
 // ===========================

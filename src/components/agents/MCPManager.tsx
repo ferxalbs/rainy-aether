@@ -70,12 +70,12 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
             const data = await res.json();
             setConfigExists(data.hasProjectConfig || false);
 
-            // Format servers
-            const formattedServers: MCPServer[] = (data.servers || []).map((s: MCPServer) => ({
+            // Format servers - USE status from API, don't hardcode!
+            const formattedServers: MCPServer[] = (data.servers || []).map((s: MCPServer & { status?: string; toolCount?: number }) => ({
                 ...s,
-                status: 'disconnected' as const,
+                status: (s.status as MCPServer['status']) || 'disconnected',
                 tools: [],
-                toolCount: 0,
+                toolCount: s.toolCount || 0,
             }));
 
             if (formattedServers.length === 0) {
@@ -83,10 +83,31 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
             }
 
             setServers(formattedServers);
+
+            // Fetch tools for already-connected servers
+            for (const server of formattedServers) {
+                if (server.status === 'connected' && (server.toolCount ?? 0) > 0) {
+                    // Fetch actual tools for connected servers
+                    try {
+                        const toolsRes = await fetch(`${serverUrl}/api/agentkit/mcp/servers/${server.name}/tools`);
+                        if (toolsRes.ok) {
+                            const toolsData = await toolsRes.json();
+                            setServers(prev => prev.map(s =>
+                                s.name === server.name
+                                    ? { ...s, tools: toolsData.tools || [] }
+                                    : s
+                            ));
+                        }
+                    } catch (err) {
+                        console.warn(`Failed to fetch tools for ${server.name}:`, err);
+                    }
+                }
+            }
+
             if (formattedServers.length > 0 && !selectedServer) {
                 setSelectedServer(formattedServers[0].name);
-                // Auto-connect to first server if enabled
-                if (formattedServers[0].enabled) {
+                // Auto-connect to first enabled server if not already connected
+                if (formattedServers[0].enabled && formattedServers[0].status !== 'connected') {
                     connectToServer(formattedServers[0].name);
                 }
             }

@@ -23,6 +23,8 @@ export {
     updateMCPServer,
     removeMCPServer,
     toggleMCPServer,
+    setServerOverride,
+    getServerOverride,
     validateMCPConfig,
     watchMCPConfig,
     clearConfigCache,
