@@ -18,6 +18,7 @@ import type { Context } from 'hono';
 // Import modules
 import brainRoutes from './routes/brain';
 import agentkitRoutes from './routes/agentkit';
+import subagentRoutes from './routes/subagent-routes';
 import { inngest, allWorkflows } from './workflows';
 import { getAgentTypes, agentFactories } from './agents';
 
@@ -40,7 +41,7 @@ app.get('/health', (c: Context) => c.json({
     server: 'rainy-agents',
     version: '0.3.0',
     uptime: process.uptime(),
-    features: ['brain', 'tools', 'agents', 'inngest'],
+    features: ['brain', 'tools', 'agents', 'inngest', 'subagents'],
 }));
 
 // Mount brain routes (legacy)
@@ -48,6 +49,9 @@ app.route('/api/brain', brainRoutes);
 
 // Mount AgentKit routes (new)
 app.route('/api/agentkit', agentkitRoutes);
+
+// Mount subagent management routes
+app.route('/api/agentkit/subagents', subagentRoutes);
 
 // Inngest endpoint
 app.on(['GET', 'POST', 'PUT'], '/api/inngest', serveInngest({
@@ -88,6 +92,15 @@ app.get('/', (c: Context) => c.json({
             agents: 'GET /api/agentkit/agents',
             conversations: 'GET /api/agentkit/conversations/:id',
             mcp: 'GET /api/agentkit/mcp/servers',
+            subagents: {
+                list: 'GET /api/agentkit/subagents',
+                get: 'GET /api/agentkit/subagents/:id',
+                create: 'POST /api/agentkit/subagents',
+                update: 'PUT /api/agentkit/subagents/:id',
+                delete: 'DELETE /api/agentkit/subagents/:id',
+                validate: 'POST /api/agentkit/subagents/validate',
+                suggestTools: 'POST /api/agentkit/subagents/suggest-tools',
+            },
         },
         inngest: '/api/inngest',
     },

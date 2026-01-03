@@ -13,6 +13,7 @@ import {
 import { cn } from '../../lib/cn';
 import { Switch } from '../ui/switch';
 import { SubagentFormDialog } from './SubagentFormDialog';
+import { getApiUrl } from '../../config/server-config';
 
 // ===========================
 // Types
@@ -54,14 +55,14 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [editingAgent, setEditingAgent] = useState<SubagentConfig | null>(null);
 
-    const serverUrl = 'http://localhost:3847';
+    const serverUrl = getApiUrl('subagents');
 
     // Load agents from API
     const loadAgents = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch(`${serverUrl}/api/agentkit/subagents`);
+            const res = await fetch(serverUrl);
 
             if (!res.ok) {
                 throw new Error('Agent server not running. Start with: pnpm tauri dev');
@@ -106,7 +107,7 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
         ));
 
         try {
-            await fetch(`${serverUrl}/api/agentkit/subagents/${agentId}`, {
+            await fetch(`${getApiUrl('subagents')}/${agentId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabled }),
@@ -122,7 +123,7 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
         if (!confirm('Delete this subagent? This cannot be undone.')) return;
 
         try {
-            await fetch(`${serverUrl}/api/agentkit/subagents/${agentId}`, {
+            await fetch(`${getApiUrl('subagents')}/${agentId}`, {
                 method: 'DELETE',
             });
 

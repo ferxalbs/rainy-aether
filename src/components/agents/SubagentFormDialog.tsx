@@ -32,6 +32,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { getModelsByProvider } from "@/services/agents/server/factory/ModelMapper";
+import { getApiUrl } from "@/config/server-config";
 
 // ===========================
 // Types
@@ -62,14 +64,8 @@ interface SubagentFormDialogProps {
     onSuccess: () => void;
 }
 
-const AVAILABLE_MODELS = [
-    { id: 'gemini-3-flash', name: 'Gemini 3 Flash', provider: 'Google' },
-    { id: 'gemini-3 -pro', name: 'Gemini 3 Pro', provider: 'Google' },
-    { id: 'claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic' },
-    { id: 'claude-3.5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic' },
-    { id: 'gpt-4', name: 'GPT-4', provider: 'OpenAI' },
-    { id: 'grok-beta', name: 'Grok Beta', provider: 'xAI' },
-];
+// Get actual available models from legacy providers via ModelMapper
+const MODELS_BY_PROVIDER = getModelsByProvider();
 
 const COMMON_TOOLS = [
     { name: 'read_file', category: 'read', description: 'Read file contents' },
@@ -87,7 +83,7 @@ const COMMON_TOOLS = [
 // ===========================
 
 async function createSubagent(config: Partial<SubagentConfig>): Promise<SubagentConfig> {
-    const response = await fetch('http://localhost:3001/api/agentkit/subagents', {
+    const response = await fetch(getApiUrl('subagents'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
@@ -101,7 +97,7 @@ async function createSubagent(config: Partial<SubagentConfig>): Promise<Subagent
 }
 
 async function updateSubagent(id: string, config: Partial<SubagentConfig>): Promise<SubagentConfig> {
-    const response = await fetch(`http://localhost:3001/api/agentkit/subagents/${id}`, {
+    const response = await fetch(`${getApiUrl('subagents')}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
@@ -115,7 +111,7 @@ async function updateSubagent(id: string, config: Partial<SubagentConfig>): Prom
 }
 
 async function suggestTools(description: string): Promise<{ suggested: string[]; reasoning: string[] }> {
-    const response = await fetch('http://localhost:3001/api/agentkit/subagents/suggest-tools', {
+    const response = await fetch(`${getApiUrl('subagents')}/suggest-tools`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ description }),
@@ -140,7 +136,7 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
         description: agent?.description || '',
         enabled: agent?.enabled ?? true,
         scope: agent?.scope || 'user',
-        model: agent?.model || 'gemini-3-flash',
+        model: agent?.model || 'gemini-flash-latest',
         tools: agent?.tools || [],
         systemPrompt: agent?.systemPrompt || '',
         keywords: agent?.keywords || [],
@@ -185,7 +181,7 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
                 description: '',
                 enabled: true,
                 scope: 'user',
-                model: 'gemini-3-flash',
+                model: 'gemini-flash-latest',
                 tools: [],
                 systemPrompt: '',
                 keywords: [],
@@ -295,7 +291,7 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl max-h-[90vh] p-0">
+            <DialogContent className="max-w-6xl max-h-[88vh] p-0 bg-background/90 dark:bg-background/10 backdrop-blur-3xl backdrop-saturate-150">
                 <form onSubmit={handleSubmit} className="flex flex-col h-full">
                     <DialogHeader className="px-6 pt-6 pb-4">
                         <DialogTitle>{isEdit ? 'Edit' : 'Create'} Custom Subagent</DialogTitle>
@@ -379,14 +375,37 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
                                         <SelectTrigger id="model">
                                             <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            {AVAILABLE_MODELS.map(model => (
-                                                <SelectItem key={model.id} value={model.id}>
-                                                    {model.name} ({model.provider})
-                                                </SelectItem>
-                                            ))}
+                                        <SelectContent className="max-h-[400px]">
+                                            {Object.entries(MODELS_BY_PROVIDER).map(([provider, models]) => {
+                                                // Filter out thinking variants from the list
+                                                const standardModels = models.filter(m => !m.isThinking);
+                                                if (standardModels.length === 0) return null;
+
+                                                return (
+                                                    <div key={provider}>
+                                                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                                                            {provider}
+                                                        </div>
+                                                        {standardModels.map(model => (
+                                                            <SelectItem key={model.id} value={model.id}>
+                                                                <div className="flex flex-col">
+                                                                    <span>{model.name}</span>
+                                                                    {model.description && (
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            {model.description}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })}
                                         </SelectContent>
                                     </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Models from your configured providers
+                                    </p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
