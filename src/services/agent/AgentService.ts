@@ -168,6 +168,20 @@ export class AgentService {
       await brainService.checkHealth();
       console.log(`[AgentService] Brain sidecar: ${brainService.connected ? 'connected' : 'not available, using local tools'}`);
 
+      // Trigger MCP auto-connect on server-side if workspace available
+      const workspace = getIDEState().workspace;
+      if (workspace) {
+        try {
+          await fetch(`${AGENT_SERVER_URL}/api/agentkit/mcp/auto-connect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ workspace: workspace.path }),
+          });
+        } catch (err) {
+          console.warn('[AgentService] MCP auto-connect trigger failed:', err);
+        }
+      }
+
       // Sync MCP tools from connected servers
       const mcpResult = await syncMCPTools();
       if (mcpResult.count > 0) {
@@ -364,7 +378,9 @@ Would you like me to:
         let result: unknown;
 
         // Force local execution for tools that need frontend state
-        const forceLocal = LOCAL_ONLY_TOOLS.includes(toolCall.name);
+        // Also force local for MCP tools (they're registered in ToolRegistry with API callbacks)
+        const isMCPTool = toolCall.name.includes('.'); // MCP tools use format "serverName.toolName"
+        const forceLocal = LOCAL_ONLY_TOOLS.includes(toolCall.name) || isMCPTool;
 
         if (useBrain && !forceLocal) {
           // Use sidecar brain service (more reliable, no Tauri hangs)
@@ -381,7 +397,7 @@ Would you like me to:
             throw new Error(brainResult.error || 'Tool execution failed');
           }
         } else {
-          // Use local ToolRegistry (for frontend-only tools or when brain not connected)
+          // Use local ToolRegistry (for frontend-only tools, MCP tools, or when brain not connected)
           result = await toolRegistry.executeTool(toolCall.name, toolCall.arguments);
         }
 

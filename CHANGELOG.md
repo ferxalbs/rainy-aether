@@ -2,6 +2,16 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.10] - 2026-01-03
+
+### Added
+- **MCP Auto-Connect**: Enabled servers in `mcp.json` now automatically reconnect when the IDE reopens
+  - New `/api/agentkit/mcp/auto-connect` endpoint to trigger reconnection
+  - Frontend triggers auto-connect on `AgentService` initialization
+- **Dynamic Tool Routing**: MCP tools (prefixed with `server.`) are now forced to execute locally via `ToolRegistry`
+  - Fixed "Unknown tool" errors when using MCP tools while Brain sidecar is connected
+  - Ensures MCP API call-through functions are used for execution
+
 ## [v0.1.9] - 2026-01-03
 
 ### Added

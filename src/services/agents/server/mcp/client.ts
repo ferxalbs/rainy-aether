@@ -212,6 +212,52 @@ export class MCPClientManager {
             await this.disconnect(serverName);
         }
     }
+
+    /**
+     * Auto-connect to all enabled servers
+     */
+    async autoConnect(workspace: string): Promise<number> {
+        // Dynamic import to avoid circular dependency
+        const { getProjectMCPConfigs, getServerOverride } = await import('./config-loader');
+        const { getMCPConfigs } = await import('./config');
+
+        console.log(`[MCP] Auto-connecting servers for workspace: ${workspace}`);
+
+        // 1. Get all project servers (enabled by default if in project)
+        const projectConfigs = getProjectMCPConfigs(workspace);
+
+        // 2. Get all built-in servers
+        const builtInConfigs = getMCPConfigs();
+
+        const serversToConnect = [...projectConfigs];
+
+        // 3. Add built-in servers if they are enabled via override or by default
+        for (const builtIn of builtInConfigs) {
+            if (builtIn.transport.type === 'internal') continue;
+
+            const override = getServerOverride(workspace, builtIn.name);
+            const isEnabled = override ? override.enabled : builtIn.enabled;
+
+            if (isEnabled && !serversToConnect.some(s => s.name === builtIn.name)) {
+                serversToConnect.push({
+                    ...builtIn,
+                    enabled: true,
+                    autoApprove: override?.autoApprove ?? builtIn.autoApprove
+                });
+            }
+        }
+
+        let connectedCount = 0;
+        await Promise.all(serversToConnect.map(async (cfg) => {
+            if (this.getStatus(cfg.name) === 'connected') return;
+
+            console.log(`[MCP] Auto-connecting to ${cfg.name}...`);
+            const success = await this.connect(cfg);
+            if (success) connectedCount++;
+        }));
+
+        return connectedCount;
+    }
 }
 
 // Singleton instance

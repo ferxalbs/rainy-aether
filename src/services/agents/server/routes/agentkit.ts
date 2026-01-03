@@ -743,6 +743,24 @@ agentkit.patch('/mcp/servers/:name/auto-approve', async (c: Context) => {
     });
 });
 
+/**
+ * Auto-connect all enabled MCP servers for a workspace
+ */
+agentkit.post('/mcp/auto-connect', async (c: Context) => {
+    const { workspace } = await c.req.json<{ workspace: string }>();
+    if (!workspace) {
+        return c.json({ error: 'Workspace path required' }, 400);
+    }
+
+    const connectedCount = await mcpManager.autoConnect(workspace);
+
+    return c.json({
+        success: true,
+        connectedCount,
+        message: `Auto-connected ${connectedCount} servers for workspace: ${workspace}`,
+    });
+});
+
 // ===========================
 // Helper Functions
 // ===========================
