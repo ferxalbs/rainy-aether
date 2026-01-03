@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { Switch } from '../ui/switch';
+import { SubagentFormDialog } from './SubagentFormDialog';
 
 // ===========================
 // Types
@@ -51,8 +52,9 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
     const [error, setError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [showCreateDialog, setShowCreateDialog] = useState(false);
+    const [editingAgent, setEditingAgent] = useState<SubagentConfig | null>(null);
 
-    const serverUrl = 'http://localhost:3001';
+    const serverUrl = 'http://localhost:3847';
 
     // Load agents from API
     const loadAgents = useCallback(async () => {
@@ -253,6 +255,12 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
                                             />
                                         </div>
                                         <button
+                                            onClick={() => setEditingAgent(selectedAgentData)}
+                                            className="p-2 hover:bg-primary/10 text-primary rounded-lg transition-all mr-2"
+                                        >
+                                            <Sparkles className="w-4 h-4" />
+                                        </button>
+                                        <button
                                             onClick={() => handleDelete(selectedAgentData.id)}
                                             className="p-2 hover:bg-destructive/10 text-destructive rounded-lg transition-all"
                                         >
@@ -389,22 +397,22 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
                 </div>
             </div>
 
-            {/* Create Dialog Placeholder - Will be integrated with the form dialog */}
-            {showCreateDialog && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-                    <div className="bg-background p-6 rounded-xl border border-border max-w-md">
-                        <p className="text-muted-foreground mb-4">
-                            Create dialog integration coming next...
-                        </p>
-                        <button
-                            onClick={() => setShowCreateDialog(false)}
-                            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg"
-                        >
-                            Close
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* SubagentFormDialog for Create/Edit */}
+            <SubagentFormDialog
+                open={showCreateDialog || editingAgent !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setShowCreateDialog(false);
+                        setEditingAgent(null);
+                    }
+                }}
+                agent={editingAgent || undefined}
+                onSuccess={() => {
+                    setShowCreateDialog(false);
+                    setEditingAgent(null);
+                    loadAgents(); // Reload agents after successful create/edit
+                }}
+            />
         </div>
     );
 };

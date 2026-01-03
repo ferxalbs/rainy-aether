@@ -66,6 +66,8 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - Added `yaml` package dependency for YAML frontmatter parsing in subagent files
 - Fixed TypeScript compilation errors in new infrastructure files
 - Implemented proper error handling and validation for all subagent operations
+- #48 [Fixes] Replaced SubagentManager placeholder dialog with actual SubagentFormDialog integration
+- #49 [Fixes] Fixed SubagentManager API endpoint to use correct port 3847 (agent server)
 - #44 [Improvements] Completely redesigned SubagentManager to match MCPManager professional UI with sidebar navigation and detail view
 - #45 [Improvements] Added SubagentManager command to command palette (accessible via Cmd+Shift+P and search "subagent")
 - #46 [Improvements] Implemented glassmorphism styling and visual stats display (usage count, success rate) in SubagentManager
