@@ -25,6 +25,15 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Project-level: `.rainy/agents/` (highest priority, team-shared)
   - User-level: `~/.rainy/agents/` (medium priority, personal)
   - Plugin-level: Future plugin-provided agents (lowest priority)
+- **Dynamic Routing System**: Intelligent agent selection with custom subagent support
+  - Heuristic routing: Pattern matching (keywords + regex) with custom agent priority
+  - LLM-based routing: Dynamic prompt generation including all custom agents
+  - Hybrid routing: Fast heuristics with LLM fallback for ambiguous cases
+  - Custom agent caching: 1-minute TTL for efficient multi-query sessions
+- **Network Integration**: Seamless execution of both built-in and custom agents
+  - Auto-loading of custom agents into AgentKit network
+  - Direct execution via `executeWithAgent()` supporting custom agent IDs
+  - Usage tracking and analytics for custom agents
 
 ### Improved
 - **Tool Management**: Added categorization (read/write/execute/git/analysis) and risk level classification (safe/moderate/destructive)

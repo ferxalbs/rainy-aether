@@ -16,6 +16,8 @@ import {
     terminalTools,
     docsTools,
 } from '../tools/agentkit';
+import { subagentRegistry } from '../registry/SubagentRegistry';
+import { SubagentFactory } from '../factory/SubagentFactory';
 
 // ===========================
 // Types
@@ -186,24 +188,41 @@ function extractTextContent(messages: unknown[]): string {
 
 /**
  * Create an AgentKit network for task execution
+ * Supports both built-in and custom subagents
  */
-export function createAgentNetwork(options: {
+export async function createAgentNetwork(options: {
     workspace: string;
     task: string;
     currentFile?: string;
     maxIterations?: number;
-    startAgent?: AgentKitAgentType;
+    startAgent?: AgentKitAgentType | string; // Can be custom agent ID
 }) {
     const { workspace, maxIterations = 15 } = options;
 
-    // Create agents with workspace context
-    const agents = {
+    // Create built-in agents with workspace context
+    const builtInAgents = {
         planner: createPlannerAgent(workspace),
         coder: createCoderAgent(workspace),
         reviewer: createReviewerAgent(workspace),
         terminal: createTerminalAgent(workspace),
         docs: createDocsAgent(workspace),
     };
+
+    // Load and create custom subagents
+    const customConfigs = subagentRegistry.getEnabled();
+    const customAgents: Record<string, any> = {};
+
+    for (const config of customConfigs) {
+        try {
+            customAgents[config.id] = SubagentFactory.create(config);
+            console.log(`[Network] Loaded custom agent: ${config.id}`);
+        } catch (error) {
+            console.error(`[Network] Failed to create custom agent ${config.id}:`, error);
+        }
+    }
+
+    // Combine all agents
+    const agents = { ...builtInAgents, ...customAgents };
 
     // Initial state for tracking
     const initialState: NetworkStateData = {
@@ -236,12 +255,15 @@ export function createAgentNetwork(options: {
     return {
         network,
         agents,
+        builtInAgents,
+        customAgents,
         initialState,
     };
 }
 
 /**
  * Execute a task using the agent network
+ * Automatically includes custom subagents
  */
 export async function executeWithNetwork(options: {
     workspace: string;
@@ -257,10 +279,10 @@ export async function executeWithNetwork(options: {
     filesModified: string[];
     error?: string;
 }> {
-    const { network, initialState } = createAgentNetwork(options);
+    const networkSetup = await createAgentNetwork(options);
 
     try {
-        const result = await network.run(options.task);
+        const result = await networkSetup.network.run(options.task);
 
         // Extract state from result
         const stateData = result.state?.data as Record<string, unknown> | undefined;
@@ -288,7 +310,7 @@ export async function executeWithNetwork(options: {
 
         // Merge tracked state with any state from the network
         const finalState: NetworkStateData = {
-            ...initialState,
+            ...networkSetup.initialState,
             phase: 'complete',
             ...(stateData || {}),
         } as NetworkStateData;
@@ -305,7 +327,7 @@ export async function executeWithNetwork(options: {
         return {
             success: false,
             output: '',
-            state: { ...initialState, phase: 'error' },
+            state: { ...networkSetup.initialState, phase: 'error' },
             agentsUsed: [],
             toolsUsed: [],
             filesModified: [],
@@ -320,11 +342,12 @@ export async function executeWithNetwork(options: {
 
 /**
  * Execute a task with a specific agent (no network routing)
+ * Supports both built-in and custom agents
  */
 export async function executeWithAgent(options: {
     workspace: string;
     task: string;
-    agentType: AgentKitAgentType;
+    agentType: AgentKitAgentType | string; // Can be custom agent ID
     currentFile?: string;
 }): Promise<{
     success: boolean;
@@ -332,8 +355,38 @@ export async function executeWithAgent(options: {
     toolsUsed: string[];
     error?: string;
 }> {
-    const factory = agentFactories[options.agentType];
-    const agent = factory(options.workspace);
+    let agent: any;
+
+    // Check if it's a built-in agent
+    if (options.agentType in agentFactories) {
+        const factory = agentFactories[options.agentType as AgentKitAgentType];
+        agent = factory(options.workspace);
+    } else {
+        // Try to load as custom subagent
+        const config = subagentRegistry.get(options.agentType);
+        if (!config) {
+            return {
+                success: false,
+                output: '',
+                toolsUsed: [],
+                error: `Unknown agent: ${options.agentType}`,
+            };
+        }
+
+        try {
+            agent = SubagentFactory.create(config);
+
+            // Track usage
+            await subagentRegistry.incrementUsage(config.id);
+        } catch (error) {
+            return {
+                success: false,
+                output: '',
+                toolsUsed: [],
+                error: `Failed to create agent: ${error instanceof Error ? error.message : String(error)}`,
+            };
+        }
+    }
 
     try {
         const result = await agent.run(options.task);

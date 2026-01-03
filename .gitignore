@@ -45,3 +45,5 @@ src/**/*.js
 
 # Agent server build artifacts
 src/services/agents/server/dist/
+
+TASK_FOR_SUBAGENTS.md

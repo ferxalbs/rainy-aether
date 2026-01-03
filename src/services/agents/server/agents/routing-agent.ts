@@ -10,17 +10,20 @@
 
 import { createAgent, gemini } from '@inngest/agent-kit';
 import type { AgentKitAgentType } from './network';
+import { subagentRegistry } from '../registry/SubagentRegistry';
+import type { SubagentConfig } from '../types/SubagentConfig';
 
 // ===========================
 // Types
 // ===========================
 
 export interface RoutingDecision {
-    agent: AgentKitAgentType;
+    agent: AgentKitAgentType | string; // AgentKitAgentType or custom subagent ID
     confidence: number;
     reasoning: string;
-    fallbackAgent?: AgentKitAgentType;
+    fallbackAgent?: AgentKitAgentType | string;
     suggestedPlan?: string[];
+    isCustomAgent?: boolean; // True if routing to custom subagent
 }
 
 export interface RoutingContext {
@@ -38,6 +41,76 @@ export interface ConversationTurn {
     timestamp: number;
     agentUsed?: AgentKitAgentType;
     toolsUsed?: string[];
+}
+
+// ===========================
+// Custom Subagent Integration
+// ===========================
+
+let cachedCustomAgents: SubagentConfig[] = [];
+let lastLoadTime = 0;
+const CACHE_TTL_MS = 60000; // 1 minute
+
+/**
+ * Load custom subagents from registry (with caching)
+ */
+async function loadCustomSubagents(): Promise<SubagentConfig[]> {
+    const now = Date.now();
+    if (cachedCustomAgents.length > 0 && now - lastLoadTime < CACHE_TTL_MS) {
+        return cachedCustomAgents;
+    }
+
+    try {
+        cachedCustomAgents = subagentRegistry.getEnabled();
+        lastLoadTime = now;
+        console.log(`[RoutingAgent] Loaded ${cachedCustomAgents.length} custom subagents`);
+        return cachedCustomAgents;
+    } catch (error) {
+        console.error('[RoutingAgent] Failed to load custom subagents:', error);
+        return [];
+    }
+}
+
+/**
+ * Match task against custom subagent patterns
+ */
+function matchCustomAgents(task: string): Array<{ agent: SubagentConfig; score: number; reasons: string[] }> {
+    const lowerTask = task.toLowerCase();
+    const matches: Array<{ agent: SubagentConfig; score: number; reasons: string[] }> = [];
+
+    for (const agent of cachedCustomAgents) {
+        let score = 0;
+        const reasons: string[] = [];
+
+        // Check keywords
+        for (const keyword of agent.keywords) {
+            if (lowerTask.includes(keyword.toLowerCase())) {
+                score += 1 * (agent.priority / 100);
+                reasons.push(`keyword: "${keyword}"`);
+            }
+        }
+
+        // Check regex patterns
+        for (const patternStr of agent.patterns) {
+            try {
+                const pattern = new RegExp(patternStr, 'i');
+                if (pattern.test(task)) {
+                    score += 2 * (agent.priority / 100);
+                    reasons.push(`pattern match`);
+                }
+            } catch (error) {
+                // Invalid regex, skip
+                console.warn(`[RoutingAgent] Invalid pattern for ${agent.id}: ${patternStr}`);
+            }
+        }
+
+        if (score > 0) {
+            matches.push({ agent, score, reasons });
+        }
+    }
+
+    // Sort by score descending
+    return matches.sort((a, b) => b.score - a.score);
 }
 
 // ===========================
@@ -106,8 +179,30 @@ const ROUTING_PATTERNS: Record<AgentKitAgentType, {
 
 /**
  * Fast heuristic routing using patterns and keywords
+ * Includes custom subagents in matching
  */
-export function routeByHeuristics(task: string): RoutingDecision {
+export async function routeByHeuristics(task: string): Promise<RoutingDecision> {
+    // Load custom subagents
+    await loadCustomSubagents();
+
+    // Check custom agents first (they may have higher priority)
+    const customMatches = matchCustomAgents(task);
+    if (customMatches.length > 0) {
+        const best = customMatches[0];
+        const maxPossibleScore = 10;
+        const confidence = Math.min(best.score / maxPossibleScore, 1);
+
+        // If confidence is high enough, use custom agent
+        if (confidence >= 0.5) {
+            return {
+                agent: best.agent.id,
+                confidence,
+                reasoning: `Custom agent "${best.agent.name}": ${best.reasons.slice(0, 3).join(', ')}`,
+                fallbackAgent: 'planner',
+                isCustomAgent: true,
+            };
+        }
+    }
     const lowerTask = task.toLowerCase();
     const scores: Map<AgentKitAgentType, { score: number; reasons: string[] }> = new Map();
 
@@ -159,6 +254,7 @@ export function routeByHeuristics(task: string): RoutingDecision {
             ? `Matched: ${reasons.slice(0, 3).join(', ')}`
             : 'Default to planner for task analysis',
         fallbackAgent: bestAgent === 'planner' ? 'coder' : 'planner',
+        isCustomAgent: false,
     };
 }
 
@@ -166,11 +262,15 @@ export function routeByHeuristics(task: string): RoutingDecision {
 // LLM-Based Routing Agent
 // ===========================
 
-const ROUTING_SYSTEM_PROMPT = `You are an intelligent task router for a coding assistant.
+/**
+ * Generate routing system prompt including custom agents
+ */
+function generateRoutingPrompt(customAgents: SubagentConfig[]): string {
+    let prompt = `You are an intelligent task router for a coding assistant.
 
 Your job is to analyze user tasks and decide which specialized agent should handle them.
 
-## Available Agents
+## Built-in Agents
 
 1. **planner** - For task analysis, planning, architecture design
    - Use when: User wants to plan, design, or understand how to approach something
@@ -190,34 +290,39 @@ Your job is to analyze user tasks and decide which specialized agent should hand
 
 5. **docs** - For documentation lookup and explanation
    - Use when: User wants to understand APIs, libraries, or concepts
-   - Outputs: Explanations, examples
+   - Outputs: Explanations, examples`;
 
-## Response Format
+    // Add custom agents if any
+    if (customAgents.length > 0) {
+        prompt += `\n\n## Custom Agents\n`;
+        for (let i = 0; i < customAgents.length; i++) {
+            const agent = customAgents[i];
+            prompt += `\n${i + 6}. **${agent.id}** - ${agent.description}`;
+            if (agent.keywords.length > 0) {
+                prompt += `\n   - Keywords: ${agent.keywords.slice(0, 5).join(', ')}`;
+            }
+            prompt += `\n   - Priority: ${agent.priority}/100`;
+        }
+    }
 
-Respond with a JSON object only:
-{
-  "agent": "agent_name",
-  "confidence": 0.0-1.0,
-  "reasoning": "Brief explanation",
-  "suggestedPlan": ["step1", "step2"] // Optional, for complex tasks
+    prompt += `
+
+\n\n## Response Format\n\nRespond with a JSON object only:\n{\n  \"agent\": \"agent_name_or_id\",\n  \"confidence\": 0.0-1.0,\n  \"reasoning\": \"Brief explanation\",\n  \"suggestedPlan\": [\"step1\", \"step2\"] // Optional, for complex tasks\n}\n\n## Guidelines\n\n- For ambiguous tasks, prefer \"planner\" to analyze first\n- For simple direct requests, route directly to the appropriate agent\n- Consider custom agents if they match the task description well\n- Use custom agent IDs (kebab-case) when routing to custom agents\n- High confidence (>0.8) for clear, single-purpose tasks\n- Lower confidence for ambiguous or multi-step tasks`;
+
+    return prompt;
 }
 
-## Guidelines
-
-- For ambiguous tasks, prefer "planner" to analyze first
-- For simple direct requests, route directly to the appropriate agent
-- Consider the conversation history if provided
-- High confidence (>0.8) for clear, single-purpose tasks
-- Lower confidence for ambiguous or multi-step tasks`;
-
 /**
- * Create the routing agent using AgentKit
+ * Create the routing agent using AgentKit with dynamic prompt
  */
-export function createRoutingAgent() {
+export async function createRoutingAgent() {
+    await loadCustomSubagents();
+    const prompt = generateRoutingPrompt(cachedCustomAgents);
+
     return createAgent({
         name: 'routing-agent',
         description: 'Analyzes tasks and routes to the best specialized agent',
-        system: ROUTING_SYSTEM_PROMPT,
+        system: prompt,
         model: gemini({ model: 'gemini-3-flash-preview' }),
         tools: [], // No tools needed, just analysis
     });
@@ -225,9 +330,10 @@ export function createRoutingAgent() {
 
 /**
  * Route using LLM analysis for complex cases
+ * Includes custom subagents in decision
  */
 export async function routeByLLM(context: RoutingContext): Promise<RoutingDecision> {
-    const agent = createRoutingAgent();
+    const agent = await createRoutingAgent();
 
     // Build context message
     let prompt = `Task: ${context.task}`;
@@ -269,16 +375,29 @@ export async function routeByLLM(context: RoutingContext): Promise<RoutingDecisi
             };
 
             const validAgents: AgentKitAgentType[] = ['planner', 'coder', 'reviewer', 'terminal', 'docs'];
-            const agent = validAgents.includes(parsed.agent as AgentKitAgentType)
-                ? (parsed.agent as AgentKitAgentType)
-                : 'planner';
+            const isBuiltIn = validAgents.includes(parsed.agent as AgentKitAgentType);
+            const isCustom = cachedCustomAgents.some(a => a.id === parsed.agent);
+
+            let finalAgent: AgentKitAgentType | string;
+            let isCustomAgent = false;
+
+            if (isBuiltIn) {
+                finalAgent = parsed.agent as AgentKitAgentType;
+            } else if (isCustom) {
+                finalAgent = parsed.agent as string;
+                isCustomAgent = true;
+            } else {
+                // Unknown agent, default to planner
+                finalAgent = 'planner';
+            }
 
             return {
-                agent,
+                agent: finalAgent,
                 confidence: parsed.confidence || 0.7,
                 reasoning: parsed.reasoning || 'LLM routing decision',
                 suggestedPlan: parsed.suggestedPlan,
-                fallbackAgent: agent === 'planner' ? 'coder' : 'planner',
+                fallbackAgent: isCustomAgent ? 'planner' : (finalAgent === 'planner' ? 'coder' : 'planner'),
+                isCustomAgent,
             };
         }
     } catch (error) {
@@ -286,7 +405,7 @@ export async function routeByLLM(context: RoutingContext): Promise<RoutingDecisi
     }
 
     // Fallback to heuristics
-    return routeByHeuristics(context.task);
+    return await routeByHeuristics(context.task);
 }
 
 // ===========================
@@ -295,7 +414,7 @@ export async function routeByLLM(context: RoutingContext): Promise<RoutingDecisi
 
 export interface HybridRouterConfig {
     llmThreshold: number; // Use LLM if heuristic confidence < this
-    preferredAgent?: AgentKitAgentType;
+    preferredAgent?: AgentKitAgentType | string; // Can be custom agent ID
     useLLM: boolean;
 }
 
@@ -317,15 +436,19 @@ export async function hybridRoute(
 
     // If preferred agent specified, use it
     if (context.preferredAgent) {
+        await loadCustomSubagents();
+        const isCustom = cachedCustomAgents.some(a => a.id === context.preferredAgent);
+
         return {
             agent: context.preferredAgent,
             confidence: 1.0,
             reasoning: 'User preferred agent',
+            isCustomAgent: isCustom,
         };
     }
 
     // Try heuristics first (fast path)
-    const heuristicResult = routeByHeuristics(context.task);
+    const heuristicResult = await routeByHeuristics(context.task);
 
     // If confident enough, use heuristic result
     if (heuristicResult.confidence >= cfg.llmThreshold) {
