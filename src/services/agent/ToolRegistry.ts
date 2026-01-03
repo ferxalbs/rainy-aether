@@ -1906,6 +1906,77 @@ Use this instead of separate read_file + edit_file + verify_changes calls.`,
     }
   }
 
+  /**
+   * Register MCP tools from connected servers
+   * Creates wrapper tools that call the MCP client
+   */
+  async registerMCPTools(
+    mcpTools: Array<{
+      serverName: string;
+      name: string;
+      description: string;
+      inputSchema: Record<string, unknown>;
+    }>,
+    callTool: (serverName: string, toolName: string, args: Record<string, unknown>) => Promise<{
+      success: boolean;
+      content: Array<{ type: string; text?: string; data?: unknown }>;
+      error?: string;
+    }>
+  ): Promise<number> {
+    let registered = 0;
+
+    for (const tool of mcpTools) {
+      // Create a unique tool name: serverName.toolName
+      const toolName = `${tool.serverName}.${tool.name}`;
+
+      // Skip if already registered
+      if (this.tools.has(toolName)) continue;
+
+      // Create wrapper tool definition
+      const toolDef: ToolDefinition = {
+        name: toolName,
+        description: `[MCP: ${tool.serverName}] ${tool.description}`,
+        parameters: {
+          type: 'object',
+          properties: (tool.inputSchema?.properties as Record<string, unknown>) || {},
+          required: (tool.inputSchema?.required as string[]) || [],
+        },
+        execute: async (args: Record<string, unknown>) => {
+          const result = await callTool(tool.serverName, tool.name, args);
+          if (!result.success) {
+            return { success: false, error: result.error };
+          }
+          // Extract text content from MCP response
+          const textContent = result.content
+            .filter(c => c.type === 'text')
+            .map(c => c.text)
+            .join('\n');
+          return { success: true, result: textContent || result.content };
+        },
+      };
+
+      this.tools.set(toolName, toolDef);
+      registered++;
+    }
+
+    console.log(`[ToolRegistry] Registered ${registered} MCP tools`);
+    return registered;
+  }
+
+  /**
+   * Remove all MCP tools (tools with names containing '.')
+   */
+  clearMCPTools(): number {
+    let removed = 0;
+    for (const [name] of Array.from(this.tools)) {
+      if (name.includes('.')) {
+        this.tools.delete(name);
+        removed++;
+      }
+    }
+    return removed;
+  }
+
   registerTool(tool: ToolDefinition) {
     this.tools.set(tool.name, tool);
   }

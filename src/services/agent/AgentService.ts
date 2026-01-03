@@ -6,6 +6,91 @@ import { getContextStatus, truncateToFitContext } from './TokenCounter';
 import { brainService } from '@/services/BrainService';
 import { getIDEState } from '@/stores/ideStore';
 
+// Server URL for agent server (Brain sidecar)
+const AGENT_SERVER_URL = 'http://localhost:3002';
+
+/**
+ * Sync MCP tools from connected servers to the ToolRegistry
+ * This enables the agent to use MCP tools like context7, firebase, etc.
+ */
+async function syncMCPTools(): Promise<number> {
+  try {
+    // Clear existing MCP tools first
+    toolRegistry.clearMCPTools();
+
+    // Fetch connected servers and their tools
+    const response = await fetch(`${AGENT_SERVER_URL}/api/agentkit/mcp/connected`);
+    if (!response.ok) return 0;
+
+    const data = await response.json();
+    if (!data.connected || data.connected.length === 0) return 0;
+
+    // Fetch tools for each connected server
+    const allTools: Array<{
+      serverName: string;
+      name: string;
+      description: string;
+      inputSchema: Record<string, unknown>;
+    }> = [];
+
+    for (const server of data.connected) {
+      try {
+        const toolsResponse = await fetch(`${AGENT_SERVER_URL}/api/agentkit/mcp/servers/${server.name}/tools`);
+        if (toolsResponse.ok) {
+          const toolsData = await toolsResponse.json();
+          if (toolsData.tools) {
+            for (const tool of toolsData.tools) {
+              allTools.push({
+                serverName: server.name,
+                name: tool.name,
+                description: tool.description || '',
+                inputSchema: tool.inputSchema || {},
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[syncMCPTools] Failed to fetch tools from ${server.name}:`, err);
+      }
+    }
+
+    if (allTools.length === 0) return 0;
+
+    // Create a callTool function that routes to the agent server
+    const callTool = async (
+      serverName: string,
+      toolName: string,
+      args: Record<string, unknown>
+    ) => {
+      const callResponse = await fetch(
+        `${AGENT_SERVER_URL}/api/agentkit/mcp/servers/${serverName}/tools/${toolName}/call`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ arguments: args }),
+        }
+      );
+
+      if (!callResponse.ok) {
+        return {
+          success: false,
+          content: [],
+          error: `MCP call failed: ${callResponse.statusText}`,
+        };
+      }
+
+      return await callResponse.json();
+    };
+
+    // Register all MCP tools
+    return await toolRegistry.registerMCPTools(allTools, callTool);
+
+  } catch (error) {
+    console.warn('[syncMCPTools] Failed to sync MCP tools:', error);
+    return 0;
+  }
+}
+
 // ===========================
 // Configuration
 // ===========================
@@ -43,6 +128,12 @@ export class AgentService {
       // Check if brain sidecar is available
       await brainService.checkHealth();
       console.log(`[AgentService] Brain sidecar: ${brainService.connected ? 'connected' : 'not available, using local tools'}`);
+
+      // Sync MCP tools from connected servers
+      const mcpToolCount = await syncMCPTools();
+      if (mcpToolCount > 0) {
+        console.log(`[AgentService] Registered ${mcpToolCount} MCP tools from connected servers`);
+      }
 
       // Load credentials from Tauri secure storage
       const geminiKey = await this.loadCredential('gemini_api_key');

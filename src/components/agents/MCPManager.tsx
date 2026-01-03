@@ -206,7 +206,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
             await fetch(`${serverUrl}/api/agentkit/mcp/servers/${serverName}/auto-approve`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ autoApprove }),
+                body: JSON.stringify({ autoApprove, workspace }),
             });
         } catch (err) {
             console.error('Failed to toggle auto-approve:', err);

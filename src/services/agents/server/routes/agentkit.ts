@@ -333,6 +333,7 @@ import {
     addServerToConfig,
     removeServerFromConfig,
     toggleServerEnabled,
+    updateMCPServer,
     getAllHealthStatuses,
     getCircuitBreakerStatus,
     resetCircuitBreaker,
@@ -699,17 +700,25 @@ agentkit.post('/mcp/approvals/:id/reject', async (c: Context) => {
 });
 
 /**
- * Set auto-approve for a server (session-level)
+ * Set auto-approve for a server (session-level + persist to config)
  */
 agentkit.patch('/mcp/servers/:name/auto-approve', async (c: Context) => {
     const serverName = c.req.param('name');
-    const { autoApprove } = await c.req.json<{ autoApprove: boolean }>();
+    const { autoApprove, workspace } = await c.req.json<{ autoApprove: boolean; workspace?: string }>();
 
+    // Update session-level override
     approvalService.setAutoApprove(serverName, autoApprove);
+
+    // Also persist to config file if workspace provided
+    let persisted = false;
+    if (workspace) {
+        persisted = updateMCPServer(workspace, serverName, { autoApprove });
+    }
 
     return c.json({
         server: serverName,
         autoApprove,
+        persisted,
         message: autoApprove
             ? `Tool calls from ${serverName} will now execute without approval`
             : `Tool calls from ${serverName} will now require approval`,
