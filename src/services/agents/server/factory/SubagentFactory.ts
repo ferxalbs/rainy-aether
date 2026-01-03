@@ -17,6 +17,7 @@ import {
     getToolsByNames,
     type AgentKitTool,
 } from '../tools/agentkit';
+import { toolPermissionManager, suggestToolsFromDescription } from '../tools/ToolPermissionManager';
 
 // ===========================
 // Model Factory
@@ -204,6 +205,36 @@ export class SubagentFactory {
             errors,
             warnings: warnings.length > 0 ? warnings : undefined,
         };
+    }
+
+    /**
+     * Validate with enhanced permission checking
+     */
+    static validateWithPermissions(config: SubagentConfig): SubagentValidationResult {
+        const baseValidation = this.validate(config);
+        const errors = [...baseValidation.errors];
+        const warnings = [...(baseValidation.warnings || [])];
+
+        // Use permission manager for additional validation
+        const compatibility = toolPermissionManager.validateToolList(config);
+        errors.push(...compatibility.issues);
+        warnings.push(...compatibility.warnings);
+
+        return {
+            valid: errors.length === 0,
+            errors,
+            warnings: warnings.length > 0 ? warnings : undefined,
+        };
+    }
+
+    /**
+     * Get AI-powered tool suggestions based on description
+     */
+    static suggestTools(description: string): {
+        suggested: string[];
+        reasoning: string[];
+    } {
+        return suggestToolsFromDescription(description);
     }
 
     /**

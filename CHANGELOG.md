@@ -34,6 +34,12 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Auto-loading of custom agents into AgentKit network
   - Direct execution via `executeWithAgent()` supporting custom agent IDs
   - Usage tracking and analytics for custom agents
+- **Tool Permission System**: Runtime validation and enforcement of tool access
+  - `ToolPermissionManager` for permission checking and compatibility validation
+  - AI-powered tool suggestions based on agent descriptions
+  - Usage tracking with risk profile analysis (safe/moderate/destructive)
+  - Violation detection and reporting
+  - Recommended tool sets for different task types (read-only, write, execute, full)
 
 ### Improved
 - **Tool Management**: Added categorization (read/write/execute/git/analysis) and risk level classification (safe/moderate/destructive)
