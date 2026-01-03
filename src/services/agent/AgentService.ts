@@ -7,23 +7,46 @@ import { brainService } from '@/services/BrainService';
 import { getIDEState } from '@/stores/ideStore';
 
 // Server URL for agent server (Brain sidecar)
-const AGENT_SERVER_URL = 'http://localhost:3002';
+const AGENT_SERVER_URL = 'http://localhost:3847';
+
+import { createMCPToolsSection, MCPToolInfo } from './agentSystemPrompt';
+
+// Cache for MCP tool info (for system prompt)
+let cachedMCPToolInfo: MCPToolInfo[] = [];
+
+/**
+ * Get cached MCP tool info for system prompt
+ */
+export function getMCPToolsForPrompt(): MCPToolInfo[] {
+  return cachedMCPToolInfo;
+}
 
 /**
  * Sync MCP tools from connected servers to the ToolRegistry
- * This enables the agent to use MCP tools like context7, firebase, etc.
+ * Also caches tool info for system prompt injection
+ * Returns the tool info for use in system prompt
  */
-async function syncMCPTools(): Promise<number> {
+async function syncMCPTools(): Promise<{ count: number; toolInfo: MCPToolInfo[] }> {
   try {
     // Clear existing MCP tools first
     toolRegistry.clearMCPTools();
+    cachedMCPToolInfo = [];
 
     // Fetch connected servers and their tools
+    console.log(`[syncMCPTools] Fetching from ${AGENT_SERVER_URL}/api/agentkit/mcp/connected`);
     const response = await fetch(`${AGENT_SERVER_URL}/api/agentkit/mcp/connected`);
-    if (!response.ok) return 0;
+    if (!response.ok) {
+      console.log('[syncMCPTools] No connected servers or agent server not running');
+      return { count: 0, toolInfo: [] };
+    }
 
     const data = await response.json();
-    if (!data.connected || data.connected.length === 0) return 0;
+    const connectedServers = data.connected || [];
+    console.log('[syncMCPTools] Connected servers:', connectedServers.map((s: { name: string }) => s.name));
+
+    if (connectedServers.length === 0) {
+      return { count: 0, toolInfo: [] };
+    }
 
     // Fetch tools for each connected server
     const allTools: Array<{
@@ -32,8 +55,9 @@ async function syncMCPTools(): Promise<number> {
       description: string;
       inputSchema: Record<string, unknown>;
     }> = [];
+    const mcpToolInfo: MCPToolInfo[] = [];
 
-    for (const server of data.connected) {
+    for (const server of connectedServers) {
       try {
         const toolsResponse = await fetch(`${AGENT_SERVER_URL}/api/agentkit/mcp/servers/${server.name}/tools`);
         if (toolsResponse.ok) {
@@ -46,6 +70,13 @@ async function syncMCPTools(): Promise<number> {
                 description: tool.description || '',
                 inputSchema: tool.inputSchema || {},
               });
+              // Also build prompt info
+              mcpToolInfo.push({
+                serverName: server.name,
+                name: tool.name,
+                description: tool.description || '',
+                autoApprove: toolsData.autoApprove ?? false,
+              });
             }
           }
         }
@@ -54,7 +85,9 @@ async function syncMCPTools(): Promise<number> {
       }
     }
 
-    if (allTools.length === 0) return 0;
+    if (allTools.length === 0) {
+      return { count: 0, toolInfo: [] };
+    }
 
     // Create a callTool function that routes to the agent server
     const callTool = async (
@@ -82,12 +115,18 @@ async function syncMCPTools(): Promise<number> {
       return await callResponse.json();
     };
 
-    // Register all MCP tools
-    return await toolRegistry.registerMCPTools(allTools, callTool);
+    // Register all MCP tools in ToolRegistry
+    const count = await toolRegistry.registerMCPTools(allTools, callTool);
+
+    // Cache tool info for prompt
+    cachedMCPToolInfo = mcpToolInfo;
+
+    console.log(`[syncMCPTools] Registered ${count} MCP tools, cached ${mcpToolInfo.length} for prompt`);
+    return { count, toolInfo: mcpToolInfo };
 
   } catch (error) {
     console.warn('[syncMCPTools] Failed to sync MCP tools:', error);
-    return 0;
+    return { count: 0, toolInfo: [] };
   }
 }
 
@@ -130,9 +169,9 @@ export class AgentService {
       console.log(`[AgentService] Brain sidecar: ${brainService.connected ? 'connected' : 'not available, using local tools'}`);
 
       // Sync MCP tools from connected servers
-      const mcpToolCount = await syncMCPTools();
-      if (mcpToolCount > 0) {
-        console.log(`[AgentService] Registered ${mcpToolCount} MCP tools from connected servers`);
+      const mcpResult = await syncMCPTools();
+      if (mcpResult.count > 0) {
+        console.log(`[AgentService] Registered ${mcpResult.count} MCP tools from connected servers`);
       }
 
       // Load credentials from Tauri secure storage
@@ -231,6 +270,31 @@ export class AgentService {
     } else if (status.isNearLimit && onChunk) {
       // Warn user approaching limit
       console.log(`[AgentService] Context at ${status.percentUsed.toFixed(0)}% - approaching limit`);
+    }
+
+    // Sync MCP tools from connected servers (before each message to catch newly connected servers)
+    let mcpToolInfo: MCPToolInfo[] = [];
+    try {
+      const mcpResult = await syncMCPTools();
+      mcpToolInfo = mcpResult.toolInfo;
+      if (mcpResult.count > 0) {
+        console.log(`[AgentService] Synced ${mcpResult.count} MCP tools from connected servers`);
+      }
+    } catch (err) {
+      console.warn('[AgentService] Failed to sync MCP tools:', err);
+    }
+
+    // Inject MCP tools into system prompt if we have any
+    if (mcpToolInfo.length > 0 && processedMessages.length > 0 && processedMessages[0].role === 'system') {
+      const mcpSection = createMCPToolsSection(mcpToolInfo);
+      processedMessages = [
+        {
+          ...processedMessages[0],
+          content: processedMessages[0].content + mcpSection,
+        },
+        ...processedMessages.slice(1),
+      ];
+      console.log(`[AgentService] Injected ${mcpToolInfo.length} MCP tools into system prompt`);
     }
 
     // Only include tools if model supports them
