@@ -10,6 +10,14 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Unsupported props include 'exclusiveMinimum', '$schema', 'allOf', etc., to align with Gemini's function calling API
   - Applied sanitization in `convertToolsToGemini` to ensure valid tool parameters and prevent API errors
 
+### Improved
+- **Premium Code Block UI**: Redesigned agent chat code blocks with a glassy, high-end aesthetic
+  - Implemented glassmorphism using `backdrop-blur-3xl`, `bg-background/10`, and `backdrop-saturate-150`
+  - Added macOS-style window control dots (red, yellow, green) for a "windowed" look
+  - Integrated `Terminal` and `FileCode` icons to distinguish terminal outputs from source code
+  - Optimized SyntaxHighlighter with transparent backgrounds and JetBrains Mono fonts
+  - Removed redundant containers in `AgentChatWindow` for a cleaner, floating appearance
+
 ---
 
 ## [v0.1.10] - 2026-01-03

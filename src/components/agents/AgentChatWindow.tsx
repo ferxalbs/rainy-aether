@@ -515,13 +515,11 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
 
                             if (!inline && match) {
                                 return (
-                                    <div className="my-3 rounded-lg overflow-hidden border border-border/50 bg-[#1e1e2e]">
-                                        <CodeBlock
-                                            language={language}
-                                            value={String(children).replace(/\n$/, '')}
-                                            {...props}
-                                        />
-                                    </div>
+                                    <CodeBlock
+                                        language={language}
+                                        value={String(children).replace(/\n$/, '')}
+                                        {...props}
+                                    />
                                 )
                             }
                             return (
