@@ -44,6 +44,8 @@ export interface MCPServerEntry {
     // Extended fields for IDE
     enabled?: boolean;
     description?: string;
+    /** If true, tool calls from this server don't require user approval */
+    autoApprove?: boolean;
 }
 
 // ===========================
@@ -130,6 +132,8 @@ export function getProjectMCPConfigs(workspace: string): MCPServerConfig[] {
             enabled: entry.enabled !== false,
             priority: 'local' as const,
             category: 'custom' as const,
+            autoApprove: entry.autoApprove ?? false, // Default: require approval
+            trustLevel: 'untrusted' as const,        // External servers start untrusted
         }));
 }
 

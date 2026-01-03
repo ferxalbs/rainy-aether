@@ -2,6 +2,28 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.9] - 2026-01-03
+
+### Added
+- **MCP Tool Approval Service**: New security layer for MCP tool calls with per-server permissions
+  - `autoApprove` flag on MCP server configs - trusted servers skip user confirmation
+  - `trustLevel` classification: `system` (built-in), `trusted`, or `untrusted`
+  - Session-level auto-approve overrides via API
+- **MCP Approval API Endpoints**:
+  - `GET /api/agentkit/mcp/approvals` - Get pending tool call approvals
+  - `POST /api/agentkit/mcp/approvals/:id/approve` - Approve a pending request
+  - `POST /api/agentkit/mcp/approvals/:id/reject` - Reject a pending request
+  - `PATCH /api/agentkit/mcp/servers/:name/auto-approve` - Toggle auto-approve for a server
+- **Agent System Prompt Enhancement**: Dynamic MCP tools section injection
+  - Connected MCP server tools now appear in agent's system prompt
+  - Tools show auto-approve status (✅ or 🔒) for user transparency
+
+### Improved
+- **MCP Manager UI**: Added auto-approve toggle per server with system trust badge
+- **Config Schema**: Extended `MCPServerConfig` and `MCPServerEntry` with security fields
+
+---
+
 ## [v0.1.8] - 2026-01-02
 
 ### Fixed

@@ -23,6 +23,10 @@ export interface MCPServerConfig {
     enabled: boolean;
     priority: 'local' | 'external';
     category: 'workspace' | 'documentation' | 'development' | 'cloud' | 'custom';
+    /** If true, tool calls from this server don't require user approval */
+    autoApprove?: boolean;
+    /** Security classification for UI display */
+    trustLevel?: 'trusted' | 'untrusted' | 'system';
 }
 
 // ===========================
@@ -47,6 +51,8 @@ export function getMCPConfigs(): MCPServerConfig[] {
         enabled: true,
         priority: 'local',
         category: 'workspace',
+        autoApprove: true,       // Built-in tools are trusted
+        trustLevel: 'system',    // System-level trust
     });
 
     // --- Context7 Documentation MCP (Local WS preferred) ---

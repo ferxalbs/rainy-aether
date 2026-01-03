@@ -62,3 +62,7 @@ export type {
     MCPHealthStatus,
     FallbackOptions,
 } from './resilience';
+
+// Tool approval service
+export { approvalService } from './approval';
+export type { PendingApproval, ApprovalRequest, ApprovalEvent } from './approval';

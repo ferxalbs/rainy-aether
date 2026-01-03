@@ -336,6 +336,7 @@ import {
     getAllHealthStatuses,
     getCircuitBreakerStatus,
     resetCircuitBreaker,
+    approvalService,
 } from '../mcp';
 import type { MCPServerEntry } from '../mcp';
 
@@ -360,6 +361,8 @@ agentkit.get('/mcp/servers', (c: Context) => {
             description: cfg.description,
             category: cfg.category,
             priority: cfg.priority,
+            autoApprove: cfg.autoApprove ?? false,
+            trustLevel: cfg.trustLevel ?? 'untrusted',
         })),
     });
 });
@@ -659,6 +662,57 @@ agentkit.get('/mcp/connected', (c: Context) => {
             (sum, name) => sum + mcpManager.getAvailableTools(name).length,
             0
         ),
+    });
+});
+
+// ===========================
+// MCP Approval Endpoints
+// ===========================
+
+/**
+ * Get pending MCP tool approvals
+ */
+agentkit.get('/mcp/approvals', (c: Context) => {
+    return c.json({
+        pending: approvalService.getPendingApprovals(),
+        stats: approvalService.getStats(),
+    });
+});
+
+/**
+ * Approve a pending MCP tool call
+ */
+agentkit.post('/mcp/approvals/:id/approve', (c: Context) => {
+    const id = c.req.param('id');
+    approvalService.approveRequest(id);
+    return c.json({ approved: true, id });
+});
+
+/**
+ * Reject a pending MCP tool call
+ */
+agentkit.post('/mcp/approvals/:id/reject', async (c: Context) => {
+    const id = c.req.param('id');
+    const body = await c.req.json<{ reason?: string }>().catch(() => ({ reason: undefined }));
+    approvalService.rejectRequest(id, body.reason);
+    return c.json({ rejected: true, id });
+});
+
+/**
+ * Set auto-approve for a server (session-level)
+ */
+agentkit.patch('/mcp/servers/:name/auto-approve', async (c: Context) => {
+    const serverName = c.req.param('name');
+    const { autoApprove } = await c.req.json<{ autoApprove: boolean }>();
+
+    approvalService.setAutoApprove(serverName, autoApprove);
+
+    return c.json({
+        server: serverName,
+        autoApprove,
+        message: autoApprove
+            ? `Tool calls from ${serverName} will now execute without approval`
+            : `Tool calls from ${serverName} will now require approval`,
     });
 });
 

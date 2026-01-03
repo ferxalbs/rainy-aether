@@ -24,6 +24,8 @@ interface MCPServer {
     description: string;
     category: string;
     priority: string;
+    autoApprove?: boolean;
+    trustLevel?: 'trusted' | 'untrusted' | 'system';
     status?: 'connected' | 'disconnected' | 'connecting' | 'error';
     tools?: MCPTool[];
     toolCount?: number;
@@ -191,6 +193,23 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
             }
         } catch (err) {
             console.error('Failed to toggle server:', err);
+        }
+    };
+
+    const handleToggleAutoApprove = async (serverName: string, autoApprove: boolean) => {
+        // Update local state immediately
+        setServers(prev => prev.map(s =>
+            s.name === serverName ? { ...s, autoApprove } : s
+        ));
+
+        try {
+            await fetch(`${serverUrl}/api/agentkit/mcp/servers/${serverName}/auto-approve`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ autoApprove }),
+            });
+        } catch (err) {
+            console.error('Failed to toggle auto-approve:', err);
         }
     };
 
@@ -404,12 +423,27 @@ const MCPManager: React.FC<MCPManagerProps> = ({ isOpen, onClose, workspace, onO
                                             )}
                                         </button>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-sm text-muted-foreground">Enabled</span>
-                                        <Switch
-                                            checked={selectedServerData.enabled}
-                                            onCheckedChange={(checked) => handleToggleServer(selectedServerData.name, checked)}
-                                        />
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-muted-foreground">Enabled</span>
+                                            <Switch
+                                                checked={selectedServerData.enabled}
+                                                onCheckedChange={(checked) => handleToggleServer(selectedServerData.name, checked)}
+                                            />
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-muted-foreground">
+                                                Auto-approve
+                                                {selectedServerData.trustLevel === 'system' && (
+                                                    <span className="ml-1 text-xs text-green-500">(system)</span>
+                                                )}
+                                            </span>
+                                            <Switch
+                                                checked={selectedServerData.autoApprove ?? false}
+                                                onCheckedChange={(checked) => handleToggleAutoApprove(selectedServerData.name, checked)}
+                                                disabled={selectedServerData.trustLevel === 'system'}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 

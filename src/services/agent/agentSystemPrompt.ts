@@ -164,42 +164,102 @@ When exploring a project, SKIP these directories entirely. If you need to unders
 Remember: Use get_project_context() FIRST for any new task. You have powerful consolidated tools - use them!`;
 
 /**
- * Create a system prompt with workspace context
+ * MCP Tool info for system prompt injection
+ */
+export interface MCPToolInfo {
+  serverName: string;
+  name: string;
+  description: string;
+  autoApprove?: boolean;
+}
+
+/**
+ * Group tools by server name
+ */
+function groupByServer(tools: MCPToolInfo[]): Record<string, MCPToolInfo[]> {
+  return tools.reduce((acc, tool) => {
+    if (!acc[tool.serverName]) acc[tool.serverName] = [];
+    acc[tool.serverName].push(tool);
+    return acc;
+  }, {} as Record<string, MCPToolInfo[]>);
+}
+
+/**
+ * Generate MCP tools section for system prompt
+ */
+export function createMCPToolsSection(mcpTools: MCPToolInfo[]): string {
+  if (mcpTools.length === 0) return '';
+
+  const toolsByServer = groupByServer(mcpTools);
+
+  let section = `
+
+<mcp_servers>
+## External MCP Server Tools
+
+You have access to tools from connected MCP servers. Use these to extend your capabilities.
+
+`;
+  for (const [server, tools] of Object.entries(toolsByServer)) {
+    const autoApproved = tools[0]?.autoApprove;
+    const badge = autoApproved ? '✅ Auto-approved' : '🔒 Requires approval';
+    section += `### ${server} (${badge})\n`;
+    for (const tool of tools) {
+      section += `- **${tool.name}**: ${tool.description}\n`;
+    }
+    section += '\n';
+  }
+
+  section += `> **Calling MCP Tools**: Use the format \`serverName.toolName\` (e.g., \`context7.resolve-library-id\`).
+> Tools marked 🔒 will prompt the user for approval before execution.
+</mcp_servers>`;
+
+  return section;
+}
+
+/**
+ * Create a system prompt with workspace context and optional MCP tools
  */
 export function createSystemPrompt(options?: {
-    workspacePath?: string;
-    workspaceName?: string;
-    platform?: string;
-    additionalContext?: string;
+  workspacePath?: string;
+  workspaceName?: string;
+  platform?: string;
+  additionalContext?: string;
+  mcpTools?: MCPToolInfo[];
 }): string {
-    let prompt = DEFAULT_SYSTEM_PROMPT;
+  let prompt = DEFAULT_SYSTEM_PROMPT;
 
-    if (options?.workspacePath) {
-        prompt += `
+  // Add MCP tools section if available
+  if (options?.mcpTools && options.mcpTools.length > 0) {
+    prompt += createMCPToolsSection(options.mcpTools);
+  }
+
+  if (options?.workspacePath) {
+    prompt += `
 
 <workspace>
 Path: ${options.workspacePath}
 Name: ${options.workspaceName || 'Unknown'}
 Platform: ${options.platform || 'Unknown'}
 </workspace>`;
-    }
+  }
 
-    if (options?.additionalContext) {
-        prompt += `
+  if (options?.additionalContext) {
+    prompt += `
 
 <context>
 ${options.additionalContext}
 </context>`;
-    }
+  }
 
-    return prompt;
+  return prompt;
 }
 
 /**
  * Get a minimal prompt for fast responses (simple questions, no tools needed)
  */
 export function getMinimalPrompt(): string {
-    return `You are Rainy Agent, an AI coding assistant in Rainy Aether IDE.
+  return `You are Rainy Agent, an AI coding assistant in Rainy Aether IDE.
 Be helpful, accurate, and thorough. Use your tools to explore the codebase when needed.
 Available tools: get_project_context (🌟 start here), fs_batch_read, find_symbols, verify_changes, smart_edit, get_workspace_info, read_file, read_directory_tree, list_dir, search_code, edit_file, write_file, apply_file_diff, create_file, run_command, run_tests, git_status, git_commit, get_diagnostics, format_file`;
 }
