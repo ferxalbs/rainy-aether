@@ -489,3 +489,101 @@ export const docsTools = [
     searchCodeTool,
     analyzeImportsTool,
 ];
+
+// ===========================
+// Tool Management Helpers
+// ===========================
+
+/**
+ * Type for AgentKit tools
+ */
+export type AgentKitTool = typeof allAgentKitTools[number];
+
+/**
+ * Get all available tools
+ */
+export function getAllTools(): AgentKitTool[] {
+    return allAgentKitTools;
+}
+
+/**
+ * Get tools by name
+ * Throws error if any tool name is invalid
+ */
+export function getToolsByNames(names: string[]): AgentKitTool[] {
+    const toolMap = new Map(allAgentKitTools.map(tool => [tool.name, tool]));
+    const tools: AgentKitTool[] = [];
+    const missing: string[] = [];
+
+    for (const name of names) {
+        const tool = toolMap.get(name);
+        if (tool) {
+            tools.push(tool);
+        } else {
+            missing.push(name);
+        }
+    }
+
+    if (missing.length > 0) {
+        throw new Error(`Tools not found: ${missing.join(', ')}`);
+    }
+
+    return tools;
+}
+
+/**
+ * Get tool names (for UI dropdowns, etc.)
+ */
+export function getAllToolNames(): string[] {
+    return allAgentKitTools.map(tool => tool.name);
+}
+
+/**
+ * Get tool categories for organization
+ */
+export function getToolCategories(): Record<string, string[]> {
+    return {
+        read: readTools.map(t => t.name),
+        write: writeTools.map(t => t.name),
+        execute: executeTools.map(t => t.name),
+        git: gitTools.map(t => t.name),
+        analysis: analysisTools.map(t => t.name),
+    };
+}
+
+/**
+ * Get tool metadata for UI
+ */
+export function getToolMetadata(toolName: string): {
+    name: string;
+    description: string;
+    category: string;
+    riskLevel: 'safe' | 'moderate' | 'destructive';
+} | null {
+    const tool = allAgentKitTools.find(t => t.name === toolName);
+    if (!tool) return null;
+
+    // Determine category
+    let category = 'other';
+    if (readTools.find(t => t.name === toolName)) category = 'read';
+    else if (writeTools.find(t => t.name === toolName)) category = 'write';
+    else if (executeTools.find(t => t.name === toolName)) category = 'execute';
+    else if (gitTools.find(t => t.name === toolName)) category = 'git';
+    else if (analysisTools.find(t => t.name === toolName)) category = 'analysis';
+
+    // Determine risk level
+    let riskLevel: 'safe' | 'moderate' | 'destructive' = 'safe';
+    if (['delete_file', 'git_commit'].includes(toolName)) {
+        riskLevel = 'destructive';
+    } else if (['write_file', 'edit_file', 'run_command', 'git_add'].includes(toolName)) {
+        riskLevel = 'moderate';
+    }
+
+    return {
+        name: tool.name,
+        description: tool.description,
+        category,
+        riskLevel,
+    };
+}
+

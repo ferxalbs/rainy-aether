@@ -2,6 +2,41 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.12] - 2026-01-03
+
+### Added
+- **Dynamic Subagent System Infrastructure**: Core infrastructure for user-configurable AI agents with multi-model support
+  - `SubagentConfig.ts`: Complete type definitions and Zod validation schemas for subagent configuration
+  - `SubagentRegistry.ts`: CRUD operations, multi-source loading (user/project/plugin), and priority resolution
+  - `SubagentFactory.ts`: Converts configurations to executable AgentKit agents with multi-model AI support
+  - Tool management helpers in `agentkit.ts`: `getAllTools()`, `getToolsByNames()`, `getToolCategories()`, `getToolMetadata()`
+- **Multi-Model AI Support**: Subagents can use different AI providers based on task requirements
+  - Gemini 3 Flash/Pro for fast and smart tasks
+  - Claude 3.5 Sonnet/Haiku for code review and analysis
+  - Grok Beta for real-time data tasks
+  - GPT-4 for general-purpose tasks
+- **Subagent Configuration Schema**: YAML frontmatter + Markdown format for agent definitions
+  - Identity: name, ID, description, version
+  - Behavior: system prompt, model selection, temperature, max tokens
+  - Permissions: tool whitelist or inherit all tools
+  - Routing: keywords, regex patterns, priority (0-100)
+  - Analytics: usage count, success rate, timestamps
+- **Storage System**: Multi-level agent storage with priority resolution
+  - Project-level: `.rainy/agents/` (highest priority, team-shared)
+  - User-level: `~/.rainy/agents/` (medium priority, personal)
+  - Plugin-level: Future plugin-provided agents (lowest priority)
+
+### Improved
+- **Tool Management**: Added categorization (read/write/execute/git/analysis) and risk level classification (safe/moderate/destructive)
+- **Documentation**: Enhanced `MIGRATION_FROM_LEGACY.md` with dynamic subagent system architecture, multi-model support details, and migration timeline
+
+### Technical
+- Added `yaml` package dependency for YAML frontmatter parsing in subagent files
+- Fixed TypeScript compilation errors in new infrastructure files
+- Implemented proper error handling and validation for all subagent operations
+
+---
+
 ## [v0.1.11] - 2026-01-03
 
 ### Added

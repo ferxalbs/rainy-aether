@@ -23,6 +23,7 @@
     "inngest": "^3.48.1",
     "openai": "^6.15.0",
     "playwright-core": "^1.57.0",
+    "yaml": "^2.8.2",
     "zod": "^4.3.4"
   },
   "devDependencies": {
