@@ -2,6 +2,16 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.11] - 2026-01-03
+
+### Added
+- **Gemini JSON Schema Sanitization**: Added schema sanitization for Gemini compatibility
+  - Introduced `sanitizeSchema` method to remove unsupported properties from JSON schemas
+  - Unsupported props include 'exclusiveMinimum', '$schema', 'allOf', etc., to align with Gemini's function calling API
+  - Applied sanitization in `convertToolsToGemini` to ensure valid tool parameters and prevent API errors
+
+---
+
 ## [v0.1.10] - 2026-01-03
 
 ### Added
@@ -11,6 +21,8 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - **Dynamic Tool Routing**: MCP tools (prefixed with `server.`) are now forced to execute locally via `ToolRegistry`
   - Fixed "Unknown tool" errors when using MCP tools while Brain sidecar is connected
   - Ensures MCP API call-through functions are used for execution
+
+---
 
 ## [v0.1.9] - 2026-01-03
 

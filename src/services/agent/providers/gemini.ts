@@ -145,13 +145,70 @@ export class GeminiProvider implements AIProvider {
   }
 
   /**
+   * Sanitize JSON Schema for Gemini compatibility
+   * Removes properties not supported by Gemini's function calling API
+   */
+  private sanitizeSchema(schema: any): any {
+    if (!schema || typeof schema !== 'object') return schema;
+
+    // Properties that Gemini doesn't support
+    const unsupportedProps = [
+      'exclusiveMinimum',
+      'exclusiveMaximum',
+      '$schema',
+      '$id',
+      '$ref',
+      '$defs',
+      'definitions',
+      'additionalItems',
+      'contains',
+      'propertyNames',
+      'const',
+      'if',
+      'then',
+      'else',
+      'allOf',
+      'anyOf',
+      'oneOf',
+      'not',
+      'contentMediaType',
+      'contentEncoding',
+      'examples',
+      'default',
+    ];
+
+    const sanitized: any = {};
+
+    for (const [key, value] of Object.entries(schema)) {
+      // Skip unsupported properties
+      if (unsupportedProps.includes(key)) continue;
+
+      // Recursively sanitize nested objects
+      if (key === 'properties' && typeof value === 'object') {
+        sanitized[key] = {};
+        for (const [propName, propValue] of Object.entries(value as Record<string, any>)) {
+          sanitized[key][propName] = this.sanitizeSchema(propValue);
+        }
+      } else if (key === 'items' && typeof value === 'object') {
+        sanitized[key] = this.sanitizeSchema(value);
+      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        sanitized[key] = this.sanitizeSchema(value);
+      } else {
+        sanitized[key] = value;
+      }
+    }
+
+    return sanitized;
+  }
+
+  /**
    * Convert our ToolDefinition to Gemini's FunctionDeclaration
    */
   private convertToolsToGeminiFormat(tools: ToolDefinition[]): FunctionDeclaration[] {
     return tools.map((tool) => ({
       name: tool.name,
       description: tool.description,
-      parameters: tool.parameters as any,
+      parameters: this.sanitizeSchema(tool.parameters),
     }));
   }
 
