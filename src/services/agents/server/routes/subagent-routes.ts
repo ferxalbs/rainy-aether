@@ -1,22 +1,22 @@
 /**
- * Subagent Management API Routes
+ * Subagent Management API Routes (Hono)
  * 
- * Express routes for managing subagents via HTTP.
+ * Hono routes for managing subagents via HTTP.
  * Provides CRUD operations, validation, and analytics.
  */
 
-import { Router } from 'express';
+import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { subagentRegistry } from '../registry/SubagentRegistry';
 import { SubagentFactory } from '../factory/SubagentFactory';
 import { toolPermissionManager } from '../tools/ToolPermissionManager';
-import { inngestAgentKit } from '../workflows/inngest';
 import type {
     SubagentConfig,
     CreateSubagentConfig,
     UpdateSubagentConfig,
 } from '../types/SubagentConfig';
 
-const router = Router();
+const subagentRoutes = new Hono();
 
 // ===========================
 // List & Get Operations
@@ -26,14 +26,17 @@ const router = Router();
  * GET /api/subagents
  * List all subagents with optional filtering
  */
-router.get('/', async (req, res) => {
+subagentRoutes.get('/', (c: Context) => {
     try {
-        const { scope, enabled, tag, search } = req.query;
+        const scope = c.req.query('scope');
+        const enabled = c.req.query('enabled');
+        const tag = c.req.query('tag');
+        const search = c.req.query('search');
 
         let agents = subagentRegistry.getAll();
 
         // Filter by scope
-        if (scope && typeof scope === 'string') {
+        if (scope) {
             agents = agents.filter(a => a.scope === scope);
         }
 
@@ -44,25 +47,25 @@ router.get('/', async (req, res) => {
         }
 
         // Filter by tag
-        if (tag && typeof tag === 'string') {
+        if (tag) {
             agents = subagentRegistry.findByTag(tag);
         }
 
         // Search by query
-        if (search && typeof search === 'string') {
+        if (search) {
             agents = subagentRegistry.search(search);
         }
 
-        res.json({
+        return c.json({
             success: true,
             count: agents.length,
             agents,
         });
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to list subagents',
-        });
+        }, 500);
     }
 });
 
@@ -70,19 +73,19 @@ router.get('/', async (req, res) => {
  * GET /api/subagents/stats
  * Get registry statistics
  */
-router.get('/stats', async (req, res) => {
+subagentRoutes.get('/stats', (c: Context) => {
     try {
         const stats = subagentRegistry.getStats();
 
-        res.json({
+        return c.json({
             success: true,
             stats,
         });
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to get stats',
-        });
+        }, 500);
     }
 });
 
@@ -90,16 +93,16 @@ router.get('/stats', async (req, res) => {
  * GET /api/subagents/:id
  * Get a specific subagent
  */
-router.get('/:id', async (req, res) => {
+subagentRoutes.get('/:id', (c: Context) => {
     try {
-        const { id } = req.params;
+        const id = c.req.param('id');
         const agent = subagentRegistry.get(id);
 
         if (!agent) {
-            return res.status(404).json({
+            return c.json({
                 success: false,
                 error: `Subagent '${id}' not found`,
-            });
+            }, 404);
         }
 
         // Get tool stats
@@ -108,17 +111,17 @@ router.get('/:id', async (req, res) => {
         // Get usage stats
         const usageStats = toolPermissionManager.getUsageStats(id);
 
-        res.json({
+        return c.json({
             success: true,
             agent,
             toolStats,
             usageStats,
         });
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to get subagent',
-        });
+        }, 500);
     }
 });
 
@@ -130,39 +133,33 @@ router.get('/:id', async (req, res) => {
  * POST /api/subagents
  * Create a new subagent
  */
-router.post('/', async (req, res) => {
+subagentRoutes.post('/', async (c: Context) => {
     try {
-        const config: CreateSubagentConfig = req.body;
+        const config = await c.req.json<CreateSubagentConfig>();
 
         // Validate with permissions
         const validation = SubagentFactory.validateWithPermissions(config as SubagentConfig);
         if (!validation.valid) {
-            return res.status(400).json({
+            return c.json({
                 success: false,
                 errors: validation.errors,
                 warnings: validation.warnings,
-            });
+            }, 400);
         }
 
         // Create agent
         const agent = await subagentRegistry.create(config);
 
-        // Trigger reload workflow
-        await inngestAgentKit.send({
-            name: 'agentkit/subagent.reload',
-            data: { reason: 'agent_created', agentId: agent.id },
-        });
-
-        res.status(201).json({
+        return c.json({
             success: true,
             agent,
             warnings: validation.warnings,
-        });
+        }, 201);
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to create subagent',
-        });
+        }, 500);
     }
 });
 
@@ -170,50 +167,44 @@ router.post('/', async (req, res) => {
  * PUT /api/subagents/:id
  * Update an existing subagent
  */
-router.put('/:id', async (req, res) => {
+subagentRoutes.put('/:id', async (c: Context) => {
     try {
-        const { id } = req.params;
-        const updates: UpdateSubagentConfig = { ...req.body, id };
+        const id = c.req.param('id');
+        const updates = await c.req.json<UpdateSubagentConfig>();
 
         // Validate
         const agent = subagentRegistry.get(id);
         if (!agent) {
-            return res.status(404).json({
+            return c.json({
                 success: false,
                 error: `Subagent '${id}' not found`,
-            });
+            }, 404);
         }
 
         // Merge and validate
         const merged = { ...agent, ...updates };
         const validation = SubagentFactory.validateWithPermissions(merged);
         if (!validation.valid) {
-            return res.status(400).json({
+            return c.json({
                 success: false,
                 errors: validation.errors,
                 warnings: validation.warnings,
-            });
+            }, 400);
         }
 
         // Update
-        const updated = await subagentRegistry.update(updates);
+        const updated = await subagentRegistry.update({ ...updates, id });
 
-        // Trigger reload
-        await inngestAgentKit.send({
-            name: 'agentkit/subagent.reload',
-            data: { reason: 'agent_updated', agentId: id },
-        });
-
-        res.json({
+        return c.json({
             success: true,
             agent: updated,
             warnings: validation.warnings,
         });
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to update subagent',
-        });
+        }, 500);
     }
 });
 
@@ -221,34 +212,28 @@ router.put('/:id', async (req, res) => {
  * DELETE /api/subagents/:id
  * Delete a subagent
  */
-router.delete('/:id', async (req, res) => {
+subagentRoutes.delete('/:id', async (c: Context) => {
     try {
-        const { id } = req.params;
+        const id = c.req.param('id');
 
         const deleted = await subagentRegistry.delete(id);
 
         if (!deleted) {
-            return res.status(404).json({
+            return c.json({
                 success: false,
                 error: `Subagent '${id}' not found or cannot be deleted`,
-            });
+            }, 404);
         }
 
-        // Trigger reload
-        await inngestAgentKit.send({
-            name: 'agentkit/subagent.reload',
-            data: { reason: 'agent_deleted', agentId: id },
-        });
-
-        res.json({
+        return c.json({
             success: true,
             message: `Subagent '${id}' deleted`,
         });
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to delete subagent',
-        });
+        }, 500);
     }
 });
 
@@ -260,23 +245,22 @@ router.delete('/:id', async (req, res) => {
  * POST /api/subagents/validate
  * Validate a subagent configuration
  */
-router.post('/validate', async (req, res) => {
+subagentRoutes.post('/validate', async (c: Context) => {
     try {
-        const config: SubagentConfig = req.body;
+        const config = await c.req.json<SubagentConfig>();
 
         const validation = SubagentFactory.validateWithPermissions(config);
 
-        res.json({
-            success: validation.valid,
+        return c.json({
             valid: validation.valid,
             errors: validation.errors,
             warnings: validation.warnings,
         });
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Validation failed',
-        });
+        }, 500);
     }
 });
 
@@ -284,28 +268,28 @@ router.post('/validate', async (req, res) => {
  * POST /api/subagents/suggest-tools
  * Get AI-powered tool suggestions
  */
-router.post('/suggest-tools', async (req, res) => {
+subagentRoutes.post('/suggest-tools', async (c: Context) => {
     try {
-        const { description } = req.body;
+        const { description } = await c.req.json<{ description: string }>();
 
         if (!description || typeof description !== 'string') {
-            return res.status(400).json({
+            return c.json({
                 success: false,
                 error: 'Description is required',
-            });
+            }, 400);
         }
 
         const suggestions = SubagentFactory.suggestTools(description);
 
-        res.json({
+        return c.json({
             success: true,
             ...suggestions,
         });
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to suggest tools',
-        });
+        }, 500);
     }
 });
 
@@ -313,29 +297,26 @@ router.post('/suggest-tools', async (req, res) => {
  * POST /api/subagents/:id/test
  * Test that a subagent can be created
  */
-router.post('/:id/test', async (req, res) => {
+subagentRoutes.post('/:id/test', (c: Context) => {
     try {
-        const { id } = req.params;
+        const id = c.req.param('id');
         const agent = subagentRegistry.get(id);
 
         if (!agent) {
-            return res.status(404).json({
+            return c.json({
                 success: false,
                 error: `Subagent '${id}' not found`,
-            });
+            }, 404);
         }
 
         const testResult = SubagentFactory.test(agent);
 
-        res.json({
-            success: testResult.success,
-            ...testResult,
-        });
+        return c.json(testResult);
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Test failed',
-        });
+        }, 500);
     }
 });
 
@@ -347,42 +328,42 @@ router.post('/:id/test', async (req, res) => {
  * GET /api/subagents/:id/usage
  * Get usage statistics for a subagent
  */
-router.get('/:id/usage', async (req, res) => {
+subagentRoutes.get('/:id/usage', (c: Context) => {
     try {
-        const { id } = req.params;
+        const id = c.req.param('id');
 
         const stats = toolPermissionManager.getUsageStats(id);
 
-        res.json({
+        return c.json({
             success: true,
             agentId: id,
             ...stats,
         });
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to get usage stats',
-        });
+        }, 500);
     }
 });
 
 /**
- * GET /api/subagents/violations
+ * GET /api/subagents/analytics/violations
  * Get all agents with tool violations
  */
-router.get('/analytics/violations', async (req, res) => {
+subagentRoutes.get('/analytics/violations', (c: Context) => {
     try {
         const violations = toolPermissionManager.getViolations();
 
-        res.json({
+        return c.json({
             success: true,
             violations,
         });
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to get violations',
-        });
+        }, 500);
     }
 });
 
@@ -390,27 +371,21 @@ router.get('/analytics/violations', async (req, res) => {
  * POST /api/subagents/reload
  * Reload all subagents from disk
  */
-router.post('/reload', async (req, res) => {
+subagentRoutes.post('/reload', async (c: Context) => {
     try {
         const result = await subagentRegistry.loadAll();
 
-        // Trigger reload workflow
-        await inngestAgentKit.send({
-            name: 'agentkit/subagent.reload',
-            data: { reason: 'manual_reload' },
-        });
-
-        res.json({
+        return c.json({
             success: true,
             count: result.count,
             errors: result.errors,
         });
     } catch (error) {
-        res.status(500).json({
+        return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to reload subagents',
-        });
+        }, 500);
     }
 });
 
-export default router;
+export default subagentRoutes;
