@@ -50,6 +50,13 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Automatic analytics tracking during execution
   - Success rate calculation and usage counting
   - Tool permission recording during agent runs
+- **Frontend Integration**: Complete IDE UI for subagent management
+  - `SubagentManager.tsx`: Grid view with search, filters, and CRUD operations
+  - `SubagentFormDialog.tsx`: Full-featured create/edit dialog
+  - AI-powered tool suggestions based on agent description
+  - Real-time stats and analytics display
+  - Seamless integration with backend API
+  - Responsive design matching IDE aesthetic
 
 ### Improved
 - **Tool Management**: Added categorization (read/write/execute/git/analysis) and risk level classification (safe/moderate/destructive)
