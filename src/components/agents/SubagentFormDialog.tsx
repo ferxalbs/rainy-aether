@@ -55,16 +55,23 @@ interface SubagentFormDialogProps {
     onSuccess: () => void;
 }
 
-// Models directly from the legacy providers (no external imports)
+/**
+ * Models from src/services/agent/providers/index.ts
+ * IDs must match exactly for backend validation
+ */
 const AVAILABLE_MODELS = [
-    { id: 'gemini-flash-lite-latest', name: 'Gemini Flash Lite', provider: 'Google', description: 'Fastest, lightweight model' },
-    { id: 'gemini-flash-latest', name: 'Gemini 3 Flash', provider: 'Google', description: 'Latest with improved performance' },
-    { id: 'gemini-3-flash-thinking-exp', name: 'Gemini 3 Flash (Thinking)', provider: 'Google', description: 'Dynamic thinking budget' },
-    { id: 'gemini-3-pro-thinking-low', name: 'Gemini 3 Pro (Low)', provider: 'Google', description: 'Pro reasoning - economical' },
-    { id: 'gemini-3-pro-thinking-high', name: 'Gemini 3 Pro (High)', provider: 'Google', description: 'Pro with high thinking budget' },
-    { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', provider: 'Groq', description: 'Fast via Groq' },
-    { id: 'qwen-qwq-32b', name: 'Qwen QWQ 32B', provider: 'Groq', description: 'Deep reasoning model' },
-    { id: 'kimi-k2-instruct', name: 'Kimi K2', provider: 'Groq', description: 'Instruction tuned' },
+    // Gemini Standard Models
+    { id: 'gemini-flash-lite-latest', name: 'Gemini 2.5 Flash Lite', provider: 'Google', description: 'Fast and efficient' },
+    { id: 'gemini-flash-latest', name: 'Gemini 3 Flash', provider: 'Google', description: 'Latest with 1M context' },
+    // Gemini Thinking Models
+    { id: 'gemini-flash-thinking-auto', name: 'Gemini 3 Flash (Thinking)', provider: 'Google', description: 'Dynamic thinking budget' },
+    { id: 'gemini-3-pro-thinking-low', name: 'Gemini 3 Pro (Low)', provider: 'Google', description: 'Pro with low reasoning' },
+    { id: 'gemini-3-pro-thinking-high', name: 'Gemini 3 Pro (High)', provider: 'Google', description: 'Pro with high reasoning' },
+    // Groq Models
+    { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Groq', description: 'Meta Llama on Groq' },
+    { id: 'moonshotai/kimi-k2-instruct-0905', name: 'Kimi K2 Instruct', provider: 'Groq', description: 'Kimi K2 on Groq' },
+    // Cerebras Models
+    { id: 'zai-glm-4.6', name: 'Zai GLM 4.6', provider: 'Cerebras', description: 'Cerebras Zai model' },
 ];
 
 const COMMON_TOOLS = [

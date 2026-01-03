@@ -11,15 +11,32 @@ import { z } from 'zod';
 // Model Types
 // ===========================
 
-export const ModelIdSchema = z.enum([
-    'inherit',              // Use network default
-    'gemini-3-flash',       // Gemini Flash (fast)
-    'gemini-3-pro',         // Gemini Pro (smart)
-    'claude-3.5-sonnet',    // Claude Sonnet (analysis)
-    'claude-3.5-haiku',     // Claude Haiku (fast)
-    'grok-beta',            // xAI Grok (real-time)
-    'gpt-4',                // OpenAI GPT-4 (general)
-]);
+// Accept any string as model ID to allow all provider models
+export const ModelIdSchema = z.string().min(1, 'Model is required');
+
+/**
+ * Model IDs from src/services/agent/providers/index.ts
+ * These are the official model IDs used throughout the application
+ * (Duplicated here to avoid cross-rootDir import issues)
+ */
+export const AVAILABLE_MODEL_IDS = [
+    // Network default
+    'inherit',
+    // Gemini Standard Models
+    'gemini-flash-lite-latest',         // Gemini 2.5 Flash Lite
+    'gemini-flash-latest',              // Gemini 3 Flash
+    // Gemini Thinking Models
+    'gemini-flash-thinking-auto',       // Gemini 3 Flash (Dynamic Thinking)
+    'gemini-3-pro-thinking-low',        // Gemini 3 Pro (Thinking Low)
+    'gemini-3-pro-thinking-high',       // Gemini 3 Pro (Thinking High)
+    // Groq Models
+    'llama-3.3-70b',                    // Llama 3.3 70B (Groq)
+    'moonshotai/kimi-k2-instruct-0905', // Kimi K2 Instruct 09/05
+    // Cerebras Models
+    'zai-glm-4.6',                      // Zai GLM 4.6
+] as const;
+
+export type AvailableModelId = typeof AVAILABLE_MODEL_IDS[number];
 
 export type ModelId = z.infer<typeof ModelIdSchema>;
 

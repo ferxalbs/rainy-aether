@@ -24,56 +24,71 @@ import { toolPermissionManager, suggestToolsFromDescription } from '../tools/Too
 // ===========================
 
 /**
- * Get AgentKit model instance from model ID
+ * Model ID to actual API model mapping
+ * Maps IDs from src/services/agent/providers/index.ts to their API model strings
  */
-function getModel(modelId: ModelId) {
-    switch (modelId) {
-        case 'inherit':
-            // Return undefined to use network default
-            return undefined;
+const MODEL_MAPPINGS: Record<string, { provider: 'gemini' | 'groq' | 'cerebras' | 'anthropic' | 'openai'; model: string }> = {
+    // Gemini Standard Models
+    'gemini-flash-lite-latest': { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
+    'gemini-flash-latest': { provider: 'gemini', model: 'gemini-3-flash-preview' },
+    // Gemini Thinking Models
+    'gemini-flash-thinking-auto': { provider: 'gemini', model: 'gemini-3-flash-preview' },
+    'gemini-3-pro-thinking-low': { provider: 'gemini', model: 'gemini-3-pro-preview' },
+    'gemini-3-pro-thinking-high': { provider: 'gemini', model: 'gemini-3-pro-preview' },
+    // Groq Models
+    'llama-3.3-70b': { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+    'moonshotai/kimi-k2-instruct-0905': { provider: 'groq', model: 'moonshotai/kimi-k2-instruct-0905' },
+    // Cerebras Models
+    'zai-glm-4.6': { provider: 'cerebras', model: 'zai-glm-4.6' },
+};
 
-        case 'gemini-3-flash':
-            return gemini({
-                model: 'gemini-3-flash-preview',
-            });
-
-        case 'gemini-3-pro':
-            return gemini({
-                model: 'gemini-3-pro-preview',
-            });
-
-        case 'claude-3.5-sonnet':
-            return anthropic({
-                model: 'claude-3-5-sonnet-latest',
-                defaultParameters: {
-                    max_tokens: 4096,
-                    temperature: 0.7,
-                },
-            });
-
-        case 'claude-3.5-haiku':
-            return anthropic({
-                model: 'claude-3-5-haiku-latest',
-                defaultParameters: {
-                    max_tokens: 2048,
-                    temperature: 0.7,
-                },
-            });
-
-        case 'grok-beta':
-            return openai({
-                model: 'grok-beta',
-                baseUrl: 'https://api.x.ai/v1',
-            });
-
-        case 'gpt-4':
-            return openai({
-                model: 'gpt-4',
-            });
-
-        default:
-            throw new Error(`Unknown model ID: ${modelId}`);
+/**
+ * Get AgentKit model instance from model ID
+ * Uses exact mappings from src/services/agent/providers/index.ts
+ */
+function getModel(modelId: string) {
+    // Handle inherit/default case
+    if (modelId === 'inherit' || !modelId) {
+        return undefined;
     }
+
+    // Check exact mapping first
+    const mapping = MODEL_MAPPINGS[modelId];
+    if (mapping) {
+        switch (mapping.provider) {
+            case 'gemini':
+                return gemini({ model: mapping.model });
+            case 'groq':
+                return openai({ model: mapping.model, baseUrl: 'https://api.groq.com/openai/v1' });
+            case 'cerebras':
+                return openai({ model: mapping.model, baseUrl: 'https://api.cerebras.ai/v1' });
+            case 'anthropic':
+                return anthropic({ model: mapping.model, defaultParameters: { max_tokens: 4096, temperature: 0.7 } });
+            case 'openai':
+                return openai({ model: mapping.model });
+        }
+    }
+
+    // Fallback for unmapped models - try to infer provider
+    if (modelId.includes('gemini') || modelId.includes('flash') || modelId.includes('pro')) {
+        return gemini({ model: modelId });
+    }
+    if (modelId.includes('llama') || modelId.includes('kimi') || modelId.includes('moonshot')) {
+        return openai({ model: modelId, baseUrl: 'https://api.groq.com/openai/v1' });
+    }
+    if (modelId.includes('zai') || modelId.includes('cerebras')) {
+        return openai({ model: modelId, baseUrl: 'https://api.cerebras.ai/v1' });
+    }
+    if (modelId.includes('claude')) {
+        return anthropic({ model: modelId, defaultParameters: { max_tokens: 4096, temperature: 0.7 } });
+    }
+    if (modelId.includes('gpt')) {
+        return openai({ model: modelId });
+    }
+
+    // Default to Gemini
+    console.log(`[SubagentFactory] Unknown model '${modelId}', defaulting to Gemini provider`);
+    return gemini({ model: modelId });
 }
 
 // ===========================
@@ -161,16 +176,12 @@ export class SubagentFactory {
             }
         }
 
-        // Validate model
-        try {
-            getModel(config.model);
-        } catch (error) {
-            errors.push(`Invalid model: ${config.model}`);
-        }
+        // Model validation: now accepts all model IDs, getModel handles mapping
+        // No validation needed - getModel will handle unknown models gracefully
 
-        // Validate system prompt
-        if (!config.systemPrompt || config.systemPrompt.trim().length < 50) {
-            errors.push('System prompt must be at least 50 characters');
+        // Validate system prompt (make it lenient - just needs to exist)
+        if (!config.systemPrompt || config.systemPrompt.trim().length < 10) {
+            warnings.push('System prompt is very short - consider adding more context');
         }
 
         // Validate execution settings

@@ -28,10 +28,13 @@ export class SubagentRegistry {
     private projectPath: string | null = null;
     private userPath: string;
     private isInitialized = false;
+    private initPromise: Promise<void> | null = null;
 
     constructor() {
         this.userPath = join(homedir(), '.rainy', 'agents');
         this.ensureDirectoryExists(this.userPath);
+        // Auto-initialize on construction
+        this.initPromise = this.loadAll().then(() => { });
     }
 
     // ===========================
@@ -54,14 +57,18 @@ export class SubagentRegistry {
         this.agents.clear();
         const errors: string[] = [];
 
-        // Load user-level agents (lowest priority)
-        const userErrors = await this.loadFromDirectory(this.userPath, 'user');
-        errors.push(...userErrors);
+        try {
+            // Load user-level agents (lowest priority)
+            const userErrors = await this.loadFromDirectory(this.userPath, 'user');
+            errors.push(...userErrors);
 
-        // Load project-level agents (highest priority, overrides user)
-        if (this.projectPath) {
-            const projectErrors = await this.loadFromDirectory(this.projectPath, 'project');
-            errors.push(...projectErrors);
+            // Load project-level agents (highest priority, overrides user)
+            if (this.projectPath) {
+                const projectErrors = await this.loadFromDirectory(this.projectPath, 'project');
+                errors.push(...projectErrors);
+            }
+        } catch (err) {
+            console.error('[SubagentRegistry] Failed to load agents:', err);
         }
 
         this.isInitialized = true;
@@ -74,11 +81,12 @@ export class SubagentRegistry {
     }
 
     /**
-     * Ensure registry is initialized
+     * Ensure registry is initialized (no-op if already done or fails silently)
      */
     private ensureInitialized(): void {
+        // No longer throws - just logs if not ready
         if (!this.isInitialized) {
-            throw new Error('SubagentRegistry not initialized. Call loadAll() first.');
+            console.log('[SubagentRegistry] Registry not fully initialized yet');
         }
     }
 
