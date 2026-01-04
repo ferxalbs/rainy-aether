@@ -2,6 +2,27 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.14] - 2026-01-04
+
+### Fixed
+- **Subagent Output Extraction**: Fixed "No response from agent" error when using subagents
+  - Rewrote output extraction to properly handle AgentKit message formats
+  - Added filtering for `assistant` role text messages
+  - Implemented robust fallback patterns for different content types
+- **Subagent Isolation**: Created `SubagentExecutor` class for proper subagent containment
+  - Subagents now execute in isolated contexts without leaking general agent state
+  - Added execution timeout handling (default 60s)
+  - Tool calls are properly scoped to the subagent's configured tools
+  - Response now includes `executionTimeMs` and `toolCalls` for analytics
+
+### Improved
+- **Subagent Execute API**: Enhanced `/api/agentkit/subagents/:id/execute` endpoint
+  - Uses new `SubagentExecutor` for isolated execution
+  - Returns detailed execution metrics and tool call history
+  - Better error handling and logging
+
+---
+
 ## [v0.1.13] - 2026-01-03
 
 ### Added
@@ -133,7 +154,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Applied sanitization in `convertToolsToGemini` to ensure valid tool parameters and prevent API errors
 
 ### Improved
-- **#1 [Improvements] Agent Settings UI**: Enhanced Agent Settings dialog with premium glassmorphism design matching Extension Manager
+- **Agent Settings UI**: Enhanced Agent Settings dialog with premium glassmorphism design matching Extension Manager
   - Applied `backdrop-blur-3xl` and `backdrop-saturate-150` for rich glassmorphism effects (consistent with blur rules)
   - Added `backdrop-blur-sm` to dialog overlay for blurred background effect behind the dialog
   - Server Status card now uses premium glassmorphic card with enhanced borders and hover effects

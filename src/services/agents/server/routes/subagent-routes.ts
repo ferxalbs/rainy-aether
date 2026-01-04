@@ -9,6 +9,7 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { subagentRegistry } from '../registry/SubagentRegistry';
 import { SubagentFactory } from '../factory/SubagentFactory';
+import { SubagentExecutor } from '../factory/SubagentExecutor';
 import { toolPermissionManager } from '../tools/ToolPermissionManager';
 import type {
     SubagentConfig,
@@ -403,56 +404,37 @@ subagentRoutes.post('/:id/execute', async (c: Context) => {
             }, 400);
         }
 
-        // Create and run the subagent
-        const agentInstance = SubagentFactory.create(agent);
-        const result = await agentInstance.run(task);
+        // Create and run the subagent with isolated execution
+        const executor = new SubagentExecutor(agent);
+        const result = await executor.execute(task, {
+            timeoutMs: 60000,
+            includeToolCalls: true,
+        });
 
         // Increment usage count
         await subagentRegistry.incrementUsage(id);
 
-        // Log the raw output for debugging
-        console.log('[Subagent Execute] Raw output:', JSON.stringify(result.output, null, 2));
-
-        // Extract text output from result
-        // AgentKit output is an array of messages, get the last text message
-        let output = '';
-
-        if (result.output && result.output.length > 0) {
-            // Get the last message (cast to any to handle different message types)
-            const lastMessage = result.output[result.output.length - 1] as any;
-
-            // Handle different message formats
-            if (lastMessage?.type === 'text' && typeof lastMessage.content === 'string') {
-                output = lastMessage.content;
-            } else if (typeof lastMessage?.content === 'string') {
-                output = lastMessage.content;
-            } else if (lastMessage?.content && Array.isArray(lastMessage.content)) {
-                // Content might be an array of content blocks
-                output = lastMessage.content
-                    .filter((c: any) => c.type === 'text' && c.text)
-                    .map((c: any) => c.text)
-                    .join('\n');
-            }
-
-            // Fallback: try to extract from any text messages
-            if (!output) {
-                for (const msg of result.output) {
-                    const m = msg as any;
-                    if (m.type === 'text' && typeof m.content === 'string') {
-                        output += m.content;
-                    }
-                }
-            }
+        // Check if execution was successful
+        if (!result.success) {
+            console.error('[Subagent Execute] Execution failed:', result.error);
+            return c.json({
+                success: false,
+                error: result.error || 'Subagent execution failed',
+            }, 500);
         }
 
-        console.log('[Subagent Execute] Extracted output length:', output.length);
+        console.log('[Subagent Execute] Completed for', agent.name);
+        console.log('[Subagent Execute] Output length:', result.output.length);
+        console.log('[Subagent Execute] Execution time:', result.executionTimeMs, 'ms');
 
         return c.json({
             success: true,
             agentId: id,
             agentName: agent.name,
-            output,
+            output: result.output,
             model: agent.model,
+            executionTimeMs: result.executionTimeMs,
+            toolCalls: result.toolCalls,
         });
     } catch (error) {
         console.error('[Subagent Execute] Error:', error);
