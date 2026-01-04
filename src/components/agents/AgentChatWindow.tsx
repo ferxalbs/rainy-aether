@@ -372,27 +372,30 @@ const ChatInputArea = memo(function ChatInputArea({
                                             <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50" />
                                         )}
                                     </DropdownMenuItem>
-                                    {subagents.length > 0 && (
-                                        <>
-                                            <DropdownMenuSeparator className="mx-1 opacity-50" />
-                                            <DropdownMenuLabel className="text-[9px] text-muted-foreground/50 font-semibold uppercase tracking-wider px-2 py-1">Custom Agents</DropdownMenuLabel>
-                                            {subagents.map((agent) => (
-                                                <DropdownMenuItem
-                                                    key={agent.id}
-                                                    onClick={() => onSubagentChange(agent.id)}
-                                                    className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
-                                                >
-                                                    <div className="flex-1 min-w-0">
-                                                        <span className="font-medium truncate block">{agent.name}</span>
-                                                        <p className="text-[10px] text-muted-foreground truncate">{agent.description}</p>
-                                                    </div>
-                                                    {selectedSubagent === agent.id && (
-                                                        <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50 ml-2 shrink-0" />
-                                                    )}
-                                                </DropdownMenuItem>
-                                            ))}
-                                        </>
-                                    )}
+                                    {subagents.length > 0 && (() => {
+                                        console.log('[ChatInput] Rendering subagents:', subagents.length, subagents.map(a => a.name));
+                                        return (
+                                            <>
+                                                <DropdownMenuSeparator className="mx-1 opacity-50" />
+                                                <DropdownMenuLabel className="text-[9px] text-muted-foreground/50 font-semibold uppercase tracking-wider px-2 py-1">Custom Agents</DropdownMenuLabel>
+                                                {subagents.map((agent) => (
+                                                    <DropdownMenuItem
+                                                        key={agent.id}
+                                                        onClick={() => onSubagentChange(agent.id)}
+                                                        className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
+                                                    >
+                                                        <div className="flex-1 min-w-0">
+                                                            <span className="font-medium truncate block">{agent.name}</span>
+                                                            <p className="text-[10px] text-muted-foreground truncate">{agent.description}</p>
+                                                        </div>
+                                                        {selectedSubagent === agent.id && (
+                                                            <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50 ml-2 shrink-0" />
+                                                        )}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </>
+                                        );
+                                    })()}
                                 </DropdownMenuContent>
                             </DropdownMenu>
 
@@ -524,24 +527,47 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
     const [subagents, setSubagents] = useState<SubagentInfo[]>([]);
     const [selectedSubagent, setSelectedSubagent] = useState<string | null>(null);
 
-    // Fetch enabled subagents on mount
+    // Fetch enabled subagents on mount with retry logic
     useEffect(() => {
+        let cancelled = false;
+        let retryCount = 0;
+        const maxRetries = 3;
+
         async function fetchSubagents() {
             try {
-                console.log('[AgentChat] Fetching subagents...');
+                console.log('[AgentChat] Fetching subagents... (attempt', retryCount + 1, ')');
                 const res = await fetch('http://localhost:3847/api/agentkit/subagents?enabled=true');
                 if (res.ok) {
                     const data = await res.json();
-                    console.log('[AgentChat] Loaded subagents:', data.agents?.length || 0);
-                    setSubagents(data.agents || []);
+                    console.log('[AgentChat] Loaded subagents:', data.agents?.length || 0, data.agents?.map((a: SubagentInfo) => a.name));
+                    if (!cancelled) {
+                        setSubagents(data.agents || []);
+                    }
                 } else {
                     console.error('[AgentChat] Failed to fetch subagents:', res.status);
+                    // Retry on error
+                    if (retryCount < maxRetries && !cancelled) {
+                        retryCount++;
+                        setTimeout(fetchSubagents, 1000 * retryCount);
+                    }
                 }
             } catch (err) {
                 console.error('[AgentChat] Failed to fetch subagents:', err);
+                // Retry on network error (server might not be ready)
+                if (retryCount < maxRetries && !cancelled) {
+                    retryCount++;
+                    setTimeout(fetchSubagents, 1000 * retryCount);
+                }
             }
         }
-        fetchSubagents();
+
+        // Initial delay to let agent server start
+        const timer = setTimeout(fetchSubagents, 500);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
     }, []);
 
     // Auto-scroll to bottom on new messages
