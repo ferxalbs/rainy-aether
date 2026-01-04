@@ -2,7 +2,23 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.13] - 2026-01-03
+
+### Fixed
+- **Subagent Connection Failure**: Fixed 500 error when creating subagents
+  - POST handler now generates `id` from `name` if not provided (fixes "id: Invalid input" error)
+  - Project path is now set dynamically from request workspace for project-scoped agents (fixes "Project path not set" error)
+  - PUT handler updated with same fixes for consistency when updating agents
+  - Frontend now passes workspace from `ideState().workspace?.path` to API requests
+- **Dynamic Workspace Handling**: Subagent creation now works with dynamic project paths
+  - `SubagentManager.tsx`: Imports `ideState` and passes workspace to dialog
+  - `SubagentFormDialog.tsx`: Accepts workspace prop and includes in API requests
+  - Enables proper storage in `{project}/.rainy/agents/` for project-scoped agents
+
+---
+
 ## [v0.1.12] - 2026-01-03
+
 
 ### Added
 - **Dynamic Subagent System Infrastructure**: Core infrastructure for user-configurable AI agents with multi-model support
@@ -84,13 +100,13 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - Added `yaml` package dependency for YAML frontmatter parsing in subagent files
 - Fixed TypeScript compilation errors in new infrastructure files
 - Implemented proper error handling and validation for all subagent operations
-- #48 [Fixes] Replaced SubagentManager placeholder dialog with actual SubagentFormDialog integration
-- #49 [Fixes] Fixed SubagentManager API endpoint to use correct port 3847 (agent server)
-- #44 [Improvements] Completely redesigned SubagentManager to match MCPManager professional UI with sidebar navigation and detail view
-- #45 [Improvements] Added SubagentManager command to command palette (accessible via Cmd+Shift+P and search "subagent")
-- #46 [Improvements] Implemented glassmorphism styling and visual stats display (usage count, success rate) in SubagentManager
-- #47 [Improvements] Created comprehensive SUBAGENT_USER_GUIDE.md with examples and best practices
-- #40 [Improvements] Implemented dynamic subagent backend API with Hono routes for create, read, update, delete operations
+- Replaced SubagentManager placeholder dialog with actual SubagentFormDialog integration
+- Fixed SubagentManager API endpoint to use correct port 3847 (agent server)
+- Completely redesigned SubagentManager to match MCPManager professional UI with sidebar navigation and detail view
+- Added SubagentManager command to command palette (accessible via Cmd+Shift+P and search "subagent")
+- Implemented glassmorphism styling and visual stats display (usage count, success rate) in SubagentManager
+- Created comprehensive SUBAGENT_USER_GUIDE.md with examples and best practices
+- Implemented dynamic subagent backend API with Hono routes for create, read, update, delete operations
 
 ---
 

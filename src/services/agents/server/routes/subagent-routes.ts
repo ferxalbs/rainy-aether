@@ -135,7 +135,28 @@ subagentRoutes.get('/:id', (c: Context) => {
  */
 subagentRoutes.post('/', async (c: Context) => {
     try {
-        const config = await c.req.json<CreateSubagentConfig>();
+        const body = await c.req.json<CreateSubagentConfig & { workspace?: string }>();
+
+        // Generate ID from name if not provided
+        const id = body.id || body.name?.toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9-]/g, '') || 'custom-agent';
+
+        // Set project path for project-scoped agents (DYNAMIC based on open project)
+        if (body.scope === 'project') {
+            const workspace = body.workspace;
+            if (!workspace) {
+                return c.json({
+                    success: false,
+                    error: 'Workspace path is required for project-scoped agents',
+                }, 400);
+            }
+            subagentRegistry.setProjectPath(workspace);
+        }
+
+        // Build config with generated ID
+        const config = { ...body, id };
+        delete (config as any).workspace; // Remove workspace from config (not part of schema)
 
         // Validate with permissions
         const validation = SubagentFactory.validateWithPermissions(config as SubagentConfig);
@@ -163,6 +184,7 @@ subagentRoutes.post('/', async (c: Context) => {
     }
 });
 
+
 /**
  * PUT /api/subagents/:id
  * Update an existing subagent
@@ -170,7 +192,7 @@ subagentRoutes.post('/', async (c: Context) => {
 subagentRoutes.put('/:id', async (c: Context) => {
     try {
         const id = c.req.param('id');
-        const updates = await c.req.json<UpdateSubagentConfig>();
+        const body = await c.req.json<UpdateSubagentConfig & { workspace?: string }>();
 
         // Validate
         const agent = subagentRegistry.get(id);
@@ -180,6 +202,23 @@ subagentRoutes.put('/:id', async (c: Context) => {
                 error: `Subagent '${id}' not found`,
             }, 404);
         }
+
+        // Set project path if updating a project-scoped agent
+        const effectiveScope = body.scope || agent.scope;
+        if (effectiveScope === 'project') {
+            const workspace = body.workspace;
+            if (!workspace) {
+                return c.json({
+                    success: false,
+                    error: 'Workspace path is required for project-scoped agents',
+                }, 400);
+            }
+            subagentRegistry.setProjectPath(workspace);
+        }
+
+        // Remove workspace from updates (not part of schema)
+        const updates = { ...body };
+        delete (updates as any).workspace;
 
         // Merge and validate
         const merged = { ...agent, ...updates };
@@ -207,6 +246,7 @@ subagentRoutes.put('/:id', async (c: Context) => {
         }, 500);
     }
 });
+
 
 /**
  * DELETE /api/subagents/:id

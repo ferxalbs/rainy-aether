@@ -14,6 +14,7 @@ import { cn } from '../../lib/cn';
 import { Switch } from '../ui/switch';
 import { SubagentFormDialog } from './SubagentFormDialog';
 import { ScrollArea } from '../ui/scroll-area';
+import { getIDEState } from '../../stores/ideStore';
 
 // ===========================
 // Types
@@ -55,6 +56,9 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
     const [refreshing, setRefreshing] = useState(false);
     const [showCreateDialog, setShowCreateDialog] = useState(false);
     const [editingAgent, setEditingAgent] = useState<SubagentConfig | null>(null);
+
+    // Get current workspace path (dynamic based on open project)
+    const workspacePath = getIDEState().workspace?.path;
 
     // Load agents from API
     const loadAgents = useCallback(async () => {
@@ -363,6 +367,7 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
                     setEditingAgent(null);
                     loadAgents();
                 }}
+                workspace={workspacePath}
             />
         </div>
     );

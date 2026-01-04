@@ -53,6 +53,7 @@ interface SubagentFormDialogProps {
     onOpenChange: (open: boolean) => void;
     agent?: SubagentConfig;
     onSuccess: () => void;
+    workspace?: string;
 }
 
 /**
@@ -134,7 +135,7 @@ async function suggestTools(description: string): Promise<{ suggested: string[];
 // Component
 // ===========================
 
-export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: SubagentFormDialogProps) {
+export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess, workspace }: SubagentFormDialogProps) {
     const isEdit = !!agent;
     const [isLoading, setIsLoading] = useState(false);
     const [isSuggesting, setIsSuggesting] = useState(false);
@@ -213,6 +214,7 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess }: Sub
                 ...formData,
                 id: agent?.id || id,
                 tools: grantAllTools ? 'all' : formData.tools,
+                workspace, // Pass workspace for project-scoped agents
             };
 
             if (isEdit && agent) {
