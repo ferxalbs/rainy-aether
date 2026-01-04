@@ -406,9 +406,17 @@ subagentRoutes.post('/:id/execute', async (c: Context) => {
 
         // Create and run the subagent with isolated execution
         const executor = new SubagentExecutor(agent);
+        console.log(`[Subagent Execute] Starting isolated execution for agent '${agent.name}' (${id})`);
+
         const result = await executor.execute(task, {
             timeoutMs: 60000,
             includeToolCalls: true,
+        });
+
+        console.log('[Subagent Execute] Raw result summary:', {
+            success: result.success,
+            outputLength: result.output?.length || 0,
+            hasError: !!result.error
         });
 
         // Increment usage count

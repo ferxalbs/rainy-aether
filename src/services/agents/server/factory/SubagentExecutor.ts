@@ -143,57 +143,119 @@ export class SubagentExecutor {
      * Extract text output from AgentKit result
      * Handles multiple message formats from different model providers
      */
-    private extractOutput(result: { output: any[] }): string {
-        if (!result.output || !Array.isArray(result.output) || result.output.length === 0) {
-            console.log('[SubagentExecutor] No output array found');
+    /**
+     * Extract text output from AgentKit result
+     * Handles multiple message formats from different model providers
+     */
+    private extractOutput(result: unknown): string {
+        // Handle AgentKit's flexible output format
+        // Format: { output: Message[] } where Message can have various structures
+
+        const output = (result as any)?.output;
+
+        // Debug logging for diagnosing format issues
+        console.log('[SubagentExecutor] Output extraction debug:');
+        console.log('  - Result type:', typeof result);
+        console.log('  - Has output property:', !!output);
+        if (output) {
+            console.log('  - Output type:', typeof output);
+            if (Array.isArray(output)) {
+                console.log('  - Output array length:', output.length);
+                if (output.length > 0) {
+                    console.log('  - First item:', JSON.stringify(output[0]).substring(0, 200));
+                    console.log('  - Last item:', JSON.stringify(output[output.length - 1]).substring(0, 200));
+                }
+            } else {
+                console.log('  - Output content:', JSON.stringify(output).substring(0, 200));
+            }
+        }
+
+        if (!output) {
+            console.log('[SubagentExecutor] No output property found in result');
             return '';
         }
 
-        // Collect all assistant text messages
-        const assistantMessages: string[] = [];
+        // If output is already a string
+        if (typeof output === 'string') {
+            return output;
+        }
 
-        for (const msg of result.output) {
-            // Only extract from assistant role text messages
+        if (!Array.isArray(output) || output.length === 0) {
+            console.log('[SubagentExecutor] Output is not an array or is empty');
+            return '';
+        }
+
+        // Strategy 1: Find the last assistant text message
+        for (let i = output.length - 1; i >= 0; i--) {
+            const msg = output[i];
+
+            // Check for assistant role messages
+            if (msg.role === 'assistant') {
+                // Content can be string or array
+                if (typeof msg.content === 'string' && msg.content.trim()) {
+                    console.log(`[SubagentExecutor] Strategy 1: Found assistant message at index ${i}`);
+                    return msg.content;
+                }
+                if (Array.isArray(msg.content)) {
+                    const textParts = msg.content
+                        .filter((p: any) => p.type === 'text' && p.text)
+                        .map((p: any) => p.text);
+                    if (textParts.length > 0) {
+                        console.log(`[SubagentExecutor] Strategy 1: Found assistant message (array) at index ${i}`);
+                        return textParts.join('\n');
+                    }
+                }
+            }
+
+            // Also check type === 'text' with assistant role (variant format)
             if (msg.type === 'text' && msg.role === 'assistant') {
                 if (typeof msg.content === 'string' && msg.content.trim()) {
-                    assistantMessages.push(msg.content);
-                } else if (Array.isArray(msg.content)) {
-                    // Handle array content blocks (e.g., from Anthropic)
-                    const textParts = msg.content
-                        .filter((part: any) => part.type === 'text' && part.text)
-                        .map((part: any) => part.text);
-                    if (textParts.length > 0) {
-                        assistantMessages.push(textParts.join('\n'));
-                    }
+                    console.log(`[SubagentExecutor] Strategy 1: Found assistant text message at index ${i}`);
+                    return msg.content;
                 }
             }
         }
 
-        // Return the last assistant message as the primary response
-        if (assistantMessages.length > 0) {
-            return assistantMessages[assistantMessages.length - 1];
-        }
+        // Strategy 2: Find any text message regardless of role (fallback)
+        console.log('[SubagentExecutor] No strict assistant messages found, trying fallback strategy');
+        for (let i = output.length - 1; i >= 0; i--) {
+            const msg = output[i];
 
-        // Fallback: try any text message regardless of role
-        console.log('[SubagentExecutor] No assistant messages, trying fallback');
-        for (let i = result.output.length - 1; i >= 0; i--) {
-            const m = result.output[i];
-            if (m.type === 'text' && typeof m.content === 'string' && m.content.trim()) {
-                return m.content;
+            // Standard text message
+            if (msg.type === 'text' && typeof msg.content === 'string' && msg.content.trim()) {
+                console.log(`[SubagentExecutor] Strategy 2: Found text message at index ${i}`);
+                return msg.content;
+            }
+
+            // Direct content string without type (some providers)
+            if (typeof msg.content === 'string' && msg.content.trim() && !msg.type) {
+                console.log(`[SubagentExecutor] Strategy 2: Found unstructured content message at index ${i}`);
+                return msg.content;
             }
         }
 
-        // Last resort: extract from last message using common patterns
-        const lastMsg = result.output[result.output.length - 1];
-        if (lastMsg?.content) {
+        // Strategy 3: Last message content (any format)
+        // This is a "Hail Mary" attempt to get something useful
+        console.log('[SubagentExecutor] Fallback strategy failed, trying last resort (raw content)');
+        const lastMsg = output[output.length - 1];
+        if (lastMsg) {
             if (typeof lastMsg.content === 'string') {
+                console.log('[SubagentExecutor] Strategy 3: Using last message content string');
                 return lastMsg.content;
             }
-            if (typeof lastMsg.content === 'object') {
-                return JSON.stringify(lastMsg.content);
+            if (Array.isArray(lastMsg.content)) {
+                const text = lastMsg.content
+                    .filter((p: any) => (p.type === 'text' || p.text))
+                    .map((p: any) => p.text || p.content || String(p))
+                    .join('\n');
+                if (text) {
+                    console.log('[SubagentExecutor] Strategy 3: Extracted text from last message array');
+                    return text;
+                }
             }
         }
 
+        console.log('[SubagentExecutor] FAILED to extract any output');
         return '';
     }
 
