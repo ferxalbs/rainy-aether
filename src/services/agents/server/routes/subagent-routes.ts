@@ -27,14 +27,26 @@ const subagentRoutes = new Hono();
  * GET /api/subagents
  * List all subagents with optional filtering
  */
-subagentRoutes.get('/', (c: Context) => {
+subagentRoutes.get('/', async (c: Context) => {
     try {
         const scope = c.req.query('scope');
         const enabled = c.req.query('enabled');
         const tag = c.req.query('tag');
         const search = c.req.query('search');
+        const workspace = c.req.query('workspace');
+
+        // If workspace is provided, set project path and reload agents
+        // This ensures project-level subagents are always loaded when listing
+        if (workspace) {
+            console.log(`[Subagents API] Setting project path to: ${workspace}`);
+            subagentRegistry.setProjectPath(workspace);
+            // Reload to pick up any new/changed project-level agents
+            await subagentRegistry.loadAll();
+        }
 
         let agents = subagentRegistry.getAll();
+
+        console.log(`[Subagents API] Listing ${agents.length} subagents (workspace: ${workspace || 'none'})`);
 
         // Filter by scope
         if (scope) {
@@ -63,6 +75,7 @@ subagentRoutes.get('/', (c: Context) => {
             agents,
         });
     } catch (error) {
+        console.error('[Subagents API] Error listing subagents:', error);
         return c.json({
             success: false,
             error: error instanceof Error ? error.message : 'Failed to list subagents',

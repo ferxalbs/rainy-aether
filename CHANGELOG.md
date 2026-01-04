@@ -5,17 +5,20 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.14] - 2026-01-04
 
 ### Fixed
+- **Project-Level Subagents Not Loading**: Fixed issue where project-scoped subagents (`.rainy/agents/*.md`) were not appearing in the Manage Custom Subagents modal
+  - Added `workspace` query parameter to `GET /api/subagents` endpoint
+  - Backend now sets project path and reloads agents when workspace is provided
+  - Updated `SubagentManager.tsx` to pass workspace path when fetching agents
+  - Updated `AgentChatWindow.tsx` to include workspace when fetching enabled subagents
 - **Subagent Output Extraction**: Fixed "No response from agent" error when using subagents
-  - Rewrote output extraction to properly handle AgentKit message formats
-  - Added filtering for `assistant` role text messages
-  - Implemented robust fallback patterns for different content types
+  - Rewrote output extraction with multi-strategy approach (assistant messages → any text → raw content)
+  - Added extensive debug logging to trace AgentKit output format
+  - Now handles varying message structures from different AI providers (Gemini, Anthropic, OpenAI)
 - **Subagent Isolation**: Created `SubagentExecutor` class for proper subagent containment
   - Subagents now execute in isolated contexts without leaking general agent state
   - Added execution timeout handling (default 60s)
   - Tool calls are properly scoped to the subagent's configured tools
   - Response now includes `executionTimeMs` and `toolCalls` for analytics
-
-### Improved
 - **Subagent Execute API**: Enhanced `/api/agentkit/subagents/:id/execute` endpoint
   - Uses new `SubagentExecutor` for isolated execution
   - Returns detailed execution metrics and tool call history

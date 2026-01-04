@@ -13,6 +13,7 @@ import { loadCredential } from "@/services/agent/AgentService"
 import { CodeBlock } from "./CodeBlock"
 import { ToolExecutionList } from "./ToolExecutionList"
 import { ImageAttachment } from "@/types/chat"
+import { getIDEState } from "@/stores/ideStore"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -537,7 +538,12 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
         async function fetchSubagents() {
             try {
                 console.log('[AgentChat] Fetching subagents... (attempt', retryCount + 1, ')');
-                const res = await fetch('http://localhost:3847/api/agentkit/subagents?enabled=true');
+                // Include workspace to load project-level subagents
+                const workspacePath = getIDEState().workspace?.path;
+                const url = workspacePath
+                    ? `http://localhost:3847/api/agentkit/subagents?enabled=true&workspace=${encodeURIComponent(workspacePath)}`
+                    : 'http://localhost:3847/api/agentkit/subagents?enabled=true';
+                const res = await fetch(url);
                 if (res.ok) {
                     const data = await res.json();
                     console.log('[AgentChat] Loaded subagents:', data.agents?.length || 0, data.agents?.map((a: SubagentInfo) => a.name));

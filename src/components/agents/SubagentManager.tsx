@@ -64,7 +64,11 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
     const loadAgents = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(API_BASE);
+            // Include workspace path to load project-level subagents
+            const url = workspacePath
+                ? `${API_BASE}?workspace=${encodeURIComponent(workspacePath)}`
+                : API_BASE;
+            const res = await fetch(url);
 
             if (res.ok) {
                 const data = await res.json();
@@ -84,7 +88,7 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({ isOpen, onClose }) =>
         } finally {
             setLoading(false);
         }
-    }, [selectedAgent]);
+    }, [selectedAgent, workspacePath]);
 
     useEffect(() => {
         if (isOpen) {
