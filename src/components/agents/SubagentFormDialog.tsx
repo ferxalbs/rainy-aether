@@ -98,11 +98,10 @@ async function createSubagent(config: Partial<SubagentConfig>): Promise<Subagent
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
     });
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.errors?.join(', ') || 'Failed to create subagent');
-    }
     const data = await response.json();
+    if (!response.ok || !data.success) {
+        throw new Error(data.error || data.errors?.join(', ') || 'Failed to create subagent');
+    }
     return data.agent;
 }
 
@@ -112,11 +111,10 @@ async function updateSubagent(id: string, config: Partial<SubagentConfig>): Prom
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
     });
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.errors?.join(', ') || 'Failed to update subagent');
-    }
     const data = await response.json();
+    if (!response.ok || !data.success) {
+        throw new Error(data.error || data.errors?.join(', ') || 'Failed to update subagent');
+    }
     return data.agent;
 }
 
@@ -501,14 +499,17 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess, works
 
                             {/* System Prompt */}
                             <div className="space-y-4">
-                                <h3 className="text-sm font-medium text-muted-foreground">System Prompt</h3>
+                                <h3 className="text-sm font-medium text-muted-foreground">System Prompt *</h3>
                                 <Textarea
                                     value={formData.systemPrompt}
                                     onChange={(e) => setFormData({ ...formData, systemPrompt: e.target.value })}
-                                    placeholder="You are a specialized AI agent that..."
+                                    placeholder="You are a specialized AI agent that helps with code review and analysis. You focus on identifying potential bugs, security issues, and code quality improvements..."
                                     rows={4}
+                                    required
+                                    minLength={50}
                                     className="bg-background/50 font-mono text-sm"
                                 />
+                                <p className="text-xs text-muted-foreground">Minimum 50 characters. Describe the agent's role and behavior.</p>
                             </div>
 
                             <Separator className="bg-border/30" />
@@ -588,7 +589,7 @@ export function SubagentFormDialog({ open, onOpenChange, agent, onSuccess, works
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={isLoading || !formData.name || !formData.description}>
+                        <Button type="submit" disabled={isLoading || !formData.name || !formData.description || !formData.systemPrompt || (formData.systemPrompt?.length ?? 0) < 50}>
                             {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             {isEdit ? 'Save Changes' : 'Create Subagent'}
                         </Button>
