@@ -360,6 +360,72 @@ subagentRoutes.post('/:id/test', (c: Context) => {
     }
 });
 
+/**
+ * POST /api/subagents/:id/execute
+ * Execute a task with a specific subagent
+ */
+subagentRoutes.post('/:id/execute', async (c: Context) => {
+    try {
+        const id = c.req.param('id');
+        const { task, workspace } = await c.req.json<{ task: string; workspace?: string }>();
+
+        if (!task) {
+            return c.json({
+                success: false,
+                error: 'Task is required',
+            }, 400);
+        }
+
+        const agent = subagentRegistry.get(id);
+
+        if (!agent) {
+            return c.json({
+                success: false,
+                error: `Subagent '${id}' not found`,
+            }, 404);
+        }
+
+        if (!agent.enabled) {
+            return c.json({
+                success: false,
+                error: `Subagent '${id}' is disabled`,
+            }, 400);
+        }
+
+        // Create and run the subagent
+        const agentInstance = SubagentFactory.create(agent);
+        const result = await agentInstance.run(task);
+
+        // Increment usage count
+        await subagentRegistry.incrementUsage(id);
+
+        // Extract text output
+        let output = '';
+        for (const msg of result.output) {
+            if (msg.type === 'text') {
+                const textMsg = msg as { type: 'text'; content: string | unknown[] };
+                if (typeof textMsg.content === 'string') {
+                    output += textMsg.content;
+                }
+            }
+        }
+
+        return c.json({
+            success: true,
+            agentId: id,
+            agentName: agent.name,
+            output,
+            model: agent.model,
+        });
+    } catch (error) {
+        console.error('[Subagent Execute] Error:', error);
+        return c.json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Execution failed',
+        }, 500);
+    }
+});
+
 // ===========================
 // Analytics & Usage
 // ===========================

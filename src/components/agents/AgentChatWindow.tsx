@@ -337,61 +337,64 @@ const ChatInputArea = memo(function ChatInputArea({
                                 </DropdownMenuContent>
                             </DropdownMenu>
 
-                            {/* Subagent Selector */}
-                            {subagents.length > 0 && (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button className={cn(
-                                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all group text-[11px] font-semibold uppercase tracking-wider text-left border",
-                                            selectedSubagent
-                                                ? "text-primary bg-primary/10 border-primary/30"
-                                                : "text-muted-foreground/70 hover:bg-primary/10 border-transparent hover:border-primary/20"
-                                        )}>
-                                            <Bot className="h-3 w-3 text-primary/80 shrink-0" />
-                                            {!compact && (
-                                                <span className="truncate max-w-[100px] group-hover:text-foreground/90 transition-colors">
-                                                    {selectedSubagent
-                                                        ? subagents.find(s => s.id === selectedSubagent)?.name || 'Subagent'
-                                                        : 'Auto'}
-                                                </span>
-                                            )}
-                                            <ChevronDown className="h-3 w-3 opacity-50 shrink-0 group-hover:opacity-80 transition-opacity" />
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" className="w-[220px] max-h-[260px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/30 scrollbar-track-transparent">
-                                        <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-2 py-1.5">Select Subagent</DropdownMenuLabel>
-                                        <DropdownMenuSeparator className="mx-1 opacity-50" />
-                                        <DropdownMenuItem
-                                            onClick={() => onSubagentChange(null)}
-                                            className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
-                                        >
-                                            <div>
-                                                <span className="font-medium">Auto (Rainy)</span>
-                                                <p className="text-[10px] text-muted-foreground">Default intelligent routing</p>
-                                            </div>
-                                            {!selectedSubagent && (
-                                                <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50" />
-                                            )}
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator className="mx-1 opacity-50" />
-                                        {subagents.map((agent) => (
-                                            <DropdownMenuItem
-                                                key={agent.id}
-                                                onClick={() => onSubagentChange(agent.id)}
-                                                className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
-                                            >
-                                                <div className="flex-1 min-w-0">
-                                                    <span className="font-medium truncate block">{agent.name}</span>
-                                                    <p className="text-[10px] text-muted-foreground truncate">{agent.description}</p>
-                                                </div>
-                                                {selectedSubagent === agent.id && (
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50 ml-2 shrink-0" />
-                                                )}
-                                            </DropdownMenuItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            )}
+                            {/* Subagent Selector - Always visible with Auto option */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button className={cn(
+                                        "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all group text-[11px] font-semibold uppercase tracking-wider text-left border",
+                                        selectedSubagent
+                                            ? "text-primary bg-primary/10 border-primary/30"
+                                            : "text-muted-foreground/70 hover:bg-primary/10 border-transparent hover:border-primary/20"
+                                    )}>
+                                        <Bot className="h-3 w-3 text-primary/80 shrink-0" />
+                                        {!compact && (
+                                            <span className="truncate max-w-[100px] group-hover:text-foreground/90 transition-colors">
+                                                {selectedSubagent
+                                                    ? subagents.find(s => s.id === selectedSubagent)?.name || 'Agent'
+                                                    : 'Auto'}
+                                            </span>
+                                        )}
+                                        <ChevronDown className="h-3 w-3 opacity-50 shrink-0 group-hover:opacity-80 transition-opacity" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-[220px] max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/30 scrollbar-track-transparent">
+                                    <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-2 py-1.5">Agent Routing</DropdownMenuLabel>
+                                    <DropdownMenuSeparator className="mx-1 opacity-50" />
+                                    <DropdownMenuItem
+                                        onClick={() => onSubagentChange(null)}
+                                        className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
+                                    >
+                                        <div>
+                                            <span className="font-medium">Auto (Smart Routing)</span>
+                                            <p className="text-[10px] text-muted-foreground">Routes based on task keywords</p>
+                                        </div>
+                                        {!selectedSubagent && (
+                                            <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50" />
+                                        )}
+                                    </DropdownMenuItem>
+                                    {subagents.length > 0 && (
+                                        <>
+                                            <DropdownMenuSeparator className="mx-1 opacity-50" />
+                                            <DropdownMenuLabel className="text-[9px] text-muted-foreground/50 font-semibold uppercase tracking-wider px-2 py-1">Custom Agents</DropdownMenuLabel>
+                                            {subagents.map((agent) => (
+                                                <DropdownMenuItem
+                                                    key={agent.id}
+                                                    onClick={() => onSubagentChange(agent.id)}
+                                                    className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
+                                                >
+                                                    <div className="flex-1 min-w-0">
+                                                        <span className="font-medium truncate block">{agent.name}</span>
+                                                        <p className="text-[10px] text-muted-foreground truncate">{agent.description}</p>
+                                                    </div>
+                                                    {selectedSubagent === agent.id && (
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50 ml-2 shrink-0" />
+                                                    )}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
 
                             <div className="h-3 w-px bg-primary/10 mx-0.5 hidden sm:block" />
 
@@ -525,10 +528,14 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
     useEffect(() => {
         async function fetchSubagents() {
             try {
+                console.log('[AgentChat] Fetching subagents...');
                 const res = await fetch('http://localhost:3847/api/agentkit/subagents?enabled=true');
                 if (res.ok) {
                     const data = await res.json();
+                    console.log('[AgentChat] Loaded subagents:', data.agents?.length || 0);
                     setSubagents(data.agents || []);
+                } else {
+                    console.error('[AgentChat] Failed to fetch subagents:', res.status);
                 }
             } catch (err) {
                 console.error('[AgentChat] Failed to fetch subagents:', err);
@@ -545,15 +552,71 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
     }, [messages, streamingContent, streamingThoughts]);
 
     // Callback for sending messages from the isolated input
-    // TODO: When a subagent is selected, route through backend API
-    const handleSend = useCallback((message: string, images?: ImageAttachment[]) => {
-        if (activeSession) {
-            // For now, just send normally - subagent routing will be added in next iteration
-            // When selectedSubagent is set, we should route through:
-            // POST /api/agentkit/subagents/${selectedSubagent}/execute
+    // Routes to subagent execute API when subagent is selected
+    const handleSend = useCallback(async (message: string, images?: ImageAttachment[]) => {
+        if (!activeSession) return;
+
+        // If a subagent is selected, use the backend execute API
+        if (selectedSubagent) {
+            console.log(`[AgentChat] Routing to subagent: ${selectedSubagent}`);
+            agentActions.setLoading(true);
+
+            // Add user message
+            const userMessage: import('@/types/chat').ChatMessage = {
+                id: crypto.randomUUID(),
+                role: 'user',
+                content: message,
+                timestamp: new Date(),
+                images: images && images.length > 0 ? images : undefined,
+            };
+            agentActions.addMessage(activeSession.id, userMessage);
+
+            try {
+                const response = await fetch(`http://localhost:3847/api/agentkit/subagents/${selectedSubagent}/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task: message }),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Add assistant message with subagent response
+                    const agentMessage: import('@/types/chat').ChatMessage = {
+                        id: crypto.randomUUID(),
+                        role: 'assistant',
+                        content: data.output || 'No response from agent.',
+                        timestamp: new Date(),
+                    };
+                    agentActions.addMessage(activeSession.id, agentMessage);
+                    console.log(`[AgentChat] Subagent ${data.agentName} responded with model ${data.model}`);
+                } else {
+                    // Show error
+                    const errorMessage: import('@/types/chat').ChatMessage = {
+                        id: crypto.randomUUID(),
+                        role: 'assistant',
+                        content: `Error from subagent: ${data.error}`,
+                        timestamp: new Date(),
+                    };
+                    agentActions.addMessage(activeSession.id, errorMessage);
+                }
+            } catch (err) {
+                console.error('[AgentChat] Subagent execution failed:', err);
+                const errorMessage: import('@/types/chat').ChatMessage = {
+                    id: crypto.randomUUID(),
+                    role: 'assistant',
+                    content: `Failed to execute subagent: ${err instanceof Error ? err.message : 'Unknown error'}`,
+                    timestamp: new Date(),
+                };
+                agentActions.addMessage(activeSession.id, errorMessage);
+            } finally {
+                agentActions.setLoading(false);
+            }
+        } else {
+            // Normal flow - use the default agent service
             sendMessage(message, images);
         }
-    }, [activeSession, sendMessage]);
+    }, [activeSession, selectedSubagent, sendMessage]);
 
     const renderMessageContent = (content: string) => {
         return (

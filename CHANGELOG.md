@@ -5,6 +5,14 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.13] - 2026-01-03
 
 ### Added
+- **#Subagent Selector in Chat UI**: Users can now select custom subagents from a dropdown in the chat input
+  - Dropdown appears next to model selector (always visible)
+  - Fetches enabled subagents from backend API
+  - Shows agent name and description in selector
+- **#Subagent Execution**: Selected subagents now actually execute tasks
+  - Added `POST /api/agentkit/subagents/:id/execute` endpoint
+  - Frontend routes to subagent API when selected
+  - Uses subagent's configured model and system prompt
 - **Subagent Selector in Chat UI**: Users can now select custom subagents from a dropdown in the chat input
   - Dropdown appears next to model selector when subagents are enabled
   - Fetches enabled subagents from backend API
