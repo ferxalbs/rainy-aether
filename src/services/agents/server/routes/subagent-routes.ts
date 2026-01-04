@@ -410,16 +410,42 @@ subagentRoutes.post('/:id/execute', async (c: Context) => {
         // Increment usage count
         await subagentRegistry.incrementUsage(id);
 
-        // Extract text output
+        // Log the raw output for debugging
+        console.log('[Subagent Execute] Raw output:', JSON.stringify(result.output, null, 2));
+
+        // Extract text output from result
+        // AgentKit output is an array of messages, get the last text message
         let output = '';
-        for (const msg of result.output) {
-            if (msg.type === 'text') {
-                const textMsg = msg as { type: 'text'; content: string | unknown[] };
-                if (typeof textMsg.content === 'string') {
-                    output += textMsg.content;
+
+        if (result.output && result.output.length > 0) {
+            // Get the last message (cast to any to handle different message types)
+            const lastMessage = result.output[result.output.length - 1] as any;
+
+            // Handle different message formats
+            if (lastMessage?.type === 'text' && typeof lastMessage.content === 'string') {
+                output = lastMessage.content;
+            } else if (typeof lastMessage?.content === 'string') {
+                output = lastMessage.content;
+            } else if (lastMessage?.content && Array.isArray(lastMessage.content)) {
+                // Content might be an array of content blocks
+                output = lastMessage.content
+                    .filter((c: any) => c.type === 'text' && c.text)
+                    .map((c: any) => c.text)
+                    .join('\n');
+            }
+
+            // Fallback: try to extract from any text messages
+            if (!output) {
+                for (const msg of result.output) {
+                    const m = msg as any;
+                    if (m.type === 'text' && typeof m.content === 'string') {
+                        output += m.content;
+                    }
                 }
             }
         }
+
+        console.log('[Subagent Execute] Extracted output length:', output.length);
 
         return c.json({
             success: true,
