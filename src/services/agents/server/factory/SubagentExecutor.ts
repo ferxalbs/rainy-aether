@@ -1,11 +1,11 @@
 /**
  * Subagent Executor
  * 
- * Provides isolated execution context for subagents.
- * Ensures subagents run independently from the general agent,
- * with their own tool scopes and context containment.
+ * Provides isolated execution context for subagents using an agentic loop.
+ * Uses network.run() to enable multi-step tool execution until task completion.
  */
 
+import { createNetwork } from '@inngest/agent-kit';
 import type { Agent as AgentKitAgent } from '@inngest/agent-kit';
 import { SubagentFactory } from './SubagentFactory';
 import type { SubagentConfig } from '../types/SubagentConfig';
@@ -36,6 +36,8 @@ export interface SubagentExecutionOptions {
     timeoutMs?: number;
     /** Whether to include tool call details in result */
     includeToolCalls?: boolean;
+    /** Maximum number of agentic loop iterations */
+    maxIterations?: number;
 }
 
 /**
@@ -73,23 +75,54 @@ export class SubagentExecutor {
     }
 
     /**
-     * Execute a task with this subagent in an isolated context
+     * Execute a task with this subagent in an isolated agentic loop.
+     * Uses network.run() to enable multi-step tool execution until completion.
      */
     async execute(
         task: string,
         options: SubagentExecutionOptions = {}
     ): Promise<SubagentExecutionResult> {
         const startTime = Date.now();
-        const { timeoutMs = 60000, includeToolCalls = false } = options;
+        const { timeoutMs = 120000, includeToolCalls = false, maxIterations = 100 } = options;
 
-        console.log(`[SubagentExecutor] Executing task for '${this.config.name}'`);
+        console.log(`[SubagentExecutor] Starting agentic loop for '${this.config.name}'`);
         console.log(`  Task: ${task.substring(0, 100)}${task.length > 100 ? '...' : ''}`);
+        console.log(`  Max iterations: ${maxIterations}`);
 
         try {
-            // Run the agent with the task
-            // The agent is already configured with isolated tools and system prompt
+            // Create a single-agent network for the agentic loop
+            // This allows the agent to execute tools and continue until completion
+            const network = createNetwork({
+                name: `subagent-${this.config.id}`,
+                agents: [this.agent],
+                maxIter: maxIterations,
+            });
+
+            // Run the network with the task - this provides the agentic loop
+            // The network will keep running until:
+            // 1. The agent signals completion (no more tool calls)
+            // 2. Max iterations is reached
+            // 3. Timeout occurs
+            const self = this;
             const result = await Promise.race([
-                this.agent.run(task),
+                network.run(task, {
+                    router: ({ network: n }: { network: any }) => {
+                        // Simple router: always return the single agent until done
+                        const lastResult = n?.state?.results?.at(-1);
+
+                        // Check if the last result had tool calls - if not, we're done
+                        if (lastResult) {
+                            const hasToolCalls = self.hasToolCalls(lastResult);
+                            if (!hasToolCalls) {
+                                console.log(`[SubagentExecutor] Agent completed without tool calls, finishing`);
+                                return undefined; // Signal completion
+                            }
+                        }
+
+                        // Continue with the agent
+                        return self.agent;
+                    },
+                }),
                 this.createTimeout(timeoutMs),
             ]);
 
@@ -106,12 +139,14 @@ export class SubagentExecutor {
                 };
             }
 
-            // Extract output using standardized extraction
-            const output = this.extractOutput(result);
-            const toolCalls = includeToolCalls ? this.extractToolCalls(result) : undefined;
+            // Extract output from network result
+            const output = this.extractNetworkOutput(result);
+            const toolCalls = includeToolCalls ? this.extractNetworkToolCalls(result) : undefined;
+            const iterations = result.state?.results?.length || 1;
 
             const executionTimeMs = Date.now() - startTime;
-            console.log(`[SubagentExecutor] Execution completed in ${executionTimeMs}ms`);
+            console.log(`[SubagentExecutor] Agentic loop completed in ${executionTimeMs}ms`);
+            console.log(`  Iterations: ${iterations}`);
             console.log(`  Output length: ${output.length}`);
 
             return {
@@ -138,6 +173,65 @@ export class SubagentExecutor {
             };
         }
     }
+
+    /**
+     * Check if a result contains tool calls
+     */
+    private hasToolCalls(result: unknown): boolean {
+        const r = result as { output?: unknown[] };
+        if (!r?.output || !Array.isArray(r.output)) return false;
+
+        return r.output.some((msg: any) =>
+            msg.type === 'tool_call' ||
+            (msg.tools && Array.isArray(msg.tools) && msg.tools.length > 0)
+        );
+    }
+
+    /**
+     * Extract output from network run result
+     */
+    private extractNetworkOutput(result: unknown): string {
+        const r = result as { state?: { results?: unknown[] } };
+        const results = r?.state?.results;
+
+        if (!results || !Array.isArray(results) || results.length === 0) {
+            return '';
+        }
+
+        // Get the last result's output
+        const lastResult = results[results.length - 1] as { output?: unknown[] };
+        if (!lastResult?.output) {
+            return '';
+        }
+
+        return this.extractOutput({ output: lastResult.output });
+    }
+
+    /**
+     * Extract tool calls from network run result
+     */
+    private extractNetworkToolCalls(result: unknown): Array<{
+        name: string;
+        args: Record<string, unknown>;
+        result?: unknown;
+    }> {
+        const r = result as { state?: { results?: unknown[] } };
+        const results = r?.state?.results;
+
+        if (!results || !Array.isArray(results)) {
+            return [];
+        }
+
+        const allToolCalls: Array<{ name: string; args: Record<string, unknown>; result?: unknown }> = [];
+
+        for (const res of results) {
+            const extracted = this.extractToolCalls(res as { output: unknown[] });
+            allToolCalls.push(...extracted);
+        }
+
+        return allToolCalls;
+    }
+
 
     /**
      * Extract text output from AgentKit result

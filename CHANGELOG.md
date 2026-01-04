@@ -5,6 +5,11 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.14] - 2026-01-04
 
 ### Fixed
+- **Subagent Agentic Loop**: Fixed subagents stopping after one response instead of executing tools
+  - Refactored `SubagentExecutor` to use `network.run()` instead of `agent.run()`
+  - Subagents now execute in a proper agentic loop until task completion or max iterations
+  - Custom router continues execution while tool calls are pending
+  - Added `maxIterations` option (default: 10) to control loop depth
 - **Project-Level Subagents Not Loading**: Fixed issue where project-scoped subagents (`.rainy/agents/*.md`) were not appearing in the Manage Custom Subagents modal
   - Added `workspace` query parameter to `GET /api/subagents` endpoint
   - Backend now sets project path and reloads agents when workspace is provided
@@ -14,15 +19,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Rewrote output extraction with multi-strategy approach (assistant messages → any text → raw content)
   - Added extensive debug logging to trace AgentKit output format
   - Now handles varying message structures from different AI providers (Gemini, Anthropic, OpenAI)
-- **Subagent Isolation**: Created `SubagentExecutor` class for proper subagent containment
-  - Subagents now execute in isolated contexts without leaking general agent state
-  - Added execution timeout handling (default 60s)
-  - Tool calls are properly scoped to the subagent's configured tools
-  - Response now includes `executionTimeMs` and `toolCalls` for analytics
-- **Subagent Execute API**: Enhanced `/api/agentkit/subagents/:id/execute` endpoint
-  - Uses new `SubagentExecutor` for isolated execution
-  - Returns detailed execution metrics and tool call history
-  - Better error handling and logging
+- **Console Spam Fix**: Removed debug `console.log` from render path in `AgentChatWindow.tsx`
 
 ---
 
