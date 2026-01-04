@@ -26,6 +26,14 @@ export interface AgentChatWindowProps {
     compact?: boolean;
 }
 
+// Types for subagent selection
+interface SubagentInfo {
+    id: string;
+    name: string;
+    description: string;
+    enabled: boolean;
+}
+
 // ============================================
 // ISOLATED INPUT COMPONENT - CRITICAL FOR PERF
 // Uses uncontrolled input to avoid re-renders
@@ -36,6 +44,9 @@ interface ChatInputAreaProps {
     onSend: (message: string, images?: ImageAttachment[]) => void;
     activeSessionId?: string;
     activeSessionModel?: string;
+    selectedSubagent: string | null;
+    onSubagentChange: (id: string | null) => void;
+    subagents: SubagentInfo[];
 }
 
 const ChatInputArea = memo(function ChatInputArea({
@@ -43,7 +54,10 @@ const ChatInputArea = memo(function ChatInputArea({
     isLoading,
     onSend,
     activeSessionId,
-    activeSessionModel
+    activeSessionModel,
+    selectedSubagent,
+    onSubagentChange,
+    subagents
 }: ChatInputAreaProps) {
     // Use uncontrolled input with ref - NO STATE = NO RE-RENDERS
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -323,6 +337,62 @@ const ChatInputArea = memo(function ChatInputArea({
                                 </DropdownMenuContent>
                             </DropdownMenu>
 
+                            {/* Subagent Selector */}
+                            {subagents.length > 0 && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button className={cn(
+                                            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all group text-[11px] font-semibold uppercase tracking-wider text-left border",
+                                            selectedSubagent
+                                                ? "text-primary bg-primary/10 border-primary/30"
+                                                : "text-muted-foreground/70 hover:bg-primary/10 border-transparent hover:border-primary/20"
+                                        )}>
+                                            <Bot className="h-3 w-3 text-primary/80 shrink-0" />
+                                            {!compact && (
+                                                <span className="truncate max-w-[100px] group-hover:text-foreground/90 transition-colors">
+                                                    {selectedSubagent
+                                                        ? subagents.find(s => s.id === selectedSubagent)?.name || 'Subagent'
+                                                        : 'Auto'}
+                                                </span>
+                                            )}
+                                            <ChevronDown className="h-3 w-3 opacity-50 shrink-0 group-hover:opacity-80 transition-opacity" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="w-[220px] max-h-[260px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/30 scrollbar-track-transparent">
+                                        <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-2 py-1.5">Select Subagent</DropdownMenuLabel>
+                                        <DropdownMenuSeparator className="mx-1 opacity-50" />
+                                        <DropdownMenuItem
+                                            onClick={() => onSubagentChange(null)}
+                                            className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
+                                        >
+                                            <div>
+                                                <span className="font-medium">Auto (Rainy)</span>
+                                                <p className="text-[10px] text-muted-foreground">Default intelligent routing</p>
+                                            </div>
+                                            {!selectedSubagent && (
+                                                <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50" />
+                                            )}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator className="mx-1 opacity-50" />
+                                        {subagents.map((agent) => (
+                                            <DropdownMenuItem
+                                                key={agent.id}
+                                                onClick={() => onSubagentChange(agent.id)}
+                                                className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
+                                            >
+                                                <div className="flex-1 min-w-0">
+                                                    <span className="font-medium truncate block">{agent.name}</span>
+                                                    <p className="text-[10px] text-muted-foreground truncate">{agent.description}</p>
+                                                </div>
+                                                {selectedSubagent === agent.id && (
+                                                    <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50 ml-2 shrink-0" />
+                                                )}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+
                             <div className="h-3 w-px bg-primary/10 mx-0.5 hidden sm:block" />
 
                             {/* Web Search Toggle */}
@@ -447,6 +517,26 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
 
+    // Subagent state
+    const [subagents, setSubagents] = useState<SubagentInfo[]>([]);
+    const [selectedSubagent, setSelectedSubagent] = useState<string | null>(null);
+
+    // Fetch enabled subagents on mount
+    useEffect(() => {
+        async function fetchSubagents() {
+            try {
+                const res = await fetch('http://localhost:3847/api/agentkit/subagents?enabled=true');
+                if (res.ok) {
+                    const data = await res.json();
+                    setSubagents(data.agents || []);
+                }
+            } catch (err) {
+                console.error('[AgentChat] Failed to fetch subagents:', err);
+            }
+        }
+        fetchSubagents();
+    }, []);
+
     // Auto-scroll to bottom on new messages
     useEffect(() => {
         if (bottomRef.current) {
@@ -455,8 +545,12 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
     }, [messages, streamingContent, streamingThoughts]);
 
     // Callback for sending messages from the isolated input
+    // TODO: When a subagent is selected, route through backend API
     const handleSend = useCallback((message: string, images?: ImageAttachment[]) => {
         if (activeSession) {
+            // For now, just send normally - subagent routing will be added in next iteration
+            // When selectedSubagent is set, we should route through:
+            // POST /api/agentkit/subagents/${selectedSubagent}/execute
             sendMessage(message, images);
         }
     }, [activeSession, sendMessage]);
@@ -694,6 +788,9 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                     onSend={handleSend}
                     activeSessionId={activeSession?.id}
                     activeSessionModel={activeSession?.model}
+                    selectedSubagent={selectedSubagent}
+                    onSubagentChange={setSelectedSubagent}
+                    subagents={subagents}
                 />
             </div>
         </div >

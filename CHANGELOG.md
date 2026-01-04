@@ -4,6 +4,12 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 
 ## [v0.1.13] - 2026-01-03
 
+### Added
+- **Subagent Selector in Chat UI**: Users can now select custom subagents from a dropdown in the chat input
+  - Dropdown appears next to model selector when subagents are enabled
+  - Fetches enabled subagents from backend API
+  - Shows agent name and description in selector
+
 ### Fixed
 - **Subagent Connection Failure**: Fixed 500 error when creating subagents
   - POST handler now generates `id` from `name` if not provided (fixes "id: Invalid input" error)
@@ -77,21 +83,21 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ### Improved
 - **Tool Management**: Added categorization (read/write/execute/git/analysis) and risk level classification (safe/moderate/destructive)
 - **Documentation**: Enhanced `MIGRATION_FROM_LEGACY.md` with dynamic subagent system architecture, multi-model support details, and migration timeline
-- **#50 [Improvements] Subagent Model Integration**: Integrated legacy provider models with AgentKit subagents
+- **Subagent Model Integration**: Integrated legacy provider models with AgentKit subagents
   - Created `ModelMapper.ts` to bridge legacy `agent/providers` with new `agents/server` system
   - All models from providers (Gemini, Groq, Cerebras) now available in subagent creation
   - Removed hardcoded model list in SubagentFormDialog
   - Models now grouped by provider in dropdown with descriptions
-- **#51 [Improvements] Centralized Server Configuration**: Created `server-config.ts` for consistent API URLs
+- **Centralized Server Configuration**: Created `server-config.ts` for consistent API URLs
   - Standardized server port to 3847 across all components
   - Fixed port inconsistency between SubagentManager (3847) and SubagentFormDialog (3001)
   - Created reusable `getApiUrl()` helper for all endpoint calls
-- **#52 [Improvements] SubagentFormDialog UI Enhancement**: Matched dialog size and styling with SubagentManager
+- **SubagentFormDialog UI Enhancement**: Matched dialog size and styling with SubagentManager
   - Changed modal from `max-w-2xl` to `max-w-6xl` to match parent
   - Added glassmorphism effects (`backdrop-blur-3xl`, `backdrop-saturate-150`)
   - Height changed from `90vh` to `88vh` for perfect overlay
   - Model selection now shows provider grouping with full descriptions
-- **#53 [Improvements] Subagent Routes Integration**: Mounted subagent routes in Hono server
+- **Subagent Routes Integration**: Mounted subagent routes in Hono server
   - Added `/api/agentkit/subagents` endpoint group
   - Updated server documentation with all subagent endpoints
   - Added 'subagents' to server features list
