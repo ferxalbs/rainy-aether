@@ -9,6 +9,7 @@ import { useTauriDragDrop } from "@/hooks/useTauriDragDrop"
 import { cn } from "@/lib/utils"
 import { useActiveSession, agentActions } from "@/stores/agentStore"
 import { AVAILABLE_MODELS } from "@/services/agent/providers"
+import { loadCredential } from "@/services/agent/AgentService"
 import { CodeBlock } from "./CodeBlock"
 import { ToolExecutionList } from "./ToolExecutionList"
 import { ImageAttachment } from "@/types/chat"
@@ -598,10 +599,13 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
             agentActions.addMessage(activeSession.id, userMessage);
 
             try {
+                // Load API key from credential manager
+                const apiKey = await loadCredential('gemini_api_key');
+
                 const response = await fetch(`http://localhost:3847/api/agentkit/subagents/${selectedSubagent}/execute`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ task: message }),
+                    body: JSON.stringify({ task: message, apiKey }),
                 });
 
                 const data = await response.json();

@@ -367,12 +367,23 @@ subagentRoutes.post('/:id/test', (c: Context) => {
 subagentRoutes.post('/:id/execute', async (c: Context) => {
     try {
         const id = c.req.param('id');
-        const { task, workspace } = await c.req.json<{ task: string; workspace?: string }>();
+        const { task, workspace, apiKey } = await c.req.json<{ task: string; workspace?: string; apiKey?: string }>();
 
         if (!task) {
             return c.json({
                 success: false,
                 error: 'Task is required',
+            }, 400);
+        }
+
+        // Set API key in environment if provided (needed for AgentKit model providers)
+        if (apiKey) {
+            process.env.GEMINI_API_KEY = apiKey;
+            console.log('[Subagent Execute] API key set from request');
+        } else if (!process.env.GEMINI_API_KEY) {
+            return c.json({
+                success: false,
+                error: 'API key is required. Please configure your Gemini API key in settings.',
             }, 400);
         }
 
