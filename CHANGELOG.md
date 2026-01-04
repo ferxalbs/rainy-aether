@@ -5,6 +5,10 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.14] - 2026-01-04
 
 ### Fixed
+- **Subagent Workspace Context Missing**: Fixed critical bug where subagent tools couldn't access files
+  - Backend now calls `setWorkspacePath(workspace)` before executing subagent tools
+  - Frontend now sends `workspace` parameter in execute request body
+  - Tools like `read_file`, `list_dir`, `get_project_context` now work correctly
 - **Subagent Agentic Loop**: Fixed subagents stopping after one response instead of executing tools
   - Refactored `SubagentExecutor` to use `network.run()` instead of `agent.run()`
   - Subagents now execute in a proper agentic loop until task completion or max iterations

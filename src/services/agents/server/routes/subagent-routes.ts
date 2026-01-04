@@ -11,6 +11,7 @@ import { subagentRegistry } from '../registry/SubagentRegistry';
 import { SubagentFactory } from '../factory/SubagentFactory';
 import { SubagentExecutor } from '../factory/SubagentExecutor';
 import { toolPermissionManager } from '../tools/ToolPermissionManager';
+import { setWorkspacePath } from '../tools/bridge';
 import type {
     SubagentConfig,
     CreateSubagentConfig,
@@ -415,6 +416,15 @@ subagentRoutes.post('/:id/execute', async (c: Context) => {
                 success: false,
                 error: `Subagent '${id}' is disabled`,
             }, 400);
+        }
+
+        // CRITICAL: Set workspace path for tool bridge BEFORE executing
+        // Without this, tools like read_file, list_dir, etc. will fail
+        if (workspace) {
+            console.log(`[Subagent Execute] Setting workspace path: ${workspace}`);
+            setWorkspacePath(workspace);
+        } else {
+            console.warn('[Subagent Execute] No workspace provided - tools may fail');
         }
 
         // Create and run the subagent with isolated execution

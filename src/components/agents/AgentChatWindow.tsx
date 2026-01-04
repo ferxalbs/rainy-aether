@@ -605,10 +605,17 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                 // Load API key from credential manager
                 const apiKey = await loadCredential('gemini_api_key');
 
+                // Get workspace path for tool access
+                const workspacePath = getIDEState().workspace?.path;
+
                 const response = await fetch(`http://localhost:3847/api/agentkit/subagents/${selectedSubagent}/execute`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ task: message, apiKey }),
+                    body: JSON.stringify({
+                        task: message,
+                        apiKey,
+                        workspace: workspacePath,  // CRITICAL: Required for file/directory tools
+                    }),
                 });
 
                 const data = await response.json();
