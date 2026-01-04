@@ -9,7 +9,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Refactored `SubagentExecutor` to use `network.run()` instead of `agent.run()`
   - Subagents now execute in a proper agentic loop until task completion or max iterations
   - Custom router continues execution while tool calls are pending
-  - Added `maxIterations` option (default: 10) to control loop depth
+  - Added `maxIterations` option (default: 100) to control loop depth
 - **Project-Level Subagents Not Loading**: Fixed issue where project-scoped subagents (`.rainy/agents/*.md`) were not appearing in the Manage Custom Subagents modal
   - Added `workspace` query parameter to `GET /api/subagents` endpoint
   - Backend now sets project path and reloads agents when workspace is provided
