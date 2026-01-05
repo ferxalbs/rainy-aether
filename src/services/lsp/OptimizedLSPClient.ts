@@ -4,7 +4,7 @@
  */
 
 import { LSPClient } from './lspClient';
-import type { LanguageServerConfig, CompletionItem, Hover, Location, Diagnostic } from './types';
+import type { LanguageServerConfig, CompletionItem, Hover, Location } from './types';
 
 /**
  * Cache entry for LSP responses

@@ -555,22 +555,22 @@ function createFileSystemAPI(apiCall: APICallCallback): VSCodeFileSystem {
 function createLanguagesAPI(_apiCall: APICallCallback): any {
   return {
     registerCompletionItemProvider: () => {
-      return { dispose: () => {} };
+      return { dispose: () => { } };
     },
     registerHoverProvider: () => {
-      return { dispose: () => {} };
+      return { dispose: () => { } };
     },
     registerDefinitionProvider: () => {
-      return { dispose: () => {} };
+      return { dispose: () => { } };
     },
     registerReferenceProvider: () => {
-      return { dispose: () => {} };
+      return { dispose: () => { } };
     },
     registerDocumentFormattingEditProvider: () => {
-      return { dispose: () => {} };
+      return { dispose: () => { } };
     },
     registerCodeActionsProvider: () => {
-      return { dispose: () => {} };
+      return { dispose: () => { } };
     },
   };
 }
@@ -1083,7 +1083,7 @@ function createQuickPickItemClass() {
  * Create CodeLens class
  */
 function createCodeLensClass() {
-  const RangeClass = createRangeClass();
+  // Note: RangeClass is available via createRangeClass() if range validation is needed
 
   return class CodeLens {
     range: any;
@@ -1120,7 +1120,7 @@ function createCommandClass() {
  * Create Diagnostic class
  */
 function createDiagnosticClass() {
-  const RangeClass = createRangeClass();
+  // Note: RangeClass is available via createRangeClass() if range validation is needed
 
   return class Diagnostic {
     range: any;
@@ -1218,7 +1218,6 @@ function createLocationClass() {
       this.uri = uri;
       if (rangeOrPosition.line !== undefined) {
         // It's a Position, create a range from it
-        const PositionClass = createPositionClass();
         this.range = new RangeClass(rangeOrPosition, rangeOrPosition);
       } else {
         // It's already a Range

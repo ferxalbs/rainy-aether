@@ -293,7 +293,7 @@ export class ExtensionSandbox {
       );
     }
 
-    for (const [id, handler] of this.requestHandlers) {
+    for (const [_id, handler] of this.requestHandlers) {
       handler.reject(new Error('Extension sandbox disposed'));
     }
 

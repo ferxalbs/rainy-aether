@@ -87,7 +87,7 @@ const togglePanel = (tab: BottomPanelTab) => {
  * Show a specific panel tab (always opens, switches if needed)
  */
 const showPanel = (tab: BottomPanelTab) => {
-  setState((prev) => {
+  setState((_prev) => {
     const newState = {
       isBottomPanelOpen: true,
       activeBottomTab: tab,

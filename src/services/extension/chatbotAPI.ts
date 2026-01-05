@@ -109,43 +109,18 @@ export interface WorkspaceEdit {
  */
 export function registerWebviewViewProvider(
   viewId: string,
-  provider: WebviewViewProvider,
-  options?: {
+  _provider: WebviewViewProvider,
+  _options?: {
     webviewOptions?: {
       retainContextWhenHidden?: boolean;
     };
   }
 ): { dispose(): void } {
-  // Create webview view object
-  const webviewView: WebviewView = {
-    webview: createWebview(viewId),
-    viewType: viewId,
-    title: undefined,
-    description: undefined,
-    visible: false,
-
-    show(_preserveFocus?: boolean) {
-      webviewActions.showWebview(viewId);
-      this.visible = true;
-    },
-
-    dispose() {
-      webviewActions.disposeWebview(viewId);
-    },
-  };
-
-  // Create resolve context
-  const context: WebviewViewResolveContext = {
-    state: undefined, // Could load persisted state here
-  };
-
-  // Create cancellation token (dummy for now)
-  const token: CancellationToken = {
-    isCancellationRequested: false,
-    onCancellationRequested: () => ({ dispose: () => { } }),
-  };
-
-  // Call provider to set up the webview
+  // TODO: Future implementation would:
+  // 1. Create a WebviewView using createWebview(viewId)
+  // 2. Create WebviewViewResolveContext with stored state
+  // 3. Create CancellationToken for async operations
+  // 4. Call _provider.resolveWebviewView() to let extension setup the webview
 
   // Return disposable
   return {
@@ -155,49 +130,6 @@ export function registerWebviewViewProvider(
   };
 }
 
-/**
- * Create a webview object for a panel
- */
-function createWebview(viewId: string): Webview {
-  return {
-    get html() {
-      const panel = webviewActions.getWebviewPanel(viewId);
-      return panel?.html || '';
-    },
-
-    set html(value: string) {
-      webviewActions.updateWebviewHtml(viewId, value);
-    },
-
-    get options() {
-      const panel = webviewActions.getWebviewPanel(viewId);
-      return {
-        enableScripts: panel?.enableScripts ?? true,
-        retainContextWhenHidden: panel?.retainContextWhenHidden ?? false,
-      };
-    },
-
-    set options(value: WebviewOptions) {
-      // Update panel options (would need to extend store for this)
-      console.log('[chatbotAPI] Setting webview options:', value);
-    },
-
-    async postMessage(message: unknown): Promise<boolean> {
-      try {
-        webviewActions.postMessageToWebview(viewId, message);
-        return true;
-      } catch (error) {
-        console.error(`[chatbotAPI] Error posting message to ${viewId}:`, error);
-        return false;
-      }
-    },
-
-    onDidReceiveMessage(handler: (message: unknown) => void) {
-      const dispose = webviewActions.onDidReceiveMessage(viewId, handler);
-      return { dispose };
-    },
-  };
-}
 
 /**
  * Show a text document in the editor
@@ -208,8 +140,14 @@ export async function showTextDocument(uri: string, options?: {
   selection?: Range;
 }): Promise<void> {
   try {
-    // Open the file
-    await ideActions.openFile(uri);
+    // Open the file - create a FileNode-like object for ideActions.openFile
+    const fileNode = {
+      name: uri.split('/').pop() || uri,
+      path: uri,
+      type: 'file' as const,
+      is_directory: false,
+    };
+    await ideActions.openFile(fileNode);
 
     // If selection is provided, navigate to it
     if (options?.selection) {

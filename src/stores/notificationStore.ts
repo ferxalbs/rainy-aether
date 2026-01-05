@@ -107,28 +107,28 @@ export const notificationActions = {
   /**
    * Add an info notification
    */
-  info(message: string, options?: Parameters<typeof notificationActions.addNotification>[2]): string {
+  info(message: string, options?: { source?: string; actions?: NotificationAction[]; dismissible?: boolean; autoHide?: boolean; autoHideDelay?: number }): string {
     return notificationActions.addNotification(message, 'info', options);
   },
 
   /**
    * Add a warning notification
    */
-  warning(message: string, options?: Parameters<typeof notificationActions.addNotification>[2]): string {
+  warning(message: string, options?: { source?: string; actions?: NotificationAction[]; dismissible?: boolean; autoHide?: boolean; autoHideDelay?: number }): string {
     return notificationActions.addNotification(message, 'warning', options);
   },
 
   /**
    * Add an error notification
    */
-  error(message: string, options?: Parameters<typeof notificationActions.addNotification>[2]): string {
+  error(message: string, options?: { source?: string; actions?: NotificationAction[]; dismissible?: boolean; autoHide?: boolean; autoHideDelay?: number }): string {
     return notificationActions.addNotification(message, 'error', options);
   },
 
   /**
    * Add a success notification
    */
-  success(message: string, options?: Parameters<typeof notificationActions.addNotification>[2]): string {
+  success(message: string, options?: { source?: string; actions?: NotificationAction[]; dismissible?: boolean; autoHide?: boolean; autoHideDelay?: number }): string {
     return notificationActions.addNotification(message, 'success', options);
   },
 
@@ -255,6 +255,7 @@ export function useNotificationStore() {
  * React hook to get notification statistics
  */
 export function useNotificationStats(): NotificationStats {
-  const storeState = useNotificationStore();
+  // Subscribe to store updates to trigger re-renders when notifications change
+  useNotificationStore();
   return notificationActions.getStats();
 }
