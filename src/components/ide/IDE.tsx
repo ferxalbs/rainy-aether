@@ -547,7 +547,14 @@ const IDE: React.FC = () => {
                             </button>
                           </TabsList>
 
-                          <TabsContent value="terminal" className="flex-1 m-0 overflow-hidden">
+                          <TabsContent
+                            value="terminal"
+                            forceMount
+                            className={cn(
+                              "flex-1 m-0 overflow-hidden",
+                              panelState.activeBottomTab !== 'terminal' && "hidden"
+                            )}
+                          >
                             <TerminalPanel />
                           </TabsContent>
 

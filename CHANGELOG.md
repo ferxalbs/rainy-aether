@@ -16,9 +16,9 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 
 ### Fixed
 - **Terminal Tab Visibility**: Fixed terminal showing blank when switching between Terminal/Problems/Preview tabs
-  - Added `isTabVisible` prop to track parent tab visibility state
-  - Terminal now triggers `fitAddon.fit()` when tab becomes visible again
-  - Ensures xterm.js canvas has correct dimensions after tab switch
+  - Root cause: Radix TabsContent unmounts inactive tabs by default, destroying the terminal
+  - Solution: Added `forceMount` prop to keep terminal in DOM, use CSS `hidden` class for visibility
+  - Terminal now preserves all output and state across tab switches
 
 ### Technical
 - Added `libc` dependency for Unix platforms (graceful SIGTERM handling)
