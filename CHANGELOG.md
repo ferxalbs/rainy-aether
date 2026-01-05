@@ -14,6 +14,12 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Improved error handling for `WouldBlock` and `Interrupted` I/O errors
   - Reader thread now checks shutdown flag before each operation
 
+### Fixed
+- **Terminal Tab Visibility**: Fixed terminal showing blank when switching between Terminal/Problems/Preview tabs
+  - Added `isTabVisible` prop to track parent tab visibility state
+  - Terminal now triggers `fitAddon.fit()` when tab becomes visible again
+  - Ensures xterm.js canvas has correct dimensions after tab switch
+
 ### Technical
 - Added `libc` dependency for Unix platforms (graceful SIGTERM handling)
 

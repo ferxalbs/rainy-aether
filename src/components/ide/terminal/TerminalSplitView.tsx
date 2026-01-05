@@ -22,6 +22,7 @@ interface TerminalSplitViewProps {
   onClose: (sessionId: string) => void;
   onNewTerminal: () => void;
   searchQuery?: string;
+  isTabVisible?: boolean;
 }
 
 const TerminalSplitView: React.FC<TerminalSplitViewProps> = ({
@@ -32,6 +33,7 @@ const TerminalSplitView: React.FC<TerminalSplitViewProps> = ({
   onClose,
   onNewTerminal,
   searchQuery,
+  isTabVisible,
 }) => {
   if (sessions.length === 0) {
     return (
@@ -56,10 +58,10 @@ const TerminalSplitView: React.FC<TerminalSplitViewProps> = ({
             session.state === "active"
               ? "bg-green-500"
               : session.state === "starting"
-              ? "bg-yellow-500"
-              : session.state === "error"
-              ? "bg-red-500"
-              : "bg-gray-500";
+                ? "bg-yellow-500"
+                : session.state === "error"
+                  ? "bg-red-500"
+                  : "bg-gray-500";
 
           return (
             <div
@@ -119,6 +121,7 @@ const TerminalSplitView: React.FC<TerminalSplitViewProps> = ({
               sessionId={session.id}
               isActive={activeSessionId === session.id}
               searchQuery={searchQuery}
+              isTabVisible={isTabVisible}
             />
           </div>
         ))}

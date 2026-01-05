@@ -15,14 +15,19 @@ import React, { useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useTerminalState, terminalActions } from "@/stores/terminalStore";
 import { useIDEStore } from "@/stores/ideStore";
+import { usePanelState } from "@/stores/panelStore";
 import { Button } from "@/components/ui/button";
 import TerminalSplitView from "./terminal/TerminalSplitView";
 
 const TerminalPanel: React.FC = () => {
   const terminalSnapshot = useTerminalState();
   const { state: ideState } = useIDEStore();
+  const panelState = usePanelState();
 
   const { visible, sessions, layout, searchQuery, searchVisible } = terminalSnapshot;
+
+  // Track if terminal tab is currently visible
+  const isTabVisible = panelState.isBottomPanelOpen && panelState.activeBottomTab === 'terminal';
 
   // Get current workspace path
   const currentWorkspacePath = ideState().workspace?.path;
@@ -218,6 +223,7 @@ const TerminalPanel: React.FC = () => {
                   onClose={handleCloseSession}
                   onNewTerminal={handleNewTerminal}
                   searchQuery={searchVisible ? searchQuery : undefined}
+                  isTabVisible={isTabVisible}
                 />
               )}
             </div>

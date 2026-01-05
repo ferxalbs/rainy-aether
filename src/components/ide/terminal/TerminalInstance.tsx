@@ -25,6 +25,7 @@ interface TerminalInstanceProps {
   isActive: boolean;
   onResize?: (cols: number, rows: number) => void;
   searchQuery?: string;
+  isTabVisible?: boolean;
 }
 
 // Convert theme to xterm theme
@@ -59,6 +60,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({
   isActive,
   onResize,
   searchQuery,
+  isTabVisible = true,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -214,6 +216,25 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({
       }
     }
   }, [isActive, sessionId, onResize]);
+
+  // Re-fit when parent tab becomes visible
+  useEffect(() => {
+    if (isTabVisible && isActive && fitAddonRef.current && terminalRef.current && containerRef.current) {
+      // Small delay to ensure DOM has updated after tab switch
+      const timer = setTimeout(() => {
+        try {
+          const rect = containerRef.current?.getBoundingClientRect();
+          if (rect && rect.width > 0 && rect.height > 0) {
+            fitAddonRef.current?.fit();
+            terminalRef.current?.focus();
+          }
+        } catch (e) {
+          console.warn('Terminal re-fit on tab visibility change failed:', e);
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isTabVisible, isActive]);
 
   // Handle resize
   useEffect(() => {
