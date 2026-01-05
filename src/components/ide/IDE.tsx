@@ -487,103 +487,110 @@ const IDE: React.FC = () => {
 
       {currentView === "editor" && (
         <>
-          {/* Conditionally render based on view mode */}
-          {viewMode === "agents" ? (
-            <div className="flex flex-1 min-h-0 overflow-hidden">
-              <AgentsView />
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-1 overflow-hidden">
-                {!isZenMode && <Sidebar />}
-                <div className="flex-1 flex h-full overflow-hidden">
-                  {/* Main editor area */}
-                  <div className="flex-1 flex flex-col min-w-0 h-full">
-                    {/* Editor panel */}
-                    <div className={cn(
-                      "flex-1 min-h-[200px] overflow-hidden",
-                      showBottomPanel && "max-h-[calc(100%-220px)]"
-                    )}>
-                      <FileViewer />
-                    </div>
+          {/* Conditionally render based on view mode - BUT keep both mounted to preserve state */}
 
-                    {/* Bottom panel - Terminal/Problems */}
-                    {showBottomPanel && (
-                      <div className="h-[220px] shrink-0 border-t border-border overflow-hidden">
-                        <Tabs
-                          value={panelState.activeBottomTab}
-                          onValueChange={(value) => panelActions.setActiveTab(value as 'terminal' | 'problems' | 'diff' | 'output' | 'preview')}
-                          className="h-full flex flex-col gap-0"
-                        >
-                          <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8 shrink-0">
-                            <TabsTrigger
-                              value="terminal"
-                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                            >
-                              Terminal
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="problems"
-                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                            >
-                              Problems
-                            </TabsTrigger>
-                            <TabsTrigger
-                              value="preview"
-                              className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                            >
-                              Preview
-                            </TabsTrigger>
-                            <button
-                              type="button"
-                              onClick={() => panelActions.hidePanel()}
-                              className="ml-auto mr-2 p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
-                              aria-label="Close Panel"
-                            >
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                              </svg>
-                            </button>
-                          </TabsList>
+          {/* Agents View - Always mounted, hidden when not active */}
+          <div className={cn(
+            "flex flex-1 min-h-0 overflow-hidden",
+            viewMode !== "agents" && "hidden"
+          )}>
+            <AgentsView />
+          </div>
 
-                          <TabsContent
-                            value="terminal"
-                            forceMount
-                            className={cn(
-                              "flex-1 m-0 overflow-hidden",
-                              panelState.activeBottomTab !== 'terminal' && "hidden"
-                            )}
-                          >
-                            <TerminalPanel />
-                          </TabsContent>
-
-                          <TabsContent value="problems" className="flex-1 m-0 overflow-hidden">
-                            <ProblemsPanel onClose={() => panelActions.hidePanel()} />
-                          </TabsContent>
-
-                          <TabsContent value="preview" className="flex-1 m-0 overflow-hidden">
-                            <PreviewBrowserPanel onClose={() => panelActions.hidePanel()} />
-                          </TabsContent>
-                        </Tabs>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right sidebar - fixed width */}
-                  {state().isRightSidebarOpen && (
-                    <aside className="w-[320px] shrink-0 border-l border-border h-full overflow-hidden">
-                      <RightSidebar />
-                    </aside>
-                  )}
+          {/* Main Editor Layout - Always mounted, hidden when acting as agents view */}
+          <div className={cn(
+            "flex flex-1 overflow-hidden",
+            viewMode === "agents" && "hidden"
+          )}>
+            {!isZenMode && <Sidebar />}
+            <div className="flex-1 flex h-full overflow-hidden">
+              {/* Main editor area */}
+              <div className="flex-1 flex flex-col min-w-0 h-full">
+                {/* Editor panel */}
+                <div className={cn(
+                  "flex-1 min-h-[200px] overflow-hidden",
+                  showBottomPanel && "max-h-[calc(100%-220px)]"
+                )}>
+                  <FileViewer />
                 </div>
+
+                {/* Bottom panel - Terminal/Problems */}
+                {showBottomPanel && (
+                  <div className="h-[220px] shrink-0 border-t border-border overflow-hidden">
+                    <Tabs
+                      value={panelState.activeBottomTab}
+                      onValueChange={(value) => panelActions.setActiveTab(value as 'terminal' | 'problems' | 'diff' | 'output' | 'preview')}
+                      className="h-full flex flex-col gap-0"
+                    >
+                      <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8 shrink-0">
+                        <TabsTrigger
+                          value="terminal"
+                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                        >
+                          Terminal
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="problems"
+                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                        >
+                          Problems
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="preview"
+                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                        >
+                          Preview
+                        </TabsTrigger>
+                        <button
+                          type="button"
+                          onClick={() => panelActions.hidePanel()}
+                          className="ml-auto mr-2 p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
+                          aria-label="Close Panel"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                        </button>
+                      </TabsList>
+
+                      <TabsContent
+                        value="terminal"
+                        forceMount
+                        className={cn(
+                          "flex-1 m-0 overflow-hidden",
+                          panelState.activeBottomTab !== 'terminal' && "hidden"
+                        )}
+                      >
+                        <TerminalPanel />
+                      </TabsContent>
+
+                      <TabsContent value="problems" className="flex-1 m-0 overflow-hidden">
+                        <ProblemsPanel onClose={() => panelActions.hidePanel()} />
+                      </TabsContent>
+
+                      <TabsContent value="preview" className="flex-1 m-0 overflow-hidden">
+                        <PreviewBrowserPanel onClose={() => panelActions.hidePanel()} />
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                )}
               </div>
-              {!isZenMode && (
-                <StatusBar
-                  onToggleProblemsPanel={() => panelActions.togglePanel('problems')}
-                />
+
+              {/* Right sidebar - fixed width */}
+              {state().isRightSidebarOpen && (
+                <aside className="w-[320px] shrink-0 border-l border-border h-full overflow-hidden">
+                  <RightSidebar />
+                </aside>
               )}
-            </>
+            </div>
+          </div>
+          {!isZenMode && (
+            <div className={cn(viewMode === "agents" && "hidden")}>
+              <StatusBar
+                onToggleProblemsPanel={() => panelActions.togglePanel('problems')}
+              />
+            </div>
           )}
         </>
       )}

@@ -15,6 +15,11 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Reader thread now checks shutdown flag before each operation
 
 ### Fixed
+- **Terminal Persistence**: Fixed terminal resetting when switching between Editor and Agents views
+  - Refactored `IDE.tsx` to keep both views mounted in DOM
+  - Used CSS `hidden` class for toggling instead of conditional rendering
+  - Ensures terminal session survives view navigation
+
 - **Terminal Tab Visibility**: Fixed terminal showing blank when switching between Terminal/Problems/Preview tabs
   - Root cause: Radix TabsContent unmounts inactive tabs by default, destroying the terminal
   - Solution: Added `forceMount` prop to keep terminal in DOM, use CSS `hidden` class for visibility
