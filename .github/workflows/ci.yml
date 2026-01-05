@@ -61,6 +61,8 @@ jobs:
         run: pnpm install
 
       - name: TypeScript check
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
         run: pnpm build
 
       - name: Cargo check

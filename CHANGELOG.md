@@ -2,6 +2,16 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.20] - 2026-01-05
+
+### Fixed
+- **#CI Build Memory**: Fixed JavaScript heap out of memory errors in GitHub Actions builds
+  - Added `NODE_OPTIONS='--max-old-space-size=4096'` to release workflow for Tauri build step
+  - Added `NODE_OPTIONS` to CI workflow for TypeScript check step
+  - Fixed `TAURI_SIGNING_PRIVATE_KEY` secret name typo in release workflow
+
+---
+
 ## [v0.1.19] - 2026-01-05
 
 ### Fixed
