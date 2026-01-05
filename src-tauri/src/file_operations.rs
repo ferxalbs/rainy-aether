@@ -27,6 +27,7 @@ pub struct FileWriteResult {
 }
 
 /// File search result
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FileSearchResult {
     pub path: String,

@@ -2,9 +2,26 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.21] - 2026-01-05
+
+### Fixed
+
+- **#Rust Lint Warnings**: Fixed all 10 Rust compiler warnings causing CI warnings
+  - `credential_manager.rs`: Replaced deprecated `base64::decode`/`encode` with `STANDARD.decode()`/`STANDARD.encode()` from `base64::engine::general_purpose`
+  - `window_manager.rs`: Replaced deprecated `tauri_plugin_shell::Shell::open` with `tauri_plugin_opener::OpenerExt::open_url`
+  - `agent_server_manager.rs`: Fixed unused variable `resource_dir` by prefixing with underscore
+  - Added `#[allow(dead_code)]` to intentionally kept but unused items: `ProviderCredential`, `update_credential`, `ConfigurationContribution`, `ResolvedConfiguration`, `FileSearchResult`, and `ExtensionRegistry` methods (`get_extension`, `get_extension_mut`, `update_extension`, `list_extensions`, `list_enabled_extensions`)
+
+### Added
+
+- **#Missing Bundle Icon**: Created `icons/256x256.png` from existing `128x128@2x.png` to fix macOS app bundling failure
+
+---
+
 ## [v0.1.20] - 2026-01-05
 
 ### Fixed
+
 - **#CI Build Memory**: Fixed JavaScript heap out of memory errors in GitHub Actions builds
   - Added `NODE_OPTIONS='--max-old-space-size=4096'` to release workflow for Tauri build step
   - Added `NODE_OPTIONS` to CI workflow for TypeScript check step
@@ -18,6 +35,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.19] - 2026-01-05
 
 ### Fixed
+
 - **#TypeScript Compilation**: Fixed 14 TypeScript compilation errors causing build failures
   - `chatbotAPI.ts`: Fixed FileNode type mismatch in `showTextDocument` (added `is_directory` property), removed unused variables and function parameters
   - `ExtensionSandbox.ts`: Prefixed unused loop variable with underscore to satisfy TS6133
@@ -31,7 +49,8 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.18] - 2026-01-05
 
 ### Fixed
-- **#1 [Fixes] GitHub Actions Build Errors**: Fixed 40 TypeScript compilation errors across all platforms
+
+- **#Build Errors**: Fixed 40 TypeScript compilation errors across all platforms
   - `SettingsPage.tsx`: Removed impossible type comparisons after early return statements (TypeScript was correctly narrowing `currentView` type after `fonts`/`advanced` views returned)
   - `FontSettings.tsx`: Fixed file dialog result type handling - properly extracts path from object or string result
   - `TaskProgress.tsx`: Removed unused `React` import (not needed with modern JSX transform)
@@ -42,18 +61,21 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.17] - 2026-01-05
 
 ### Added
+
 - **CI Workflow** (`ci.yml`): New GitHub Actions workflow for continuous integration
   - Runs on push to `main`/`develop` and on pull requests
   - Matrix builds for macOS, Linux, Windows
   - TypeScript type checking, Cargo check, and Clippy linting
 
 ### Improved
+
 - **Release Workflow** (`release.yml`): Enhanced for GitHub Releases auto-updater
   - Added `update-manifest` job to generate `latest.json` for Tauri updater
   - Updater artifacts (`.sig` files) now uploaded as release assets
   - Updated environment variable names for Tauri 2 compatibility
 
 ### Changed
+
 - **Updater Endpoint**: Switched from custom server to GitHub Releases
   - Endpoint now points to `latest.json` in release assets
   - Enabled `createUpdaterArtifacts` in bundle config for signed updates
@@ -63,6 +85,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.16] - 2026-01-05
 
 ### Improved
+
 - **Terminal Backend Stability**: Major overhaul of native Rust terminal system to fix crashes and connection instability
   - Added atomic shutdown flags for graceful thread termination
   - Replaced `Mutex` with `RwLock` for better concurrency on read-heavy operations
@@ -73,7 +96,9 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Reader thread now checks shutdown flag before each operation
 
 ### Fixed
+
 - **Terminal Persistence**: Fixed terminal resetting when switching between Editor and Agents views
+
   - Refactored `IDE.tsx` to keep both views mounted in DOM
   - Used CSS `hidden` class for toggling instead of conditional rendering
   - Ensures terminal session survives view navigation
@@ -84,6 +109,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Terminal now preserves all output and state across tab switches
 
 ### Technical
+
 - Added `libc` dependency for Unix platforms (graceful SIGTERM handling)
 
 ---
@@ -91,6 +117,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.15] - 2026-01-04
 
 ### Improved
+
 - **Subagent Auto-Return**: After a subagent completes its task, automatically returns to Auto mode
   - Subsequent messages use the main agent with Gemini 3 Flash
   - Conversation stays in the same chat session
@@ -102,6 +129,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.14] - 2026-01-04
 
 ### Fixed
+
 - **Subagent Workspace Context Missing**: Fixed critical bug where subagent tools couldn't access files
   - Backend now calls `setWorkspacePath(workspace)` before executing subagent tools
   - Frontend now sends `workspace` parameter in execute request body
@@ -127,6 +155,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.13] - 2026-01-03
 
 ### Added
+
 - **#Subagent Selector in Chat UI**: Users can now select custom subagents from a dropdown in the chat input
   - Dropdown appears next to model selector (always visible)
   - Fetches enabled subagents from backend API
@@ -141,6 +170,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Shows agent name and description in selector
 
 ### Fixed
+
 - **Subagent Connection Failure**: Fixed 500 error when creating subagents
   - POST handler now generates `id` from `name` if not provided (fixes "id: Invalid input" error)
   - Project path is now set dynamically from request workspace for project-scoped agents (fixes "Project path not set" error)
@@ -155,8 +185,8 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 
 ## [v0.1.12] - 2026-01-03
 
-
 ### Added
+
 - **Dynamic Subagent System Infrastructure**: Core infrastructure for user-configurable AI agents with multi-model support
   - `SubagentConfig.ts`: Complete type definitions and Zod validation schemas for subagent configuration
   - `SubagentRegistry.ts`: CRUD operations, multi-source loading (user/project/plugin), and priority resolution
@@ -211,6 +241,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Responsive design matching IDE aesthetic
 
 ### Improved
+
 - **Tool Management**: Added categorization (read/write/execute/git/analysis) and risk level classification (safe/moderate/destructive)
 - **Documentation**: Enhanced `MIGRATION_FROM_LEGACY.md` with dynamic subagent system architecture, multi-model support details, and migration timeline
 - **Subagent Model Integration**: Integrated legacy provider models with AgentKit subagents
@@ -233,6 +264,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Added 'subagents' to server features list
 
 ### Technical
+
 - Added `yaml` package dependency for YAML frontmatter parsing in subagent files
 - Fixed TypeScript compilation errors in new infrastructure files
 - Implemented proper error handling and validation for all subagent operations
@@ -249,12 +281,14 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.11] - 2026-01-03
 
 ### Added
+
 - **Gemini JSON Schema Sanitization**: Added schema sanitization for Gemini compatibility
   - Introduced `sanitizeSchema` method to remove unsupported properties from JSON schemas
   - Unsupported props include 'exclusiveMinimum', '$schema', 'allOf', etc., to align with Gemini's function calling API
   - Applied sanitization in `convertToolsToGemini` to ensure valid tool parameters and prevent API errors
 
 ### Improved
+
 - **Agent Settings UI**: Enhanced Agent Settings dialog with premium glassmorphism design matching Extension Manager
   - Applied `backdrop-blur-3xl` and `backdrop-saturate-150` for rich glassmorphism effects (consistent with blur rules)
   - Added `backdrop-blur-sm` to dialog overlay for blurred background effect behind the dialog
@@ -277,6 +311,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.10] - 2026-01-03
 
 ### Added
+
 - **MCP Auto-Connect**: Enabled servers in `mcp.json` now automatically reconnect when the IDE reopens
   - New `/api/agentkit/mcp/auto-connect` endpoint to trigger reconnection
   - Frontend triggers auto-connect on `AgentService` initialization
@@ -289,6 +324,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.9] - 2026-01-03
 
 ### Added
+
 - **MCP Tool Approval Service**: New security layer for MCP tool calls with per-server permissions
   - `autoApprove` flag on MCP server configs - trusted servers skip user confirmation
   - `trustLevel` classification: `system` (built-in), `trusted`, or `untrusted`
@@ -303,6 +339,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Tools show auto-approve status (✅ or 🔒) for user transparency
 
 ### Improved
+
 - **MCP Manager UI**: Added auto-approve toggle per server with system trust badge
 - **Config Schema**: Extended `MCPServerConfig` and `MCPServerEntry` with security fields
 
@@ -311,12 +348,14 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.8] - 2026-01-02
 
 ### Fixed
+
 - **MCP Manager Real Connections**: Fixed MCP server connections that were failing with "Check server configuration" error
   - Workspace tools now use `internal` transport type (no subprocess spawn needed)
   - Connect endpoint correctly returns 27 built-in tools from `TOOL_DEFINITIONS`
   - Fixed `mcp-agents.ts` to handle internal transport type properly
 
 ### Added
+
 - **MCP Connect/Disconnect API**: New endpoints for real MCP server management:
   - `POST /mcp/servers/:name/connect` - Connect and fetch real tools
   - `GET /mcp/servers/:name/tools` - List tools from connected server
@@ -326,6 +365,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - **Internal Transport Type**: New transport type for built-in tools that don't need MCP subprocess
 
 ### Improved
+
 - **MCPManager.tsx**: Rewrote to connect to real MCP servers via API with Connect button, status indicators, and proper error handling
 
 ---
@@ -333,6 +373,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.7] - 2026-01-02
 
 ### Added
+
 - **MCP Server Manager**: New UI to manage MCP servers (similar design to Extension Marketplace) with:
   - Server sidebar showing connection status and tool counts
   - Tool list with descriptions and individual enable/disable toggles
@@ -357,6 +398,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - **useAgentKit Hook**: React hook for frontend AgentKit integration with task execution and event streaming
 
 ### Improved
+
 - **Tool Execution Display**: Added MCP tool icons (Context7, Firebase, Dart) to chat tool call visualization
 - **Agent Architecture**: Migrated from ad-hoc agent system to structured AgentKit-based network
 
@@ -365,6 +407,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.6] - 2026-01-02
 
 ### Added
+
 - **Git GUI Enhancement**: VS Code-style Git initialization panel in Source Control sidebar with:
   - **Initialize Repository** button to create a new Git repository in the current workspace
   - **Clone Repository** button to clone from a remote URL
@@ -374,12 +417,15 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - **`initRepository()` Function**: Frontend service method in gitStore for initializing repos
 
 ### Improved
+
 - **Git Sidebar UX**: Source Control panel now shows helpful onboarding when no repository is detected instead of a minimal placeholder
 
 ### Fixed
+
 - **Git Commit Staging**: Fixed critical bug where `git_commit` ignored the "Stage all" option, causing commits to be empty when files hadn't been manually staged. Now properly stages all files (including untracked) before committing when enabled.
 
 ### Added in Patch
+
 - **Delete Repository**: New option to delete the `.git` folder for resetting local repositories (accessible via "More options" dropdown in Git panel)
 - **`git_delete_repo` Command**: Native Rust command to safely delete `.git` folder, with protection for repos that have remotes configured
 
@@ -388,22 +434,26 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.5] - 2026-01-01
 
 ### Added
+
 - **Rust State Manager**: New `state_manager` module for centralized session state persistence, replacing fragmented TypeScript persistence.
 - **Session State Commands**: `get_session_state`, `save_session_state`, `clear_session_state` Tauri commands for reliable session management.
 - **Dynamic Menu Switching**: macOS menu bar now switches between minimal (startup) and full (editor) menus based on current view.
 - **Startup Menu**: Minimal startup menu with only essential items (Rainy Aether, File, Window, Help).
 
 ### Fixed
+
 - **Project Closure Bug**: Closing a project and restarting the app no longer reopens the closed project. Session state now correctly tracks `is_project_open` flag.
 - **Version Display**: Synchronized versions across `package.json`, `tauri.conf.json`, and `Cargo.toml` to 0.1.5.
 
 ### Improved
+
 - **Menu Bar on Startup Page**: Menu bar is now minimal on startup page, showing only relevant options.
 - **State Persistence**: Consolidated session state in Rust backend, eliminating duplicate frontend persistence.
 
 ## [v0.1.4] - 2025-12-31
 
 ### Fixed
+
 - **Theme Persistence**: Fixed issue where premium themes (Dracula, One Dark, GitHub) would reset to default on restart by standardizing naming conventions.
 - **Theme Persistence (System Mode)**: Fixed issue where saved theme was ignored when user preference was 'system', causing themes to reset to base+systemMode instead of the explicitly selected theme.
 - **Brand Themes Visibility**: Fixed missing brand themes (Christmas, New Year, Rainy Aether) in Theme Store modal by standardizing naming to `base-mode` format and adding metadata.
@@ -430,6 +480,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.2] - 2025-12-31
 
 ### Added
+
 - **Network State Layer**: Implemented `NetworkState` type system for cross-agent memory sharing using AgentKit's `network.state.data`.
 - **File Caching**: Added 30-second TTL caching for file reads to reduce redundant disk access (target: ~38 reads → ~2-5 reads per edit).
 - **Planner Agent**: New agent for task analysis and execution plan generation before handing off to specialized agents.
@@ -441,11 +492,13 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - **BrainService Methods**: Added `getTaskState()` for state inspection and `getAgents()` for discovering available agents.
 
 ### Improved
+
 - **Agent Coordination**: Agents now share context via network state, enabling better handoffs and reducing redundant operations.
 - **Tool Descriptions**: Enhanced file and terminal tool descriptions with caching behavior and usage guidance.
 - **SSE Streaming**: Task status updates now include `networkState` snapshot for real-time monitoring.
 
 ### Fixed
+
 - **Type Exports**: Fixed type re-exports in `tools/index.ts` using proper `export type` syntax.
 - **Unused Imports**: Removed unused imports in base.ts, router.ts, executor.ts, bridge.ts.
 - **Type Safety**: Added null checks for function call parameters and step result types in inngest.ts.
@@ -455,6 +508,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ## [v0.1.1] - 2025-12-30
 
 ### Added
+
 - **Native Drag & Drop**: Implemented native Tauri drag-and-drop support for images in Chat.
 - **Git Sidebar**: Complete redesign of the Git sidebar for better organization and aesthetics.
 - **Browser Status**: Added connection status tracking and visualization for the integrated browser.
@@ -463,6 +517,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - **Project Context**: Added `get_project_context` tool for consolidated project information retrieval.
 
 ### Improved
+
 - **UI/UX**: Significant refinements to the Chat UI including glassmorphism effects, better alignment, and model dropdown improvements.
 - **Extension Modal**: Refined UI for Extension Marketplace and Manager with glassmorphism and shadcn integration.
 - **Autocompletion**: Enhanced accuracy and prompt engineering to reduce garbage output and better respect context.
@@ -475,6 +530,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 - **Agent Prompts**: Updated agent system prompts with tool selection guidelines to prefer efficient consolidated tools.
 
 ### Fixed
+
 - **Autocompletion**: Fixed connection and credential loading issues.
 - **TSConfig**: Fixed parsing error during project initialization.
 - **ToolExecutionItem**: Fixed TypeError when handling null tool arguments.
@@ -483,9 +539,10 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 
 ---
 
-## [v0.1.0] - Initial Release 
+## [v0.1.0] - Initial Release
 
 ### Features
+
 - Tauri 2 desktop application with Rust backend
 - Monaco-based code editor with syntax highlighting
 - AI-powered agent chat with multi-model support (Gemini, Groq and Cerebras)

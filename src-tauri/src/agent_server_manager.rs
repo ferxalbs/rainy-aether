@@ -50,7 +50,7 @@ pub async fn agent_server_start(app: AppHandle) -> Result<u16, String> {
     let port: u16 = 3847;
 
     // Get the app resource directory for finding the server files
-    let resource_dir = app
+    let _resource_dir = app
         .path()
         .resource_dir()
         .map_err(|e| format!("Failed to get resource dir: {}", e))?;

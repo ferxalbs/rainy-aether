@@ -47,14 +47,17 @@ impl ExtensionRegistry {
         removed
     }
 
+    #[allow(dead_code)]
     pub fn get_extension(&self, id: &str) -> Option<&ExtensionRegistryEntry> {
         self.extensions.get(id)
     }
 
+    #[allow(dead_code)]
     pub fn get_extension_mut(&mut self, id: &str) -> Option<&mut ExtensionRegistryEntry> {
         self.extensions.get_mut(id)
     }
 
+    #[allow(dead_code)]
     pub fn update_extension(&mut self, id: &str, entry: ExtensionRegistryEntry) -> bool {
         if self.extensions.contains_key(id) {
             self.extensions.insert(id.to_string(), entry);
@@ -85,10 +88,12 @@ impl ExtensionRegistry {
         }
     }
 
+    #[allow(dead_code)]
     pub fn list_extensions(&self) -> Vec<&ExtensionRegistryEntry> {
         self.extensions.values().collect()
     }
 
+    #[allow(dead_code)]
     pub fn list_enabled_extensions(&self) -> Vec<&ExtensionRegistryEntry> {
         self.extensions.values().filter(|e| e.enabled).collect()
     }

@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use keyring::Entry;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -7,6 +8,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 /// Represents a stored credential for an AI provider
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderCredential {
     pub provider_id: String,
@@ -39,7 +41,7 @@ fn load_credentials_from_file() -> HashMap<String, String> {
     let file_path = get_credentials_file();
 
     if let Ok(content) = fs::read_to_string(&file_path) {
-        if let Ok(decoded) = base64::decode(content.trim()) {
+        if let Ok(decoded) = STANDARD.decode(content.trim()) {
             if let Ok(json_str) = String::from_utf8(decoded) {
                 if let Ok(credentials) = serde_json::from_str(&json_str) {
                     eprintln!(
@@ -72,7 +74,7 @@ fn save_credentials_to_file(credentials: &HashMap<String, String>) -> Result<(),
     let json = serde_json::to_string(&credentials)
         .map_err(|e| format!("Failed to serialize credentials: {}", e))?;
 
-    let encoded = base64::encode(json.as_bytes());
+    let encoded = STANDARD.encode(json.as_bytes());
 
     fs::write(&file_path, encoded)
         .map_err(|e| format!("Failed to write credentials file: {}", e))?;
@@ -355,6 +357,7 @@ impl CredentialManager {
     /// # Arguments
     /// * `provider_id` - Unique identifier for the provider
     /// * `api_key` - The new API key to store
+    #[allow(dead_code)]
     pub fn update_credential(provider_id: &str, api_key: &str) -> Result<(), String> {
         // Delete old credential if it exists (ignore errors)
         let _ = Self::delete_credential(provider_id);

@@ -93,6 +93,7 @@ pub struct ConfigurationProperty {
 }
 
 /// Configuration contribution from extension
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigurationContribution {
     /// Configuration title
@@ -103,6 +104,7 @@ pub struct ConfigurationContribution {
 }
 
 /// Resolved configuration with metadata
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResolvedConfiguration {
     /// Configuration key
