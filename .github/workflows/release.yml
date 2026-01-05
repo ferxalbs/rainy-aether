@@ -68,31 +68,125 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Tauri signing environment variables - lint warnings are false positives for valid GitHub Actions syntax
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }} # lint:ignore context-access
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }} # lint:ignore context-access
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Rainy Code ${{ github.ref_name }}'
+          releaseName: 'Rainy Aether ${{ github.ref_name }}'
           releaseBody: 'See CHANGELOG.md for details'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
 
-      - name: Generate signature file (for update server)
-        if: matrix.platform == 'windows-latest'
-        run: |
-          # Generate signature for the Windows installer
-          # This creates a .sig file that can be used by the update server
-          cargo tauri signer sign "${TAURI_PRIVATE_KEY}" "src-tauri/target/release/bundle/msi/rainy-aether_${{ github.ref_name }}_x64-setup.exe"
-        env:
-          # Tauri signing environment variables
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }} # lint:ignore context-access
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }} # lint:ignore context-access
+  # Generate latest.json for the updater after all builds complete
+  update-manifest:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Upload signature file
-        if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v4
+      - name: Get release info
+        id: release
+        uses: actions/github-script@v7
         with:
-          name: windows-signature
-          path: src-tauri/target/release/bundle/msi/rainy-aether_${{ github.ref_name }}_x64-setup.exe.sig
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            const releases = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const release = releases.data.find(r => r.tag_name === tag);
+            if (!release) {
+              throw new Error(`Release not found for tag ${tag}`);
+            }
+            return release;
+
+      - name: Generate latest.json
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const release = ${{ steps.release.outputs.result }};
+            const version = release.tag_name.replace('v', '');
+            
+            const platforms = {};
+            
+            for (const asset of release.assets) {
+              const name = asset.name;
+              const url = asset.browser_download_url;
+              
+              // Map asset names to platform keys
+              if (name.endsWith('.app.tar.gz') && name.includes('aarch64')) {
+                const sigAsset = release.assets.find(a => a.name === name + '.sig');
+                if (sigAsset) {
+                  platforms['darwin-aarch64'] = {
+                    url: url,
+                    signature: await fetch(sigAsset.browser_download_url).then(r => r.text())
+                  };
+                }
+              } else if (name.endsWith('.app.tar.gz') && name.includes('x86_64')) {
+                const sigAsset = release.assets.find(a => a.name === name + '.sig');
+                if (sigAsset) {
+                  platforms['darwin-x86_64'] = {
+                    url: url,
+                    signature: await fetch(sigAsset.browser_download_url).then(r => r.text())
+                  };
+                }
+              } else if (name.endsWith('.AppImage')) {
+                const sigAsset = release.assets.find(a => a.name === name + '.sig');
+                if (sigAsset) {
+                  platforms['linux-x86_64'] = {
+                    url: url,
+                    signature: await fetch(sigAsset.browser_download_url).then(r => r.text())
+                  };
+                }
+              } else if (name.endsWith('.msi')) {
+                const sigAsset = release.assets.find(a => a.name === name + '.sig');
+                if (sigAsset) {
+                  platforms['windows-x86_64'] = {
+                    url: url,
+                    signature: await fetch(sigAsset.browser_download_url).then(r => r.text())
+                  };
+                }
+              }
+            }
+            
+            const manifest = {
+              version: version,
+              notes: release.body || 'See CHANGELOG.md for details',
+              pub_date: release.published_at || new Date().toISOString(),
+              platforms: platforms
+            };
+            
+            fs.writeFileSync('latest.json', JSON.stringify(manifest, null, 2));
+            console.log('Generated latest.json:', JSON.stringify(manifest, null, 2));
+
+      - name: Upload latest.json to release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const release = ${{ steps.release.outputs.result }};
+            
+            // Delete existing latest.json if present
+            const existing = release.assets.find(a => a.name === 'latest.json');
+            if (existing) {
+              await github.rest.repos.deleteReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: existing.id
+              });
+            }
+            
+            // Upload new latest.json
+            const content = fs.readFileSync('latest.json');
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              name: 'latest.json',
+              data: content
+            });

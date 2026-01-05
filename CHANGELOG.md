@@ -2,6 +2,27 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.17] - 2026-01-05
+
+### Added
+- **CI Workflow** (`ci.yml`): New GitHub Actions workflow for continuous integration
+  - Runs on push to `main`/`develop` and on pull requests
+  - Matrix builds for macOS, Linux, Windows
+  - TypeScript type checking, Cargo check, and Clippy linting
+
+### Improved
+- **Release Workflow** (`release.yml`): Enhanced for GitHub Releases auto-updater
+  - Added `update-manifest` job to generate `latest.json` for Tauri updater
+  - Updater artifacts (`.sig` files) now uploaded as release assets
+  - Updated environment variable names for Tauri 2 compatibility
+
+### Changed
+- **Updater Endpoint**: Switched from custom server to GitHub Releases
+  - Endpoint now points to `latest.json` in release assets
+  - Enabled `createUpdaterArtifacts` in bundle config for signed updates
+
+---
+
 ## [v0.1.16] - 2026-01-05
 
 ### Improved
