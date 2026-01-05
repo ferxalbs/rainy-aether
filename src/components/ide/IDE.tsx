@@ -26,7 +26,10 @@ import GoToLineDialog from "../ui/go-to-line-dialog";
 import { cn } from "@/lib/utils";
 import ExtensionMarketplace from "./ExtensionMarketplace";
 import ExtensionManager from "./ExtensionManager";
-import { initializeUpdateService, startAutoUpdateCheck } from "../../services/updateService";
+import {
+  initializeUpdateService,
+  startAutoUpdateCheck,
+} from "../../services/updateService";
 import ProblemsPanel from "./ProblemsPanel";
 import PreviewBrowserPanel from "./PreviewBrowserPanel";
 import { RightSidebar } from "./RightSidebar";
@@ -46,9 +49,12 @@ const IDE: React.FC = () => {
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isTabSwitcherOpen, setIsTabSwitcherOpen] = useState(false);
-  const [tabSwitchHighlight, setTabSwitchHighlight] = useState<string | null>(null);
+  const [tabSwitchHighlight, setTabSwitchHighlight] = useState<string | null>(
+    null
+  );
   const [isGoToLineOpen, setIsGoToLineOpen] = useState(false);
-  const [isExtensionMarketplaceOpen, setIsExtensionMarketplaceOpen] = useState(false);
+  const [isExtensionMarketplaceOpen, setIsExtensionMarketplaceOpen] =
+    useState(false);
   const [isExtensionManagerOpen, setIsExtensionManagerOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -61,7 +67,7 @@ const IDE: React.FC = () => {
   // Auto-open diff panel when a diff is created
   useEffect(() => {
     if (diffState.isDiffPanelOpen && diffState.activeDiffSetId) {
-      panelActions.showPanel('diff');
+      panelActions.showPanel("diff");
     }
   }, [diffState.isDiffPanelOpen, diffState.activeDiffSetId]);
 
@@ -109,7 +115,7 @@ const IDE: React.FC = () => {
         // Start auto-checking for updates every 24 hours
         startAutoUpdateCheck(24);
       } catch (error) {
-        console.error('[IDE] Failed to initialize update service:', error);
+        console.error("[IDE] Failed to initialize update service:", error);
         // Update service failure is not critical - app can continue
         // User will be notified through the UI if updates are unavailable
       }
@@ -118,36 +124,36 @@ const IDE: React.FC = () => {
     initUpdates();
   }, []);
 
-  const cycleTab = useCallback(
-    (direction: "next" | "prev") => {
-      const snapshot = stateRef.current();
-      const files = snapshot.openFiles;
-      if (!files.length) {
-        return;
-      }
+  const cycleTab = useCallback((direction: "next" | "prev") => {
+    const snapshot = stateRef.current();
+    const files = snapshot.openFiles;
+    if (!files.length) {
+      return;
+    }
 
-      const activeId = snapshot.activeFileId;
-      const currentIndex = Math.max(0, files.findIndex((file) => file.id === activeId));
-      const targetIndex =
-        direction === "next"
-          ? (currentIndex + 1) % files.length
-          : (currentIndex - 1 + files.length) % files.length;
-      const target = files[targetIndex];
+    const activeId = snapshot.activeFileId;
+    const currentIndex = Math.max(
+      0,
+      files.findIndex((file) => file.id === activeId)
+    );
+    const targetIndex =
+      direction === "next"
+        ? (currentIndex + 1) % files.length
+        : (currentIndex - 1 + files.length) % files.length;
+    const target = files[targetIndex];
 
-      if (target) {
-        actionsRef.current.setActiveFile(target.id);
-        setTabSwitchHighlight(target.id);
-        setIsTabSwitcherOpen(true);
-        if (tabSwitchHideTimerRef.current) {
-          clearTimeout(tabSwitchHideTimerRef.current);
-        }
-        tabSwitchHideTimerRef.current = window.setTimeout(() => {
-          setIsTabSwitcherOpen(false);
-        }, 1200);
+    if (target) {
+      actionsRef.current.setActiveFile(target.id);
+      setTabSwitchHighlight(target.id);
+      setIsTabSwitcherOpen(true);
+      if (tabSwitchHideTimerRef.current) {
+        clearTimeout(tabSwitchHideTimerRef.current);
       }
-    },
-    [],
-  );
+      tabSwitchHideTimerRef.current = window.setTimeout(() => {
+        setIsTabSwitcherOpen(false);
+      }, 1200);
+    }
+  }, []);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -200,7 +206,9 @@ const IDE: React.FC = () => {
       if (ctrl && !shift && !event.altKey && key === "s") {
         event.preventDefault();
         const snapshot = stateRef.current();
-        const active = snapshot.openFiles.find((file) => file.id === snapshot.activeFileId);
+        const active = snapshot.openFiles.find(
+          (file) => file.id === snapshot.activeFileId
+        );
         if (active) {
           actionsRef.current.saveFile(active.id);
         }
@@ -281,7 +289,7 @@ const IDE: React.FC = () => {
 
       if (ctrl && code === "Backquote") {
         event.preventDefault();
-        panelActions.togglePanel('terminal');
+        panelActions.togglePanel("terminal");
         return;
       }
 
@@ -299,19 +307,23 @@ const IDE: React.FC = () => {
 
       if (ctrl && shift && key === "m") {
         event.preventDefault();
-        panelActions.togglePanel('problems');
+        panelActions.togglePanel("problems");
         return;
       }
     };
 
     window.addEventListener("keydown", handler, { capture: true });
 
-    const isTauriEnv = typeof window !== "undefined" && (window as any).__TAURI__;
+    const isTauriEnv =
+      typeof window !== "undefined" && (window as any).__TAURI__;
     const unlistenFns: (() => void)[] = [];
     let unregisterAll: (() => Promise<void>) | null = null;
     let cancelled = false;
 
-    const attachListener = (eventName: string, callback: (event: unknown) => void) => {
+    const attachListener = (
+      eventName: string,
+      callback: (event: unknown) => void
+    ) => {
       listen(eventName as any, callback as any)
         .then((unlisten) => {
           if (!cancelled) {
@@ -330,16 +342,24 @@ const IDE: React.FC = () => {
         console.info("shortcut/trigger", (event as any).payload);
       });
       attachListener("shortcut/quick-open", () => setIsQuickOpenOpen(true));
-      attachListener("shortcut/command-palette", () => setIsCommandPaletteOpen(true));
-      attachListener("shortcut/open-settings", () => actionsRef.current.openSettings());
+      attachListener("shortcut/command-palette", () =>
+        setIsCommandPaletteOpen(true)
+      );
+      attachListener("shortcut/open-settings", () =>
+        actionsRef.current.openSettings()
+      );
       attachListener("shortcut/save-file", () => {
         const snapshot = stateRef.current();
-        const active = snapshot.openFiles.find((file) => file.id === snapshot.activeFileId);
+        const active = snapshot.openFiles.find(
+          (file) => file.id === snapshot.activeFileId
+        );
         if (active) {
           actionsRef.current.saveFile(active.id);
         }
       });
-      attachListener("shortcut/save-all", () => actionsRef.current.saveAllFiles());
+      attachListener("shortcut/save-all", () =>
+        actionsRef.current.saveAllFiles()
+      );
       attachListener("shortcut/save-as", () => {
         const snapshot = stateRef.current();
         const active = snapshot.activeFileId;
@@ -364,12 +384,22 @@ const IDE: React.FC = () => {
         editorActions.replaceAll();
       });
       attachListener("shortcut/toggle-wrap", () => editorActions.toggleWrap());
-      attachListener("shortcut/open-project", () => actionsRef.current.openFolderDialog());
-      attachListener("shortcut/new-file", () => actionsRef.current.createNewFile());
-      attachListener("shortcut/toggle-sidebar", () => actionsRef.current.toggleSidebar());
-      attachListener("shortcut/toggle-terminal", () => panelActions.togglePanel('terminal'));
+      attachListener("shortcut/open-project", () =>
+        actionsRef.current.openFolderDialog()
+      );
+      attachListener("shortcut/new-file", () =>
+        actionsRef.current.createNewFile()
+      );
+      attachListener("shortcut/toggle-sidebar", () =>
+        actionsRef.current.toggleSidebar()
+      );
+      attachListener("shortcut/toggle-terminal", () =>
+        panelActions.togglePanel("terminal")
+      );
       attachListener("shortcut/redo", () => editorActions.redo());
-      attachListener("shortcut/toggle-problems", () => panelActions.togglePanel('problems'));
+      attachListener("shortcut/toggle-problems", () =>
+        panelActions.togglePanel("problems")
+      );
 
       (async () => {
         try {
@@ -381,7 +411,10 @@ const IDE: React.FC = () => {
 
           unregisterAll = mod.unregisterAll;
 
-          const registerShortcut = async (shortcut: string, callback: () => void) => {
+          const registerShortcut = async (
+            shortcut: string,
+            callback: () => void
+          ) => {
             try {
               await mod.register(shortcut, callback);
             } catch (error) {
@@ -389,12 +422,20 @@ const IDE: React.FC = () => {
             }
           };
 
-          await registerShortcut("CommandOrControl+P", () => setIsQuickOpenOpen(true));
-          await registerShortcut("CommandOrControl+Shift+P", () => setIsCommandPaletteOpen(true));
-          await registerShortcut("CommandOrControl+,", () => actionsRef.current.openSettings());
+          await registerShortcut("CommandOrControl+P", () =>
+            setIsQuickOpenOpen(true)
+          );
+          await registerShortcut("CommandOrControl+Shift+P", () =>
+            setIsCommandPaletteOpen(true)
+          );
+          await registerShortcut("CommandOrControl+,", () =>
+            actionsRef.current.openSettings()
+          );
           await registerShortcut("CommandOrControl+S", () => {
             const snapshot = stateRef.current();
-            const active = snapshot.openFiles.find((file) => file.id === snapshot.activeFileId);
+            const active = snapshot.openFiles.find(
+              (file) => file.id === snapshot.activeFileId
+            );
             if (active) {
               actionsRef.current.saveFile(active.id);
             }
@@ -406,7 +447,9 @@ const IDE: React.FC = () => {
               actionsRef.current.saveFileAs(active);
             }
           });
-          await registerShortcut("CommandOrControl+Alt+S", () => actionsRef.current.saveAllFiles());
+          await registerShortcut("CommandOrControl+Alt+S", () =>
+            actionsRef.current.saveAllFiles()
+          );
           await registerShortcut("CommandOrControl+W", () => {
             const snapshot = stateRef.current();
             const active = snapshot.activeFileId;
@@ -414,23 +457,45 @@ const IDE: React.FC = () => {
               actionsRef.current.closeFile(active);
             }
           });
-          await registerShortcut("CommandOrControl+Tab", () => cycleTab("next"));
-          await registerShortcut("CommandOrControl+Shift+Tab", () => cycleTab("prev"));
-          await registerShortcut("CommandOrControl+G", () => setIsGoToLineOpen(true));
-          await registerShortcut("CommandOrControl+F", () => editorActions.openSearchPanel());
+          await registerShortcut("CommandOrControl+Tab", () =>
+            cycleTab("next")
+          );
+          await registerShortcut("CommandOrControl+Shift+Tab", () =>
+            cycleTab("prev")
+          );
+          await registerShortcut("CommandOrControl+G", () =>
+            setIsGoToLineOpen(true)
+          );
+          await registerShortcut("CommandOrControl+F", () =>
+            editorActions.openSearchPanel()
+          );
           await registerShortcut("F3", () => editorActions.findNext());
           await registerShortcut("CommandOrControl+Shift+H", () => {
             editorActions.openSearchPanel();
             editorActions.replaceAll();
           });
           await registerShortcut("Alt+Z", () => editorActions.toggleWrap());
-          await registerShortcut("CommandOrControl+O", () => actionsRef.current.openFolderDialog());
-          await registerShortcut("CommandOrControl+N", () => actionsRef.current.createNewFile());
-          await registerShortcut("CommandOrControl+B", () => actionsRef.current.toggleSidebar());
-          await registerShortcut("CommandOrControl+`", () => panelActions.togglePanel('terminal'));
-          await registerShortcut("CommandOrControl+Shift+Z", () => editorActions.redo());
-          await registerShortcut("CommandOrControl+Shift+X", () => setIsExtensionMarketplaceOpen(true));
-          await registerShortcut("CommandOrControl+Shift+M", () => panelActions.togglePanel('problems'));
+          await registerShortcut("CommandOrControl+O", () =>
+            actionsRef.current.openFolderDialog()
+          );
+          await registerShortcut("CommandOrControl+N", () =>
+            actionsRef.current.createNewFile()
+          );
+          await registerShortcut("CommandOrControl+B", () =>
+            actionsRef.current.toggleSidebar()
+          );
+          await registerShortcut("CommandOrControl+`", () =>
+            panelActions.togglePanel("terminal")
+          );
+          await registerShortcut("CommandOrControl+Shift+Z", () =>
+            editorActions.redo()
+          );
+          await registerShortcut("CommandOrControl+Shift+X", () =>
+            setIsExtensionMarketplaceOpen(true)
+          );
+          await registerShortcut("CommandOrControl+Shift+M", () =>
+            panelActions.togglePanel("problems")
+          );
           console.info("Global shortcuts registered via JS plugin");
         } catch (error) {
           console.warn("Global shortcut plugin registration failed", error);
@@ -459,14 +524,18 @@ const IDE: React.FC = () => {
   const showBottomPanel = !isZenMode && panelState.isBottomPanelOpen;
 
   // Show workspace loading overlay when loading workspace
-  const isWorkspaceLoading = loadingState.isLoading && loadingState.loadingContext === 'workspace';
+  const isWorkspaceLoading =
+    loadingState.isLoading && loadingState.loadingContext === "workspace";
 
   return (
     <div className="h-screen flex flex-col ide-container">
       {/* Workspace loading overlay */}
       {isWorkspaceLoading && (
         <div className="absolute inset-0 z-50">
-          <LoadingScreen stages={loadingState.stages} context={loadingState.loadingContext} />
+          <LoadingScreen
+            stages={loadingState.stages}
+            context={loadingState.loadingContext}
+          />
         </div>
       )}
       <MenuBar
@@ -477,7 +546,7 @@ const IDE: React.FC = () => {
         onOpenExtensionMarketplace={() => setIsExtensionMarketplaceOpen(true)}
         onOpenExtensionManager={() => setIsExtensionManagerOpen(true)}
         onOpenCloneDialog={() => setIsCloneDialogOpen(true)}
-        onOpenKeyboardShortcuts={() => console.log('TODO: Keyboard shortcuts')}
+        onOpenKeyboardShortcuts={() => console.log("TODO: Keyboard shortcuts")}
         onOpenAbout={() => setIsAboutOpen(true)}
       />
 
@@ -490,27 +559,33 @@ const IDE: React.FC = () => {
           {/* Conditionally render based on view mode - BUT keep both mounted to preserve state */}
 
           {/* Agents View - Always mounted, hidden when not active */}
-          <div className={cn(
-            "flex flex-1 min-h-0 overflow-hidden",
-            viewMode !== "agents" && "hidden"
-          )}>
+          <div
+            className={cn(
+              "flex flex-1 min-h-0 overflow-hidden",
+              viewMode !== "agents" && "hidden"
+            )}
+          >
             <AgentsView />
           </div>
 
           {/* Main Editor Layout - Always mounted, hidden when acting as agents view */}
-          <div className={cn(
-            "flex flex-1 overflow-hidden",
-            viewMode === "agents" && "hidden"
-          )}>
+          <div
+            className={cn(
+              "flex flex-1 overflow-hidden",
+              viewMode === "agents" && "hidden"
+            )}
+          >
             {!isZenMode && <Sidebar />}
             <div className="flex-1 flex h-full overflow-hidden">
               {/* Main editor area */}
               <div className="flex-1 flex flex-col min-w-0 h-full">
                 {/* Editor panel */}
-                <div className={cn(
-                  "flex-1 min-h-[200px] overflow-hidden",
-                  showBottomPanel && "max-h-[calc(100%-220px)]"
-                )}>
+                <div
+                  className={cn(
+                    "flex-1 min-h-[200px] overflow-hidden",
+                    showBottomPanel && "max-h-[calc(100%-220px)]"
+                  )}
+                >
                   <FileViewer />
                 </div>
 
@@ -519,7 +594,16 @@ const IDE: React.FC = () => {
                   <div className="h-[220px] shrink-0 border-t border-border overflow-hidden">
                     <Tabs
                       value={panelState.activeBottomTab}
-                      onValueChange={(value) => panelActions.setActiveTab(value as 'terminal' | 'problems' | 'diff' | 'output' | 'preview')}
+                      onValueChange={(value) =>
+                        panelActions.setActiveTab(
+                          value as
+                            | "terminal"
+                            | "problems"
+                            | "diff"
+                            | "output"
+                            | "preview"
+                        )
+                      }
                       className="h-full flex flex-col gap-0"
                     >
                       <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8 shrink-0">
@@ -547,7 +631,14 @@ const IDE: React.FC = () => {
                           className="ml-auto mr-2 p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground"
                           aria-label="Close Panel"
                         >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
                           </svg>
@@ -559,18 +650,28 @@ const IDE: React.FC = () => {
                         forceMount
                         className={cn(
                           "flex-1 m-0 overflow-hidden",
-                          panelState.activeBottomTab !== 'terminal' && "hidden"
+                          panelState.activeBottomTab !== "terminal" && "hidden"
                         )}
                       >
                         <TerminalPanel />
                       </TabsContent>
 
-                      <TabsContent value="problems" className="flex-1 m-0 overflow-hidden">
-                        <ProblemsPanel onClose={() => panelActions.hidePanel()} />
+                      <TabsContent
+                        value="problems"
+                        className="flex-1 m-0 overflow-hidden"
+                      >
+                        <ProblemsPanel
+                          onClose={() => panelActions.hidePanel()}
+                        />
                       </TabsContent>
 
-                      <TabsContent value="preview" className="flex-1 m-0 overflow-hidden">
-                        <PreviewBrowserPanel onClose={() => panelActions.hidePanel()} />
+                      <TabsContent
+                        value="preview"
+                        className="flex-1 m-0 overflow-hidden"
+                      >
+                        <PreviewBrowserPanel
+                          onClose={() => panelActions.hidePanel()}
+                        />
                       </TabsContent>
                     </Tabs>
                   </div>
@@ -588,16 +689,24 @@ const IDE: React.FC = () => {
           {!isZenMode && (
             <div className={cn(viewMode === "agents" && "hidden")}>
               <StatusBar
-                onToggleProblemsPanel={() => panelActions.togglePanel('problems')}
+                onToggleProblemsPanel={() =>
+                  panelActions.togglePanel("problems")
+                }
               />
             </div>
           )}
         </>
       )}
 
-      <ThemeSwitcher isOpen={isThemeSwitcherOpen} onClose={() => setIsThemeSwitcherOpen(false)} />
+      <ThemeSwitcher
+        isOpen={isThemeSwitcherOpen}
+        onClose={() => setIsThemeSwitcherOpen(false)}
+      />
 
-      <QuickOpen isOpen={isQuickOpenOpen} onClose={() => setIsQuickOpenOpen(false)} />
+      <QuickOpen
+        isOpen={isQuickOpenOpen}
+        onClose={() => setIsQuickOpenOpen(false)}
+      />
 
       <CommandPalette
         isOpen={isCommandPaletteOpen}
@@ -614,7 +723,11 @@ const IDE: React.FC = () => {
         onConfirm={(line) => editorActions.goToLine(line)}
       />
 
-      <TabSwitcher isOpen={isTabSwitcherOpen} files={snapshot.openFiles} highlightId={tabSwitchHighlight} />
+      <TabSwitcher
+        isOpen={isTabSwitcherOpen}
+        files={snapshot.openFiles}
+        highlightId={tabSwitchHighlight}
+      />
 
       <ExtensionMarketplace
         isOpen={isExtensionMarketplaceOpen}
@@ -631,15 +744,16 @@ const IDE: React.FC = () => {
         onClose={() => setIsCloneDialogOpen(false)}
         onSuccess={(path) => {
           setIsCloneDialogOpen(false);
-          actionsRef.current.loadWorkspace({ name: path.split(/[/\\]/).pop() || path, path, type: "folder" });
+          actionsRef.current.loadWorkspace({
+            name: path.split(/[/\\]/).pop() || path,
+            path,
+            type: "folder",
+          });
         }}
       />
 
       {/* About Dialog */}
-      <AboutDialog
-        open={isAboutOpen}
-        onOpenChange={setIsAboutOpen}
-      />
+      <AboutDialog open={isAboutOpen} onOpenChange={setIsAboutOpen} />
 
       {/* MCP Manager */}
       <MCPManager
@@ -648,7 +762,7 @@ const IDE: React.FC = () => {
         workspace={snapshot.workspace?.path || undefined}
         onOpenFile={(path) => {
           // Create a FileNode and open the file in editor
-          const name = path.split('/').pop() || path;
+          const name = path.split("/").pop() || path;
           actions.openFile({ name, path, is_directory: false });
         }}
       />

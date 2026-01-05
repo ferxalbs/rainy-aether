@@ -35,55 +35,54 @@
 
 @keyframes accordion-down {
   from {
-    height: 0
+    height: 0;
   }
 
   to {
-    height: var(--kb-accordion-content-height)
+    height: var(--kb-accordion-content-height);
   }
 }
 
 @keyframes accordion-up {
   from {
-    height: var(--kb-accordion-content-height)
+    height: var(--kb-accordion-content-height);
   }
 
   to {
-    height: 0
+    height: 0;
   }
 }
 
 @keyframes collapsible-down {
   from {
-    height: 0
+    height: 0;
   }
 
   to {
-    height: var(--kb-collapsible-content-height)
+    height: var(--kb-collapsible-content-height);
   }
 }
 
 @keyframes collapsible-up {
   from {
-    height: var(--kb-collapsible-content-height)
+    height: var(--kb-collapsible-content-height);
   }
 
   to {
-    height: 0
+    height: 0;
   }
 }
 
 @keyframes caret-blink {
-
   0%,
   70%,
   100% {
-    opacity: 1
+    opacity: 1;
   }
 
   20%,
   50% {
-    opacity: 0
+    opacity: 0;
   }
 }
 
@@ -390,7 +389,7 @@
 }
 
 .editor-text {
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text-editor);
@@ -632,7 +631,6 @@
 }
 
 @keyframes blink {
-
   0%,
   50% {
     opacity: 1;
@@ -721,13 +719,18 @@ body.os-non-mac ::-webkit-scrollbar-corner {
 }
 
 .theme-card.inaccessible::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(45deg, transparent 49%, rgba(239, 68, 68, 0.1) 50%, transparent 51%);
+  background: linear-gradient(
+    45deg,
+    transparent 49%,
+    rgba(239, 68, 68, 0.1) 50%,
+    transparent 51%
+  );
   pointer-events: none;
   z-index: 1;
 }
@@ -793,16 +796,16 @@ body.os-non-mac ::-webkit-scrollbar-corner {
 @theme inline {
   --animate-meteor: meteor 5s linear infinite;
   @keyframes meteor {
-  0% {
-    transform: rotate(var(--angle)) translateX(0);
-    opacity: 1;
+    0% {
+      transform: rotate(var(--angle)) translateX(0);
+      opacity: 1;
     }
-  70% {
-    opacity: 1;
+    70% {
+      opacity: 1;
     }
-  100% {
-    transform: rotate(var(--angle)) translateX(-500px);
-    opacity: 0;
+    100% {
+      transform: rotate(var(--angle)) translateX(-500px);
+      opacity: 0;
     }
   }
 }
