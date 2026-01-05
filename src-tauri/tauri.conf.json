@@ -55,7 +55,7 @@
         "https://github.com/ferxalbs/rainy-aether-2/releases/latest/download/latest.json"
       ],
       "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI5QjBCOEQ1RDFEOERGQjEKUldTeDM5alIxYml3S2E4TkZLODk4Wi9oeHF0YTR0WVRnbXl1eDl1cHBZODh0OWMvdDU2QXoxQ1oK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI5QzIwODA5OUZFOEZCQUYKUldTdisraWZDUWpDdVFDbTVTaDBvWCtDb2ZSY2EwSVhJdTE2NUJ6VTZ4R2tOQmFld2hKTENYdkIK",
       "windows": {
         "installMode": "passive"
       }
