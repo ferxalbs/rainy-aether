@@ -9,6 +9,9 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - Added `NODE_OPTIONS='--max-old-space-size=4096'` to release workflow for Tauri build step
   - Added `NODE_OPTIONS` to CI workflow for TypeScript check step
   - Fixed `TAURI_SIGNING_PRIVATE_KEY` secret name typo in release workflow
+- **#OpenSSL Cross-Compilation**: Fixed OpenSSL build failure when cross-compiling x86_64 on Apple Silicon
+  - Switched `reqwest` from `native-tls` to `rustls-tls` to avoid system OpenSSL dependency
+  - Added `openssl` with `vendored` feature for crates that still require it (git2, turso, keyring)
 
 ---
 

@@ -45,7 +45,7 @@ tauri-plugin-pty = "0.1.1"
 dirs = "5"
 zip = "6.0.0"
 which = "8.0.0"
-reqwest = { version = "0.12.24", features = ["json", "stream"] }
+reqwest = { version = "0.12.24", default-features = false, features = ["json", "stream", "rustls-tls"] }
 keyring = "3.6.3"
 git2 = "0.20.2"
 walkdir = "2.5.0"
@@ -62,6 +62,7 @@ rayon = "1.11.0"
 lsp-types = "0.97.0"
 ignore = "0.4.20"
 lru = "0.16.2"
+openssl = { version = "0.10", features = ["vendored"] }
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"
