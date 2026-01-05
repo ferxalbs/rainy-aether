@@ -96,15 +96,26 @@ export const FontSettings: React.FC = () => {
 
       if (!selected) return;
 
+      // Handle selected which could be string or file path object
+      let filePath: string;
+      if (typeof selected === 'string') {
+        filePath = selected;
+      } else if (selected && typeof selected === 'object' && 'path' in selected) {
+        filePath = (selected as { path: string }).path;
+      } else {
+        setError('Invalid file selection');
+        return;
+      }
+
       // Extract font family name from filename
-      const fileName = typeof selected === 'string' ? selected.split(/[/\\]/).pop() : selected.path.split(/[/\\]/).pop();
+      const fileName = filePath.split(/[/\\]/).pop();
       const family = fileName?.split('.')[0].replace(/-/g, ' ') || 'Custom Font';
 
       setIsLoading(true);
       setError(null);
 
       // Validate font file
-      const validation = await fontManager.validateFontFile(typeof selected === 'string' ? selected : selected.path);
+      const validation = await fontManager.validateFontFile(filePath);
       if (!validation.valid) {
         setError(validation.error || 'Invalid font file');
         setIsLoading(false);
@@ -112,7 +123,7 @@ export const FontSettings: React.FC = () => {
       }
 
       // Import font
-      await fontManager.importCustomFont(typeof selected === 'string' ? selected : selected.path, family);
+      await fontManager.importCustomFont(filePath, family);
       loadInstalledFonts();
 
       // Switch to installed tab

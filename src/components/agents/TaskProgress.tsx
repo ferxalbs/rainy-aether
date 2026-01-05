@@ -8,7 +8,7 @@
  * - Time elapsed
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -36,7 +36,7 @@ interface TaskProgressProps {
 }
 
 export function TaskProgress({
-    taskId,
+    taskId: _taskId,
     status,
     progress,
     startTime,
@@ -80,20 +80,6 @@ export function TaskProgress({
                 return <XCircle className="h-4 w-4 text-red-400" />;
             default:
                 return <Clock className="h-4 w-4 text-zinc-400" />;
-        }
-    };
-
-    const getProgressColor = () => {
-        switch (status) {
-            case 'running':
-                return 'bg-blue-500';
-            case 'completed':
-                return 'bg-green-500';
-            case 'failed':
-            case 'cancelled':
-                return 'bg-red-500';
-            default:
-                return 'bg-zinc-500';
         }
     };
 

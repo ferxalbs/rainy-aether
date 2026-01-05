@@ -97,7 +97,7 @@ class FontManager {
   private readonly GOOGLE_FONTS_API_KEY: string = 'AIzaSyDj7r0eF5B0JYh2rJz-5v5Lj0VxYqZxYqY';
   private isInitialized: boolean = false;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): FontManager {
     if (!FontManager.instance) {
@@ -648,12 +648,3 @@ class FontManager {
 
 // Singleton export
 export const fontManager = FontManager.getInstance();
-
-// Type exports
-export type {
-  FontMetadata,
-  FontVariant,
-  FontManifest,
-  FontFileInfo,
-  ValidationResult
-};

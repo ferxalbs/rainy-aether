@@ -2,6 +2,17 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.18] - 2026-01-05
+
+### Fixed
+- **#1 [Fixes] GitHub Actions Build Errors**: Fixed 40 TypeScript compilation errors across all platforms
+  - `SettingsPage.tsx`: Removed impossible type comparisons after early return statements (TypeScript was correctly narrowing `currentView` type after `fonts`/`advanced` views returned)
+  - `FontSettings.tsx`: Fixed file dialog result type handling - properly extracts path from object or string result
+  - `TaskProgress.tsx`: Removed unused `React` import (not needed with modern JSX transform)
+  - `BrainStatusIndicator.tsx`: Removed unused `React` import
+
+---
+
 ## [v0.1.17] - 2026-01-05
 
 ### Added

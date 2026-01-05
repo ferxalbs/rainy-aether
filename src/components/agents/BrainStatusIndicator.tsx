@@ -5,7 +5,6 @@
  * Displays connected/disconnected state with optional details.
  */
 
-import React from 'react';
 import { useBrainTask } from '@/hooks/useBrainTask';
 import { cn } from '@/lib/utils';
 import {

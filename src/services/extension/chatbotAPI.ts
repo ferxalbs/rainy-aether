@@ -116,15 +116,6 @@ export function registerWebviewViewProvider(
     };
   }
 ): { dispose(): void } {
-  // Create the webview panel
-  const panel = webviewActions.createWebviewPanel({
-    viewId,
-    extensionId: 'current-extension', // This will be set by extension context
-    title: viewId,
-    enableScripts: true,
-    retainContextWhenHidden: options?.webviewOptions?.retainContextWhenHidden ?? false,
-  });
-
   // Create webview view object
   const webviewView: WebviewView = {
     webview: createWebview(viewId),
@@ -133,7 +124,7 @@ export function registerWebviewViewProvider(
     description: undefined,
     visible: false,
 
-    show(preserveFocus?: boolean) {
+    show(_preserveFocus?: boolean) {
       webviewActions.showWebview(viewId);
       this.visible = true;
     },
@@ -151,28 +142,15 @@ export function registerWebviewViewProvider(
   // Create cancellation token (dummy for now)
   const token: CancellationToken = {
     isCancellationRequested: false,
-    onCancellationRequested: () => ({ dispose: () => {} }),
+    onCancellationRequested: () => ({ dispose: () => { } }),
   };
 
   // Call provider to set up the webview
-  const resolvePromise = Promise.resolve(
-    provider.resolveWebviewView(webviewView, context, token)
-  ).catch(error => {
-    console.error(`[chatbotAPI] Error resolving webview view ${viewId}:`, error);
-    // Dispose the webview panel on error
-    webviewActions.disposeWebview(viewId);
-    // Re-throw to allow caller to handle if needed
-    throw error;
-  });
 
   // Return disposable
   return {
     dispose() {
       webviewActions.disposeWebview(viewId);
-    },
-    // Expose the resolution promise for error tracking
-    get ready() {
-      return resolvePromise;
     }
   };
 }

@@ -19,8 +19,7 @@ import {
   setTabSize,
   setInsertSpaces,
   setSmoothScrolling,
-  updateEditorSetting,
-  AutoSaveMode
+  updateEditorSetting
 } from "../../stores/settingsStore";
 import {
   useThemeState,
@@ -274,7 +273,7 @@ const SettingsPage = () => {
         </Button>
 
         <Button
-          variant={currentView === "fonts" ? "secondary" : "ghost"}
+          variant="ghost"
           className="w-full justify-start"
           onClick={() => setCurrentView("fonts")}
         >
@@ -285,9 +284,9 @@ const SettingsPage = () => {
         <Separator className="my-4" />
 
         <Button
-          variant={(currentView as string) === "advanced" ? "secondary" : "outline"}
+          variant="outline"
           className="w-full justify-start"
-          onClick={() => setCurrentView("advanced" as any)}
+          onClick={() => setCurrentView("advanced")}
         >
           All Settings
         </Button>
@@ -307,7 +306,6 @@ const SettingsPage = () => {
             {currentView === "appearance" && "Appearance Settings"}
             {currentView === "editor" && "Editor Settings"}
             {currentView === "explorer" && "Explorer Settings"}
-            {currentView === "fonts" && "Font Settings"}
           </h1>
           <div className="flex items-center gap-2">
             <Button variant="default" onClick={() => actions.openFolderDialog()}>

@@ -210,18 +210,21 @@ export function WebviewPanel({ viewId, className }: WebviewPanelProps) {
   useEffect(() => {
     if (!isReady || !iframeRef.current?.contentWindow) return;
 
+    // Compute effective mode
+    const effectiveMode = themeState.userPreference === 'system' ? themeState.systemTheme : themeState.userPreference;
+
     iframeRef.current.contentWindow.postMessage(
       {
         target: 'webview',
         command: 'theme-changed',
         data: {
           theme: themeState.currentTheme,
-          mode: themeState.mode,
+          mode: effectiveMode,
         },
       },
       '*'
     );
-  }, [themeState.currentTheme, themeState.mode, isReady]);
+  }, [themeState.currentTheme, themeState.userPreference, themeState.systemTheme, isReady]);
 
   if (!panel) {
     return (
@@ -262,7 +265,7 @@ export function WebviewPanel({ viewId, className }: WebviewPanelProps) {
   const htmlWithAPI = injectVSCodeAPI(panel.html, viewId);
 
   // Create iframe srcDoc with proper CSP and theme
-  const srcDoc = createSrcDoc(htmlWithAPI, panel.enableScripts, themeState.currentTheme);
+  const srcDoc = createSrcDoc(htmlWithAPI, panel.enableScripts, themeState.currentTheme.name);
 
   return (
     <div className={cn('flex flex-col h-full w-full bg-background', className)}>
