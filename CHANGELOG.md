@@ -2,6 +2,19 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.19] - 2026-01-05
+
+### Fixed
+- **#TypeScript Compilation**: Fixed 14 TypeScript compilation errors causing build failures
+  - `chatbotAPI.ts`: Fixed FileNode type mismatch in `showTextDocument` (added `is_directory` property), removed unused variables and function parameters
+  - `ExtensionSandbox.ts`: Prefixed unused loop variable with underscore to satisfy TS6133
+  - `VSCodeAPIShim.ts`: Removed unused `RangeClass` and `PositionClass` variable declarations
+  - `OptimizedLSPClient.ts`: Removed unused `Diagnostic` type from imports
+  - `notificationStore.ts`: Fixed circular type reference in `notificationActions` by inlining option types, removed unused `storeState` variable
+  - `panelStore.ts`: Prefixed unused `prev` parameter with underscore in `showPanel` function
+
+---
+
 ## [v0.1.18] - 2026-01-05
 
 ### Fixed
