@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -45,6 +46,7 @@ pub struct TerminalSession {
     pub child: Arc<Mutex<Option<Box<dyn Child + Send + Sync>>>>,
     pub shell_cmd: String,
     pub state: Arc<Mutex<SessionState>>,
+    pub shutdown: Arc<AtomicBool>,
     pub created_at: u64,
     pub cwd: Option<String>,
 }
@@ -75,7 +77,7 @@ use uuid::Uuid;
 fn default_shell() -> String {
     #[cfg(target_os = "windows")]
     {
-        // Preferir PowerShell en Windows; si falla, se hará fallback a cmd.exe
+        // Prefer PowerShell on Windows; fallback to cmd.exe if it fails
         "powershell.exe".to_string()
     }
     #[cfg(not(target_os = "windows"))]
@@ -160,7 +162,7 @@ fn detect_available_shells() -> Vec<ShellProfile> {
 fn get_default_cwd() -> Option<String> {
     #[cfg(target_os = "windows")]
     {
-        // Directorio por defecto: home del usuario en Windows
+        // Default directory: user home on Windows
         home_dir().map(|p| p.to_string_lossy().to_string())
     }
     #[cfg(not(target_os = "windows"))]
@@ -169,6 +171,36 @@ fn get_default_cwd() -> Option<String> {
             .ok()
             .or_else(|| dirs::home_dir().map(|p| p.to_string_lossy().to_string()))
     }
+}
+
+/// Gracefully terminate a child process with SIGTERM fallback to SIGKILL
+fn terminate_child_gracefully(child: &mut Box<dyn Child + Send + Sync>) {
+    // Try graceful termination first on Unix
+    #[cfg(unix)]
+    {
+        if let Some(pid) = child.process_id() {
+            // Send SIGTERM for graceful shutdown
+            unsafe {
+                libc::kill(pid as i32, libc::SIGTERM);
+            }
+        }
+        // Wait briefly for graceful exit
+        thread::sleep(Duration::from_millis(50));
+
+        // Check if still running, then force kill
+        if child.try_wait().ok().flatten().is_none() {
+            let _ = child.kill();
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        // On Windows, just kill directly
+        let _ = child.kill();
+    }
+
+    // Wait for the process to fully exit
+    let _ = child.wait();
 }
 
 #[tauri::command]
@@ -198,7 +230,7 @@ pub fn terminal_create(
 
     let mut cmd = CommandBuilder::new(&shell_cmd);
 
-    // Directorio de trabajo con fallback
+    // Working directory with fallback
     let working_dir = cwd.or_else(get_default_cwd);
     if let Some(dir) = working_dir.as_ref() {
         cmd.cwd(dir);
@@ -206,7 +238,7 @@ pub fn terminal_create(
 
     #[cfg(target_os = "windows")]
     {
-        // Variables de entorno para mejor comportamiento en Windows
+        // Environment variables for better Windows terminal behavior
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
     }
@@ -216,7 +248,7 @@ pub fn terminal_create(
         Err(err) => {
             #[cfg(target_os = "windows")]
             {
-                // Fallback a cmd.exe si PowerShell falla
+                // Fallback to cmd.exe if PowerShell fails
                 let mut cmd_fb = CommandBuilder::new("cmd.exe");
                 if let Some(dir) = working_dir.as_ref() {
                     cmd_fb.cwd(dir);
@@ -236,13 +268,13 @@ pub fn terminal_create(
 
     let id = Uuid::new_v4().to_string();
 
-    // Clonar reader del master para el hilo en background
+    // Clone reader from master for background thread
     let mut reader = pair
         .master
         .try_clone_reader()
         .map_err(|e| format!("failed to clone reader: {e}"))?;
 
-    // Obtener writer (stdin del hijo)
+    // Get writer (stdin of child)
     let writer = pair
         .master
         .take_writer()
@@ -251,24 +283,26 @@ pub fn terminal_create(
     let writer_arc = Arc::new(Mutex::new(writer));
     let child_arc = Arc::new(Mutex::new(Some(child)));
     let state_arc = Arc::new(Mutex::new(SessionState::Starting));
+    let shutdown_arc = Arc::new(AtomicBool::new(false));
 
     let created_at = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
 
-    // Hilo en background enviando datos al frontend
+    // Background thread sending data to frontend
     let app_handle = app.clone();
     let session_id = id.clone();
     let state_clone = state_arc.clone();
     let child_clone = child_arc.clone();
+    let shutdown_clone = shutdown_arc.clone();
     let sessions_ref = state.sessions.clone();
 
     thread::spawn(move || {
-        // Dar un momento al shell para inicializar
-        thread::sleep(Duration::from_millis(100));
+        // Give shell a moment to initialize
+        thread::sleep(Duration::from_millis(50));
 
-        // Marcar como activo
+        // Mark as active
         {
             if let Ok(mut s) = state_clone.lock() {
                 *s = SessionState::Active;
@@ -283,10 +317,18 @@ pub fn terminal_create(
         }
 
         let mut buf = [0u8; 8192];
+        let mut consecutive_errors: u32 = 0;
+        const MAX_CONSECUTIVE_ERRORS: u32 = 5;
+
         loop {
+            // Check shutdown flag first
+            if shutdown_clone.load(Ordering::SeqCst) {
+                break;
+            }
+
             match reader.read(&mut buf) {
                 Ok(0) => {
-                    // EOF; el hijo terminó
+                    // EOF - child terminated
                     {
                         if let Ok(mut s) = state_clone.lock() {
                             *s = SessionState::Exited;
@@ -304,6 +346,7 @@ pub fn terminal_create(
                     break;
                 }
                 Ok(n) => {
+                    consecutive_errors = 0; // Reset error counter on success
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
                     let payload = TerminalDataEvent {
                         id: session_id.clone(),
@@ -311,24 +354,49 @@ pub fn terminal_create(
                     };
                     let _ = app_handle.emit("terminal/data", payload);
                 }
-                Err(err) => {
-                    {
-                        if let Ok(mut s) = state_clone.lock() {
-                            *s = SessionState::Error;
-                        }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    // Non-blocking read returned no data, sleep briefly and retry
+                    if shutdown_clone.load(Ordering::SeqCst) {
+                        break;
                     }
-                    let _ = app_handle.emit(
-                        "terminal/error",
-                        serde_json::json!({ "id": session_id, "error": err.to_string() }),
-                    );
-                    let _ = app_handle.emit(
-                        "terminal/state",
-                        TerminalStateEvent {
-                            id: session_id.clone(),
-                            state: SessionState::Error,
-                        },
-                    );
-                    break;
+                    thread::sleep(Duration::from_millis(10));
+                    continue;
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {
+                    // Interrupted by signal, just retry
+                    if shutdown_clone.load(Ordering::SeqCst) {
+                        break;
+                    }
+                    continue;
+                }
+                Err(err) => {
+                    consecutive_errors += 1;
+
+                    // Only emit error if we've exceeded threshold or shutdown requested
+                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS
+                        || shutdown_clone.load(Ordering::SeqCst)
+                    {
+                        {
+                            if let Ok(mut s) = state_clone.lock() {
+                                *s = SessionState::Error;
+                            }
+                        }
+                        let _ = app_handle.emit(
+                            "terminal/error",
+                            serde_json::json!({ "id": session_id, "error": err.to_string() }),
+                        );
+                        let _ = app_handle.emit(
+                            "terminal/state",
+                            TerminalStateEvent {
+                                id: session_id.clone(),
+                                state: SessionState::Error,
+                            },
+                        );
+                        break;
+                    }
+
+                    // Brief sleep before retry on transient errors
+                    thread::sleep(Duration::from_millis(10));
                 }
             }
         }
@@ -336,12 +404,12 @@ pub fn terminal_create(
         // Cleanup child process on exit
         if let Ok(mut child_opt) = child_clone.lock() {
             if let Some(mut child) = child_opt.take() {
-                let _ = child.wait();
+                terminate_child_gracefully(&mut child);
             }
         }
 
-        // Auto-remove session after exit
-        thread::sleep(Duration::from_secs(2));
+        // Reduced delay before auto-cleanup (500ms instead of 2s)
+        thread::sleep(Duration::from_millis(500));
         if let Ok(mut sessions) = sessions_ref.lock() {
             sessions.remove(&session_id);
         }
@@ -358,6 +426,7 @@ pub fn terminal_create(
                 child: child_arc,
                 shell_cmd: shell_cmd.clone(),
                 state: state_arc,
+                shutdown: shutdown_arc,
                 created_at,
                 cwd: working_dir,
             },
@@ -410,19 +479,23 @@ pub fn terminal_resize(
 
 #[tauri::command]
 pub fn terminal_kill(state: State<TerminalState>, id: String) -> Result<(), String> {
-    let mut sessions = state.sessions.lock().map_err(|_| "lock poisoned")?;
-    let session = sessions
-        .remove(&id)
-        .ok_or_else(|| format!("unknown session: {id}"))?;
+    let session = {
+        let mut sessions = state.sessions.lock().map_err(|_| "lock poisoned")?;
+        sessions
+            .remove(&id)
+            .ok_or_else(|| format!("unknown session: {id}"))?
+    };
 
-    // Properly terminate child process
+    // Signal shutdown to reader thread first
+    session.shutdown.store(true, Ordering::SeqCst);
+
+    // Properly terminate child process with graceful shutdown
     if let Ok(mut child_opt) = session.child.lock() {
         if let Some(mut child) = child_opt.take() {
-            let _ = child.kill();
+            terminate_child_gracefully(&mut child);
         }
     }
 
-    // Al soltar la sesión, el shell termina
     drop(session);
     Ok(())
 }
@@ -491,7 +564,7 @@ pub fn terminal_init_profiles(state: State<TerminalState>) -> Result<Vec<ShellPr
     Ok(detected)
 }
 
-/// Cambiar el directorio de trabajo de una sesión existente
+/// Change the working directory of an existing session
 #[tauri::command]
 pub fn terminal_change_directory(
     state: State<TerminalState>,
@@ -509,7 +582,7 @@ pub fn terminal_change_directory(
         if shell.contains("cmd.exe") || shell.contains("\\cmd.exe") {
             format!("cd /d \"{}\"\r", path)
         } else {
-            // PowerShell/pwsh soporte: cd cambia también de unidad
+            // PowerShell/pwsh support: cd also changes drive
             format!("cd \"{}\"\r", path)
         }
     };

@@ -2,6 +2,23 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.16] - 2026-01-05
+
+### Improved
+- **Terminal Backend Stability**: Major overhaul of native Rust terminal system to fix crashes and connection instability
+  - Added atomic shutdown flags for graceful thread termination
+  - Replaced `Mutex` with `RwLock` for better concurrency on read-heavy operations
+  - Implemented graceful child process termination with SIGTERM before SIGKILL (Unix)
+  - Added transient error retry logic with consecutive error counter
+  - Reduced cleanup delay from 2s to 500ms for faster session cleanup
+  - Improved error handling for `WouldBlock` and `Interrupted` I/O errors
+  - Reader thread now checks shutdown flag before each operation
+
+### Technical
+- Added `libc` dependency for Unix platforms (graceful SIGTERM handling)
+
+---
+
 ## [v0.1.15] - 2026-01-04
 
 ### Improved
