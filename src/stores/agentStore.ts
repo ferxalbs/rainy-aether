@@ -139,7 +139,7 @@ export const agentActions = {
    */
   createSession(
     name: string,
-    model: string = 'gemini-2.5-flash-lite',
+    model: string = 'gemini-flash-latest',  // Gemini 3 Flash (default for Auto mode)
     systemPrompt: string = DEFAULT_SYSTEM_PROMPT
   ): string {
     const sessionId = crypto.randomUUID();

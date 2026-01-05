@@ -2,6 +2,17 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.15] - 2026-01-04
+
+### Improved
+- **Subagent Auto-Return**: After a subagent completes its task, automatically returns to Auto mode
+  - Subsequent messages use the main agent with Gemini 3 Flash
+  - Conversation stays in the same chat session
+- **Default Model → Gemini 3 Flash**: Auto mode now uses `gemini-3-flash-preview` (Gemini 3 Flash)
+  - Previously used `gemini-2.5-flash-lite` which was slower and less capable
+
+---
+
 ## [v0.1.14] - 2026-01-04
 
 ### Fixed

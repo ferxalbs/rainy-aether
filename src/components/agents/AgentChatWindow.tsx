@@ -629,7 +629,10 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
                         timestamp: new Date(),
                     };
                     agentActions.addMessage(activeSession.id, agentMessage);
-                    console.log(`[AgentChat] Subagent ${data.agentName} responded with model ${data.model}`);
+
+                    // Hand off to main agent - reset subagent selector to Auto
+                    setSelectedSubagent(null);
+                    console.log(`[AgentChat] Subagent ${data.agentName} completed, returning to Auto mode`);
                 } else {
                     // Show error
                     const errorMessage: import('@/types/chat').ChatMessage = {
