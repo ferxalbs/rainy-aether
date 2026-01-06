@@ -2,11 +2,23 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.26] - 2026-01-06
+
+### Improved
+
+- **Enhanced Agent UI**: Complete overhaul of the agent chat and sidebar aesthetics
+  - Wrapped user messages in glassmorphic cards for better visual distinction
+  - Refactored chat input with a modern circular send button and Arrow icon
+  - Made the model/version selector more compact for improved readability
+  - Applied `backdrop-blur-3xl` and `bg-background/10` to the sidebar and input containers
+  - Enhanced sidebar session items and agent grid with premium glassmorphism effects
+  - Removed redundant "Search" button from the main chat input
+
 ## [v0.1.25] - 2026-01-05
 
 ### Fixed
 
-- **#1 [Fixes] Agent Server Health Check**: Fixed "Server started but health check failed" error
+- **Agent Server Health Check**: Fixed "Server started but health check failed" error
   - Removed incorrect `--watch` flag from dev script (was preventing server from running)
   - Added retry logic with 10 attempts and 2s initial delay for health check
   - Improved Rust shell command to use `current_dir()` instead of relying on `cd` in npm script
@@ -14,7 +26,7 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 
 ### Improved
 
-- **#2 [Improvements] Sidecar Capability**: Added proper sidecar scope to shell capabilities
+- **Sidecar Capability**: Added proper sidecar scope to shell capabilities
   - `shell:allow-execute` now includes `"sidecar": true` for `rainy-agents-server`
   - Required for Tauri v2 to allow sidecar execution in production
 
