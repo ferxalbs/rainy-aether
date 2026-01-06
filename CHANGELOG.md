@@ -2,6 +2,19 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.24] - 2026-01-05
+
+### Fixed
+
+- **#1 [Fixes] CI/CD Sidecar Build v2**: Further fixes for sidecar binary build failures in GitHub Actions
+  - Changed from relative paths (`../../../`) to absolute paths using `$GITHUB_WORKSPACE`
+  - Added `pkg-fetch` pre-fetch step to download Node.js binaries before packaging
+  - Added `ls -la dist/` verification after TypeScript bundling
+  - Added explicit path logging to help diagnose path issues in CI
+  - Improved Windows PowerShell script with `Set-Location` instead of `cd`
+
+---
+
 ## [v0.1.23] - 2026-01-05
 
 ### Fixed

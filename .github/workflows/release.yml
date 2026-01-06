@@ -86,17 +86,41 @@ jobs:
         shell: bash
         run: |
           set -ex
-          cd src/services/agents/server
+
+          # Setup paths
+          BINARIES_DIR="${GITHUB_WORKSPACE}/src-tauri/binaries"
+          SERVER_DIR="${GITHUB_WORKSPACE}/src/services/agents/server"
+          BINARY_NAME="rainy-agents-server-aarch64-apple-darwin"
+
           echo "=== Building sidecar for macOS ARM64 ==="
+          echo "Binaries dir: ${BINARIES_DIR}"
+          echo "Server dir: ${SERVER_DIR}"
+
+          cd "${SERVER_DIR}"
+
+          # Step 1: Bundle TypeScript
           echo "Step 1: Bundle TypeScript..."
           pnpm bundle
-          echo "Step 2: Package binary with pkg..."
-          pnpm exec pkg dist/index.cjs -t node20-macos-arm64 -o ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin --debug
-          echo "Step 3: Verify binary..."
-          ls -la ../../../src-tauri/binaries/
-          file ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin || true
-          test -f ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin
-          chmod +x ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin
+          ls -la dist/
+
+          # Step 2: Pre-fetch pkg cache for target platform
+          echo "Step 2: Pre-fetch pkg Node.js binaries..."
+          pnpm exec pkg-fetch node20 macos arm64 || echo "pkg-fetch failed, continuing..."
+
+          # Step 3: Package binary with pkg
+          echo "Step 3: Package binary with pkg..."
+          pnpm exec pkg dist/index.cjs \
+            --target node20-macos-arm64 \
+            --output "${BINARIES_DIR}/${BINARY_NAME}" \
+            --debug
+
+          # Step 4: Verify binary
+          echo "Step 4: Verify binary..."
+          ls -la "${BINARIES_DIR}/"
+          file "${BINARIES_DIR}/${BINARY_NAME}" || echo "file command failed"
+          test -f "${BINARIES_DIR}/${BINARY_NAME}" || (echo "ERROR: Binary not created!" && exit 1)
+          chmod +x "${BINARIES_DIR}/${BINARY_NAME}"
+
           echo "=== Sidecar build complete ==="
 
       - name: Build agent server sidecar (macOS x64)
@@ -104,17 +128,41 @@ jobs:
         shell: bash
         run: |
           set -ex
-          cd src/services/agents/server
+
+          # Setup paths
+          BINARIES_DIR="${GITHUB_WORKSPACE}/src-tauri/binaries"
+          SERVER_DIR="${GITHUB_WORKSPACE}/src/services/agents/server"
+          BINARY_NAME="rainy-agents-server-x86_64-apple-darwin"
+
           echo "=== Building sidecar for macOS x64 ==="
+          echo "Binaries dir: ${BINARIES_DIR}"
+          echo "Server dir: ${SERVER_DIR}"
+
+          cd "${SERVER_DIR}"
+
+          # Step 1: Bundle TypeScript
           echo "Step 1: Bundle TypeScript..."
           pnpm bundle
-          echo "Step 2: Package binary with pkg..."
-          pnpm exec pkg dist/index.cjs -t node20-macos-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin --debug
-          echo "Step 3: Verify binary..."
-          ls -la ../../../src-tauri/binaries/
-          file ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin || true
-          test -f ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin
-          chmod +x ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin
+          ls -la dist/
+
+          # Step 2: Pre-fetch pkg cache for target platform
+          echo "Step 2: Pre-fetch pkg Node.js binaries..."
+          pnpm exec pkg-fetch node20 macos x64 || echo "pkg-fetch failed, continuing..."
+
+          # Step 3: Package binary with pkg
+          echo "Step 3: Package binary with pkg..."
+          pnpm exec pkg dist/index.cjs \
+            --target node20-macos-x64 \
+            --output "${BINARIES_DIR}/${BINARY_NAME}" \
+            --debug
+
+          # Step 4: Verify binary
+          echo "Step 4: Verify binary..."
+          ls -la "${BINARIES_DIR}/"
+          file "${BINARIES_DIR}/${BINARY_NAME}" || echo "file command failed"
+          test -f "${BINARIES_DIR}/${BINARY_NAME}" || (echo "ERROR: Binary not created!" && exit 1)
+          chmod +x "${BINARIES_DIR}/${BINARY_NAME}"
+
           echo "=== Sidecar build complete ==="
 
       - name: Build agent server sidecar (Linux)
@@ -122,17 +170,41 @@ jobs:
         shell: bash
         run: |
           set -ex
-          cd src/services/agents/server
+
+          # Setup paths
+          BINARIES_DIR="${GITHUB_WORKSPACE}/src-tauri/binaries"
+          SERVER_DIR="${GITHUB_WORKSPACE}/src/services/agents/server"
+          BINARY_NAME="rainy-agents-server-x86_64-unknown-linux-gnu"
+
           echo "=== Building sidecar for Linux x64 ==="
+          echo "Binaries dir: ${BINARIES_DIR}"
+          echo "Server dir: ${SERVER_DIR}"
+
+          cd "${SERVER_DIR}"
+
+          # Step 1: Bundle TypeScript
           echo "Step 1: Bundle TypeScript..."
           pnpm bundle
-          echo "Step 2: Package binary with pkg..."
-          pnpm exec pkg dist/index.cjs -t node20-linux-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu --debug
-          echo "Step 3: Verify binary..."
-          ls -la ../../../src-tauri/binaries/
-          file ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu || true
-          test -f ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu
-          chmod +x ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu
+          ls -la dist/
+
+          # Step 2: Pre-fetch pkg cache for target platform
+          echo "Step 2: Pre-fetch pkg Node.js binaries..."
+          pnpm exec pkg-fetch node20 linux x64 || echo "pkg-fetch failed, continuing..."
+
+          # Step 3: Package binary with pkg
+          echo "Step 3: Package binary with pkg..."
+          pnpm exec pkg dist/index.cjs \
+            --target node20-linux-x64 \
+            --output "${BINARIES_DIR}/${BINARY_NAME}" \
+            --debug
+
+          # Step 4: Verify binary
+          echo "Step 4: Verify binary..."
+          ls -la "${BINARIES_DIR}/"
+          file "${BINARIES_DIR}/${BINARY_NAME}" || echo "file command failed"
+          test -f "${BINARIES_DIR}/${BINARY_NAME}" || (echo "ERROR: Binary not created!" && exit 1)
+          chmod +x "${BINARIES_DIR}/${BINARY_NAME}"
+
           echo "=== Sidecar build complete ==="
 
       - name: Build agent server sidecar (Windows)
@@ -141,18 +213,39 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $VerbosePreference = "Continue"
-          cd src/services/agents/server
+
+          # Setup paths
+          $BINARIES_DIR = "$env:GITHUB_WORKSPACE\src-tauri\binaries"
+          $SERVER_DIR = "$env:GITHUB_WORKSPACE\src\services\agents\server"
+          $BINARY_NAME = "rainy-agents-server-x86_64-pc-windows-msvc.exe"
+
           Write-Host "=== Building sidecar for Windows x64 ===" -ForegroundColor Green
+          Write-Host "Binaries dir: $BINARIES_DIR"
+          Write-Host "Server dir: $SERVER_DIR"
+
+          Set-Location $SERVER_DIR
+
+          # Step 1: Bundle TypeScript
           Write-Host "Step 1: Bundle TypeScript..."
           pnpm bundle
-          if ($LASTEXITCODE -ne 0) { throw "Bundle failed" }
-          Write-Host "Step 2: Package binary with pkg..."
-          pnpm exec pkg dist/index.cjs -t node20-win-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-pc-windows-msvc.exe --debug
-          if ($LASTEXITCODE -ne 0) { throw "pkg failed" }
-          Write-Host "Step 3: Verify binary..."
-          Get-ChildItem ../../../src-tauri/binaries/
-          if (-not (Test-Path "../../../src-tauri/binaries/rainy-agents-server-x86_64-pc-windows-msvc.exe")) {
-            throw "ERROR: Binary not found!"
+          if ($LASTEXITCODE -ne 0) { throw "Bundle failed with exit code $LASTEXITCODE" }
+          Get-ChildItem dist/
+
+          # Step 2: Pre-fetch pkg cache for target platform
+          Write-Host "Step 2: Pre-fetch pkg Node.js binaries..."
+          pnpm exec pkg-fetch node20 win x64
+          # Don't fail if pkg-fetch is not available
+
+          # Step 3: Package binary with pkg
+          Write-Host "Step 3: Package binary with pkg..."
+          pnpm exec pkg dist/index.cjs --target node20-win-x64 --output "$BINARIES_DIR\$BINARY_NAME" --debug
+          if ($LASTEXITCODE -ne 0) { throw "pkg failed with exit code $LASTEXITCODE" }
+
+          # Step 4: Verify binary
+          Write-Host "Step 4: Verify binary..."
+          Get-ChildItem $BINARIES_DIR
+          if (-not (Test-Path "$BINARIES_DIR\$BINARY_NAME")) {
+            throw "ERROR: Binary not created!"
           }
           Write-Host "=== Sidecar build complete ===" -ForegroundColor Green
 
