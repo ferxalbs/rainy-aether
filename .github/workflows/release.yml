@@ -17,7 +17,7 @@ jobs:
             args: "--target aarch64-apple-darwin"
             target: "darwin"
             arch: "aarch64"
-          - platform: "macos-13"
+          - platform: "macos-15"
             args: "--target x86_64-apple-darwin"
             target: "darwin"
             arch: "x86_64"
@@ -54,7 +54,7 @@ jobs:
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.platform == 'macos-15' && 'x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -69,8 +69,17 @@ jobs:
           cd src/services/agents/server
           pnpm install
 
-      - name: Create binaries directory
+      - name: Create binaries directory (Unix)
+        if: matrix.target != 'windows'
         run: mkdir -p src-tauri/binaries
+
+      - name: Create binaries directory (Windows)
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "src-tauri/binaries")) {
+            New-Item -ItemType Directory -Path "src-tauri/binaries" -Force
+          }
 
       - name: Build agent server sidecar (macOS arm64)
         if: matrix.target == 'darwin' && matrix.arch == 'aarch64'
