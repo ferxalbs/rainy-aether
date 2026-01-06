@@ -16,6 +16,9 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 
 - **#Linux Build Error**: Fixed temporary value borrow error in `window_manager.rs` that caused compilation failure on Linux
   - Pre-created `xterm_cmd` binding before vector declaration to extend lifetime
+- **#macOS x64 Build Error**: Fixed sidecar build failure on macOS x64
+  - Changed macOS x64 builds to use `macos-13` (Intel) runner for native pkg compilation
+  - pkg cannot cross-compile between ARM64 and x86_64
 
 ---
 
