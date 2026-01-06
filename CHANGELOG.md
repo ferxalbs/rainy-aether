@@ -2,6 +2,24 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.25] - 2026-01-05
+
+### Fixed
+
+- **#1 [Fixes] Agent Server Health Check**: Fixed "Server started but health check failed" error
+  - Removed incorrect `--watch` flag from dev script (was preventing server from running)
+  - Added retry logic with 10 attempts and 2s initial delay for health check
+  - Improved Rust shell command to use `current_dir()` instead of relying on `cd` in npm script
+  - Health check now logs each attempt for better debugging
+
+### Improved
+
+- **#2 [Improvements] Sidecar Capability**: Added proper sidecar scope to shell capabilities
+  - `shell:allow-execute` now includes `"sidecar": true` for `rainy-agents-server`
+  - Required for Tauri v2 to allow sidecar execution in production
+
+---
+
 ## [v0.1.24] - 2026-01-05
 
 ### Fixed

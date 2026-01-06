@@ -131,9 +131,26 @@ export async function startAgentServer(): Promise<number> {
     try {
         const port = await invoke<number>('agent_server_start');
 
-        // Wait a bit for server to boot, then check health
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const isHealthy = await checkServerHealth(port);
+        // Wait for server to boot with retry logic
+        // Server needs time to: bundle TypeScript + start Node
+        console.log('[AgentServer] Waiting for server to boot...');
+        
+        let isHealthy = false;
+        const maxRetries = 10;
+        const retryDelay = 1000;
+        
+        // Initial delay to let bundling complete
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            isHealthy = await checkServerHealth(port);
+            if (isHealthy) {
+                console.log(`[AgentServer] Health check passed on attempt ${attempt}`);
+                break;
+            }
+            console.log(`[AgentServer] Health check attempt ${attempt}/${maxRetries} failed, retrying...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
 
         if (isHealthy) {
             setStatus({
@@ -143,6 +160,8 @@ export async function startAgentServer(): Promise<number> {
                 inngest_endpoint: `http://localhost:${port}/api/inngest`,
                 mode: 'tauri',
             });
+        } else {
+            console.warn('[AgentServer] Server started but health check failed after retries');
         }
 
         console.log('[AgentServer] Started via Tauri on port', port);

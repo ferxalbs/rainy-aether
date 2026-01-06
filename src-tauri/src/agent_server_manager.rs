@@ -60,11 +60,28 @@ pub async fn agent_server_start(app: AppHandle) -> Result<u16, String> {
     #[cfg(debug_assertions)]
     {
         // Development mode: use pnpm to run the agent server
-        // The command runs from the project root
+        // Cargo runs from src-tauri directory, so we need to go up one level to project root
+        let cargo_dir =
+            std::env::current_dir().map_err(|e| format!("Failed to get current dir: {}", e))?;
+        let project_root = cargo_dir
+            .parent()
+            .ok_or_else(|| "Failed to get parent of src-tauri".to_string())?;
+
+        let server_dir = project_root.join("src/services/agents/server");
+
+        println!("[AgentServer] Project root: {:?}", project_root);
+        println!("[AgentServer] Server dir: {:?}", server_dir);
+
+        // Verify the directory exists
+        if !server_dir.exists() {
+            return Err(format!("Server directory does not exist: {:?}", server_dir));
+        }
+
         let command = app
             .shell()
             .command("pnpm")
-            .args(["agent:dev"])
+            .args(["dev"])
+            .current_dir(&server_dir)
             .env("INNGEST_PORT", port.to_string());
 
         match command.spawn() {
