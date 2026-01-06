@@ -288,3 +288,33 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
 pub fn get_app_version(app: AppHandle) -> Result<String, String> {
     Ok(app.package_info().version.to_string())
 }
+
+/// Restart the application (typically after an update)
+#[tauri::command]
+pub async fn restart_app(app: AppHandle) -> Result<(), String> {
+    use std::process::Command;
+
+    // Get the current executable path
+    let current_exe = std::env::current_exe()
+        .map_err(|e| format!("Failed to get current executable path: {}", e))?;
+
+    // Spawn a new instance before exiting
+    #[cfg(target_os = "windows")]
+    {
+        Command::new(&current_exe)
+            .spawn()
+            .map_err(|e| format!("Failed to restart application: {}", e))?;
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        Command::new(&current_exe)
+            .spawn()
+            .map_err(|e| format!("Failed to restart application: {}", e))?;
+    }
+
+    // Exit the current instance
+    app.exit(0);
+
+    Ok(())
+}

@@ -393,6 +393,7 @@ pub fn run() {
         update_manager::check_for_updates,
         update_manager::install_update,
         update_manager::get_app_version,
+        update_manager::restart_app,
         // Language Server Protocol
         language_server_manager::lsp_start_server,
         language_server_manager::lsp_stop_server,

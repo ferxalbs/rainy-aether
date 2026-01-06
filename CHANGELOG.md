@@ -2,6 +2,39 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.27] - 2026-01-06
+
+### Added
+
+- **#1 [Improvements] Update Modal System**: Complete modal-based update flow for a cleaner UX
+
+  - New `UpdateModal.tsx` with step-based states: Checking → Available → Downloading → Installing → Ready
+  - Glassmorphism styling using `bg-background/10 backdrop-blur-3xl backdrop-saturate-150`
+  - Progress bar with real-time download percentage
+  - Collapsible release notes section
+  - "Restart Now" and "Later" buttons after installation
+
+- **#2 [Improvements] Refactored Update Notification**: Converted from floating card to minimal toast
+
+  - Shows "Update available: v{version}" with "View Details" button
+  - Opens full modal for detailed information and actions
+
+- **#3 [Improvements] Help Menu Integration**: Added "Check for Updates…" to Help menu
+
+  - Works on both native macOS menu and cross-platform Menubar
+
+- **#4 [Improvements] Command Palette Integration**: Added "Application: Check for Updates" command
+  - Accessible via Cmd+Shift+P → search "updates"
+
+### Technical
+
+- Added `restart_app` Rust command to `update_manager.rs` for clean application restart
+- Enhanced `updateStore.ts` with modal state: `isModalOpen`, `updateStep`, `openModal()`, `closeModal()`
+- Added `openUpdateModal()` helper to `updateService.ts`
+- Registered `restart_app` in `lib.rs` invoke handler
+
+---
+
 ## [v0.1.26] - 2026-01-06
 
 ### Improved

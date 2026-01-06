@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useIDEStore } from "../../stores/ideStore";
 import {
   Search,
@@ -13,11 +19,17 @@ import {
   Command,
   Server,
   Sparkles,
+  Download,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { toggleDayNight, useThemeState, isExtensionThemeActive } from "../../stores/themeStore";
+import {
+  toggleDayNight,
+  useThemeState,
+  isExtensionThemeActive,
+} from "../../stores/themeStore";
 import { editorActions } from "../../stores/editorStore";
 import { editorGroupActions } from "../../stores/editorGroupStore";
+import { openUpdateModal } from "../../services/updateService";
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -32,7 +44,17 @@ type CommandItem = {
   title: string;
   hint?: string;
   run: () => void;
-  icon?: "settings" | "folder" | "save" | "palette" | "moon" | "sun" | "fileplus" | "server" | "sparkles";
+  icon?:
+    | "settings"
+    | "folder"
+    | "save"
+    | "palette"
+    | "moon"
+    | "sun"
+    | "fileplus"
+    | "server"
+    | "sparkles"
+    | "download";
   disabled?: boolean;
 };
 
@@ -44,7 +66,13 @@ function matchScore(query: string, title: string): number {
   return -1;
 }
 
-const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpenThemeSwitcher, onOpenMCPManager, onOpenSubagentManager }) => {
+const CommandPalette: React.FC<CommandPaletteProps> = ({
+  isOpen,
+  onClose,
+  onOpenThemeSwitcher,
+  onOpenMCPManager,
+  onOpenSubagentManager,
+}) => {
   const { actions, state } = useIDEStore();
   const theme = useThemeState();
 
@@ -54,7 +82,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
 
   const getActiveFile = useCallback(() => {
     const snapshot = state();
-    return snapshot.openFiles.find((file) => file.id === snapshot.activeFileId) ?? null;
+    return (
+      snapshot.openFiles.find((file) => file.id === snapshot.activeFileId) ??
+      null
+    );
   }, [state]);
 
   const allCommands = useMemo<CommandItem[]>(
@@ -119,8 +150,12 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
       },
       {
         id: "toggle-theme",
-        title: `Switch to ${theme.currentTheme.mode === "day" ? "Night" : "Day"} Mode`,
-        hint: isExtensionThemeActive() ? "(Disabled - Extension theme active)" : undefined,
+        title: `Switch to ${
+          theme.currentTheme.mode === "day" ? "Night" : "Day"
+        } Mode`,
+        hint: isExtensionThemeActive()
+          ? "(Disabled - Extension theme active)"
+          : undefined,
         run: () => toggleDayNight(),
         icon: theme.currentTheme.mode === "day" ? "moon" : "sun",
         disabled: isExtensionThemeActive(),
@@ -264,8 +299,22 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
         title: "Toggle Zen Mode",
         run: () => actions.toggleZenMode(),
       },
+      // Application commands
+      {
+        id: "check-updates",
+        title: "Application: Check for Updates",
+        run: () => openUpdateModal(),
+        icon: "download",
+      },
     ],
-    [actions, getActiveFile, onOpenThemeSwitcher, onOpenMCPManager, onOpenSubagentManager, theme.currentTheme.mode],
+    [
+      actions,
+      getActiveFile,
+      onOpenThemeSwitcher,
+      onOpenMCPManager,
+      onOpenSubagentManager,
+      theme.currentTheme.mode,
+    ]
   );
 
   const filteredCommands = useMemo(() => {
@@ -274,9 +323,9 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
       .filter((entry) => entry.score >= 0 || query === "")
       .sort((a, b) => b.score - a.score);
 
-    const items = (query ? scored : allCommands.map((command) => ({ command, score: 0 }))).map(
-      (entry) => entry.command,
-    );
+    const items = (
+      query ? scored : allCommands.map((command) => ({ command, score: 0 }))
+    ).map((entry) => entry.command);
     return items.slice(0, 50);
   }, [allCommands, query]);
 
@@ -290,7 +339,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
     if (filteredCommands.length === 0) {
       return;
     }
-    const index = Math.max(0, Math.min(selectedIndex, filteredCommands.length - 1));
+    const index = Math.max(
+      0,
+      Math.min(selectedIndex, filteredCommands.length - 1)
+    );
     const command = filteredCommands[index];
 
     // Don't run disabled commands
@@ -316,7 +368,9 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
 
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        setSelectedIndex((index) => Math.min(index + 1, Math.max(0, filteredCommands.length - 1)));
+        setSelectedIndex((index) =>
+          Math.min(index + 1, Math.max(0, filteredCommands.length - 1))
+        );
         return;
       }
 
@@ -347,7 +401,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
   }, [isOpen]);
 
   const renderIcon = useCallback((icon?: CommandItem["icon"]) => {
-    const sharedProps = { size: 18, className: "opacity-70 group-hover:opacity-100 transition-opacity" };
+    const sharedProps = {
+      size: 18,
+      className: "opacity-70 group-hover:opacity-100 transition-opacity",
+    };
     switch (icon) {
       case "settings":
         return <SettingsIcon {...sharedProps} />;
@@ -367,6 +424,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
         return <Server {...sharedProps} />;
       case "sparkles":
         return <Sparkles {...sharedProps} />;
+      case "download":
+        return <Download {...sharedProps} />;
       default:
         return <Command {...sharedProps} />;
     }
@@ -401,7 +460,9 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
               className="flex-1 bg-transparent outline-none text-base placeholder:text-muted-foreground/60 text-foreground"
             />
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground/50 bg-background/20 px-1.5 py-0.5 rounded border border-border/20">ESC</span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground/50 bg-background/20 px-1.5 py-0.5 rounded border border-border/20">
+                ESC
+              </span>
             </div>
           </div>
 
@@ -416,11 +477,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
                   key={item.id}
                   className={cn(
                     "group px-4 py-3 text-sm flex items-center gap-4 rounded-xl transition-all duration-200",
-                    isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-                    !isDisabled && (isActive
-                      ? "bg-primary/10 text-primary border border-primary/20"
-                      : "hover:bg-muted/50 border border-transparent hover:border-border/20"
-                    ),
+                    isDisabled
+                      ? "opacity-50 cursor-not-allowed"
+                      : "cursor-pointer",
+                    !isDisabled &&
+                      (isActive
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "hover:bg-muted/50 border border-transparent hover:border-border/20")
                   )}
                   onMouseEnter={() => !isDisabled && setSelectedIndex(index)}
                   onClick={() => {
@@ -429,24 +492,37 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose, onOpen
                     runSelected();
                   }}
                 >
-                  <div className={cn(
-                    "p-2 rounded-lg transition-colors",
-                    isActive ? "bg-primary/20 text-primary" : "bg-muted/50 text-muted-foreground group-hover:bg-background/80"
-                  )}>
+                  <div
+                    className={cn(
+                      "p-2 rounded-lg transition-colors",
+                      isActive
+                        ? "bg-primary/20 text-primary"
+                        : "bg-muted/50 text-muted-foreground group-hover:bg-background/80"
+                    )}
+                  >
                     {renderIcon(item.icon)}
                   </div>
 
                   <div className="flex-1 flex flex-col justify-center">
-                    <div className={cn("font-medium text-sm", isActive ? "text-foreground" : "text-foreground/90")}>
+                    <div
+                      className={cn(
+                        "font-medium text-sm",
+                        isActive ? "text-foreground" : "text-foreground/90"
+                      )}
+                    >
                       {item.title}
                     </div>
                   </div>
 
                   {item.hint && (
-                    <div className={cn(
-                      "text-xs px-2 py-1 rounded-md font-medium font-mono",
-                      isActive ? "bg-background/40 text-primary/80" : "bg-muted/30 text-muted-foreground group-hover:bg-background/40"
-                    )}>
+                    <div
+                      className={cn(
+                        "text-xs px-2 py-1 rounded-md font-medium font-mono",
+                        isActive
+                          ? "bg-background/40 text-primary/80"
+                          : "bg-muted/30 text-muted-foreground group-hover:bg-background/40"
+                      )}
+                    >
                       {item.hint}
                     </div>
                   )}

@@ -14,6 +14,7 @@ import SettingsPage from "./SettingsPage";
 import AgentsView from "./AgentsView";
 import CloneDialog from "./CloneDialog";
 import { UpdateNotification } from "./UpdateNotification";
+import { UpdateModal } from "./UpdateModal";
 import { useIDEStore, useIDEState } from "../../stores/ideStore";
 import "../../css/IDE.css";
 import TabSwitcher from "./TabSwitcher";
@@ -773,7 +774,8 @@ const IDE: React.FC = () => {
         onClose={() => setIsSubagentManagerOpen(false)}
       />
 
-      {/* Update notification */}
+      {/* Update modal and notification */}
+      <UpdateModal />
       <UpdateNotification />
     </div>
   );

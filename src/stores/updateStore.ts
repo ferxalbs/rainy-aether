@@ -15,6 +15,8 @@ export interface UpdateProgress {
   message?: string;
 }
 
+export type UpdateStep = 'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'ready' | 'up-to-date' | 'error';
+
 interface UpdateState {
   updateInfo: UpdateInfo | null;
   updateProgress: UpdateProgress;
@@ -22,6 +24,9 @@ interface UpdateState {
   autoCheckEnabled: boolean;
   checkInterval: number; // in hours
   showNotification: boolean;
+  // Modal state
+  isModalOpen: boolean;
+  updateStep: UpdateStep;
 }
 
 const initialState: UpdateState = {
@@ -35,6 +40,9 @@ const initialState: UpdateState = {
   autoCheckEnabled: true,
   checkInterval: 24, // Check every 24 hours by default
   showNotification: false,
+  // Modal state
+  isModalOpen: false,
+  updateStep: 'idle',
 };
 
 let state: UpdateState = { ...initialState };
@@ -67,9 +75,23 @@ export const updateActions = {
   },
 
   setUpdateProgress(progress: UpdateProgress) {
+    // Sync updateStep with progress status
+    const stepMapping: Record<string, UpdateStep> = {
+      'idle': 'idle',
+      'checking': 'checking',
+      'available': 'available',
+      'downloading': 'downloading',
+      'installing': 'installing',
+      'ready': 'ready',
+      'up-to-date': 'up-to-date',
+      'error': 'error',
+      'dev-mode': 'up-to-date', // Treat dev-mode as up-to-date for UI
+    };
+    
     state = {
       ...state,
       updateProgress: progress,
+      updateStep: stepMapping[progress.status] || 'idle',
     };
     notifyListeners();
   },
@@ -115,6 +137,7 @@ export const updateActions = {
         progress: undefined,
         message: undefined,
       },
+      updateStep: 'idle',
     };
     notifyListeners();
   },
@@ -129,6 +152,31 @@ export const updateActions = {
 
     return hoursSinceLastCheck >= state.checkInterval;
   },
+
+  // Modal actions
+  openModal() {
+    state = {
+      ...state,
+      isModalOpen: true,
+    };
+    notifyListeners();
+  },
+
+  closeModal() {
+    state = {
+      ...state,
+      isModalOpen: false,
+    };
+    notifyListeners();
+  },
+
+  setUpdateStep(step: UpdateStep) {
+    state = {
+      ...state,
+      updateStep: step,
+    };
+    notifyListeners();
+  },
 };
 
 // Hook to use the update store
@@ -140,3 +188,4 @@ export function useUpdateState() {
 export function getUpdateState() {
   return state;
 }
+

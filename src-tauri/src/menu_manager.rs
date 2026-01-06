@@ -82,6 +82,8 @@ pub fn build_startup_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, Box<dyn s
         .item(&MenuItemBuilder::with_id("help:documentation", "Documentation").build(app)?)
         .separator()
         .item(&MenuItemBuilder::with_id("help:about", "About Rainy Aether").build(app)?)
+        .separator()
+        .item(&MenuItemBuilder::with_id("help:check-updates", "Check for Updates...").build(app)?)
         .build()?;
 
     // Build the minimal startup menu bar
@@ -603,6 +605,8 @@ pub fn build_menu(app: &AppHandle) -> Result<Menu<tauri::Wry>, Box<dyn std::erro
         .item(&MenuItemBuilder::with_id("help:website", "Visit Our Website").build(app)?)
         .separator()
         .item(&MenuItemBuilder::with_id("help:about", "About Rainy Aether").build(app)?)
+        .separator()
+        .item(&MenuItemBuilder::with_id("help:check-updates", "Check for Updates...").build(app)?)
         .build()?;
 
     // Build the complete menu bar

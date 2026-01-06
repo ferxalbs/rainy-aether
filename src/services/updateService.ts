@@ -151,9 +151,25 @@ export async function restartApp(): Promise<void> {
   }
 
   try {
-    const { relaunch } = await import('@tauri-apps/plugin-process');
-    await relaunch();
+    // Try the native Rust restart command first
+    await invoke('restart_app');
   } catch (error) {
-    console.error('Failed to restart app:', error);
+    console.warn('Native restart failed, trying plugin-process:', error);
+    try {
+      // Fallback to tauri plugin-process
+      const { relaunch } = await import('@tauri-apps/plugin-process');
+      await relaunch();
+    } catch (fallbackError) {
+      console.error('Failed to restart app:', fallbackError);
+    }
   }
 }
+
+/**
+ * Open the update modal and check for updates
+ */
+export async function openUpdateModal(): Promise<void> {
+  updateActions.openModal();
+  await checkForUpdates();
+}
+
