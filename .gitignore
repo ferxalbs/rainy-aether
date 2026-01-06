@@ -46,4 +46,8 @@ src/**/*.js
 # Agent server build artifacts
 src/services/agents/server/dist/
 
+# Sidecar binaries (built by pkg)
+src-tauri/binaries/rainy-agents-server-*
+!src-tauri/binaries/.gitkeep
+
 TASK_FOR_SUBAGENTS.md

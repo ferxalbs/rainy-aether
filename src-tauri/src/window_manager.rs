@@ -219,16 +219,16 @@ pub fn open_system_terminal(app: AppHandle, cwd: Option<String>) -> Result<(), S
 
     #[cfg(target_os = "linux")]
     {
+        // Pre-create the xterm command string to avoid temporary borrow issues
+        let xterm_cmd = format!("cd '{}' && $SHELL", working_dir);
+
         // Try different terminals in order of preference
-        let terminals = vec![
+        let terminals: Vec<(&str, Vec<&str>)> = vec![
             ("gnome-terminal", vec!["--working-directory", &working_dir]),
             ("konsole", vec!["--workdir", &working_dir]),
             ("xfce4-terminal", vec!["--working-directory", &working_dir]),
             ("mate-terminal", vec!["--working-directory", &working_dir]),
-            (
-                "xterm",
-                vec!["-e", &format!("cd '{}' && $SHELL", working_dir)],
-            ),
+            ("xterm", vec!["-e", &xterm_cmd]),
         ];
 
         let mut success = false;

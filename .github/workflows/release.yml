@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   release:
@@ -13,22 +13,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
-            target: 'darwin'
-            arch: 'aarch64'
-          - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
-            target: 'darwin'
-            arch: 'x86_64'
-          - platform: 'ubuntu-22.04'
-            args: ''
-            target: 'linux'
-            arch: 'x86_64'
-          - platform: 'windows-latest'
-            args: ''
-            target: 'windows'
-            arch: 'x86_64'
+          - platform: "macos-latest"
+            args: "--target aarch64-apple-darwin"
+            target: "darwin"
+            arch: "aarch64"
+          - platform: "macos-latest"
+            args: "--target x86_64-apple-darwin"
+            target: "darwin"
+            arch: "x86_64"
+          - platform: "ubuntu-22.04"
+            args: ""
+            target: "linux"
+            arch: "x86_64"
+          - platform: "windows-latest"
+            args: ""
+            target: "windows"
+            arch: "x86_64"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -59,10 +59,56 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src-tauri -> target'
+          workspaces: "./src-tauri -> target"
 
       - name: Install frontend dependencies
         run: pnpm install
+
+      - name: Install agent server dependencies
+        run: |
+          cd src/services/agents/server
+          pnpm install
+
+      - name: Build agent server sidecar
+        shell: bash
+        run: |
+          cd src/services/agents/server
+          if [ "${{ matrix.target }}" == "darwin" ] && [ "${{ matrix.arch }}" == "aarch64" ]; then
+            pnpm build:macos-arm64
+          elif [ "${{ matrix.target }}" == "darwin" ] && [ "${{ matrix.arch }}" == "x86_64" ]; then
+            pnpm build:macos-x64
+          elif [ "${{ matrix.target }}" == "linux" ]; then
+            pnpm build:linux-x64
+          fi
+
+      - name: Build agent server sidecar (Windows)
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          cd src/services/agents/server
+          pnpm build:windows-x64
+
+      - name: Configure sidecar in Tauri (Unix)
+        if: matrix.target != 'windows'
+        shell: bash
+        run: |
+          # Inject externalBin config into tauri.conf.json for production build
+          cd src-tauri
+          node -e "
+            const fs = require('fs');
+            const config = JSON.parse(fs.readFileSync('tauri.conf.json', 'utf8'));
+            config.bundle.externalBin = ['binaries/rainy-agents-server'];
+            fs.writeFileSync('tauri.conf.json', JSON.stringify(config, null, 2));
+          "
+
+      - name: Configure sidecar in Tauri (Windows)
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          cd src-tauri
+          $config = Get-Content -Raw tauri.conf.json | ConvertFrom-Json
+          $config.bundle | Add-Member -NotePropertyName 'externalBin' -NotePropertyValue @('binaries/rainy-agents-server') -Force
+          $config | ConvertTo-Json -Depth 10 | Set-Content tauri.conf.json
 
       - name: Build application
         uses: tauri-apps/tauri-action@v0
@@ -70,11 +116,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_OPTIONS: "--max-old-space-size=4096"
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Rainy Aether ${{ github.ref_name }}'
-          releaseBody: 'See CHANGELOG.md for details'
+          releaseName: "Rainy Aether ${{ github.ref_name }}"
+          releaseBody: "See CHANGELOG.md for details"
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
@@ -112,9 +158,9 @@ jobs:
             const fs = require('fs');
             const release = ${{ steps.release.outputs.result }};
             const version = release.tag_name.replace('v', '');
-            
+
             const platforms = {};
-            
+
             for (const asset of release.assets) {
               const name = asset.name;
               const url = asset.browser_download_url;
@@ -154,14 +200,14 @@ jobs:
                 }
               }
             }
-            
+
             const manifest = {
               version: version,
               notes: release.body || 'See CHANGELOG.md for details',
               pub_date: release.published_at || new Date().toISOString(),
               platforms: platforms
             };
-            
+
             fs.writeFileSync('latest.json', JSON.stringify(manifest, null, 2));
             console.log('Generated latest.json:', JSON.stringify(manifest, null, 2));
 
@@ -171,7 +217,7 @@ jobs:
           script: |
             const fs = require('fs');
             const release = ${{ steps.release.outputs.result }};
-            
+
             // Delete existing latest.json if present
             const existing = release.assets.find(a => a.name === 'latest.json');
             if (existing) {
@@ -181,7 +227,7 @@ jobs:
                 asset_id: existing.id
               });
             }
-            
+
             // Upload new latest.json
             const content = fs.readFileSync('latest.json');
             await github.rest.repos.uploadReleaseAsset({

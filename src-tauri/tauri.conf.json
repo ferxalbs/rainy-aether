@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Rainy Aether",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "identifier": "com.enosislabs.rainyaether",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -52,7 +52,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/ferxalbs/rainy-aether-2/releases/latest/download/latest.json"
+        "https://github.com/ferxalbs/rainy-aether/releases/latest/download/latest.json"
       ],
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI5QzIwODA5OUZFOEZCQUYKUldTdisraWZDUWpDdVFDbTVTaDBvWCtDb2ZSY2EwSVhJdTE2NUJ6VTZ4R2tOQmFld2hKTENYdkIK",

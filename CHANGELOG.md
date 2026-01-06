@@ -2,6 +2,23 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.22] - 2026-01-05
+
+### Added
+
+- **#Agent Server Sidecar Build**: Integrated `@yao-pkg/pkg` for bundling agent server as standalone Node.js 20 executable
+  - Added platform-specific build scripts: `build:macos-arm64`, `build:macos-x64`, `build:linux-x64`, `build:windows-x64`
+  - Binary names use Tauri target triple format (e.g., `rainy-agents-server-aarch64-apple-darwin`)
+  - Created `src-tauri/binaries/` directory for sidecar binaries
+  - Release workflow builds sidecar natively for each platform
+
+### Fixed
+
+- **#Linux Build Error**: Fixed temporary value borrow error in `window_manager.rs` that caused compilation failure on Linux
+  - Pre-created `xterm_cmd` binding before vector declaration to extend lifetime
+
+---
+
 ## [v0.1.21] - 2026-01-05
 
 ### Fixed
