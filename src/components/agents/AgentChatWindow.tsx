@@ -5,10 +5,12 @@ import {
   Sparkles,
   Cpu,
   ChevronRight,
+  Brain,
   Image,
   X,
   ArrowRight,
   ChevronDown,
+  Plus,
 } from "lucide-react";
 import { useEffect, useRef, memo, useCallback, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -24,7 +26,7 @@ import { loadCredential } from "@/services/agent/AgentService";
 import { CodeBlock } from "./CodeBlock";
 import { ToolExecutionList } from "./ToolExecutionList";
 import { ImageAttachment } from "@/types/chat";
-import { getIDEState } from "@/stores/ideStore";
+import { getIDEState, useIDEState } from "@/stores/ideStore";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +38,7 @@ import {
 
 export interface AgentChatWindowProps {
   compact?: boolean;
+  isSidebarCollapsed?: boolean;
 }
 
 // Types for subagent selection
@@ -631,7 +634,10 @@ const ThinkingAccordion = memo(function ThinkingAccordion({
   );
 });
 
-export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
+export function AgentChatWindow({
+  compact = false,
+  isSidebarCollapsed = false,
+}: AgentChatWindowProps) {
   const {
     messages,
     isLoading,
@@ -640,6 +646,11 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
     streamingThoughts,
   } = useAgentChat();
   const activeSession = useActiveSession();
+  const ideState = useIDEState();
+
+  // Show topbar if sidebar is collapsed OR if we are not in the main agents view mode (standalone)
+  const showTopbar = isSidebarCollapsed || ideState.viewMode !== "agents";
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -1018,6 +1029,32 @@ export function AgentChatWindow({ compact = false }: AgentChatWindowProps) {
 
   return (
     <div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
+      {/* Topbar - only shown when sidebar is collapsed or standalone */}
+      {showTopbar && (
+        <div className="h-12 border-b border-primary/10 px-4 flex items-center justify-between bg-background/50 backdrop-blur-xl z-10 shrink-0">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="h-7 w-7 rounded-lg bg-primary/5 flex items-center justify-center border border-primary/10 shrink-0 shadow-inner">
+              <Brain className="h-3.5 w-3.5 text-primary/70" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[10px] font-bold text-primary/60 uppercase tracking-[0.2em] leading-none mb-0.5">
+                {activeSession ? "Active Chat" : "New Chat"}
+              </span>
+              <span className="text-[12px] font-semibold text-foreground/90 truncate tracking-tight">
+                {activeSession?.name || "Ready to assist"}
+              </span>
+            </div>
+          </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => agentActions.createSession("New Chat")}
+            className="h-8 w-8 rounded-xl bg-primary/5 hover:bg-primary/10 text-primary border border-primary/10 transition-all duration-300 group shadow-lg shadow-primary/5 active:scale-95"
+          >
+            <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
+          </Button>
+        </div>
+      )}
       {/* Top Bar removed - moved to AgentsLayout */}
 
       {/* Messages Area - padding bottom for floating input */}
