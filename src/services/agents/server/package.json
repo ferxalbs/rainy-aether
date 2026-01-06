@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "esbuild index.ts --bundle --platform=node --target=node20 --outfile=dist/index.cjs --format=cjs --external:@tauri-apps/api && node --watch dist/index.cjs",
     "bundle": "esbuild index.ts --bundle --platform=node --target=node20 --outfile=dist/index.cjs --format=cjs --external:@tauri-apps/api",
-    "build:macos-arm64": "pnpm bundle && npx @yao-pkg/pkg dist/index.cjs -t node20-macos-arm64 -o ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin",
-    "build:macos-x64": "pnpm bundle && npx @yao-pkg/pkg dist/index.cjs -t node20-macos-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin",
-    "build:linux-x64": "pnpm bundle && npx @yao-pkg/pkg dist/index.cjs -t node20-linux-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu",
-    "build:windows-x64": "pnpm bundle && npx @yao-pkg/pkg dist/index.cjs -t node20-win-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-pc-windows-msvc.exe",
+    "build:macos-arm64": "pnpm bundle && pnpm exec pkg dist/index.cjs -t node20-macos-arm64 -o ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin",
+    "build:macos-x64": "pnpm bundle && pnpm exec pkg dist/index.cjs -t node20-macos-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin",
+    "build:linux-x64": "pnpm bundle && pnpm exec pkg dist/index.cjs -t node20-linux-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu",
+    "build:windows-x64": "pnpm bundle && pnpm exec pkg dist/index.cjs -t node20-win-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-pc-windows-msvc.exe",
     "build": "pnpm bundle"
   },
   "dependencies": {

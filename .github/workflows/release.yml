@@ -85,52 +85,76 @@ jobs:
         if: matrix.target == 'darwin' && matrix.arch == 'aarch64'
         shell: bash
         run: |
-          set -e
+          set -ex
           cd src/services/agents/server
-          echo "Building sidecar for macOS ARM64..."
-          pnpm build:macos-arm64
-          echo "Verifying binary exists..."
+          echo "=== Building sidecar for macOS ARM64 ==="
+          echo "Step 1: Bundle TypeScript..."
+          pnpm bundle
+          echo "Step 2: Package binary with pkg..."
+          pnpm exec pkg dist/index.cjs -t node20-macos-arm64 -o ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin --debug
+          echo "Step 3: Verify binary..."
           ls -la ../../../src-tauri/binaries/
-          test -f ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin || (echo "ERROR: Binary not found!" && exit 1)
+          file ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin || true
+          test -f ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin
+          chmod +x ../../../src-tauri/binaries/rainy-agents-server-aarch64-apple-darwin
+          echo "=== Sidecar build complete ==="
 
       - name: Build agent server sidecar (macOS x64)
         if: matrix.target == 'darwin' && matrix.arch == 'x86_64'
         shell: bash
         run: |
-          set -e
+          set -ex
           cd src/services/agents/server
-          echo "Building sidecar for macOS x64..."
-          pnpm build:macos-x64
-          echo "Verifying binary exists..."
+          echo "=== Building sidecar for macOS x64 ==="
+          echo "Step 1: Bundle TypeScript..."
+          pnpm bundle
+          echo "Step 2: Package binary with pkg..."
+          pnpm exec pkg dist/index.cjs -t node20-macos-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin --debug
+          echo "Step 3: Verify binary..."
           ls -la ../../../src-tauri/binaries/
-          test -f ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin || (echo "ERROR: Binary not found!" && exit 1)
+          file ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin || true
+          test -f ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin
+          chmod +x ../../../src-tauri/binaries/rainy-agents-server-x86_64-apple-darwin
+          echo "=== Sidecar build complete ==="
 
       - name: Build agent server sidecar (Linux)
         if: matrix.target == 'linux'
         shell: bash
         run: |
-          set -e
+          set -ex
           cd src/services/agents/server
-          echo "Building sidecar for Linux x64..."
-          pnpm build:linux-x64
-          echo "Verifying binary exists..."
+          echo "=== Building sidecar for Linux x64 ==="
+          echo "Step 1: Bundle TypeScript..."
+          pnpm bundle
+          echo "Step 2: Package binary with pkg..."
+          pnpm exec pkg dist/index.cjs -t node20-linux-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu --debug
+          echo "Step 3: Verify binary..."
           ls -la ../../../src-tauri/binaries/
-          test -f ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu || (echo "ERROR: Binary not found!" && exit 1)
+          file ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu || true
+          test -f ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu
+          chmod +x ../../../src-tauri/binaries/rainy-agents-server-x86_64-unknown-linux-gnu
+          echo "=== Sidecar build complete ==="
 
       - name: Build agent server sidecar (Windows)
         if: matrix.target == 'windows'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          $VerbosePreference = "Continue"
           cd src/services/agents/server
-          Write-Host "Building sidecar for Windows x64..."
-          pnpm build:windows-x64
-          Write-Host "Verifying binary exists..."
+          Write-Host "=== Building sidecar for Windows x64 ===" -ForegroundColor Green
+          Write-Host "Step 1: Bundle TypeScript..."
+          pnpm bundle
+          if ($LASTEXITCODE -ne 0) { throw "Bundle failed" }
+          Write-Host "Step 2: Package binary with pkg..."
+          pnpm exec pkg dist/index.cjs -t node20-win-x64 -o ../../../src-tauri/binaries/rainy-agents-server-x86_64-pc-windows-msvc.exe --debug
+          if ($LASTEXITCODE -ne 0) { throw "pkg failed" }
+          Write-Host "Step 3: Verify binary..."
           Get-ChildItem ../../../src-tauri/binaries/
           if (-not (Test-Path "../../../src-tauri/binaries/rainy-agents-server-x86_64-pc-windows-msvc.exe")) {
-            Write-Error "ERROR: Binary not found!"
-            exit 1
+            throw "ERROR: Binary not found!"
           }
+          Write-Host "=== Sidecar build complete ===" -ForegroundColor Green
 
       - name: Configure sidecar in Tauri (Unix)
         if: matrix.target != 'windows'

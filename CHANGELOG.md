@@ -2,6 +2,27 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.23] - 2026-01-05
+
+### Fixed
+
+- **#1 [Fixes] CI/CD Sidecar Build**: Fixed sidecar binary build failures in GitHub Actions release workflow
+  - Changed from `npx @yao-pkg/pkg` to `pnpm exec pkg` for more reliable package execution in CI
+  - Added `set -ex` for verbose bash debugging to catch silent failures
+  - Added `--debug` flag to pkg for better error visibility
+  - Added `file` command verification to inspect generated binaries
+  - Added explicit `chmod +x` to ensure binaries are executable
+  - Improved Windows PowerShell error handling with proper exit code checks
+  - Split build steps (bundle → pkg → verify) for clearer failure diagnosis
+
+### Improved
+
+- **#2 [Improvements] Build Script Clarity**: Enhanced release workflow with step-by-step progress output
+  - Each platform now shows "Step 1: Bundle", "Step 2: Package", "Step 3: Verify" messages
+  - Build completion messages now use visual separators for easier log parsing
+
+---
+
 ## [v0.1.22] - 2026-01-05
 
 ### Added
