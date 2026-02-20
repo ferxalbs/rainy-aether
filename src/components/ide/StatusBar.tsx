@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import * as monaco from 'monaco-editor';
 import { editorState } from '../../stores/editorStore';
-import { useIDEStore } from '../../stores/ideStore';
 import { getCurrentTheme } from '../../stores/themeStore';
-import { getGitService, GitStatus } from '../../services/gitService';
+import { useGitState } from '../../stores/gitStore';
 import { getMarkerService, MarkerStatistics } from '../../services/markerService';
 import { useNotificationStats } from '../../stores/notificationStore';
 import { useLSPStatusStore, getLSPStatusDisplay, hasMonacoBuiltinSupport, lspStatusActions } from '../../stores/lspStatusStore';
@@ -41,14 +40,32 @@ interface StatusBarProps {
   onToggleProblemsPanel?: () => void;
 }
 
+interface GitStatusSnapshot {
+  branch?: string;
+  ahead: number;
+  behind: number;
+  hasRemote: boolean;
+  staged: number;
+  modified: number;
+  untracked: number;
+  conflicts: number;
+  clean: boolean;
+}
+
+interface SyncStatusResponse {
+  ahead: number;
+  behind: number;
+  has_remote: boolean;
+  branch?: string;
+}
+
 const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
-  const { state } = useIDEStore();
-  const [gitStatus, setGitStatus] = useState<GitStatus>({
-    staged: 0,
-    modified: 0,
-    untracked: 0,
-    conflicts: 0,
-    clean: true
+  const gitState = useGitState();
+  const [syncStatus, setSyncStatus] = useState<SyncStatusResponse>({
+    ahead: 0,
+    behind: 0,
+    has_remote: false,
+    branch: undefined,
   });
   const [problems, setProblems] = useState<Problems>({ errors: 0, warnings: 0, infos: 0, hints: 0, total: 0, unknowns: 0 });
   const [isProblemsPopoverOpen, setIsProblemsPopoverOpen] = useState(false);
@@ -81,6 +98,43 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const notificationStats = useNotificationStats();
   const lspStatusState = useLSPStatusStore();
+
+  const gitStatus = useMemo<GitStatusSnapshot>(() => {
+    let staged = 0;
+    let modified = 0;
+    let untracked = 0;
+    let conflicts = 0;
+
+    for (const entry of gitState.status) {
+      const indexStatus = entry.code[0];
+      const workTreeStatus = entry.code[1];
+
+      if (indexStatus !== ' ' && indexStatus !== '?') {
+        staged++;
+      }
+      if (workTreeStatus === 'M' || workTreeStatus === 'D') {
+        modified++;
+      }
+      if (entry.code === '??') {
+        untracked++;
+      }
+      if (workTreeStatus === 'U' || indexStatus === 'U') {
+        conflicts++;
+      }
+    }
+
+    return {
+      branch: gitState.currentBranch,
+      ahead: syncStatus.ahead,
+      behind: syncStatus.behind,
+      hasRemote: syncStatus.has_remote,
+      staged,
+      modified,
+      untracked,
+      conflicts,
+      clean: staged === 0 && modified === 0 && untracked === 0 && conflicts === 0,
+    };
+  }, [gitState.currentBranch, gitState.status, syncStatus]);
 
   // Get current problem at cursor (if enabled in settings)
   const currentProblemEntry = useCurrentProblemStatusBarEntry();
@@ -205,36 +259,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     }
   };
 
-  // Get git status using real service with better error handling
-  const updateGitStatus = async () => {
-    try {
-      const snapshot = state();
-      if (!snapshot.workspace || !snapshot.workspace.path) {
-        setGitStatus({
-          staged: 0,
-          modified: 0,
-          untracked: 0,
-          conflicts: 0,
-          clean: true
-        });
-        return;
-      }
-
-      const gitService = getGitService(snapshot.workspace.path);
-      const status = await gitService.getGitStatus();
-      setGitStatus(status);
-    } catch (error) {
-      console.debug('[StatusBar] Git status unavailable:', error);
-      setGitStatus({
-        staged: 0,
-        modified: 0,
-        untracked: 0,
-        conflicts: 0,
-        clean: true
-      });
-    }
-  };
-
   // Subscribe to marker service for real-time problem updates
   useEffect(() => {
     const markerService = getMarkerService();
@@ -283,23 +307,49 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     };
   }, []);
 
-  // Update git status periodically
+  // Keep ahead/behind sync info in status bar without re-requesting full file status.
   useEffect(() => {
     let cancelled = false;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
 
-    const updateStatus = async () => {
+    const updateSyncStatus = async () => {
       if (cancelled) return;
-      await updateGitStatus();
+      if (!gitState.workspacePath || !gitState.isRepo) {
+        setSyncStatus({
+          ahead: 0,
+          behind: 0,
+          has_remote: false,
+          branch: undefined,
+        });
+        return;
+      }
+
+      try {
+        const sync = await invoke<SyncStatusResponse>('git_sync_status', { path: gitState.workspacePath });
+        if (!cancelled) {
+          setSyncStatus(sync);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.debug('[StatusBar] Git sync status unavailable:', error);
+          setSyncStatus({
+            ahead: 0,
+            behind: 0,
+            has_remote: false,
+            branch: undefined,
+          });
+        }
+      }
     };
 
-    updateStatus();
-    const timer = setInterval(updateStatus, 30000); // Update every 30 seconds (reduced from 10s to improve performance)
+    updateSyncStatus();
+    intervalId = setInterval(updateSyncStatus, 120000);
 
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      if (intervalId) clearInterval(intervalId);
     };
-  }, []); // Remove workspace dependency - updateGitStatus() reads current workspace
+  }, [gitState.workspacePath, gitState.isRepo, gitState.currentBranch]);
 
   /**
    * Create problems status bar entry (VS Code style)

@@ -185,7 +185,7 @@ export class GitService {
     if (!this.workspacePath) return false;
 
     try {
-      await invoke('git_pull', { path: this.workspacePath, remote: null, branch: null });
+      await invoke('git_pull', { path: this.workspacePath, remoteName: null, branchName: null });
       return true;
     } catch (error) {
       console.error('Failed to pull changes:', error);
@@ -198,7 +198,7 @@ export class GitService {
     if (!this.workspacePath) return false;
 
     try {
-      await invoke('git_push', { path: this.workspacePath, remote: null, branch: null });
+      await invoke('git_push', { path: this.workspacePath, remoteName: null, branchName: null });
       return true;
     } catch (error) {
       console.error('Failed to push changes:', error);
@@ -224,7 +224,7 @@ export class GitService {
     if (!this.workspacePath) return false;
 
     try {
-      await invoke('git_switch_branch', { path: this.workspacePath, branchName });
+      await invoke('git_checkout_branch', { path: this.workspacePath, branchName });
       return true;
     } catch (error) {
       console.error('Failed to switch branch:', error);
@@ -237,8 +237,8 @@ export class GitService {
     if (!this.workspacePath) return [];
 
     try {
-      const branches = await invoke<string[]>('git_get_branches', { path: this.workspacePath });
-      return branches;
+      const branches = await invoke<{ name: string }[]>('git_branches', { path: this.workspacePath });
+      return branches.map((branch) => branch.name);
     } catch (error) {
       console.error('Failed to get branches:', error);
       return [];

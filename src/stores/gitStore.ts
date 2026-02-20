@@ -167,6 +167,7 @@ export type GitState = {
   selectedCommit?: string;
   selectedFiles: Set<string>;
   loadingHistory: boolean;
+  loadingStatus: boolean;
   loadingDiff: boolean;
   loadingBranches: boolean;
   loadingStashes: boolean;
@@ -194,6 +195,7 @@ let git: GitState = {
   selectedCommit: undefined,
   selectedFiles: new Set<string>(),
   loadingHistory: false,
+  loadingStatus: false,
   loadingDiff: false,
   loadingBranches: false,
   loadingStashes: false,
@@ -274,6 +276,10 @@ export async function refreshHistory(maxCount = 100, debounce = true, targetPath
     return;
   }
 
+  if (git.loadingHistory) {
+    return;
+  }
+
   updateGitState({ loadingHistory: true });
   try {
     // Double-check workspace hasn't changed during async operations
@@ -313,19 +319,27 @@ export async function refreshStatus(debounce = true) {
     return;
   }
 
-  try {
-    // Verify workspace hasn't changed during debounce
-    const currentWsPath = git.workspacePath;
-    if (currentWsPath !== wsPath) {
-      console.log('[Git] Workspace changed during debounce, aborting status refresh');
-      return;
-    }
+  // Verify workspace hasn't changed during debounce
+  const currentWsPath = git.workspacePath;
+  if (currentWsPath !== wsPath) {
+    console.log('[Git] Workspace changed during debounce, aborting status refresh');
+    return;
+  }
 
+  if (git.loadingStatus) {
+    return;
+  }
+
+  updateGitState({ loadingStatus: true });
+
+  try {
     // Use native implementation for better performance (6-8x faster)
     const entries = await invoke<StatusEntry[]>("git_status", { path: wsPath });
     updateGitState({ status: entries });
   } catch (error) {
     console.error('Failed to refresh git status:', error);
+  } finally {
+    updateGitState({ loadingStatus: false });
   }
 }
 
@@ -446,7 +460,7 @@ export async function push(remote?: string, branch?: string) {
   if (!wsPath) throw new Error("No workspace open");
 
   try {
-    await invoke<string>("git_push", { path: wsPath, remote, branch });
+    await invoke<string>("git_push", { path: wsPath, remoteName: remote, branchName: branch });
     await Promise.all([refreshHistory(), refreshBranches()]);
     showGitSuccess("Pushed to remote successfully");
   } catch (error) {
@@ -460,7 +474,7 @@ export async function pull(remote?: string, branch?: string) {
   if (!wsPath) throw new Error("No workspace open");
 
   try {
-    await invoke<string>("git_pull", { path: wsPath, remote, branch });
+    await invoke<string>("git_pull", { path: wsPath, remoteName: remote, branchName: branch });
     await Promise.all([refreshStatus(), refreshHistory(), refreshBranches()]);
     showGitSuccess("Pulled from remote successfully");
   } catch (error) {
@@ -714,7 +728,7 @@ export async function fetch(remote?: string, prune = false) {
   const wsPath = git.workspacePath;
   if (!wsPath) throw new Error("No workspace open");
 
-  await invoke<string>("git_fetch", { path: wsPath, remote, prune });
+  await invoke<string>("git_fetch", { path: wsPath, remoteName: remote, prune });
   await Promise.all([refreshHistory(), refreshBranches()]);
 }
 
