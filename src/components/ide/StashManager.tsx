@@ -16,14 +16,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  stashPush,
-  stashPop,
-  useGitState,
-} from "@/stores/gitStore";
+import { stashPush, stashPop, useGitState } from "@/stores/gitStore";
 
 interface StashManagerProps {
-  trigger?: React.ReactNode;
+  trigger?: React.ReactElement;
 }
 
 const StashManager: React.FC<StashManagerProps> = ({ trigger }) => {
@@ -40,7 +36,7 @@ const StashManager: React.FC<StashManagerProps> = ({ trigger }) => {
       setStashMessage("");
       setIsCreateDialogOpen(false);
     } catch (error) {
-      console.error('Failed to stash changes:', error);
+      console.error("Failed to stash changes:", error);
     } finally {
       setIsStashing(false);
     }
@@ -50,7 +46,7 @@ const StashManager: React.FC<StashManagerProps> = ({ trigger }) => {
     try {
       await stashPop(stashId);
     } catch (error) {
-      console.error('Failed to pop stash:', error);
+      console.error("Failed to pop stash:", error);
     }
   }, []);
 
@@ -69,9 +65,7 @@ const StashManager: React.FC<StashManagerProps> = ({ trigger }) => {
   return (
     <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          {trigger || defaultTrigger}
-        </DropdownMenuTrigger>
+        <DropdownMenuTrigger render={trigger || defaultTrigger} />
         <DropdownMenuContent align="start" className="w-80">
           <div className="px-2 py-1.5">
             <div className="text-xs font-medium text-muted-foreground mb-2">
@@ -92,7 +86,9 @@ const StashManager: React.FC<StashManagerProps> = ({ trigger }) => {
                     <Archive className="size-3 text-muted-foreground flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="truncate text-sm">{stash.message}</div>
-                      <div className="text-xs text-muted-foreground">{stash.stash}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {stash.stash}
+                      </div>
                     </div>
                   </DropdownMenuItem>
                 ))}
@@ -134,7 +130,7 @@ const StashManager: React.FC<StashManagerProps> = ({ trigger }) => {
               value={stashMessage}
               onChange={(e) => setStashMessage(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter") {
                   handleStashPush();
                 }
               }}
@@ -150,10 +146,7 @@ const StashManager: React.FC<StashManagerProps> = ({ trigger }) => {
             >
               Cancel
             </Button>
-            <Button
-              onClick={handleStashPush}
-              disabled={isStashing}
-            >
+            <Button onClick={handleStashPush} disabled={isStashing}>
               {isStashing ? (
                 <>
                   <Loader2 className="size-4 mr-2 animate-spin" />

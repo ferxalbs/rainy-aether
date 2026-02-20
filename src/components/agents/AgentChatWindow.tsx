@@ -88,7 +88,7 @@ const ChatInputArea = memo(function ChatInputArea({
         if ((value || pendingImages.length > 0) && !isLoading) {
           onSend(
             value || "Analyze this image",
-            pendingImages.length > 0 ? pendingImages : undefined
+            pendingImages.length > 0 ? pendingImages : undefined,
           );
           if (inputRef.current) {
             inputRef.current.value = "";
@@ -98,7 +98,7 @@ const ChatInputArea = memo(function ChatInputArea({
         }
       }
     },
-    [isLoading, onSend, pendingImages]
+    [isLoading, onSend, pendingImages],
   );
 
   const handleSendClick = useCallback(
@@ -108,7 +108,7 @@ const ChatInputArea = memo(function ChatInputArea({
       if ((value || pendingImages.length > 0) && !isLoading) {
         onSend(
           value || "Analyze this image",
-          pendingImages.length > 0 ? pendingImages : undefined
+          pendingImages.length > 0 ? pendingImages : undefined,
         );
         if (inputRef.current) {
           inputRef.current.value = "";
@@ -117,7 +117,7 @@ const ChatInputArea = memo(function ChatInputArea({
         setPendingImages([]);
       }
     },
-    [isLoading, onSend, pendingImages]
+    [isLoading, onSend, pendingImages],
   );
 
   const handleImageUpload = useCallback(
@@ -146,7 +146,7 @@ const ChatInputArea = memo(function ChatInputArea({
       // Reset input
       if (fileInputRef.current) fileInputRef.current.value = "";
     },
-    []
+    [],
   );
 
   const removeImage = useCallback((index: number) => {
@@ -203,7 +203,7 @@ const ChatInputArea = memo(function ChatInputArea({
         }
       }
     },
-    [isTauriDragDropAvailable]
+    [isTauriDragDropAvailable],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -222,7 +222,7 @@ const ChatInputArea = memo(function ChatInputArea({
         }
       }
     },
-    [isTauriDragDropAvailable]
+    [isTauriDragDropAvailable],
   );
 
   const handleDrop = useCallback(
@@ -260,7 +260,7 @@ const ChatInputArea = memo(function ChatInputArea({
       }
       // When Tauri is available, the native handler processes the drop
     },
-    [isTauriDragDropAvailable]
+    [isTauriDragDropAvailable],
   );
 
   const handleInput = useCallback(() => {
@@ -276,7 +276,7 @@ const ChatInputArea = memo(function ChatInputArea({
         agentActions.updateSessionModel(activeSessionId, modelId);
       }
     },
-    [activeSessionId]
+    [activeSessionId],
   );
 
   return (
@@ -288,7 +288,7 @@ const ChatInputArea = memo(function ChatInputArea({
             compact && "rounded-lg",
             isDragging
               ? "border-primary/50 bg-primary/10 border-dashed ring-2 ring-primary/30"
-              : ""
+              : "",
           )}
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
@@ -354,12 +354,12 @@ const ChatInputArea = memo(function ChatInputArea({
               pendingImages.length > 0
                 ? "Message..."
                 : compact
-                ? "Ask anything..."
-                : "How can I help you build?"
+                  ? "Ask anything..."
+                  : "How can I help you build?"
             }
             className={cn(
               "min-h-[44px] max-h-[180px] w-full resize-none border-0 bg-transparent px-4 sm:px-5 py-3 sm:py-3.5 text-[13px] sm:text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none placeholder:text-muted-foreground/40 text-foreground/90 leading-relaxed scrollbar-hide",
-              compact && "min-h-[40px] px-3 py-2 text-xs"
+              compact && "min-h-[40px] px-3 py-2 text-xs",
             )}
             disabled={isLoading}
           />
@@ -368,25 +368,27 @@ const ChatInputArea = memo(function ChatInputArea({
           <div
             className={cn(
               "flex items-center justify-between px-3 sm:px-4 pb-2.5 sm:pb-3",
-              compact && "px-2 pb-2"
+              compact && "px-2 pb-2",
             )}
           >
             <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
               {/* Auto / Model Selector */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-primary/10 transition-all group text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider text-left border border-transparent hover:border-primary/20">
-                    {!compact && (
-                      <span className="truncate max-w-[100px] group-hover:text-foreground/90 transition-colors">
-                        {activeSessionModel
-                          ? AVAILABLE_MODELS.find(
-                              (m) => m.id === activeSessionModel
-                            )?.name || "Auto"
-                          : "Auto"}
-                      </span>
-                    )}
-                    <ChevronDown className="h-2.5 w-2.5 opacity-50 shrink-0 group-hover:opacity-80 transition-opacity" />
-                  </button>
+                <DropdownMenuTrigger
+                  render={
+                    <button className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-primary/10 transition-all group text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider text-left border border-transparent hover:border-primary/20" />
+                  }
+                >
+                  {!compact && (
+                    <span className="truncate max-w-[100px] group-hover:text-foreground/90 transition-colors">
+                      {activeSessionModel
+                        ? AVAILABLE_MODELS.find(
+                            (m) => m.id === activeSessionModel,
+                          )?.name || "Auto"
+                        : "Auto"}
+                    </span>
+                  )}
+                  <ChevronDown className="h-2.5 w-2.5 opacity-50 shrink-0 group-hover:opacity-80 transition-opacity" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
@@ -413,25 +415,27 @@ const ChatInputArea = memo(function ChatInputArea({
 
               {/* Subagent Selector - Always visible with Auto option */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all group text-[11px] font-semibold uppercase tracking-wider text-left border",
-                      selectedSubagent
-                        ? "text-primary bg-primary/10 border-primary/30"
-                        : "text-muted-foreground/70 hover:bg-primary/10 border-transparent hover:border-primary/20"
-                    )}
-                  >
-                    {!compact && (
-                      <span className="truncate max-w-[100px] group-hover:text-foreground/90 transition-colors">
-                        {selectedSubagent
-                          ? subagents.find((s) => s.id === selectedSubagent)
-                              ?.name || "Agent"
-                          : "Auto"}
-                      </span>
-                    )}
-                    <ChevronDown className="h-3 w-3 opacity-50 shrink-0 group-hover:opacity-80 transition-opacity" />
-                  </button>
+                <DropdownMenuTrigger
+                  render={
+                    <button
+                      className={cn(
+                        "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all group text-[11px] font-semibold uppercase tracking-wider text-left border",
+                        selectedSubagent
+                          ? "text-primary bg-primary/10 border-primary/30"
+                          : "text-muted-foreground/70 hover:bg-primary/10 border-transparent hover:border-primary/20",
+                      )}
+                    />
+                  }
+                >
+                  {!compact && (
+                    <span className="truncate max-w-[100px] group-hover:text-foreground/90 transition-colors">
+                      {selectedSubagent
+                        ? subagents.find((s) => s.id === selectedSubagent)
+                            ?.name || "Agent"
+                        : "Auto"}
+                    </span>
+                  )}
+                  <ChevronDown className="h-3 w-3 opacity-50 shrink-0 group-hover:opacity-80 transition-opacity" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
@@ -494,7 +498,7 @@ const ChatInputArea = memo(function ChatInputArea({
                   "flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-lg transition-all group text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider border border-transparent",
                   pendingImages.length > 0
                     ? "text-primary bg-primary/10 border-primary/20"
-                    : "text-muted-foreground/60 hover:bg-primary/10 hover:text-primary hover:border-primary/20"
+                    : "text-muted-foreground/60 hover:bg-primary/10 hover:text-primary hover:border-primary/20",
                 )}
               >
                 <Image
@@ -502,7 +506,7 @@ const ChatInputArea = memo(function ChatInputArea({
                     "h-3 sm:h-3.5 w-3 sm:w-3.5 transition-colors",
                     pendingImages.length > 0
                       ? "text-primary"
-                      : "text-muted-foreground/40 group-hover:text-primary"
+                      : "text-muted-foreground/40 group-hover:text-primary",
                   )}
                 />
                 {!compact && (
@@ -523,7 +527,7 @@ const ChatInputArea = memo(function ChatInputArea({
                   hasContent || pendingImages.length > 0
                     ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 active:scale-95"
                     : "bg-muted/20 text-muted-foreground/30 hover:bg-muted/30 border border-primary/10 cursor-not-allowed",
-                  compact && "h-7 w-7"
+                  compact && "h-7 w-7",
                 )}
                 onClick={handleSendClick}
                 disabled={
@@ -537,7 +541,7 @@ const ChatInputArea = memo(function ChatInputArea({
                     className={cn(
                       "h-4 w-4 transition-transform duration-300",
                       (hasContent || pendingImages.length > 0) &&
-                        "translate-x-0"
+                        "translate-x-0",
                     )}
                   />
                 )}
@@ -584,7 +588,7 @@ const ThinkingAccordion = memo(function ThinkingAccordion({
         compact && "mb-2",
         isOpen
           ? "ring-1 ring-primary/20 shadow-sm"
-          : "hover:bg-primary/10 hover:border-primary/20"
+          : "hover:bg-primary/10 hover:border-primary/20",
       )}
     >
       <button
@@ -595,7 +599,7 @@ const ThinkingAccordion = memo(function ThinkingAccordion({
           <ChevronRight
             className={cn(
               "h-3.5 w-3.5 transition-transform duration-300 ease-out",
-              isOpen && "rotate-90"
+              isOpen && "rotate-90",
             )}
           />
           <span className="font-medium tracking-tight uppercase">
@@ -614,14 +618,14 @@ const ThinkingAccordion = memo(function ThinkingAccordion({
       <div
         className={cn(
           "grid transition-all duration-300 ease-in-out",
-          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
         )}
       >
         <div className="overflow-hidden">
           <div
             className={cn(
               "px-4 py-3 text-[13px] text-foreground/70 border-t border-primary/10 bg-background/20 leading-relaxed font-light prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-headings:text-foreground/90",
-              compact && "text-[11px] px-3 py-2"
+              compact && "text-[11px] px-3 py-2",
             )}
           >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -669,13 +673,13 @@ export function AgentChatWindow({
         console.log(
           "[AgentChat] Fetching subagents... (attempt",
           retryCount + 1,
-          ")"
+          ")",
         );
         // Include workspace to load project-level subagents
         const workspacePath = getIDEState().workspace?.path;
         const url = workspacePath
           ? `http://localhost:3847/api/agentkit/subagents?enabled=true&workspace=${encodeURIComponent(
-              workspacePath
+              workspacePath,
             )}`
           : "http://localhost:3847/api/agentkit/subagents?enabled=true";
         const res = await fetch(url);
@@ -684,7 +688,7 @@ export function AgentChatWindow({
           console.log(
             "[AgentChat] Loaded subagents:",
             data.agents?.length || 0,
-            data.agents?.map((a: SubagentInfo) => a.name)
+            data.agents?.map((a: SubagentInfo) => a.name),
           );
           if (!cancelled) {
             setSubagents(data.agents || []);
@@ -761,7 +765,7 @@ export function AgentChatWindow({
                 apiKey,
                 workspace: workspacePath, // CRITICAL: Required for file/directory tools
               }),
-            }
+            },
           );
 
           const data = await response.json();
@@ -779,7 +783,7 @@ export function AgentChatWindow({
             // Hand off to main agent - reset subagent selector to Auto
             setSelectedSubagent(null);
             console.log(
-              `[AgentChat] Subagent ${data.agentName} completed, returning to Auto mode`
+              `[AgentChat] Subagent ${data.agentName} completed, returning to Auto mode`,
             );
           } else {
             // Show error
@@ -810,7 +814,7 @@ export function AgentChatWindow({
         sendMessage(message, images);
       }
     },
-    [activeSession, selectedSubagent, sendMessage]
+    [activeSession, selectedSubagent, sendMessage],
   );
 
   const renderMessageContent = (content: string) => {
@@ -818,7 +822,7 @@ export function AgentChatWindow({
       <div
         className={cn(
           "text-sm text-foreground/90 leading-relaxed max-w-none",
-          compact && "text-xs leading-normal"
+          compact && "text-xs leading-normal",
         )}
       >
         <ReactMarkdown
@@ -830,7 +834,7 @@ export function AgentChatWindow({
                 className={cn(
                   "text-2xl font-bold tracking-tight mb-4 mt-6 first:mt-0 text-foreground",
                   compact && "text-lg mb-2 mt-3",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -840,7 +844,7 @@ export function AgentChatWindow({
                 className={cn(
                   "text-xl font-bold tracking-tight mb-3 mt-5 text-foreground",
                   compact && "text-base mb-1.5 mt-2",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -850,7 +854,7 @@ export function AgentChatWindow({
                 className={cn(
                   "text-lg font-semibold tracking-tight mb-2 mt-4 text-foreground",
                   compact && "text-sm mb-1.5 mt-2",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -859,7 +863,7 @@ export function AgentChatWindow({
               <h4
                 className={cn(
                   "text-base font-semibold tracking-tight mb-2 mt-3 text-foreground",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -871,7 +875,7 @@ export function AgentChatWindow({
                 className={cn(
                   "mb-3 last:mb-0 leading-relaxed",
                   compact && "mb-2",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -881,7 +885,7 @@ export function AgentChatWindow({
                 className={cn(
                   "my-2 ml-6 list-disc [&>li]:mt-0.5",
                   compact && "ml-4 my-1",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -891,7 +895,7 @@ export function AgentChatWindow({
                 className={cn(
                   "my-2 ml-6 list-decimal [&>li]:mt-0.5",
                   compact && "ml-4 my-1",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -906,7 +910,7 @@ export function AgentChatWindow({
                 className={cn(
                   "mt-4 mb-4 border-l-4 border-primary/20 pl-4 italic text-muted-foreground",
                   compact && "mt-2 mb-2 pl-2 border-l-2",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -916,7 +920,7 @@ export function AgentChatWindow({
                 className={cn(
                   "my-6 border-border",
                   compact && "my-3",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -929,7 +933,7 @@ export function AgentChatWindow({
                   className={cn(
                     "w-full text-sm",
                     compact && "text-xs",
-                    className
+                    className,
                   )}
                   {...props}
                 />
@@ -939,7 +943,7 @@ export function AgentChatWindow({
               <thead
                 className={cn(
                   "bg-muted/50 border-b border-border text-left font-medium",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -961,7 +965,7 @@ export function AgentChatWindow({
                 className={cn(
                   "h-10 px-4 align-middle font-medium text-muted-foreground",
                   compact && "h-8 px-2",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -971,7 +975,7 @@ export function AgentChatWindow({
                 className={cn(
                   "p-4 align-middle [&:has([role=checkbox])]:pr-0",
                   compact && "p-2",
-                  className
+                  className,
                 )}
                 {...props}
               />
@@ -982,7 +986,7 @@ export function AgentChatWindow({
               <a
                 className={cn(
                   "font-medium text-primary underline underline-offset-4 hover:text-primary/80 transition-colors",
-                  className
+                  className,
                 )}
                 target="_blank"
                 rel="noreferrer"
@@ -1007,7 +1011,7 @@ export function AgentChatWindow({
                   className={cn(
                     "bg-muted/50 px-1.5 py-0.5 rounded-md font-mono text-[13px] text-foreground border border-border/40",
                     compact && "text-[11px]",
-                    className
+                    className,
                   )}
                   {...props}
                 >
@@ -1066,19 +1070,19 @@ export function AgentChatWindow({
           <div
             className={cn(
               "h-full flex flex-col items-center justify-center p-6 sm:p-8",
-              compact && "p-4"
+              compact && "p-4",
             )}
           >
             <div
               className={cn(
                 "flex flex-col items-center gap-5 sm:gap-6 max-w-2xl text-center animate-in fade-in zoom-in-95 self-center duration-700",
-                compact && "gap-4"
+                compact && "gap-4",
               )}
             >
               <div
                 className={cn(
                   "h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center border border-primary/10 shadow-[0_0_50px_-12px_rgba(var(--primary),0.2)] group-hover:shadow-[0_0_60px_-12px_rgba(var(--primary),0.3)] transition-all duration-500",
-                  compact && "h-10 w-10 rounded-lg"
+                  compact && "h-10 w-10 rounded-lg",
                 )}
               >
                 <div className="h-4 w-4 rounded-full bg-primary/40 animate-pulse" />
@@ -1086,13 +1090,13 @@ export function AgentChatWindow({
               <div
                 className={cn(
                   "space-y-2.5 sm:space-y-3",
-                  compact && "space-y-2"
+                  compact && "space-y-2",
                 )}
               >
                 <h3
                   className={cn(
                     "text-xl sm:text-2xl font-semibold tracking-tight text-foreground/90",
-                    compact && "text-base"
+                    compact && "text-base",
                   )}
                 >
                   How can I help you build?
@@ -1100,7 +1104,7 @@ export function AgentChatWindow({
                 <p
                   className={cn(
                     "text-muted-foreground/70 text-sm font-light max-w-sm mx-auto leading-relaxed",
-                    compact && "text-xs max-w-[200px]"
+                    compact && "text-xs max-w-[200px]",
                   )}
                 >
                   Your AI software engineer is ready. State your goal, and let's
@@ -1159,7 +1163,7 @@ export function AgentChatWindow({
                 key={msg.id}
                 className={cn(
                   "mx-auto w-full max-w-4xl flex gap-4 sm:gap-6 px-4 py-4 sm:px-6 sm:py-6 group transition-colors relative",
-                  compact && "gap-3 px-4 py-3"
+                  compact && "gap-3 px-4 py-3",
                 )}
               >
                 {!compact && (
@@ -1169,7 +1173,7 @@ export function AgentChatWindow({
                         "h-8 w-8 rounded-lg flex items-center justify-center border transition-all duration-300",
                         msg.role === "user"
                           ? "bg-muted/10 border-border/40 shadow-sm"
-                          : "bg-primary/5 border-primary/20 shadow-md shadow-primary/5"
+                          : "bg-primary/5 border-primary/20 shadow-md shadow-primary/5",
                       )}
                     >
                       <span
@@ -1177,7 +1181,7 @@ export function AgentChatWindow({
                           "text-[10px] font-bold",
                           msg.role === "user"
                             ? "text-muted-foreground/60"
-                            : "text-primary/80"
+                            : "text-primary/80",
                         )}
                       >
                         {msg.role === "user" ? "U" : "R"}
@@ -1192,7 +1196,7 @@ export function AgentChatWindow({
                         "font-bold text-[10px] tracking-widest uppercase",
                         msg.role === "user"
                           ? "text-muted-foreground/50"
-                          : "text-primary/70"
+                          : "text-primary/70",
                       )}
                     >
                       {msg.role === "user" ? "YOU" : "RAINY"}
@@ -1212,7 +1216,7 @@ export function AgentChatWindow({
                       "relative transition-all duration-300",
                       msg.role === "user"
                         ? "bg-background/10 backdrop-blur-3xl border border-primary/10 rounded-2xl px-4 py-4 shadow-xl shadow-black/10"
-                        : "w-full py-1"
+                        : "w-full py-1",
                     )}
                   >
                     {/* Show stored thoughts in accordion */}
@@ -1227,7 +1231,7 @@ export function AgentChatWindow({
                         "text-[14px] leading-relaxed selection:bg-primary/20 prose prose-sm dark:prose-invert max-w-none antialiased",
                         msg.role === "user"
                           ? "text-foreground/90 font-medium"
-                          : "text-foreground/80 font-normal"
+                          : "text-foreground/80 font-normal",
                       )}
                     >
                       {renderMessageContent(msg.content)}
@@ -1251,7 +1255,7 @@ export function AgentChatWindow({
               <div
                 className={cn(
                   "mx-auto w-full max-w-4xl flex gap-4 sm:gap-6 px-4 py-6 sm:px-6 sm:py-8 group transition-colors animate-in fade-in duration-500",
-                  compact && "gap-3 px-4 py-4"
+                  compact && "gap-3 px-4 py-4",
                 )}
               >
                 {!compact && (

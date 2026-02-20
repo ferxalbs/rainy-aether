@@ -18,14 +18,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import {
-  checkoutBranch,
-  createBranch,
-  useGitState,
-} from "@/stores/gitStore";
+import { checkoutBranch, createBranch, useGitState } from "@/stores/gitStore";
 
 interface BranchManagerProps {
-  trigger?: React.ReactNode;
+  trigger?: React.ReactElement;
 }
 
 const BranchManager: React.FC<BranchManagerProps> = ({ trigger }) => {
@@ -44,7 +40,7 @@ const BranchManager: React.FC<BranchManagerProps> = ({ trigger }) => {
       setNewBranchName("");
       setIsCreateDialogOpen(false);
     } catch (error) {
-      console.error('Failed to create branch:', error);
+      console.error("Failed to create branch:", error);
     } finally {
       setIsCreating(false);
     }
@@ -54,7 +50,7 @@ const BranchManager: React.FC<BranchManagerProps> = ({ trigger }) => {
     try {
       await checkoutBranch(branchName);
     } catch (error) {
-      console.error('Failed to checkout branch:', error);
+      console.error("Failed to checkout branch:", error);
     }
   }, []);
 
@@ -66,16 +62,16 @@ const BranchManager: React.FC<BranchManagerProps> = ({ trigger }) => {
       title="Switch active branch"
     >
       <GitBranch className="size-3.5" />
-      <span className="text-xs font-medium max-w-[100px] truncate">{currentBranch || "No branch"}</span>
+      <span className="text-xs font-medium max-w-[100px] truncate">
+        {currentBranch || "No branch"}
+      </span>
     </Button>
   );
 
   return (
     <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          {trigger || defaultTrigger}
-        </DropdownMenuTrigger>
+        <DropdownMenuTrigger render={trigger || defaultTrigger} />
         <DropdownMenuContent align="start" className="w-64">
           <div className="px-2 py-1.5">
             <div className="text-xs font-medium text-muted-foreground mb-2">
@@ -93,7 +89,7 @@ const BranchManager: React.FC<BranchManagerProps> = ({ trigger }) => {
                     onSelect={() => handleCheckoutBranch(branch.name)}
                     className={cn(
                       "flex items-center gap-2 py-2",
-                      branch.current && "bg-accent/50"
+                      branch.current && "bg-accent/50",
                     )}
                   >
                     {branch.current ? (
@@ -147,7 +143,7 @@ const BranchManager: React.FC<BranchManagerProps> = ({ trigger }) => {
               value={newBranchName}
               onChange={(e) => setNewBranchName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter") {
                   handleCreateBranch();
                 }
               }}

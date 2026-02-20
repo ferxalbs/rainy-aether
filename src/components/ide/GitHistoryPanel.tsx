@@ -42,9 +42,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  TooltipProvider,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { Badge } from "@/components/ui/badge";
 // Removed resizable imports - using CSS flexbox
@@ -60,7 +58,11 @@ const GitHistoryPanel: React.FC = () => {
   const [stageAll, setStageAll] = useState(true);
   const [remoteDialogOpen, setRemoteDialogOpen] = useState(false);
 
-  const [diffViewer, setDiffViewer] = useState<{ filePath: string; diff: string; staged: boolean } | null>(null);
+  const [diffViewer, setDiffViewer] = useState<{
+    filePath: string;
+    diff: string;
+    staged: boolean;
+  } | null>(null);
   const [commitDiffViewer, setCommitDiffViewer] = useState<Commit | null>(null);
 
   const {
@@ -104,19 +106,24 @@ const GitHistoryPanel: React.FC = () => {
   }, []);
 
   const handleDiscardChanges = useCallback(async (filePath: string) => {
-    if (confirm(`Are you sure you want to discard all changes to ${filePath}?`)) {
+    if (
+      confirm(`Are you sure you want to discard all changes to ${filePath}?`)
+    ) {
       await discardChanges(filePath);
     }
   }, []);
 
-  const handleViewDiff = useCallback(async (filePath: string, staged: boolean) => {
-    try {
-      const diff = await getFileDiff(filePath, staged);
-      setDiffViewer({ filePath, diff, staged });
-    } catch (error) {
-      showGitError(error);
-    }
-  }, []);
+  const handleViewDiff = useCallback(
+    async (filePath: string, staged: boolean) => {
+      try {
+        const diff = await getFileDiff(filePath, staged);
+        setDiffViewer({ filePath, diff, staged });
+      } catch (error) {
+        showGitError(error);
+      }
+    },
+    [],
+  );
 
   const handleViewCommitDiff = useCallback((commit: Commit) => {
     setCommitDiffViewer(commit);
@@ -142,15 +149,19 @@ const GitHistoryPanel: React.FC = () => {
   useEffect(() => {
     const handleOpenRemoteConfig = () => setRemoteDialogOpen(true);
     window.addEventListener("git:open-remote-config", handleOpenRemoteConfig);
-    return () => window.removeEventListener("git:open-remote-config", handleOpenRemoteConfig);
+    return () =>
+      window.removeEventListener(
+        "git:open-remote-config",
+        handleOpenRemoteConfig,
+      );
   }, []);
 
   const isStaged = (code: string) => {
-    return code[0] !== ' ' && code[0] !== '?';
+    return code[0] !== " " && code[0] !== "?";
   };
 
   const isUntracked = (code: string) => {
-    return code[0] === '?' && code[1] === '?';
+    return code[0] === "?" && code[1] === "?";
   };
 
   const getStatusIcon = (code: string) => {
@@ -158,8 +169,6 @@ const GitHistoryPanel: React.FC = () => {
     if (isUntracked(code)) return <Plus className="size-3 text-blue-600" />;
     return <Eye className="size-3 text-muted-foreground" />;
   };
-
-
 
   return (
     <TooltipProvider>
@@ -200,21 +209,30 @@ const GitHistoryPanel: React.FC = () => {
             </Button>
             {/* More options dropdown */}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                  title="More options"
-                >
-                  <MoreVertical className="size-3.5" />
-                </Button>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    title="More options"
+                  />
+                }
+              >
+                <MoreVertical className="size-3.5" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-background/10 backdrop-blur-3xl">
+              <DropdownMenuContent
+                align="end"
+                className="bg-background/10 backdrop-blur-3xl"
+              >
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={() => {
-                    if (confirm("Are you sure you want to delete the .git folder? This cannot be undone.")) {
+                    if (
+                      confirm(
+                        "Are you sure you want to delete the .git folder? This cannot be undone.",
+                      )
+                    ) {
                       deleteRepository();
                     }
                   }}
@@ -240,7 +258,11 @@ const GitHistoryPanel: React.FC = () => {
 
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-                  <Switch checked={stageAll} onCheckedChange={setStageAll} className="scale-75 origin-left" />
+                  <Switch
+                    checked={stageAll}
+                    onCheckedChange={setStageAll}
+                    className="scale-75 origin-left"
+                  />
                   <span>Stage all</span>
                 </label>
 
@@ -255,22 +277,29 @@ const GitHistoryPanel: React.FC = () => {
                       Commit
                     </Button>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 px-1.5 rounded-l-none border-l-0"
-                          aria-label="Commit options"
-                          disabled={!message.trim()}
-                        >
-                          <ChevronDown className="size-3" />
-                        </Button>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-1.5 rounded-l-none border-l-0"
+                            aria-label="Commit options"
+                            disabled={!message.trim()}
+                          />
+                        }
+                      >
+                        <ChevronDown className="size-3" />
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="min-w-[140px]">
+                      <DropdownMenuContent
+                        align="end"
+                        className="min-w-[140px]"
+                      >
                         <DropdownMenuItem onSelect={handleCommitConfirm}>
                           Commit
                         </DropdownMenuItem>
-                        <DropdownMenuItem disabled>Commit & Push</DropdownMenuItem>
+                        <DropdownMenuItem disabled>
+                          Commit & Push
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -280,12 +309,14 @@ const GitHistoryPanel: React.FC = () => {
 
             {/* Content Lists */}
             <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
-
               {/* Changes Section */}
               <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border px-3 py-1.5 flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 <span>Changes</span>
                 {changes.length > 0 && (
-                  <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-mono">
+                  <Badge
+                    variant="secondary"
+                    className="h-4 px-1.5 text-[10px] font-mono"
+                  >
                     {changes.length}
                   </Badge>
                 )}
@@ -298,26 +329,50 @@ const GitHistoryPanel: React.FC = () => {
                       const staged = isStaged(entry.code);
                       const untracked = isUntracked(entry.code);
                       return (
-                        <li key={`${entry.code}-${entry.path}`} className="group relative flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors">
+                        <li
+                          key={`${entry.code}-${entry.path}`}
+                          className="group relative flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors"
+                        >
                           <div className="flex shrink-0 items-center justify-center w-4">
                             {getStatusIcon(entry.code)}
                           </div>
-                          <span className="truncate text-xs text-foreground flex-1 cursor-pointer" onClick={() => handleViewDiff(entry.path, staged)}>
+                          <span
+                            className="truncate text-xs text-foreground flex-1 cursor-pointer"
+                            onClick={() => handleViewDiff(entry.path, staged)}
+                          >
                             {entry.path}
                           </span>
 
                           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 bg-background/80 shadow-sm rounded-sm backdrop-blur-[2px]">
                             {staged ? (
-                              <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-green-600" onClick={() => handleUnstageFile(entry.path)} title="Unstage">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 hover:text-green-600"
+                                onClick={() => handleUnstageFile(entry.path)}
+                                title="Unstage"
+                              >
                                 <EyeOff className="size-3" />
                               </Button>
                             ) : (
-                              <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-blue-600" onClick={() => handleStageFile(entry.path)} title="Stage">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 hover:text-blue-600"
+                                onClick={() => handleStageFile(entry.path)}
+                                title="Stage"
+                              >
                                 <Check className="size-3" />
                               </Button>
                             )}
                             {!untracked && (
-                              <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-destructive" onClick={() => handleDiscardChanges(entry.path)} title="Discard">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 hover:text-destructive"
+                                onClick={() => handleDiscardChanges(entry.path)}
+                                title="Discard"
+                              >
                                 <RotateCcw className="size-3" />
                               </Button>
                             )}
@@ -356,7 +411,7 @@ const GitHistoryPanel: React.FC = () => {
                           key={commit.hash}
                           className={cn(
                             "relative py-3 cursor-pointer group transition-all",
-                            isSelected && ""
+                            isSelected && "",
                           )}
                           onClick={() => {
                             selectCommit(commit.hash);
@@ -364,23 +419,47 @@ const GitHistoryPanel: React.FC = () => {
                           }}
                         >
                           {/* Timeline dot */}
-                          <div className={cn(
-                            "absolute -left-[16.5px] top-4 size-2 rounded-full border border-background ring-1 ring-border/50 transition-colors bg-muted",
-                            isSelected ? "bg-primary ring-primary" :
-                              isUnpushed ? "bg-amber-500 ring-amber-500" : "bg-muted-foreground/40"
-                          )} />
+                          <div
+                            className={cn(
+                              "absolute -left-[16.5px] top-4 size-2 rounded-full border border-background ring-1 ring-border/50 transition-colors bg-muted",
+                              isSelected
+                                ? "bg-primary ring-primary"
+                                : isUnpushed
+                                  ? "bg-amber-500 ring-amber-500"
+                                  : "bg-muted-foreground/40",
+                            )}
+                          />
 
-                          <div className={cn("rounded-md p-2 -my-2 transition-colors", isSelected ? "bg-accent/40" : "hover:bg-muted/30")}>
+                          <div
+                            className={cn(
+                              "rounded-md p-2 -my-2 transition-colors",
+                              isSelected ? "bg-accent/40" : "hover:bg-muted/30",
+                            )}
+                          >
                             <div className="flex items-start justify-between gap-2">
-                              <span className={cn("text-xs font-medium leading-tight line-clamp-2", isSelected ? "text-primary" : "text-foreground")}>
+                              <span
+                                className={cn(
+                                  "text-xs font-medium leading-tight line-clamp-2",
+                                  isSelected
+                                    ? "text-primary"
+                                    : "text-foreground",
+                                )}
+                              >
                                 {commit.message}
                               </span>
-                              <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">{commit.date}</span>
+                              <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+                                {commit.date}
+                              </span>
                             </div>
                             <div className="mt-1 flex items-center justify-between">
-                              <span className="text-[11px] text-muted-foreground">{commit.author}</span>
+                              <span className="text-[11px] text-muted-foreground">
+                                {commit.author}
+                              </span>
                               {isUnpushed && (
-                                <Badge variant="outline" className="h-3.5 px-1 py-0 text-[9px] border-amber-500/30 text-amber-600 bg-amber-500/5">
+                                <Badge
+                                  variant="outline"
+                                  className="h-3.5 px-1 py-0 text-[9px] border-amber-500/30 text-amber-600 bg-amber-500/5"
+                                >
                                   Unpushed
                                 </Badge>
                               )}
@@ -396,7 +475,6 @@ const GitHistoryPanel: React.FC = () => {
                   </div>
                 )}
               </div>
-
             </div>
           </>
         ) : (

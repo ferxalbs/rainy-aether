@@ -183,14 +183,14 @@ export function AgentsSidebar({ className }: { className?: string }) {
   };
 
   const filteredSessions = sessions.filter((session) =>
-    session.name.toLowerCase().includes(searchQuery.toLowerCase())
+    session.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
     <div
       className={cn(
         "flex flex-col h-full bg-background/10 backdrop-blur-3xl border-r border-primary/10 relative",
-        className
+        className,
       )}
     >
       {/* Loading Overlay - shown while server starts */}
@@ -305,7 +305,7 @@ export function AgentsSidebar({ className }: { className?: string }) {
                 "group flex flex-col gap-1.5 p-3 rounded-2xl cursor-pointer transition-all duration-300 border",
                 activeSession?.id === session.id
                   ? "bg-primary/5 border-primary/20 shadow-lg shadow-black/10 text-foreground"
-                  : "bg-transparent border-transparent hover:bg-background/20 hover:border-primary/10 text-muted-foreground/70 hover:text-foreground"
+                  : "bg-transparent border-transparent hover:bg-background/20 hover:border-primary/10 text-muted-foreground/70 hover:text-foreground",
               )}
             >
               <div className="flex items-center justify-between w-full">
@@ -314,21 +314,23 @@ export function AgentsSidebar({ className }: { className?: string }) {
                     "truncate text-xs font-bold tracking-tight max-w-[140px]",
                     activeSession?.id === session.id
                       ? "text-primary"
-                      : "text-foreground/80"
+                      : "text-foreground/80",
                   )}
                 >
                   {session.name}
                 </span>
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 hover:bg-primary/10 rounded-lg -mr-1 text-muted-foreground/40 hover:text-primary transition-colors"
-                      >
-                        <MoreHorizontal className="h-3.5 w-3.5" />
-                      </Button>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 hover:bg-primary/10 rounded-lg -mr-1 text-muted-foreground/40 hover:text-primary transition-colors"
+                        />
+                      }
+                    >
+                      <MoreHorizontal className="h-3.5 w-3.5" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
@@ -370,11 +372,10 @@ export function AgentsSidebar({ className }: { className?: string }) {
                   {session.messages.length > 0
                     ? formatDistanceToNow(
                         new Date(
-                          session.messages[
-                            session.messages.length - 1
-                          ].timestamp
+                          session.messages[session.messages.length - 1]
+                            .timestamp,
                         ),
-                        { addSuffix: false }
+                        { addSuffix: false },
                       ).replace("about ", "")
                     : "Just now"}
                 </span>

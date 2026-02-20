@@ -2,6 +2,14 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.29] - 2026-02-20
+
+### Fixed
+
+- **#1 [Fixes] Base UI compatibility**: Replaced `asChild` with `render` prop on `DropdownMenuTrigger` components (Base UI upgrade) to fix strict TypeScript compilation errors across `AgentChatWindow.tsx`, `AgentsSidebar.tsx`, `BranchManager.tsx`, `GitHistoryPanel.tsx`, and `StashManager.tsx`.
+
+---
+
 ## [v0.1.28] - 2026-02-20
 
 ### Fixed
@@ -31,7 +39,6 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ### Added
 
 - **#1 [Improvements] Update Modal System**: Complete modal-based update flow for a cleaner UX
-
   - New `UpdateModal.tsx` with step-based states: Checking → Available → Downloading → Installing → Ready
   - Glassmorphism styling using `bg-background/10 backdrop-blur-3xl backdrop-saturate-150`
   - Progress bar with real-time download percentage
@@ -39,12 +46,10 @@ All notable changes to Rainy Aether IDE will be documented in this file.
   - "Restart Now" and "Later" buttons after installation
 
 - **#2 [Improvements] Refactored Update Notification**: Converted from floating card to minimal toast
-
   - Shows "Update available: v{version}" with "View Details" button
   - Opens full modal for detailed information and actions
 
 - **#3 [Improvements] Help Menu Integration**: Added "Check for Updates…" to Help menu
-
   - Works on both native macOS menu and cross-platform Menubar
 
 - **#4 [Improvements] Command Palette Integration**: Added "Application: Check for Updates" command
@@ -239,7 +244,6 @@ All notable changes to Rainy Aether IDE will be documented in this file.
 ### Fixed
 
 - **Terminal Persistence**: Fixed terminal resetting when switching between Editor and Agents views
-
   - Refactored `IDE.tsx` to keep both views mounted in DOM
   - Used CSS `hidden` class for toggling instead of conditional rendering
   - Ensures terminal session survives view navigation
