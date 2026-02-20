@@ -31,7 +31,7 @@ const app = new Hono();
 // Middleware
 app.use('*', logger());
 app.use('*', cors({
-    origin: ['http://localhost:1420', 'http://localhost:5173', 'tauri://localhost'],
+    origin: ['http://localhost:1421', 'http://localhost:5173', 'tauri://localhost'],
     credentials: true,
 }));
 

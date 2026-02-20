@@ -50,7 +50,7 @@ export default defineConfig({
   // Vite options tailored for Tauri development
   clearScreen: false,
   server: {
-    port: 1420,
+    port: 1421,
     strictPort: true,
     host: host || false,
     cors: true, // Enable CORS for multiple windows
@@ -61,10 +61,10 @@ export default defineConfig({
           port: 1421,
         }
       : {
-          // FIX: Usa 1420 para el servidor WebSocket cuando no hay host personalizado
+          // FIX: Usa 1421 para el servidor WebSocket cuando no hay host personalizado
           protocol: "ws",
           host: "localhost",
-          port: 1420, // Cambiado de clientPort: 1421 a port: 1420
+          port: 1421, // Cambiado de clientPort: 1421 a port: 1421
         },
     watch: {
       ignored: ["**/src-tauri/**"],
