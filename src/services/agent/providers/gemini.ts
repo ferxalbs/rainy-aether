@@ -1,19 +1,19 @@
-import { GoogleGenAI, FunctionDeclaration } from '@google/genai';
-import { ChatMessage, ToolCall } from '@/types/chat';
-import { ToolDefinition } from '../ToolRegistry';
+import { GoogleGenAI, FunctionDeclaration } from "@google/genai";
+import { ChatMessage, ToolCall } from "@/types/chat";
+import { ToolDefinition } from "../ToolRegistry";
 import {
   AIProvider,
   AIProviderConfig,
   StreamChunk,
   createChatMessage,
   generateMessageId,
-} from './base';
+} from "./base";
+import { withResilience, CircuitBreaker, ResilientOptions } from "./retryUtils";
 import {
-  withResilience,
-  CircuitBreaker,
-  ResilientOptions
-} from './retryUtils';
-import { GeminiCacheManager, CacheStats, getGeminiCacheManager } from './geminiCache';
+  GeminiCacheManager,
+  CacheStats,
+  getGeminiCacheManager,
+} from "./geminiCache";
 
 // ===========================
 // Gemini Provider
@@ -22,8 +22,8 @@ import { GeminiCacheManager, CacheStats, getGeminiCacheManager } from './geminiC
 export interface GeminiThinkingConfig {
   // For Gemini 2.5 models: -1 = auto, 0 = disabled
   thinkingBudget?: number;
-  // For Gemini 3 Pro: 'LOW' | 'HIGH'
-  thinkingLevel?: 'LOW' | 'HIGH';
+  // For Gemini 3 Pro/3.1 Pro: 'LOW' | 'MEDIUM' | 'HIGH'
+  thinkingLevel?: "LOW" | "MEDIUM" | "HIGH";
   // Whether to include thoughts in response (required to see thinking)
   includeThoughts?: boolean;
 }
@@ -44,8 +44,10 @@ export interface GeminiUsageStats {
 const geminiCircuitBreaker = new CircuitBreaker({
   failureThreshold: 3,
   resetTimeoutMs: 30000,
-  onOpen: () => console.warn('[GeminiProvider] Circuit breaker OPEN - pausing requests'),
-  onClose: () => console.log('[GeminiProvider] Circuit breaker CLOSED - resuming requests'),
+  onOpen: () =>
+    console.warn("[GeminiProvider] Circuit breaker OPEN - pausing requests"),
+  onClose: () =>
+    console.log("[GeminiProvider] Circuit breaker CLOSED - resuming requests"),
 });
 
 // Default resilience options for Gemini API calls
@@ -56,7 +58,9 @@ const GEMINI_RESILIENCE_OPTIONS: ResilientOptions = {
   timeoutMs: 180000, // 3 minute timeout per attempt (allows for long responses)
   circuitBreaker: geminiCircuitBreaker,
   onRetry: (attempt, error, nextDelay) => {
-    console.warn(`[GeminiProvider] Retry ${attempt}: ${error.message}. Next attempt in ${nextDelay}ms`);
+    console.warn(
+      `[GeminiProvider] Retry ${attempt}: ${error.message}. Next attempt in ${nextDelay}ms`,
+    );
   },
 };
 
@@ -98,14 +102,14 @@ export class GeminiProvider implements AIProvider {
 
   /**
    * Convert our ChatMessage to Gemini's format
-   * IMPORTANT: Don't include thoughts or verbose tool results - 
+   * IMPORTANT: Don't include thoughts or verbose tool results -
    * Gemini has its own thinking system
    */
   private convertMessagesToGeminiFormat(messages: ChatMessage[]): any[] {
     const result: any[] = [];
 
     for (const msg of messages) {
-      if (msg.role === 'system') continue;
+      if (msg.role === "system") continue;
 
       const parts: any[] = [];
 
@@ -122,7 +126,7 @@ export class GeminiProvider implements AIProvider {
         for (const image of msg.images) {
           parts.push({
             inlineData: {
-              mimeType: image.mimeType || 'image/png',
+              mimeType: image.mimeType || "image/png",
               data: image.base64,
             },
           });
@@ -135,7 +139,7 @@ export class GeminiProvider implements AIProvider {
       // Only add if there are parts
       if (parts.length > 0) {
         result.push({
-          role: msg.role === 'assistant' ? 'model' : 'user',
+          role: msg.role === "assistant" ? "model" : "user",
           parts,
         });
       }
@@ -149,32 +153,32 @@ export class GeminiProvider implements AIProvider {
    * Removes properties not supported by Gemini's function calling API
    */
   private sanitizeSchema(schema: any): any {
-    if (!schema || typeof schema !== 'object') return schema;
+    if (!schema || typeof schema !== "object") return schema;
 
     // Properties that Gemini doesn't support
     const unsupportedProps = [
-      'exclusiveMinimum',
-      'exclusiveMaximum',
-      '$schema',
-      '$id',
-      '$ref',
-      '$defs',
-      'definitions',
-      'additionalItems',
-      'contains',
-      'propertyNames',
-      'const',
-      'if',
-      'then',
-      'else',
-      'allOf',
-      'anyOf',
-      'oneOf',
-      'not',
-      'contentMediaType',
-      'contentEncoding',
-      'examples',
-      'default',
+      "exclusiveMinimum",
+      "exclusiveMaximum",
+      "$schema",
+      "$id",
+      "$ref",
+      "$defs",
+      "definitions",
+      "additionalItems",
+      "contains",
+      "propertyNames",
+      "const",
+      "if",
+      "then",
+      "else",
+      "allOf",
+      "anyOf",
+      "oneOf",
+      "not",
+      "contentMediaType",
+      "contentEncoding",
+      "examples",
+      "default",
     ];
 
     const sanitized: any = {};
@@ -184,14 +188,20 @@ export class GeminiProvider implements AIProvider {
       if (unsupportedProps.includes(key)) continue;
 
       // Recursively sanitize nested objects
-      if (key === 'properties' && typeof value === 'object') {
+      if (key === "properties" && typeof value === "object") {
         sanitized[key] = {};
-        for (const [propName, propValue] of Object.entries(value as Record<string, any>)) {
+        for (const [propName, propValue] of Object.entries(
+          value as Record<string, any>,
+        )) {
           sanitized[key][propName] = this.sanitizeSchema(propValue);
         }
-      } else if (key === 'items' && typeof value === 'object') {
+      } else if (key === "items" && typeof value === "object") {
         sanitized[key] = this.sanitizeSchema(value);
-      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      } else if (
+        typeof value === "object" &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
         sanitized[key] = this.sanitizeSchema(value);
       } else {
         sanitized[key] = value;
@@ -204,7 +214,9 @@ export class GeminiProvider implements AIProvider {
   /**
    * Convert our ToolDefinition to Gemini's FunctionDeclaration
    */
-  private convertToolsToGeminiFormat(tools: ToolDefinition[]): FunctionDeclaration[] {
+  private convertToolsToGeminiFormat(
+    tools: ToolDefinition[],
+  ): FunctionDeclaration[] {
     return tools.map((tool) => ({
       name: tool.name,
       description: tool.description,
@@ -217,14 +229,17 @@ export class GeminiProvider implements AIProvider {
    */
   async sendMessage(
     messages: ChatMessage[],
-    tools: ToolDefinition[]
+    tools: ToolDefinition[],
   ): Promise<ChatMessage> {
-    const systemPrompt = messages.find((m) => m.role === 'system')?.content;
+    const systemPrompt = messages.find((m) => m.role === "system")?.content;
     const geminiMessages = this.convertMessagesToGeminiFormat(messages);
     const functionDeclarations = this.convertToolsToGeminiFormat(tools);
 
     // DEBUG: Log system prompt (first 200 chars)
-    console.log('[GeminiProvider] System prompt preview:', systemPrompt?.substring(0, 200));
+    console.log(
+      "[GeminiProvider] System prompt preview:",
+      systemPrompt?.substring(0, 200),
+    );
 
     // Build the request config
     const config: any = {
@@ -244,11 +259,13 @@ export class GeminiProvider implements AIProvider {
       config.config.thinkingConfig = {};
 
       if (this.thinkingConfig.thinkingBudget !== undefined) {
-        config.config.thinkingConfig.thinkingBudget = this.thinkingConfig.thinkingBudget;
+        config.config.thinkingConfig.thinkingBudget =
+          this.thinkingConfig.thinkingBudget;
       }
 
       if (this.thinkingConfig.thinkingLevel) {
-        config.config.thinkingConfig.thinkingLevel = this.thinkingConfig.thinkingLevel;
+        config.config.thinkingConfig.thinkingLevel =
+          this.thinkingConfig.thinkingLevel;
       }
 
       // Enable thoughts in response
@@ -266,7 +283,7 @@ export class GeminiProvider implements AIProvider {
       // Wrap API call with retry and circuit breaker
       const response = await withResilience(
         () => this.client.models.generateContent(config),
-        GEMINI_RESILIENCE_OPTIONS
+        GEMINI_RESILIENCE_OPTIONS,
       );
 
       // Check for function calls
@@ -279,22 +296,21 @@ export class GeminiProvider implements AIProvider {
           arguments: fc.args,
         }));
 
-        return createChatMessage(
-          'assistant',
-          response.text || '',
-          toolCalls
-        );
+        return createChatMessage("assistant", response.text || "", toolCalls);
       }
 
       // Regular text response
-      return createChatMessage('assistant', response.text || '');
+      return createChatMessage("assistant", response.text || "");
     } catch (error) {
-      console.error('[GeminiProvider] API error after retries:', error);
+      console.error("[GeminiProvider] API error after retries:", error);
 
       // Return a user-friendly error message
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Circuit breaker')) {
-        throw new Error('Service temporarily unavailable. Please try again in a few seconds.');
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("Circuit breaker")) {
+        throw new Error(
+          "Service temporarily unavailable. Please try again in a few seconds.",
+        );
       }
       throw new Error(`Gemini API failed: ${errorMessage}`);
     }
@@ -306,14 +322,17 @@ export class GeminiProvider implements AIProvider {
   async streamMessage(
     messages: ChatMessage[],
     tools: ToolDefinition[],
-    onChunk: (chunk: StreamChunk) => void
+    onChunk: (chunk: StreamChunk) => void,
   ): Promise<ChatMessage> {
-    const systemPrompt = messages.find((m) => m.role === 'system')?.content;
+    const systemPrompt = messages.find((m) => m.role === "system")?.content;
     const geminiMessages = this.convertMessagesToGeminiFormat(messages);
     const functionDeclarations = this.convertToolsToGeminiFormat(tools);
 
     // DEBUG: Log system prompt (first 200 chars)
-    console.log('[GeminiProvider] Stream - System prompt preview:', systemPrompt?.substring(0, 200));
+    console.log(
+      "[GeminiProvider] Stream - System prompt preview:",
+      systemPrompt?.substring(0, 200),
+    );
 
     // Build the request config
     const config: any = {
@@ -333,11 +352,13 @@ export class GeminiProvider implements AIProvider {
       config.config.thinkingConfig = {};
 
       if (this.thinkingConfig.thinkingBudget !== undefined) {
-        config.config.thinkingConfig.thinkingBudget = this.thinkingConfig.thinkingBudget;
+        config.config.thinkingConfig.thinkingBudget =
+          this.thinkingConfig.thinkingBudget;
       }
 
       if (this.thinkingConfig.thinkingLevel) {
-        config.config.thinkingConfig.thinkingLevel = this.thinkingConfig.thinkingLevel;
+        config.config.thinkingConfig.thinkingLevel =
+          this.thinkingConfig.thinkingLevel;
       }
 
       // Enable thoughts in response
@@ -359,22 +380,27 @@ export class GeminiProvider implements AIProvider {
           ...GEMINI_RESILIENCE_OPTIONS,
           // Stream initialization timeout (stream itself has no timeout once started)
           timeoutMs: 60000,
-        }
+        },
       );
 
-      let fullText = '';
-      let fullThoughts = '';
+      let fullText = "";
+      let fullThoughts = "";
       let toolCalls: ToolCall[] = [];
 
       // Track usage metadata for caching stats
       let lastUsageMetadata: any = null;
 
       for await (const chunk of stream) {
-        let chunkText = '';
-        let chunkThought = '';
+        let chunkText = "";
+        let chunkThought = "";
 
         // Safely extract text and thoughts from parts
-        if (chunk.candidates && chunk.candidates[0] && chunk.candidates[0].content && chunk.candidates[0].content.parts) {
+        if (
+          chunk.candidates &&
+          chunk.candidates[0] &&
+          chunk.candidates[0].content &&
+          chunk.candidates[0].content.parts
+        ) {
           for (const part of chunk.candidates[0].content.parts) {
             // Check if this is a thought part (Gemini thinking)
             if ((part as any).thought === true && part.text) {
@@ -386,7 +412,7 @@ export class GeminiProvider implements AIProvider {
         } else {
           // Fallback to text property if structure is different, but wrap in try-catch
           try {
-            chunkText = chunk.text || '';
+            chunkText = chunk.text || "";
           } catch (e) {
             // Ignore
           }
@@ -396,7 +422,7 @@ export class GeminiProvider implements AIProvider {
         if (chunkThought) {
           fullThoughts += chunkThought;
           onChunk({
-            type: 'thought',
+            type: "thought",
             content: chunkThought,
           });
         }
@@ -405,7 +431,7 @@ export class GeminiProvider implements AIProvider {
         if (chunkText) {
           fullText += chunkText;
           onChunk({
-            type: 'text',
+            type: "text",
             content: chunkText,
           });
         }
@@ -421,7 +447,7 @@ export class GeminiProvider implements AIProvider {
 
           toolCalls.forEach((tc) => {
             onChunk({
-              type: 'tool_call',
+              type: "tool_call",
               toolCall: tc,
             });
           });
@@ -443,8 +469,10 @@ export class GeminiProvider implements AIProvider {
           inputTokens,
           outputTokens,
           cachedTokens,
-          cacheHitRate: inputTokens > 0 ? (cachedTokens / inputTokens) * 100 : 0,
-          estimatedSavings: inputTokens > 0 ? (cachedTokens * 0.9 / inputTokens) * 100 : 0,
+          cacheHitRate:
+            inputTokens > 0 ? (cachedTokens / inputTokens) * 100 : 0,
+          estimatedSavings:
+            inputTokens > 0 ? ((cachedTokens * 0.9) / inputTokens) * 100 : 0,
         };
 
         // Update cache manager stats
@@ -458,31 +486,34 @@ export class GeminiProvider implements AIProvider {
         if (cachedTokens > 0 || inputTokens > 10000) {
           console.log(
             `[GeminiProvider] 📊 Usage: ${inputTokens.toLocaleString()} input, ${outputTokens.toLocaleString()} output. ` +
-            `Cache: ${cachedTokens.toLocaleString()} tokens (${this.usageStats.cacheHitRate.toFixed(1)}% hit rate)`
+              `Cache: ${cachedTokens.toLocaleString()} tokens (${this.usageStats.cacheHitRate.toFixed(1)}% hit rate)`,
           );
         }
       }
 
       const finalMessage = createChatMessage(
-        'assistant',
-        fullText || '',
+        "assistant",
+        fullText || "",
         toolCalls.length > 0 ? toolCalls : undefined,
-        fullThoughts || undefined
+        fullThoughts || undefined,
       );
 
       onChunk({
-        type: 'done',
+        type: "done",
         fullMessage: finalMessage,
       });
 
       return finalMessage;
     } catch (error) {
-      console.error('[GeminiProvider] Streaming error after retries:', error);
+      console.error("[GeminiProvider] Streaming error after retries:", error);
 
       // Return a user-friendly error message
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Circuit breaker')) {
-        throw new Error('Service temporarily unavailable. Please try again in a few seconds.');
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("Circuit breaker")) {
+        throw new Error(
+          "Service temporarily unavailable. Please try again in a few seconds.",
+        );
       }
       throw new Error(`Gemini streaming failed: ${errorMessage}`);
     }

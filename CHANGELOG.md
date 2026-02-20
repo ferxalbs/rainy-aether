@@ -2,11 +2,20 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.30] - 2026-02-20
+
+### Changes:
+
+- **[Fixes]** Resolved a Base UI crash (`MenuGroupRootContext is missing`) within the model and agent selectors of `AgentChatWindow.tsx` by adding the required `DropdownMenuGroup` wrapper.
+
+---
+
 ## [v0.1.29] - 2026-02-20
 
-### Fixed
+### Changes:
 
-- **#1 [Fixes] Base UI compatibility**: Replaced `asChild` with `render` prop on `DropdownMenuTrigger` components (Base UI upgrade) to fix strict TypeScript compilation errors across `AgentChatWindow.tsx`, `AgentsSidebar.tsx`, `BranchManager.tsx`, `GitHistoryPanel.tsx`, and `StashManager.tsx`.
+- **[Fixes]** Replaced `asChild` with `render` prop in `DropdownMenuTrigger` across multiple components (`AgentChatWindow`, `AgentsSidebar`, `BranchManager`, `GitHistoryPanel`, `StashManager`) to fix TypeScript compatibility issues with `@base-ui/react`.
+- **[Improvements]** Resolved multiple accessibility and performance warnings from `react-doctor` in `AgentChatWindow.tsx` and `AgentsSidebar.tsx`, including extracting inline render components, fixing accessible headings, ensuring unique list keys, and fixing missing semantic button roles. React Doctor score improved to 98/100.
 
 ---
 

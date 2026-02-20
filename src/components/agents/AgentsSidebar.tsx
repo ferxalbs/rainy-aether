@@ -9,7 +9,7 @@ import {
   Brain,
   Loader2,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
@@ -148,7 +148,7 @@ export function AgentsSidebar({ className }: { className?: string }) {
   const [agents, setAgents] = useState<AgentInfo[]>([]);
 
   // Fetch agents when server comes online
-  useEffect(() => {
+  const loadAgents = useCallback(() => {
     if (isRunning) {
       getAvailableAgents(true)
         .then((response) => {
@@ -163,6 +163,10 @@ export function AgentsSidebar({ className }: { className?: string }) {
       setAgents([]);
     }
   }, [isRunning]);
+
+  useEffect(() => {
+    loadAgents();
+  }, [loadAgents]);
 
   const handleNewAgent = () => {
     const sessionName = `New Chat`;
@@ -298,11 +302,11 @@ export function AgentsSidebar({ className }: { className?: string }) {
           </div>
         ) : (
           filteredSessions.map((session) => (
-            <div
+            <button
               key={session.id}
               onClick={() => agentActions.setActiveSession(session.id)}
               className={cn(
-                "group flex flex-col gap-1.5 p-3 rounded-2xl cursor-pointer transition-all duration-300 border",
+                "group flex flex-col gap-1.5 p-3 rounded-2xl cursor-pointer transition-all duration-300 border w-full text-left",
                 activeSession?.id === session.id
                   ? "bg-primary/5 border-primary/20 shadow-lg shadow-black/10 text-foreground"
                   : "bg-transparent border-transparent hover:bg-background/20 hover:border-primary/10 text-muted-foreground/70 hover:text-foreground",
@@ -380,7 +384,7 @@ export function AgentsSidebar({ className }: { className?: string }) {
                     : "Just now"}
                 </span>
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>

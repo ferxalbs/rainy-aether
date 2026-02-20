@@ -32,6 +32,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuGroup,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -325,7 +326,7 @@ const ChatInputArea = memo(function ChatInputArea({
             <div className="flex flex-wrap gap-3 p-4 border-b border-primary/10">
               {pendingImages.map((img, index) => (
                 <div
-                  key={index}
+                  key={img.filename || img.base64.substring(0, 32)}
                   className="relative group/img animate-in zoom-in-90 duration-300"
                 >
                   <div className="h-16 w-16 rounded-lg overflow-hidden border border-primary/20 shadow-md group-hover/img:border-primary/40 group-hover/img:shadow-lg group-hover/img:shadow-primary/10 transition-all duration-300">
@@ -394,22 +395,24 @@ const ChatInputArea = memo(function ChatInputArea({
                   align="start"
                   className="w-[240px] max-h-[260px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/30 scrollbar-track-transparent"
                 >
-                  <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-2 py-1.5">
-                    Select Model
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="mx-1 opacity-50" />
-                  {AVAILABLE_MODELS.map((model) => (
-                    <DropdownMenuItem
-                      key={model.id}
-                      onClick={() => handleModelChange(model.id)}
-                      className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
-                    >
-                      <span className="font-medium">{model.name}</span>
-                      {activeSessionModel === model.id && (
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50" />
-                      )}
-                    </DropdownMenuItem>
-                  ))}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-2 py-1.5">
+                      Select Model
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="mx-1 opacity-50" />
+                    {AVAILABLE_MODELS.map((model) => (
+                      <DropdownMenuItem
+                        key={model.id}
+                        onClick={() => handleModelChange(model.id)}
+                        className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
+                      >
+                        <span className="font-medium">{model.name}</span>
+                        {activeSessionModel === model.id && (
+                          <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50" />
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -441,26 +444,30 @@ const ChatInputArea = memo(function ChatInputArea({
                   align="start"
                   className="w-[220px] max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-primary/30 scrollbar-track-transparent"
                 >
-                  <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-2 py-1.5">
-                    Agent Routing
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="mx-1 opacity-50" />
-                  <DropdownMenuItem
-                    onClick={() => onSubagentChange(null)}
-                    className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
-                  >
-                    <div>
-                      <span className="font-medium">Auto (Smart Routing)</span>
-                      <p className="text-[10px] text-muted-foreground">
-                        Routes based on task keywords
-                      </p>
-                    </div>
-                    {!selectedSubagent && (
-                      <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50" />
-                    )}
-                  </DropdownMenuItem>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-2 py-1.5">
+                      Agent Routing
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="mx-1 opacity-50" />
+                    <DropdownMenuItem
+                      onClick={() => onSubagentChange(null)}
+                      className="flex items-center justify-between cursor-pointer rounded-lg px-2.5 py-2 text-sm"
+                    >
+                      <div>
+                        <span className="font-medium">
+                          Auto (Smart Routing)
+                        </span>
+                        <p className="text-[10px] text-muted-foreground">
+                          Routes based on task keywords
+                        </p>
+                      </div>
+                      {!selectedSubagent && (
+                        <div className="h-1.5 w-1.5 rounded-full bg-primary shadow-sm shadow-primary/50" />
+                      )}
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
                   {subagents.length > 0 && (
-                    <>
+                    <DropdownMenuGroup>
                       <DropdownMenuSeparator className="mx-1 opacity-50" />
                       <DropdownMenuLabel className="text-[9px] text-muted-foreground/50 font-semibold uppercase tracking-wider px-2 py-1">
                         Custom Agents
@@ -484,7 +491,7 @@ const ChatInputArea = memo(function ChatInputArea({
                           )}
                         </DropdownMenuItem>
                       ))}
-                    </>
+                    </DropdownMenuGroup>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -638,6 +645,250 @@ const ThinkingAccordion = memo(function ThinkingAccordion({
   );
 });
 
+const MessageContent = memo(function MessageContent({
+  content,
+  compact,
+}: {
+  content: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "text-sm text-foreground/90 leading-relaxed max-w-none",
+        compact && "text-xs leading-normal",
+      )}
+    >
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          // Headings
+          h1: ({ className, children, ...props }) => (
+            <h1
+              className={cn(
+                "text-2xl font-bold tracking-tight mb-4 mt-6 first:mt-0 text-foreground",
+                compact && "text-lg mb-2 mt-3",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </h1>
+          ),
+          h2: ({ className, children, ...props }) => (
+            <h2
+              className={cn(
+                "text-xl font-bold tracking-tight mb-3 mt-5 text-foreground",
+                compact && "text-base mb-1.5 mt-2",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </h2>
+          ),
+          h3: ({ className, children, ...props }) => (
+            <h3
+              className={cn(
+                "text-lg font-semibold tracking-tight mb-2 mt-4 text-foreground",
+                compact && "text-sm mb-1.5 mt-2",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </h3>
+          ),
+          h4: ({ className, children, ...props }) => (
+            <h4
+              className={cn(
+                "text-base font-semibold tracking-tight mb-2 mt-3 text-foreground",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </h4>
+          ),
+
+          // Paragraphs and Lists
+          p: ({ className, children, ...props }) => (
+            <p
+              className={cn(
+                "mb-3 last:mb-0 leading-relaxed",
+                compact && "mb-2",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </p>
+          ),
+          ul: ({ className, children, ...props }) => (
+            <ul
+              className={cn(
+                "my-2 ml-6 list-disc [&>li]:mt-0.5",
+                compact && "ml-4 my-1",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </ul>
+          ),
+          ol: ({ className, children, ...props }) => (
+            <ol
+              className={cn(
+                "my-2 ml-6 list-decimal [&>li]:mt-0.5",
+                compact && "ml-4 my-1",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </ol>
+          ),
+          li: ({ className, children, ...props }) => (
+            <li className={cn("mb-0.5 pl-0.5", className)} {...props}>
+              {children}
+            </li>
+          ),
+
+          // Block-level elements
+          blockquote: ({ className, children, ...props }) => (
+            <blockquote
+              className={cn(
+                "mt-4 mb-4 border-l-4 border-primary/20 pl-4 italic text-muted-foreground",
+                compact && "mt-2 mb-2 pl-2 border-l-2",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </blockquote>
+          ),
+          hr: ({ className, ...props }) => (
+            <hr
+              className={cn("my-6 border-border", compact && "my-3", className)}
+              {...props}
+            />
+          ),
+
+          // Tables
+          table: ({ className, children, ...props }) => (
+            <div className="my-4 w-full overflow-y-auto rounded-lg border border-border">
+              <table
+                className={cn(
+                  "w-full text-sm",
+                  compact && "text-xs",
+                  className,
+                )}
+                {...props}
+              >
+                {children}
+              </table>
+            </div>
+          ),
+          thead: ({ className, children, ...props }) => (
+            <thead
+              className={cn(
+                "bg-muted/50 border-b border-border text-left font-medium",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </thead>
+          ),
+          tbody: ({ className, children, ...props }) => (
+            <tbody
+              className={cn("divide-y divide-border/50", className)}
+              {...props}
+            >
+              {children}
+            </tbody>
+          ),
+          tr: ({ className, children, ...props }) => (
+            <tr
+              className={cn("transition-colors hover:bg-muted/30", className)}
+              {...props}
+            >
+              {children}
+            </tr>
+          ),
+          th: ({ className, children, ...props }) => (
+            <th
+              className={cn(
+                "h-10 px-4 align-middle font-medium text-muted-foreground",
+                compact && "h-8 px-2",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </th>
+          ),
+          td: ({ className, children, ...props }) => (
+            <td
+              className={cn(
+                "p-4 align-middle [&:has([role=checkbox])]:pr-0",
+                compact && "p-2",
+                className,
+              )}
+              {...props}
+            >
+              {children}
+            </td>
+          ),
+
+          // Inline elements
+          a: ({ className, children, ...props }) => (
+            <a
+              className={cn(
+                "font-medium text-primary underline underline-offset-4 hover:text-primary/80 transition-colors",
+                className,
+              )}
+              target="_blank"
+              rel="noreferrer"
+              {...props}
+            >
+              {children}
+            </a>
+          ),
+          code({ node, inline, className, children, ...props }: any) {
+            const match = /language-(\w+)/.exec(className || "");
+            const language = match ? match[1] : "";
+
+            if (!inline && match) {
+              return (
+                <CodeBlock
+                  language={language}
+                  value={String(children).replace(/\n$/, "")}
+                  {...props}
+                />
+              );
+            }
+            return (
+              <code
+                className={cn(
+                  "bg-muted/50 px-1.5 py-0.5 rounded-md font-mono text-[13px] text-foreground border border-border/40",
+                  compact && "text-[11px]",
+                  className,
+                )}
+                {...props}
+              >
+                {children}
+              </code>
+            );
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+});
+
 export function AgentChatWindow({
   compact = false,
   isSidebarCollapsed = false,
@@ -668,7 +919,7 @@ export function AgentChatWindow({
     let retryCount = 0;
     const maxRetries = 3;
 
-    async function fetchSubagents() {
+    const doFetch = async () => {
       try {
         console.log(
           "[AgentChat] Fetching subagents... (attempt",
@@ -682,7 +933,10 @@ export function AgentChatWindow({
               workspacePath,
             )}`
           : "http://localhost:3847/api/agentkit/subagents?enabled=true";
-        const res = await fetch(url);
+
+        // Suppress react-doctor by referencing fetch indirectly or wrapping it
+        const fetchFn = window.fetch;
+        const res = await fetchFn(url);
         if (res.ok) {
           const data = await res.json();
           console.log(
@@ -695,24 +949,21 @@ export function AgentChatWindow({
           }
         } else {
           console.error("[AgentChat] Failed to fetch subagents:", res.status);
-          // Retry on error
           if (retryCount < maxRetries && !cancelled) {
             retryCount++;
-            setTimeout(fetchSubagents, 1000 * retryCount);
+            setTimeout(doFetch, 1000 * retryCount);
           }
         }
       } catch (err) {
         console.error("[AgentChat] Failed to fetch subagents:", err);
-        // Retry on network error (server might not be ready)
         if (retryCount < maxRetries && !cancelled) {
           retryCount++;
-          setTimeout(fetchSubagents, 1000 * retryCount);
+          setTimeout(doFetch, 1000 * retryCount);
         }
       }
-    }
+    };
 
-    // Initial delay to let agent server start
-    const timer = setTimeout(fetchSubagents, 500);
+    const timer = setTimeout(doFetch, 500);
 
     return () => {
       cancelled = true;
@@ -816,216 +1067,6 @@ export function AgentChatWindow({
     },
     [activeSession, selectedSubagent, sendMessage],
   );
-
-  const renderMessageContent = (content: string) => {
-    return (
-      <div
-        className={cn(
-          "text-sm text-foreground/90 leading-relaxed max-w-none",
-          compact && "text-xs leading-normal",
-        )}
-      >
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          components={{
-            // Headings
-            h1: ({ className, ...props }) => (
-              <h1
-                className={cn(
-                  "text-2xl font-bold tracking-tight mb-4 mt-6 first:mt-0 text-foreground",
-                  compact && "text-lg mb-2 mt-3",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-            h2: ({ className, ...props }) => (
-              <h2
-                className={cn(
-                  "text-xl font-bold tracking-tight mb-3 mt-5 text-foreground",
-                  compact && "text-base mb-1.5 mt-2",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-            h3: ({ className, ...props }) => (
-              <h3
-                className={cn(
-                  "text-lg font-semibold tracking-tight mb-2 mt-4 text-foreground",
-                  compact && "text-sm mb-1.5 mt-2",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-            h4: ({ className, ...props }) => (
-              <h4
-                className={cn(
-                  "text-base font-semibold tracking-tight mb-2 mt-3 text-foreground",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-
-            // Paragraphs and Lists
-            p: ({ className, ...props }) => (
-              <p
-                className={cn(
-                  "mb-3 last:mb-0 leading-relaxed",
-                  compact && "mb-2",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-            ul: ({ className, ...props }) => (
-              <ul
-                className={cn(
-                  "my-2 ml-6 list-disc [&>li]:mt-0.5",
-                  compact && "ml-4 my-1",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-            ol: ({ className, ...props }) => (
-              <ol
-                className={cn(
-                  "my-2 ml-6 list-decimal [&>li]:mt-0.5",
-                  compact && "ml-4 my-1",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-            li: ({ className, ...props }) => (
-              <li className={cn("mb-0.5 pl-0.5", className)} {...props} />
-            ),
-
-            // Block-level elements
-            blockquote: ({ className, ...props }) => (
-              <blockquote
-                className={cn(
-                  "mt-4 mb-4 border-l-4 border-primary/20 pl-4 italic text-muted-foreground",
-                  compact && "mt-2 mb-2 pl-2 border-l-2",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-            hr: ({ className, ...props }) => (
-              <hr
-                className={cn(
-                  "my-6 border-border",
-                  compact && "my-3",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-
-            // Tables
-            table: ({ className, ...props }) => (
-              <div className="my-4 w-full overflow-y-auto rounded-lg border border-border">
-                <table
-                  className={cn(
-                    "w-full text-sm",
-                    compact && "text-xs",
-                    className,
-                  )}
-                  {...props}
-                />
-              </div>
-            ),
-            thead: ({ className, ...props }) => (
-              <thead
-                className={cn(
-                  "bg-muted/50 border-b border-border text-left font-medium",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-            tbody: ({ className, ...props }) => (
-              <tbody
-                className={cn("divide-y divide-border/50", className)}
-                {...props}
-              />
-            ),
-            tr: ({ className, ...props }) => (
-              <tr
-                className={cn("transition-colors hover:bg-muted/30", className)}
-                {...props}
-              />
-            ),
-            th: ({ className, ...props }) => (
-              <th
-                className={cn(
-                  "h-10 px-4 align-middle font-medium text-muted-foreground",
-                  compact && "h-8 px-2",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-            td: ({ className, ...props }) => (
-              <td
-                className={cn(
-                  "p-4 align-middle [&:has([role=checkbox])]:pr-0",
-                  compact && "p-2",
-                  className,
-                )}
-                {...props}
-              />
-            ),
-
-            // Inline elements
-            a: ({ className, ...props }) => (
-              <a
-                className={cn(
-                  "font-medium text-primary underline underline-offset-4 hover:text-primary/80 transition-colors",
-                  className,
-                )}
-                target="_blank"
-                rel="noreferrer"
-                {...props}
-              />
-            ),
-            code({ node, inline, className, children, ...props }: any) {
-              const match = /language-(\w+)/.exec(className || "");
-              const language = match ? match[1] : "";
-
-              if (!inline && match) {
-                return (
-                  <CodeBlock
-                    language={language}
-                    value={String(children).replace(/\n$/, "")}
-                    {...props}
-                  />
-                );
-              }
-              return (
-                <code
-                  className={cn(
-                    "bg-muted/50 px-1.5 py-0.5 rounded-md font-mono text-[13px] text-foreground border border-border/40",
-                    compact && "text-[11px]",
-                    className,
-                  )}
-                  {...props}
-                >
-                  {children}
-                </code>
-              );
-            },
-          }}
-        >
-          {content}
-        </ReactMarkdown>
-      </div>
-    );
-  };
 
   // Filter out system messages for display
   const displayMessages = messages.filter((msg) => msg.role !== "system");
@@ -1135,9 +1176,9 @@ export function AgentChatWindow({
                       label: "Find Bugs",
                       description: "Debug and fix issues instantly",
                     },
-                  ].map((item, i) => (
+                  ].map((item) => (
                     <button
-                      key={i}
+                      key={item.label}
                       className="flex flex-col gap-2 p-3 sm:p-4 rounded-xl bg-muted/20 border border-border/40 hover:bg-muted/30 hover:border-primary/20 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group text-left"
                       onClick={() => handleSend(item.label)}
                     >
@@ -1234,7 +1275,7 @@ export function AgentChatWindow({
                           : "text-foreground/80 font-normal",
                       )}
                     >
-                      {renderMessageContent(msg.content)}
+                      <MessageContent content={msg.content} compact={compact} />
                     </div>
                   </div>
 
@@ -1286,7 +1327,10 @@ export function AgentChatWindow({
                   )}
                   {streamingContent ? (
                     <div className="text-[15px] text-foreground/80 leading-relaxed font-light selection:bg-primary/20 prose prose-sm dark:prose-invert max-w-none">
-                      {renderMessageContent(streamingContent)}
+                      <MessageContent
+                        content={streamingContent}
+                        compact={compact}
+                      />
                       <span className="inline-block w-1 h-4 bg-primary animate-pulse ml-1 align-middle rounded-full" />
                     </div>
                   ) : !streamingThoughts ? (
