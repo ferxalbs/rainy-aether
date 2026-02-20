@@ -12,6 +12,8 @@ pub mod commit;
 pub mod error;
 pub mod history;
 pub mod merge;
+pub mod rebase;
+pub mod repo;
 pub mod remote;
 pub mod stash;
 pub mod status;

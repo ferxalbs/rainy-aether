@@ -140,3 +140,26 @@ pub fn git_rename_branch(
 
     Ok(format!("Renamed branch {} to {}", old_name, new_name))
 }
+
+/// Set upstream for the current branch
+#[tauri::command]
+pub fn git_set_upstream(path: String, remote: String, branch: String) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+    let head = repo.head().map_err(|e| GitError::from(e))?;
+    let current_name = head
+        .shorthand()
+        .ok_or_else(|| "Cannot set upstream on detached HEAD".to_string())?;
+
+    let mut local_branch = repo
+        .find_branch(current_name, BranchType::Local)
+        .map_err(|e| GitError::from(e))?;
+    let upstream_ref = format!("{}/{}", remote, branch);
+    local_branch
+        .set_upstream(Some(&upstream_ref))
+        .map_err(|e| GitError::from(e))?;
+
+    Ok(format!(
+        "Set upstream of {} to {}",
+        current_name, upstream_ref
+    ))
+}

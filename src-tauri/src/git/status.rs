@@ -145,6 +145,22 @@ pub fn git_stage_all(path: String) -> Result<String, String> {
     Ok("Staged all changes".to_string())
 }
 
+/// Stage multiple files
+#[tauri::command]
+pub fn git_stage_files(path: String, file_paths: Vec<String>) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+    let mut index = repo.index().map_err(|e| GitError::from(e))?;
+
+    for file_path in &file_paths {
+        index
+            .add_path(std::path::Path::new(file_path))
+            .map_err(|e| GitError::from(e))?;
+    }
+    index.write().map_err(|e| GitError::from(e))?;
+
+    Ok(format!("Staged {} files", file_paths.len()))
+}
+
 /// Unstage a single file
 #[tauri::command]
 pub fn git_unstage_file(path: String, file_path: String) -> Result<String, String> {
@@ -175,6 +191,23 @@ pub fn git_unstage_all(path: String) -> Result<String, String> {
         .map_err(|e| GitError::from(e))?;
 
     Ok("Unstaged all changes".to_string())
+}
+
+/// Unstage multiple files
+#[tauri::command]
+pub fn git_unstage_files(path: String, file_paths: Vec<String>) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+
+    let head = repo.head().map_err(|e| GitError::from(e))?;
+    let head_commit = head.peel_to_commit().map_err(|e| GitError::from(e))?;
+
+    repo.reset_default(
+        Some(&head_commit.as_object()),
+        file_paths.iter().map(|s| s.as_str()),
+    )
+    .map_err(|e| GitError::from(e))?;
+
+    Ok(format!("Unstaged {} files", file_paths.len()))
 }
 
 /// Discard changes to a file (restore to HEAD)

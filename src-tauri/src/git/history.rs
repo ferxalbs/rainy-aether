@@ -516,3 +516,129 @@ pub fn git_diff_commit_file(
 
     Ok(diff_text)
 }
+
+/// Get diff between two commit references
+#[tauri::command]
+pub fn git_diff_between_commits(
+    path: String,
+    from_commit: String,
+    to_commit: String,
+) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+    let from_oid = git2::Oid::from_str(&from_commit).map_err(|e| GitError::from(e))?;
+    let to_oid = git2::Oid::from_str(&to_commit).map_err(|e| GitError::from(e))?;
+    let from_obj = repo.find_object(from_oid, None).map_err(|e| GitError::from(e))?;
+    let to_obj = repo.find_object(to_oid, None).map_err(|e| GitError::from(e))?;
+    let from_tree = from_obj.peel_to_tree().map_err(|e| GitError::from(e))?;
+    let to_tree = to_obj.peel_to_tree().map_err(|e| GitError::from(e))?;
+
+    let diff = repo
+        .diff_tree_to_tree(Some(&from_tree), Some(&to_tree), None)
+        .map_err(|e| GitError::from(e))?;
+
+    let mut diff_text = String::new();
+    diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
+        let origin = line.origin();
+        if origin == '+' || origin == '-' || origin == ' ' {
+            diff_text.push(origin);
+        }
+        diff_text.push_str(&String::from_utf8_lossy(line.content()));
+        true
+    })
+    .map_err(|e| GitError::from(e))?;
+
+    Ok(diff_text)
+}
+
+/// Get diff file list between refs or for staged/worktree changes
+#[tauri::command]
+pub fn git_diff_files(
+    path: String,
+    from: Option<String>,
+    to: Option<String>,
+    staged: Option<bool>,
+) -> Result<Vec<FileDiff>, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+
+    let diff = if let (Some(from_ref), Some(to_ref)) = (from, to) {
+        let from_oid = git2::Oid::from_str(&from_ref).map_err(|e| GitError::from(e))?;
+        let to_oid = git2::Oid::from_str(&to_ref).map_err(|e| GitError::from(e))?;
+        let from_tree = repo
+            .find_object(from_oid, None)
+            .and_then(|obj| obj.peel_to_tree())
+            .map_err(|e| GitError::from(e))?;
+        let to_tree = repo
+            .find_object(to_oid, None)
+            .and_then(|obj| obj.peel_to_tree())
+            .map_err(|e| GitError::from(e))?;
+        repo.diff_tree_to_tree(Some(&from_tree), Some(&to_tree), None)
+            .map_err(|e| GitError::from(e))?
+    } else if staged.unwrap_or(false) {
+        let head_tree = repo
+            .head()
+            .map_err(|e| GitError::from(e))?
+            .peel_to_tree()
+            .map_err(|e| GitError::from(e))?;
+        repo.diff_tree_to_index(Some(&head_tree), None, None)
+            .map_err(|e| GitError::from(e))?
+    } else {
+        repo.diff_index_to_workdir(None, None)
+            .map_err(|e| GitError::from(e))?
+    };
+
+    let mut files = Vec::new();
+    for i in 0..diff.deltas().len() {
+        let delta = diff
+            .get_delta(i)
+            .ok_or_else(|| "Delta not found".to_string())?;
+
+        let new_file = delta.new_file();
+        let old_file = delta.old_file();
+        let file_path = new_file
+            .path()
+            .or_else(|| old_file.path())
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+
+        let old_path = if delta.status() == git2::Delta::Renamed {
+            old_file.path().map(|p| p.to_string_lossy().to_string())
+        } else {
+            None
+        };
+
+        let status = match delta.status() {
+            git2::Delta::Added => "A",
+            git2::Delta::Deleted => "D",
+            git2::Delta::Modified => "M",
+            git2::Delta::Renamed => "R",
+            git2::Delta::Copied => "C",
+            _ => "?",
+        }
+        .to_string();
+
+        files.push(FileDiff {
+            path: file_path,
+            old_path,
+            status,
+            additions: 0,
+            deletions: 0,
+            diff: String::new(),
+        });
+    }
+
+    Ok(files)
+}
+
+/// Show file content from a specific commit
+#[tauri::command]
+pub fn git_show_file(path: String, commit: String, file_path: String) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+    let oid = git2::Oid::from_str(&commit).map_err(|e| GitError::from(e))?;
+    let commit_obj = repo.find_commit(oid).map_err(|e| GitError::from(e))?;
+    let tree = commit_obj.tree().map_err(|e| GitError::from(e))?;
+    let entry = tree
+        .get_path(std::path::Path::new(&file_path))
+        .map_err(|e| GitError::from(e))?;
+    let blob = repo.find_blob(entry.id()).map_err(|e| GitError::from(e))?;
+    Ok(String::from_utf8_lossy(blob.content()).to_string())
+}

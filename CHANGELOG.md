@@ -2,6 +2,30 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.28] - 2026-02-20
+
+### Fixed
+
+- **Native Git (Rust) correctness and stability**:
+  - Fixed `git_revert` to use proper libgit2 revert flow (replaced incorrect cherry-pick-style behavior).
+  - Fixed ahead/behind and unpushed logic to resolve real upstream tracking refs instead of hardcoded `origin`.
+  - Added detached-HEAD safeguards for `git_push` and `git_pull` with explicit user-facing errors.
+
+### Added
+
+- **Completed native Rust Git command surface used by frontend**:
+  - Added remote commands: `git_rename_remote`, `git_fetch_all`.
+  - Added tag commands: `git_list_tags`, `git_create_tag`, `git_delete_tag`, `git_push_tag`, `git_push_all_tags`.
+  - Added history/diff commands: `git_get_commit_info`, `git_diff_files`, `git_diff_between_commits`, `git_show_file`.
+  - Added branch/status/repo/config commands: `git_set_upstream`, `git_stage_files`, `git_unstage_files`, `git_get_repo_info`, `git_get_config`, `git_set_config`, `git_stage`.
+
+### Technical
+
+- Refactored Git auth callbacks to rely on libgit2 credential handling (`Cred::credential_helper`) and removed direct `git` CLI subprocess usage in auth path.
+- Registered all new Git commands in `src-tauri/src/lib.rs` and module exports (`src-tauri/src/git/mod.rs`), eliminating unresolved `invoke("git_*")` calls from current stores/services.
+
+---
+
 ## [v0.1.27] - 2026-01-06
 
 ### Added
