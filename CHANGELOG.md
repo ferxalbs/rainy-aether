@@ -2,6 +2,14 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.32] - 2026-02-21
+
+### Changes:
+
+- **[Improvements]** Removed remaining glassmorphism properties (backdrop-blur, backdrop-saturate) across the `src/components/agents` directory to apply a solid, high-end theme compliant with the IDE's core aesthetics. Fixed a thinking mode mapping typing issue within the `ModelSelector`.
+
+---
+
 ## [v0.1.31] - 2026-02-20
 
 ### Changes:

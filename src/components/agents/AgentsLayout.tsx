@@ -59,7 +59,7 @@ export function AgentsLayout() {
       <aside
         className={cn(
           "h-full shrink-0 border-r border-border transition-[width,transform] duration-200 ease-out will-change-transform overflow-hidden",
-          isSidebarOpen ? "w-[280px]" : "w-0 border-r-0"
+          isSidebarOpen ? "w-[280px]" : "w-0 border-r-0",
         )}
         style={{
           transform: isSidebarOpen
@@ -73,9 +73,9 @@ export function AgentsLayout() {
       </aside>
 
       {/* Main content area */}
-      <main className="flex-1 min-w-0 flex flex-col h-full bg-background/50 backdrop-blur-sm">
+      <main className="flex-1 min-w-0 flex flex-col h-full bg-background">
         {/* Unified Header */}
-        <header className="shrink-0 h-14 flex items-center justify-between px-4 sm:px-6 border-b border-primary/10 bg-background/10 backdrop-blur-3xl backdrop-saturate-150 z-10 shadow-sm">
+        <header className="shrink-0 h-14 flex items-center justify-between px-4 sm:px-6 border-b border-border bg-card z-10 shadow-sm">
           <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
             <Button
               variant="ghost"

@@ -41,7 +41,7 @@ import {
  */
 function ServerLoadingOverlay() {
   return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm">
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95">
       <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
         <div className="relative">
           <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-purple-500/20 via-indigo-500/20 to-blue-500/20 flex items-center justify-center border border-white/10 shadow-xl">
@@ -193,7 +193,7 @@ export function AgentsSidebar({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex flex-col h-full bg-background/10 backdrop-blur-3xl border-r border-primary/10 relative",
+        "flex flex-col h-full bg-card border-r border-border relative",
         className,
       )}
     >
@@ -263,7 +263,7 @@ export function AgentsSidebar({ className }: { className?: string }) {
                   </TooltipTrigger>
                   <TooltipContent
                     side="right"
-                    className="max-w-[220px] bg-background/80 backdrop-blur-xl border-primary/20"
+                    className="max-w-[220px] bg-popover border-border shadow-md"
                   >
                     <p className="text-xs font-bold text-primary mb-1">
                       {agent.name}
@@ -338,7 +338,7 @@ export function AgentsSidebar({ className }: { className?: string }) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                       align="end"
-                      className="w-36 bg-background/80 backdrop-blur-2xl border-primary/10 p-1.5"
+                      className="w-36 bg-popover border-border p-1.5 shadow-md"
                     >
                       <DropdownMenuItem
                         onClick={(e) => handleRenameSession(e, session.id)}

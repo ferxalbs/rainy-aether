@@ -285,7 +285,7 @@ const ChatInputArea = memo(function ChatInputArea({
       <div className="max-w-4xl mx-auto w-full relative">
         <div
           className={cn(
-            "relative rounded-xl bg-background/10 backdrop-blur-3xl border border-primary/20 ring-1 ring-primary/10 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-lg focus-within:shadow-primary/5 transition-all duration-300 shadow-lg shadow-black/20",
+            "relative rounded-xl bg-card border border-border ring-1 ring-border/50 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-lg focus-within:shadow-primary/5 transition-all duration-300 shadow-lg shadow-black/20",
             compact && "rounded-lg",
             isDragging
               ? "border-primary/50 bg-primary/10 border-dashed ring-2 ring-primary/30"
@@ -298,7 +298,7 @@ const ChatInputArea = memo(function ChatInputArea({
         >
           {/* Drag overlay */}
           {isDragging && (
-            <div className="absolute inset-0 flex items-center justify-center bg-primary/10 backdrop-blur-sm rounded-xl z-10 pointer-events-none border border-primary/30">
+            <div className="absolute inset-0 flex items-center justify-center bg-primary/10 rounded-xl z-10 pointer-events-none border border-primary/30">
               <div className="flex items-center gap-3 text-primary font-semibold animate-in zoom-in-95 duration-300">
                 <Image className="h-6 w-6 animate-pulse" />
                 <span className="text-sm uppercase tracking-widest">
@@ -338,7 +338,7 @@ const ChatInputArea = memo(function ChatInputArea({
                   </div>
                   <button
                     onClick={() => removeImage(index)}
-                    className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-background/80 backdrop-blur-sm border border-primary/30 text-foreground/70 rounded-full flex items-center justify-center opacity-0 group-hover/img:opacity-100 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive/50 transition-all shadow-md z-10"
+                    className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-background border border-primary/30 text-foreground/70 rounded-full flex items-center justify-center opacity-0 group-hover/img:opacity-100 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive/50 transition-all shadow-sm z-10"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -1076,7 +1076,7 @@ export function AgentChatWindow({
     <div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
       {/* Topbar - only shown when sidebar is collapsed or standalone */}
       {showTopbar && (
-        <div className="h-12 border-b border-primary/10 px-4 flex items-center justify-between bg-background/50 backdrop-blur-xl z-10 shrink-0">
+        <div className="h-12 border-b border-border/50 px-4 flex items-center justify-between bg-background z-10 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="h-7 w-7 rounded-lg bg-primary/5 flex items-center justify-center border border-primary/10 shrink-0 shadow-inner">
               <Brain className="h-3.5 w-3.5 text-primary/70" />
@@ -1256,7 +1256,7 @@ export function AgentChatWindow({
                     className={cn(
                       "relative transition-all duration-300",
                       msg.role === "user"
-                        ? "bg-background/10 backdrop-blur-3xl border border-primary/10 rounded-2xl px-4 py-4 shadow-xl shadow-black/10"
+                        ? "bg-card border border-border rounded-2xl px-4 py-4 shadow-xl shadow-black/10"
                         : "w-full py-1",
                     )}
                   >

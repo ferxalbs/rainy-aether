@@ -364,19 +364,13 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Traffic lights center at ~14px from top, so we position our content to match
   if (useNative) {
     return (
-      <div
-        className="h-12 flex items-center select-none w-full shrink-0 relative z-50 mb-1"
-        data-tauri-drag-region
-      >
+      <div className="h-12 flex items-center select-none w-full shrink-0 relative z-50 mb-1">
         {/* Left padding for native macOS traffic lights */}
-        <div className="w-[78px] shrink-0 h-full" data-tauri-drag-region />
+        <div className="w-[78px] shrink-0 h-full" />
 
         {/* Mode Switcher - Centered floating pill */}
         {currentView === "editor" && (
-          <div
-            className="flex flex-1 items-center justify-center h-full pointer-events-none"
-            data-tauri-drag-region
-          >
+          <div className="flex flex-1 items-center justify-center h-full pointer-events-none">
             <div className="glass-panel rounded-full px-2 py-1 flex items-center shadow-lg pointer-events-auto">
               <ModeSwitcher />
             </div>

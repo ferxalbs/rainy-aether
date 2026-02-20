@@ -1,5 +1,16 @@
 import { useState, useEffect } from "react";
-import { Settings, Key, Check, Loader2, Eye, EyeOff, Server, Power, PowerOff, RefreshCw } from "lucide-react";
+import {
+  Settings,
+  Key,
+  Check,
+  Loader2,
+  Eye,
+  EyeOff,
+  Server,
+  Power,
+  PowerOff,
+  RefreshCw,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -37,44 +48,44 @@ interface ApiKeyConfig {
 
 const API_PROVIDERS: ApiKeyConfig[] = [
   {
-    id: 'gemini',
-    name: 'Google Gemini',
-    storageKey: 'gemini_api_key',
-    placeholder: 'AIza...',
-    getKeyUrl: 'https://aistudio.google.com/app/apikey',
-    description: 'Gemini 3 Flash, Gemini 3 Pro',
+    id: "gemini",
+    name: "Google Gemini",
+    storageKey: "gemini_api_key",
+    placeholder: "AIza...",
+    getKeyUrl: "https://aistudio.google.com/app/apikey",
+    description: "Gemini 3 Flash, Gemini 3 Pro",
   },
   {
-    id: 'groq',
-    name: 'Groq',
-    storageKey: 'groq_api_key',
-    placeholder: 'gsk_...',
-    getKeyUrl: 'https://console.groq.com/keys',
-    description: 'Kimi K2 09-25 (ultra-fast inference)',
+    id: "groq",
+    name: "Groq",
+    storageKey: "groq_api_key",
+    placeholder: "gsk_...",
+    getKeyUrl: "https://console.groq.com/keys",
+    description: "Kimi K2 09-25 (ultra-fast inference)",
   },
   {
-    id: 'openai',
-    name: 'OpenAI',
-    storageKey: 'openai_api_key',
-    placeholder: 'sk-...',
-    getKeyUrl: 'https://platform.openai.com/api-keys',
-    description: 'GPT-5.2, GPT-Codex-5.2 and more',
+    id: "openai",
+    name: "OpenAI",
+    storageKey: "openai_api_key",
+    placeholder: "sk-...",
+    getKeyUrl: "https://platform.openai.com/api-keys",
+    description: "GPT-5.2, GPT-Codex-5.2 and more",
   },
   {
-    id: 'anthropic',
-    name: 'Anthropic',
-    storageKey: 'anthropic_api_key',
-    placeholder: 'sk-ant-...',
-    getKeyUrl: 'https://console.anthropic.com/settings/keys',
-    description: 'Claude 4.5 Sonnet, Claude 4.5 Opus and Claude 4.5 Haiku',
+    id: "anthropic",
+    name: "Anthropic",
+    storageKey: "anthropic_api_key",
+    placeholder: "sk-ant-...",
+    getKeyUrl: "https://console.anthropic.com/settings/keys",
+    description: "Claude 4.5 Sonnet, Claude 4.5 Opus and Claude 4.5 Haiku",
   },
   {
-    id: 'cerebras',
-    name: 'Cerebras',
-    storageKey: 'cerebras_api_key',
-    placeholder: 'csk-...',
-    getKeyUrl: 'https://cloud.cerebras.ai/platform/',
-    description: 'GML 4.5 and GPT-OSS (fastest inference)',
+    id: "cerebras",
+    name: "Cerebras",
+    storageKey: "cerebras_api_key",
+    placeholder: "csk-...",
+    getKeyUrl: "https://cloud.cerebras.ai/platform/",
+    description: "GML 4.5 and GPT-OSS (fastest inference)",
   },
 ];
 
@@ -83,7 +94,16 @@ export function AgentSettingsDialog() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { status, isRunning, isStarting, isStopping, start, stop, refresh, error: serverError } = useAgentServer();
+  const {
+    status,
+    isRunning,
+    isStarting,
+    isStopping,
+    start,
+    stop,
+    refresh,
+    error: serverError,
+  } = useAgentServer();
 
   // API Keys state
   const [keys, setKeys] = useState<Record<string, string>>({});
@@ -116,7 +136,7 @@ export function AgentSettingsDialog() {
             loadedKeys[provider.id] = maskKey(key);
             status[provider.id] = true;
           }
-        })
+        }),
       );
 
       setKeys(loadedKeys);
@@ -178,13 +198,19 @@ export function AgentSettingsDialog() {
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          >
             <Settings className="h-3.5 w-3.5" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-hidden flex flex-col bg-background/95 dark:bg-background/5 backdrop-blur-3xl backdrop-saturate-150 border-2 dark:border border-border dark:border-border/50 rounded-2xl shadow-2xl">
+        <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-hidden flex flex-col bg-card border border-border rounded-2xl shadow-xl">
           <DialogHeader className="border-b border-border dark:border-border/30 pb-4">
-            <DialogTitle className="text-xl font-semibold">Agent Settings</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">
+              Agent Settings
+            </DialogTitle>
             <DialogDescription className="text-sm">
               Configure API keys and manage the agent server.
             </DialogDescription>
@@ -197,17 +223,23 @@ export function AgentSettingsDialog() {
           ) : (
             <div className="flex-1 overflow-y-auto space-y-6 py-5 pr-2">
               {/* Server Status Section */}
-              <div className="rounded-xl border dark:border border-border dark:border-border/30 bg-background/5 dark:bg-background/5 backdrop-blur-lg backdrop-saturate-150 hover:bg-background/8 dark:hover:bg-background/10 p-5 space-y-3 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 mx-2">
+              <div className="rounded-xl border border-border/50 bg-background/50 hover:bg-background p-5 space-y-3 transition-all duration-300 hover:shadow-sm mx-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Server className="h-4 w-4 text-muted-foreground" />
                     <Label className="text-sm font-medium">Agent Server</Label>
                     {isRunning ? (
-                      <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 text-[10px]">
+                      <Badge
+                        variant="outline"
+                        className="bg-green-500/10 text-green-500 border-green-500/30 text-[10px]"
+                      >
                         Running
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px]">
+                      <Badge
+                        variant="outline"
+                        className="bg-muted text-muted-foreground text-[10px]"
+                      >
                         Offline
                       </Badge>
                     )}
@@ -216,7 +248,7 @@ export function AgentSettingsDialog() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 rounded-lg transition-all duration-200 hover:bg-background/20 hover:backdrop-blur-lg hover:scale-105 active:scale-95"
+                      className="h-8 w-8 rounded-lg transition-all duration-200 hover:bg-accent hover:scale-105 active:scale-95"
                       onClick={refresh}
                     >
                       <RefreshCw className="h-3.5 w-3.5" />
@@ -276,10 +308,16 @@ export function AgentSettingsDialog() {
                 </div>
 
                 {API_PROVIDERS.map((provider) => (
-                  <div key={provider.id} className="space-y-2 p-4 rounded-xl border dark:border border-border dark:border-border/30 bg-background/5 dark:bg-background/5 backdrop-blur-lg backdrop-saturate-150 hover:bg-background/8 dark:hover:bg-background/10 transition-all duration-300 hover:shadow-md">
+                  <div
+                    key={provider.id}
+                    className="space-y-2 p-4 rounded-xl border border-border/50 bg-background/50 hover:bg-background transition-all duration-300 hover:shadow-sm"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Label htmlFor={`${provider.id}-key`} className="text-sm">
+                        <Label
+                          htmlFor={`${provider.id}-key`}
+                          className="text-sm"
+                        >
                           {provider.name}
                         </Label>
                         {keyStatus[provider.id as keyof ApiKeyStatus] && (
@@ -302,7 +340,9 @@ export function AgentSettingsDialog() {
                           type={showKeys[provider.id] ? "text" : "password"}
                           placeholder={provider.placeholder}
                           value={keys[provider.id] || ""}
-                          onChange={(e) => handleKeyChange(provider.id, e.target.value)}
+                          onChange={(e) =>
+                            handleKeyChange(provider.id, e.target.value)
+                          }
                           className="pr-10 h-9 text-sm"
                         />
                         <Button
@@ -340,11 +380,15 @@ export function AgentSettingsDialog() {
               <Separator />
 
               {/* Security Info */}
-              <div className="rounded-xl bg-background/8 dark:bg-background/5 backdrop-blur-lg backdrop-saturate-150 border dark:border border-border dark:border-border/30 p-5 space-y-2 mx-2">
+              <div className="rounded-xl bg-background/50 border border-border/50 p-5 space-y-2 mx-2">
                 <h4 className="text-sm font-medium">Security & Privacy</h4>
                 <ul className="text-[11px] text-muted-foreground space-y-1 ml-4 list-disc">
-                  <li>API keys are stored securely using your system's keychain</li>
-                  <li>Keys are encrypted at rest and never leave your device</li>
+                  <li>
+                    API keys are stored securely using your system's keychain
+                  </li>
+                  <li>
+                    Keys are encrypted at rest and never leave your device
+                  </li>
                   <li>Keys are only sent to the AI provider you're using</li>
                   <li>Delete keys anytime by clearing the field and saving</li>
                 </ul>
@@ -353,10 +397,18 @@ export function AgentSettingsDialog() {
           )}
 
           <DialogFooter className="pt-5 border-t border-border dark:border-border/30">
-            <Button variant="outline" onClick={() => setOpen(false)} className="transition-all duration-200 hover:scale-105 active:scale-95">
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="transition-all duration-200 hover:scale-105 active:scale-95"
+            >
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saving || loading} className="transition-all duration-200 hover:scale-105 active:scale-95">
+            <Button
+              onClick={handleSave}
+              disabled={saving || loading}
+              className="transition-all duration-200 hover:scale-105 active:scale-95"
+            >
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

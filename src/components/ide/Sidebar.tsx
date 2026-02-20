@@ -121,17 +121,9 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <div
-      ref={sidebarRef}
-      className={cn(
-        "flex h-full relative group select-none z-40 glass-panel rounded-xl overflow-hidden",
-        !isResizing &&
-          "transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]",
-      )}
-      style={{ width: isOpen ? sidebarWidth : 56 }}
-    >
+    <div className="flex h-full gap-2 z-40 relative">
       {/* Activity Bar */}
-      <div className="flex flex-col items-center py-3 h-full w-14 shrink-0 border-r border-sidebar-border/20 bg-transparent gap-1">
+      <div className="flex flex-col items-center py-3 h-full w-14 shrink-0 glass-panel rounded-xl overflow-hidden gap-1 z-40 relative">
         {/* Navigation */}
         <ActivityButton
           icon={Folder}
@@ -210,22 +202,30 @@ const Sidebar: React.FC = () => {
 
       {/* Content Panel */}
       {isOpen && (
-        <div className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden">
-          {activeTab === "explorer" && <ProjectExplorer />}
-          {activeTab === "search" && <GlobalSearch />}
-          {activeTab === "git" && <GitHistoryPanel />}
-          {isWebviewTab(activeTab) && (
-            <WebviewSidebarContainer viewId={getWebviewId(activeTab)} />
-          )}
-        </div>
-      )}
-
-      {/* Resize Handle */}
-      {isOpen && (
         <div
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 z-50 transition-colors"
-          onMouseDown={() => setIsResizing(true)}
-        />
+          ref={sidebarRef}
+          className={cn(
+            "h-full relative group select-none z-40 glass-panel rounded-xl overflow-hidden flex flex-col",
+            !isResizing &&
+              "transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]",
+          )}
+          style={{ width: Math.max(0, sidebarWidth - 56 - 8) }}
+        >
+          <div className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden">
+            {activeTab === "explorer" && <ProjectExplorer />}
+            {activeTab === "search" && <GlobalSearch />}
+            {activeTab === "git" && <GitHistoryPanel />}
+            {isWebviewTab(activeTab) && (
+              <WebviewSidebarContainer viewId={getWebviewId(activeTab)} />
+            )}
+          </div>
+
+          {/* Resize Handle */}
+          <div
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 z-50 transition-colors"
+            onMouseDown={() => setIsResizing(true)}
+          />
+        </div>
       )}
     </div>
   );
