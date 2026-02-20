@@ -36,7 +36,13 @@ import {
 import "../../css/FileViewer.css";
 import "../../css/inline-diff.css";
 
-type SupportedLanguage = "javascript" | "html" | "css" | "markdown" | "rust" | undefined;
+type SupportedLanguage =
+  | "javascript"
+  | "html"
+  | "css"
+  | "markdown"
+  | "rust"
+  | undefined;
 
 const getLanguageFromFile = (fileName: string): SupportedLanguage => {
   const ext = fileName.split(".").pop()?.toLowerCase();
@@ -87,10 +93,13 @@ const DraggableTab: React.FC<DraggableTabProps> = ({
 
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
-    e.dataTransfer.setData("text/plain", JSON.stringify({
-      fileId: file.id,
-      sourceGroupId: groupId,
-    }));
+    e.dataTransfer.setData(
+      "text/plain",
+      JSON.stringify({
+        fileId: file.id,
+        sourceGroupId: groupId,
+      }),
+    );
     e.dataTransfer.effectAllowed = "move";
   };
 
@@ -103,8 +112,11 @@ const DraggableTab: React.FC<DraggableTabProps> = ({
       <ContextMenuTrigger asChild>
         <div
           className={cn(
-            "flex items-center min-w-0 border-r file-viewer-tab",
-            isDragging && "opacity-50"
+            "flex items-center min-w-0 mr-1 mt-1 mb-[2px] h-8 rounded-md transition-colors file-viewer-tab",
+            isDragging && "opacity-50",
+            isActive
+              ? "bg-background/60 dark:bg-background/30 shadow-sm border border-border/40"
+              : "hover:bg-background/20 dark:hover:bg-background/10 border border-transparent text-muted-foreground",
           )}
           draggable
           onDragStart={handleDragStart}
@@ -113,23 +125,28 @@ const DraggableTab: React.FC<DraggableTabProps> = ({
           <Button
             variant="ghost"
             className={cn(
-              "rounded-none border-0 h-9 px-3 text-sm font-normal file-viewer-tab-button",
-              "focus-visible:ring-0 focus-visible:ring-offset-0",
-              isActive ? "active" : ""
+              "rounded-l-md rounded-r-none h-full px-3 text-sm font-normal",
+              "focus-visible:ring-0 focus-visible:ring-offset-0 hover:bg-transparent tracking-tight",
+              isActive
+                ? "text-foreground font-medium"
+                : "text-muted-foreground",
             )}
             onClick={onSelect}
             aria-label={`Select tab ${file.name}`}
           >
-            <GripVertical size={12} className="mr-1 opacity-50 cursor-grab" />
+            <GripVertical
+              size={12}
+              className="mr-1.5 opacity-40 cursor-grab hover:opacity-100 transition-opacity"
+            />
             <span className="truncate max-w-32">{file.name}</span>
             {file.isDirty && (
-              <span className="ml-1 file-viewer-dirty-indicator">●</span>
+              <span className="ml-1.5 file-viewer-dirty-indicator">●</span>
             )}
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-6 rounded-none file-viewer-close-button"
+            className="h-full w-7 rounded-r-md rounded-l-none hover:bg-foreground/10 hover:text-foreground transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               onClose();
@@ -137,7 +154,12 @@ const DraggableTab: React.FC<DraggableTabProps> = ({
             title="Close tab"
             aria-label="Close tab"
           >
-            <X size={12} className="file-viewer-close-icon" />
+            <X
+              size={13}
+              className={
+                isActive ? "text-foreground/70" : "text-muted-foreground"
+              }
+            />
           </Button>
         </div>
       </ContextMenuTrigger>
@@ -185,7 +207,10 @@ interface EditorGroupPanelProps {
   onContentChange: (fileId: string, content: string) => void;
   onActivate: () => void;
   onClose: () => void;
-  onSplitWithFile: (fileId: string, direction: "horizontal" | "vertical") => void;
+  onSplitWithFile: (
+    fileId: string,
+    direction: "horizontal" | "vertical",
+  ) => void;
   onMoveFile: (fileId: string, targetGroupId: string) => void;
 }
 
@@ -204,7 +229,8 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
   onMoveFile,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [groupEditor, setGroupEditor] = useState<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [groupEditor, setGroupEditor] =
+    useState<monaco.editor.IStandaloneCodeEditor | null>(null);
   const dragCounterRef = React.useRef(0);
 
   const groupFiles = useMemo(() => {
@@ -231,21 +257,21 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Accept: Cmd/Ctrl+Enter
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         e.stopPropagation();
         inlineDiffActions.acceptAllChanges();
       }
       // Reject: Escape
-      else if (e.key === 'Escape') {
+      else if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
         inlineDiffActions.rejectAllChanges();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => window.removeEventListener('keydown', handleKeyDown, true);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [showInlineDiff]);
 
   const otherGroups = useMemo(() => {
@@ -292,9 +318,9 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-col h-full file-viewer-main",
-        isActive && "ring-2 ring-primary/50",
-        isDragOver && "bg-accent/30 ring-2 ring-primary"
+        "flex flex-col h-full bg-transparent",
+        isActive && "ring-1 ring-primary/20",
+        isDragOver && "bg-accent/20 ring-2 ring-primary",
       )}
       onClick={onActivate}
       onDragEnter={handleDragEnter}
@@ -303,8 +329,8 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
       onDrop={handleDrop}
     >
       {/* Tab bar */}
-      <div className="flex border-b overflow-x-auto file-viewer-tabs">
-        <div className="flex flex-1 overflow-x-auto">
+      <div className="flex px-2 border-b border-border/40 overflow-x-auto bg-transparent items-end">
+        <div className="flex flex-1 overflow-x-auto items-end pt-1 pb-[2px] gap-1">
           {groupFiles.map((file) => (
             <DraggableTab
               key={file.id}
@@ -315,7 +341,9 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
               onClose={() => onFileClose(file.id)}
               onSplitRight={() => onSplitWithFile(file.id, "horizontal")}
               onSplitDown={() => onSplitWithFile(file.id, "vertical")}
-              onMoveToGroup={(targetGroupId) => onMoveFile(file.id, targetGroupId)}
+              onMoveToGroup={(targetGroupId) =>
+                onMoveFile(file.id, targetGroupId)
+              }
               otherGroups={otherGroups}
             />
           ))}
@@ -362,7 +390,9 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
               value={activeFile.content}
               language={getLanguageFromFile(activeFile.name)}
               filename={activeFile.path || activeFile.name}
-              onChange={(value: string) => onContentChange(activeFile.id, value)}
+              onChange={(value: string) =>
+                onContentChange(activeFile.id, value)
+              }
               onEditorReady={setGroupEditor}
             />
             {/* Inline Diff Widget */}
@@ -372,7 +402,7 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
                 isStreaming={isStreaming}
                 additions={stats.additions}
                 deletions={stats.deletions}
-                agentName={activeSession?.agentName || 'AI Agent'}
+                agentName={activeSession?.agentName || "AI Agent"}
                 description={activeSession?.description}
                 onAccept={() => inlineDiffActions.acceptAllChanges()}
                 onReject={() => inlineDiffActions.rejectAllChanges()}
@@ -383,7 +413,7 @@ const EditorGroupPanel: React.FC<EditorGroupPanelProps> = ({
           <div
             className={cn(
               "flex items-center justify-center h-full file-viewer-fallback cursor-pointer",
-              isDragOver && "bg-accent/20"
+              isDragOver && "bg-accent/20",
             )}
             onClick={onActivate}
           >
@@ -416,30 +446,42 @@ const FileViewer: React.FC = () => {
   }, [snapshot.openFiles, snapshot.activeFileId]);
 
   // Handle file selection in a group
-  const handleFileSelect = useCallback((groupId: string, fileId: string) => {
-    editorGroupActions.setActiveFileInGroup(fileId, groupId);
-    actions.setActiveFile(fileId);
-  }, [actions]);
+  const handleFileSelect = useCallback(
+    (groupId: string, fileId: string) => {
+      editorGroupActions.setActiveFileInGroup(fileId, groupId);
+      actions.setActiveFile(fileId);
+    },
+    [actions],
+  );
 
   // Handle file close in a group
-  const handleFileClose = useCallback((groupId: string, fileId: string) => {
-    editorGroupActions.closeFileInGroup(fileId, groupId);
-    actions.closeFile(fileId);
-  }, [actions]);
+  const handleFileClose = useCallback(
+    (groupId: string, fileId: string) => {
+      editorGroupActions.closeFileInGroup(fileId, groupId);
+      actions.closeFile(fileId);
+    },
+    [actions],
+  );
 
   // Handle content change
-  const handleContentChange = useCallback((fileId: string, content: string) => {
-    actions.updateFileContent(fileId, content);
-  }, [actions]);
+  const handleContentChange = useCallback(
+    (fileId: string, content: string) => {
+      actions.updateFileContent(fileId, content);
+    },
+    [actions],
+  );
 
   // Handle group activation
-  const handleGroupActivate = useCallback((groupId: string) => {
-    editorGroupActions.setActiveGroup(groupId);
-    const group = groupState.groups.find((g) => g.id === groupId);
-    if (group?.activeFileId) {
-      actions.setActiveFile(group.activeFileId);
-    }
-  }, [groupState.groups, actions]);
+  const handleGroupActivate = useCallback(
+    (groupId: string) => {
+      editorGroupActions.setActiveGroup(groupId);
+      const group = groupState.groups.find((g) => g.id === groupId);
+      if (group?.activeFileId) {
+        actions.setActiveFile(group.activeFileId);
+      }
+    },
+    [groupState.groups, actions],
+  );
 
   // Handle group close
   const handleGroupClose = useCallback((groupId: string) => {
@@ -447,19 +489,31 @@ const FileViewer: React.FC = () => {
   }, []);
 
   // Handle split with specific file
-  const handleSplitWithFile = useCallback((fileId: string, direction: "horizontal" | "vertical") => {
-    // Use the dedicated splitWithFile function for atomic operation
-    editorGroupActions.splitWithFile(fileId, direction);
-  }, []);
+  const handleSplitWithFile = useCallback(
+    (fileId: string, direction: "horizontal" | "vertical") => {
+      // Use the dedicated splitWithFile function for atomic operation
+      editorGroupActions.splitWithFile(fileId, direction);
+    },
+    [],
+  );
 
   // Handle move file between groups
-  const handleMoveFile = useCallback((fileId: string, targetGroupId: string) => {
-    // Find source group
-    const sourceGroup = groupState.groups.find(g => g.openFileIds.includes(fileId));
-    if (sourceGroup && sourceGroup.id !== targetGroupId) {
-      editorGroupActions.moveFileToGroup(fileId, sourceGroup.id, targetGroupId);
-    }
-  }, [groupState.groups]);
+  const handleMoveFile = useCallback(
+    (fileId: string, targetGroupId: string) => {
+      // Find source group
+      const sourceGroup = groupState.groups.find((g) =>
+        g.openFileIds.includes(fileId),
+      );
+      if (sourceGroup && sourceGroup.id !== targetGroupId) {
+        editorGroupActions.moveFileToGroup(
+          fileId,
+          sourceGroup.id,
+          targetGroupId,
+        );
+      }
+    },
+    [groupState.groups],
+  );
 
   // Render single group (no splits)
   if (groupState.groups.length === 1) {
@@ -474,8 +528,8 @@ const FileViewer: React.FC = () => {
         onFileSelect={(fileId) => handleFileSelect(group.id, fileId)}
         onFileClose={(fileId) => handleFileClose(group.id, fileId)}
         onContentChange={handleContentChange}
-        onActivate={() => { }}
-        onClose={() => { }}
+        onActivate={() => {}}
+        onClose={() => {}}
         onSplitWithFile={handleSplitWithFile}
         onMoveFile={handleMoveFile}
       />
@@ -487,7 +541,7 @@ const FileViewer: React.FC = () => {
     <div
       className={cn(
         "h-full flex",
-        groupState.splitDirection === "vertical" ? "flex-col" : "flex-row"
+        groupState.splitDirection === "vertical" ? "flex-col" : "flex-row",
       )}
     >
       {groupState.groups.map((group, index) => (
@@ -496,7 +550,7 @@ const FileViewer: React.FC = () => {
             <div
               className={cn(
                 "shrink-0 bg-border",
-                groupState.splitDirection === "vertical" ? "h-px" : "w-px"
+                groupState.splitDirection === "vertical" ? "h-px" : "w-px",
               )}
             />
           )}

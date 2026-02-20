@@ -154,7 +154,17 @@
     color: var(--text-primary);
     margin: 0;
     padding: 0;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family:
+      system-ui,
+      -apple-system,
+      sans-serif;
+  }
+}
+
+@layer components {
+  /* Core floating Encapsulated UI component style */
+  .glass-panel {
+    @apply bg-background/60 dark:bg-background/20 backdrop-blur-2xl backdrop-saturate-150 border border-border/40 shadow-xl;
   }
 }
 
@@ -183,6 +193,10 @@
   flex-direction: column;
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  /* New isolated padding for floating elements */
+  padding: 8px;
+  gap: 8px;
+  box-sizing: border-box;
 }
 
 /* Top Toolbar */

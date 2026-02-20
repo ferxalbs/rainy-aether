@@ -56,7 +56,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const recentWorkspaces = snapshot.recentWorkspaces.slice(0, 5);
   const terminalState = getTerminalState();
   const activeSplit = terminalState.layout.splits.find(
-    (s) => s.id === terminalState.layout.activeSplitId
+    (s) => s.id === terminalState.layout.activeSplitId,
   );
   const activeTerminalId = activeSplit?.activeSessionId;
 
@@ -101,7 +101,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         if (!base) return;
         const name = window.prompt(
           "Enter file name (with extension)",
-          "new-file.txt"
+          "new-file.txt",
         );
         if (!name) return;
         await actions.createFileAt(base, name);
@@ -223,7 +223,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       "terminal:kill": () => {
         const termState = getTerminalState();
         const split = termState.layout.splits.find(
-          (s) => s.id === termState.layout.activeSplitId
+          (s) => s.id === termState.layout.activeSplitId,
         );
         const termId = split?.activeSessionId;
         if (termId) terminalActions.removeSession(termId);
@@ -307,7 +307,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
       handleCloneDialog,
       handleKeyboardShortcuts,
       handleAbout,
-    ]
+    ],
   );
 
   // Register native menu event listeners (only active on macOS)
@@ -325,7 +325,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           title="Toggle Sidebar"
           className={cn(
             "h-7 w-7 text-secondary p-1",
-            snapshot.isSidebarOpen && "bg-muted text-foreground"
+            snapshot.isSidebarOpen && "bg-muted text-foreground",
           )}
         >
           <PanelLeft size={16} />
@@ -338,7 +338,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           title="Toggle Panel"
           className={cn(
             "h-7 w-7 text-secondary p-1",
-            panelState.isBottomPanelOpen && "bg-muted text-foreground"
+            panelState.isBottomPanelOpen && "bg-muted text-foreground",
           )}
         >
           <PanelBottom size={16} />
@@ -351,7 +351,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
           title="Toggle Agents View"
           className={cn(
             "h-7 w-7 text-secondary p-1",
-            snapshot.isRightSidebarOpen && "bg-muted text-foreground"
+            snapshot.isRightSidebarOpen && "bg-muted text-foreground",
           )}
         >
           <PanelRight size={16} />
@@ -365,37 +365,46 @@ const MenuBar: React.FC<MenuBarProps> = ({
   if (useNative) {
     return (
       <div
-        className="h-10 border-b border-border flex items-start bg-background select-none"
+        className="h-12 flex items-center select-none w-full shrink-0 relative z-50 mb-1"
         data-tauri-drag-region
       >
         {/* Left padding for native macOS traffic lights */}
         <div className="w-[78px] shrink-0 h-full" data-tauri-drag-region />
 
-        {/* Mode Switcher - only visible in editor view (not startup/settings) */}
+        {/* Mode Switcher - Centered floating pill */}
         {currentView === "editor" && (
-          <div className="flex items-center pt-[6px]">
-            <ModeSwitcher />
+          <div
+            className="flex flex-1 items-center justify-center h-full pointer-events-none"
+            data-tauri-drag-region
+          >
+            <div className="glass-panel rounded-full px-2 py-1 flex items-center shadow-lg pointer-events-auto">
+              <ModeSwitcher />
+            </div>
           </div>
         )}
 
-        {/* Drag region spacer */}
-        <div className="flex-1 h-full" data-tauri-drag-region />
-
-        {/* Right-aligned Layout Controls - only visible in editor view with IDE mode */}
+        {/* Right-aligned Layout Controls - floating pill */}
         {currentView === "editor" && RightControls && (
-          <div className="flex items-center pt-[6px] pr-2">{RightControls}</div>
+          <div className="flex items-center absolute right-0 pr-1 h-full pointer-events-none">
+            <div className="glass-panel rounded-full px-2 py-1 flex items-center shadow-lg pointer-events-auto">
+              {RightControls}
+            </div>
+          </div>
         )}
       </div>
     );
   }
 
-  // On Windows/Linux: render the full shadcn menu bar
+  // On Windows/Linux: render the full shadcn menu bar inside a floating glass panel
   return (
-    <div className="h-10 border-b border-border flex items-center w-full bg-background select-none">
-      <div className="flex items-center h-full">
-        {/* Mode Switcher - only visible in editor view (not startup/settings) */}
+    <div className="h-12 w-full shrink-0 select-none mb-1 shadow-sm">
+      <div
+        className="glass-panel rounded-xl h-full w-full flex items-center px-2 shadow-lg"
+        data-tauri-drag-region
+      >
+        {/* Mode Switcher - only visible in editor view */}
         {currentView === "editor" && (
-          <div className="flex items-center px-2 h-full">
+          <div className="flex items-center px-2 border-r border-border/50 h-6 shrink-0 mr-2">
             <ModeSwitcher />
           </div>
         )}
@@ -464,7 +473,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                   if (!base) return;
                   const name = window.prompt(
                     "Enter file name (with extension)",
-                    "new-file.txt"
+                    "new-file.txt",
                   );
                   if (!name) return;
                   await actions.createFileAt(base, name);
@@ -886,9 +895,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
               <MenubarItem
                 disabled={!hasWorkspace}
                 onSelect={async () => {
-                  const { refreshStatus } = await import(
-                    "../../stores/gitStore"
-                  );
+                  const { refreshStatus } =
+                    await import("../../stores/gitStore");
                   await refreshStatus();
                 }}
               >
@@ -990,7 +998,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
                   const { invoke } = await import("@tauri-apps/api/core");
                   const isMaximized = await invoke<boolean>(
                     "window_is_maximized",
-                    { label: null }
+                    { label: null },
                   );
                   if (isMaximized) {
                     await invoke("window_unmaximize", { label: null });

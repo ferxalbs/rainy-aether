@@ -51,7 +51,7 @@ const IDE: React.FC = () => {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isTabSwitcherOpen, setIsTabSwitcherOpen] = useState(false);
   const [tabSwitchHighlight, setTabSwitchHighlight] = useState<string | null>(
-    null
+    null,
   );
   const [isGoToLineOpen, setIsGoToLineOpen] = useState(false);
   const [isExtensionMarketplaceOpen, setIsExtensionMarketplaceOpen] =
@@ -135,7 +135,7 @@ const IDE: React.FC = () => {
     const activeId = snapshot.activeFileId;
     const currentIndex = Math.max(
       0,
-      files.findIndex((file) => file.id === activeId)
+      files.findIndex((file) => file.id === activeId),
     );
     const targetIndex =
       direction === "next"
@@ -208,7 +208,7 @@ const IDE: React.FC = () => {
         event.preventDefault();
         const snapshot = stateRef.current();
         const active = snapshot.openFiles.find(
-          (file) => file.id === snapshot.activeFileId
+          (file) => file.id === snapshot.activeFileId,
         );
         if (active) {
           actionsRef.current.saveFile(active.id);
@@ -323,7 +323,7 @@ const IDE: React.FC = () => {
 
     const attachListener = (
       eventName: string,
-      callback: (event: unknown) => void
+      callback: (event: unknown) => void,
     ) => {
       listen(eventName as any, callback as any)
         .then((unlisten) => {
@@ -344,22 +344,22 @@ const IDE: React.FC = () => {
       });
       attachListener("shortcut/quick-open", () => setIsQuickOpenOpen(true));
       attachListener("shortcut/command-palette", () =>
-        setIsCommandPaletteOpen(true)
+        setIsCommandPaletteOpen(true),
       );
       attachListener("shortcut/open-settings", () =>
-        actionsRef.current.openSettings()
+        actionsRef.current.openSettings(),
       );
       attachListener("shortcut/save-file", () => {
         const snapshot = stateRef.current();
         const active = snapshot.openFiles.find(
-          (file) => file.id === snapshot.activeFileId
+          (file) => file.id === snapshot.activeFileId,
         );
         if (active) {
           actionsRef.current.saveFile(active.id);
         }
       });
       attachListener("shortcut/save-all", () =>
-        actionsRef.current.saveAllFiles()
+        actionsRef.current.saveAllFiles(),
       );
       attachListener("shortcut/save-as", () => {
         const snapshot = stateRef.current();
@@ -386,20 +386,20 @@ const IDE: React.FC = () => {
       });
       attachListener("shortcut/toggle-wrap", () => editorActions.toggleWrap());
       attachListener("shortcut/open-project", () =>
-        actionsRef.current.openFolderDialog()
+        actionsRef.current.openFolderDialog(),
       );
       attachListener("shortcut/new-file", () =>
-        actionsRef.current.createNewFile()
+        actionsRef.current.createNewFile(),
       );
       attachListener("shortcut/toggle-sidebar", () =>
-        actionsRef.current.toggleSidebar()
+        actionsRef.current.toggleSidebar(),
       );
       attachListener("shortcut/toggle-terminal", () =>
-        panelActions.togglePanel("terminal")
+        panelActions.togglePanel("terminal"),
       );
       attachListener("shortcut/redo", () => editorActions.redo());
       attachListener("shortcut/toggle-problems", () =>
-        panelActions.togglePanel("problems")
+        panelActions.togglePanel("problems"),
       );
 
       (async () => {
@@ -414,7 +414,7 @@ const IDE: React.FC = () => {
 
           const registerShortcut = async (
             shortcut: string,
-            callback: () => void
+            callback: () => void,
           ) => {
             try {
               await mod.register(shortcut, callback);
@@ -424,18 +424,18 @@ const IDE: React.FC = () => {
           };
 
           await registerShortcut("CommandOrControl+P", () =>
-            setIsQuickOpenOpen(true)
+            setIsQuickOpenOpen(true),
           );
           await registerShortcut("CommandOrControl+Shift+P", () =>
-            setIsCommandPaletteOpen(true)
+            setIsCommandPaletteOpen(true),
           );
           await registerShortcut("CommandOrControl+,", () =>
-            actionsRef.current.openSettings()
+            actionsRef.current.openSettings(),
           );
           await registerShortcut("CommandOrControl+S", () => {
             const snapshot = stateRef.current();
             const active = snapshot.openFiles.find(
-              (file) => file.id === snapshot.activeFileId
+              (file) => file.id === snapshot.activeFileId,
             );
             if (active) {
               actionsRef.current.saveFile(active.id);
@@ -449,7 +449,7 @@ const IDE: React.FC = () => {
             }
           });
           await registerShortcut("CommandOrControl+Alt+S", () =>
-            actionsRef.current.saveAllFiles()
+            actionsRef.current.saveAllFiles(),
           );
           await registerShortcut("CommandOrControl+W", () => {
             const snapshot = stateRef.current();
@@ -459,16 +459,16 @@ const IDE: React.FC = () => {
             }
           });
           await registerShortcut("CommandOrControl+Tab", () =>
-            cycleTab("next")
+            cycleTab("next"),
           );
           await registerShortcut("CommandOrControl+Shift+Tab", () =>
-            cycleTab("prev")
+            cycleTab("prev"),
           );
           await registerShortcut("CommandOrControl+G", () =>
-            setIsGoToLineOpen(true)
+            setIsGoToLineOpen(true),
           );
           await registerShortcut("CommandOrControl+F", () =>
-            editorActions.openSearchPanel()
+            editorActions.openSearchPanel(),
           );
           await registerShortcut("F3", () => editorActions.findNext());
           await registerShortcut("CommandOrControl+Shift+H", () => {
@@ -477,25 +477,25 @@ const IDE: React.FC = () => {
           });
           await registerShortcut("Alt+Z", () => editorActions.toggleWrap());
           await registerShortcut("CommandOrControl+O", () =>
-            actionsRef.current.openFolderDialog()
+            actionsRef.current.openFolderDialog(),
           );
           await registerShortcut("CommandOrControl+N", () =>
-            actionsRef.current.createNewFile()
+            actionsRef.current.createNewFile(),
           );
           await registerShortcut("CommandOrControl+B", () =>
-            actionsRef.current.toggleSidebar()
+            actionsRef.current.toggleSidebar(),
           );
           await registerShortcut("CommandOrControl+`", () =>
-            panelActions.togglePanel("terminal")
+            panelActions.togglePanel("terminal"),
           );
           await registerShortcut("CommandOrControl+Shift+Z", () =>
-            editorActions.redo()
+            editorActions.redo(),
           );
           await registerShortcut("CommandOrControl+Shift+X", () =>
-            setIsExtensionMarketplaceOpen(true)
+            setIsExtensionMarketplaceOpen(true),
           );
           await registerShortcut("CommandOrControl+Shift+M", () =>
-            panelActions.togglePanel("problems")
+            panelActions.togglePanel("problems"),
           );
           console.info("Global shortcuts registered via JS plugin");
         } catch (error) {
@@ -521,7 +521,7 @@ const IDE: React.FC = () => {
   const viewMode = snapshot.viewMode;
   const isZenMode = snapshot.isZenMode;
   const view = editorState.view;
-  const maxLine = view ? view.getModel()?.getLineCount() ?? 1 : 1;
+  const maxLine = view ? (view.getModel()?.getLineCount() ?? 1) : 1;
   const showBottomPanel = !isZenMode && panelState.isBottomPanelOpen;
 
   // Show workspace loading overlay when loading workspace
@@ -563,7 +563,7 @@ const IDE: React.FC = () => {
           <div
             className={cn(
               "flex flex-1 min-h-0 overflow-hidden",
-              viewMode !== "agents" && "hidden"
+              viewMode !== "agents" && "hidden",
             )}
           >
             <AgentsView />
@@ -572,19 +572,19 @@ const IDE: React.FC = () => {
           {/* Main Editor Layout - Always mounted, hidden when acting as agents view */}
           <div
             className={cn(
-              "flex flex-1 overflow-hidden",
-              viewMode === "agents" && "hidden"
+              "flex flex-1 gap-2 overflow-hidden",
+              viewMode === "agents" && "hidden",
             )}
           >
             {!isZenMode && <Sidebar />}
-            <div className="flex-1 flex h-full overflow-hidden">
-              {/* Main editor area */}
-              <div className="flex-1 flex flex-col min-w-0 h-full">
+            <div className="flex-1 flex gap-2 h-full overflow-hidden">
+              {/* Main editor area column */}
+              <div className="flex-1 flex flex-col min-w-0 h-full gap-2">
                 {/* Editor panel */}
                 <div
                   className={cn(
-                    "flex-1 min-h-[200px] overflow-hidden",
-                    showBottomPanel && "max-h-[calc(100%-220px)]"
+                    "flex-1 min-h-[200px] glass-panel rounded-xl overflow-hidden",
+                    showBottomPanel && "max-h-[calc(100%-220px)]",
                   )}
                 >
                   <FileViewer />
@@ -592,7 +592,7 @@ const IDE: React.FC = () => {
 
                 {/* Bottom panel - Terminal/Problems */}
                 {showBottomPanel && (
-                  <div className="h-[220px] shrink-0 border-t border-border overflow-hidden">
+                  <div className="h-[220px] shrink-0 glass-panel rounded-xl overflow-hidden flex flex-col">
                     <Tabs
                       value={panelState.activeBottomTab}
                       onValueChange={(value) =>
@@ -602,15 +602,15 @@ const IDE: React.FC = () => {
                             | "problems"
                             | "diff"
                             | "output"
-                            | "preview"
+                            | "preview",
                         )
                       }
                       className="h-full flex flex-col gap-0"
                     >
-                      <TabsList className="w-full justify-start rounded-none border-b border-border bg-muted/30 p-0 h-8 shrink-0">
+                      <TabsList className="w-full justify-start rounded-none border-b border-border/10 bg-transparent p-0 h-8 shrink-0">
                         <TabsTrigger
                           value="terminal"
-                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-accent-primary bg-transparent shadow-none"
                         >
                           Terminal
                         </TabsTrigger>
@@ -648,10 +648,9 @@ const IDE: React.FC = () => {
 
                       <TabsContent
                         value="terminal"
-                        forceMount
                         className={cn(
                           "flex-1 m-0 overflow-hidden",
-                          panelState.activeBottomTab !== "terminal" && "hidden"
+                          panelState.activeBottomTab !== "terminal" && "hidden",
                         )}
                       >
                         <TerminalPanel />
@@ -681,7 +680,7 @@ const IDE: React.FC = () => {
 
               {/* Right sidebar - fixed width */}
               {state().isRightSidebarOpen && (
-                <aside className="w-[320px] shrink-0 border-l border-border h-full overflow-hidden">
+                <aside className="w-[320px] shrink-0 h-full glass-panel rounded-xl overflow-hidden">
                   <RightSidebar />
                 </aside>
               )}

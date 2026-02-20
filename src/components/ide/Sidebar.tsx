@@ -20,10 +20,19 @@ interface ActivityButtonProps {
   active?: boolean;
   onClick?: () => void;
   label: string;
-  icon: React.ComponentType<{ size?: number | string; strokeWidth?: number; className?: string }>;
+  icon: React.ComponentType<{
+    size?: number | string;
+    strokeWidth?: number;
+    className?: string;
+  }>;
 }
 
-const ActivityButton: React.FC<ActivityButtonProps> = ({ active, onClick, label, icon: Icon }) => (
+const ActivityButton: React.FC<ActivityButtonProps> = ({
+  active,
+  onClick,
+  label,
+  icon: Icon,
+}) => (
   <TooltipProvider delayDuration={200}>
     <Tooltip>
       <TooltipTrigger asChild>
@@ -33,7 +42,7 @@ const ActivityButton: React.FC<ActivityButtonProps> = ({ active, onClick, label,
             // Default state
             "text-muted-foreground/70 hover:text-foreground hover:bg-white/10 dark:hover:bg-white/5",
             // Active state
-            active && "bg-white/15 dark:bg-white/10 text-primary font-medium"
+            active && "bg-white/15 dark:bg-white/10 text-primary font-medium",
           )}
           onClick={onClick}
           aria-label={label}
@@ -41,12 +50,14 @@ const ActivityButton: React.FC<ActivityButtonProps> = ({ active, onClick, label,
           {active && (
             <div className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 rounded-r-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
           )}
-          <Icon size={20} strokeWidth={1.5} className="transition-transform duration-200 group-hover:scale-110" />
+          <Icon
+            size={20}
+            strokeWidth={1.5}
+            className="transition-transform duration-200 group-hover:scale-110"
+          />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="right">
-        {label}
-      </TooltipContent>
+      <TooltipContent side="right">{label}</TooltipContent>
     </Tooltip>
   </TooltipProvider>
 );
@@ -69,56 +80,58 @@ const Sidebar: React.FC = () => {
   React.useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
-      document.body.style.userSelect = 'none';
-      const newWidth = Math.max(SIDEBAR_MIN_WIDTH, Math.min(e.clientX, SIDEBAR_MAX_WIDTH));
+      document.body.style.userSelect = "none";
+      const newWidth = Math.max(
+        SIDEBAR_MIN_WIDTH,
+        Math.min(e.clientX, SIDEBAR_MAX_WIDTH),
+      );
       setSidebarWidth(newWidth);
     };
 
     const handleMouseUp = () => {
       if (isResizing) {
         setIsResizing(false);
-        document.body.style.cursor = 'default';
-        document.body.style.userSelect = 'auto'; // Restore selection
+        document.body.style.cursor = "default";
+        document.body.style.userSelect = "auto"; // Restore selection
       }
     };
 
     if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "col-resize";
     }
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = 'auto';
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "default";
+      document.body.style.userSelect = "auto";
     };
   }, [isResizing]);
 
   // Helper to check if a tab is a webview tab
   const isWebviewTab = (tab: string): boolean => {
-    return tab.startsWith('webview:');
+    return tab.startsWith("webview:");
   };
 
   // Get webview ID from tab
   const getWebviewId = (tab: string): string => {
-    return tab.replace('webview:', '');
+    return tab.replace("webview:", "");
   };
 
   return (
     <div
       ref={sidebarRef}
       className={cn(
-        "flex h-full relative group select-none z-40",
-        "bg-[var(--bg-sidebar)] border-r border-sidebar-border", // Solid background using explicit variable
-        !isResizing && "transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]"
+        "flex h-full relative group select-none z-40 glass-panel rounded-xl overflow-hidden",
+        !isResizing &&
+          "transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]",
       )}
       style={{ width: isOpen ? sidebarWidth : 56 }}
     >
       {/* Activity Bar */}
       <div className="flex flex-col items-center py-3 h-full w-14 shrink-0 border-r border-sidebar-border/20 bg-transparent gap-1">
-
         {/* Navigation */}
         <ActivityButton
           icon={Folder}
