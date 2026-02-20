@@ -2,6 +2,14 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.31] - 2026-02-20
+
+### Changes:
+
+- **[Improvements]** Added support for the newly announced Gemini 3.1 Pro model (`gemini-3.1-pro-preview`) with Low, Medium, and High reasoning (thinking) levels. Extended `ThinkingMode` and `GeminiThinkingConfig` to support the `'MEDIUM'` reasoning configuration.
+
+---
+
 ## [v0.1.30] - 2026-02-20
 
 ### Changes:

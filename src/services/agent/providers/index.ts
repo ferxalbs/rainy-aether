@@ -1,34 +1,40 @@
-import { AIProvider, AIProviderConfig } from './base';
-import { GeminiProvider, GeminiThinkingConfig } from './gemini';
-import { GroqProvider } from './groq';
+import { AIProvider, AIProviderConfig } from "./base";
+import { GeminiProvider, GeminiThinkingConfig } from "./gemini";
+import { GroqProvider } from "./groq";
 
 // ===========================
 // Model Configurations
 // ===========================
 
-export type ThinkingMode = 'none' | 'auto' | 'low' | 'high';
+export type ThinkingMode = "none" | "auto" | "low" | "medium" | "high";
 
 export interface ModelConfig {
   id: string;
   name: string;
-  provider: 'gemini' | 'groq' | 'cerebras' | 'anthropic' | 'openai' | 'enosislabs';
+  provider:
+    | "gemini"
+    | "groq"
+    | "cerebras"
+    | "anthropic"
+    | "openai"
+    | "enosislabs";
   model: string;
   description?: string;
   // Token limits
-  contextWindow: number;     // Max input tokens (context window size)
-  maxOutputTokens: number;   // Max output tokens per response
+  contextWindow: number; // Max input tokens (context window size)
+  maxOutputTokens: number; // Max output tokens per response
   // Tool/function calling support
-  supportsTools?: boolean;   // If false, tools will not be sent to this model
+  supportsTools?: boolean; // If false, tools will not be sent to this model
   // Thinking capabilities
   supportsThinking?: boolean;
   thinkingMode?: ThinkingMode;
   thinkingConfig?: GeminiThinkingConfig;
-  category?: 'standard' | 'thinking';
+  category?: "standard" | "thinking";
   // Caching configuration (for Gemini models)
-  supportsPromptCache?: boolean;   // Whether the model supports context caching
-  minCacheTokens?: number;         // Minimum tokens required for caching (1024 for Flash, 4096 for Pro)
-  cacheReadsPrice?: number;        // Price per 1M cached tokens read ($ per 1M tokens)
-  cacheWritesPrice?: number;       // Price per 1M cached tokens written ($ per 1M tokens)
+  supportsPromptCache?: boolean; // Whether the model supports context caching
+  minCacheTokens?: number; // Minimum tokens required for caching (1024 for Flash, 4096 for Pro)
+  cacheReadsPrice?: number; // Price per 1M cached tokens read ($ per 1M tokens)
+  cacheWritesPrice?: number; // Price per 1M cached tokens written ($ per 1M tokens)
 }
 
 export const AVAILABLE_MODELS: ModelConfig[] = [
@@ -36,54 +42,54 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   // Standard Gemini Models (No Thinking)
   // ===========================
   {
-    id: 'gemini-flash-lite-latest',
-    name: 'Gemini 2.5 Flash Lite',
-    provider: 'gemini',
-    model: 'gemini-2.5-flash-lite',
-    description: 'Fast and efficient Gemini model',
-    contextWindow: 128000,     // 128K context
-    maxOutputTokens: 65536,     // 64K output
-    category: 'standard',
+    id: "gemini-flash-lite-latest",
+    name: "Gemini 2.5 Flash Lite",
+    provider: "gemini",
+    model: "gemini-2.5-flash-lite",
+    description: "Fast and efficient Gemini model",
+    contextWindow: 128000, // 128K context
+    maxOutputTokens: 65536, // 64K output
+    category: "standard",
     supportsThinking: false,
-    thinkingMode: 'none',
+    thinkingMode: "none",
     thinkingConfig: { thinkingBudget: 0 },
     // Caching: Flash models have 1024 min tokens
     supportsPromptCache: true,
     minCacheTokens: 1024,
-    cacheReadsPrice: 0.025,    // ~10x cheaper than input
+    cacheReadsPrice: 0.025, // ~10x cheaper than input
   },
   {
-    id: 'gemini-flash-latest',
-    name: 'Gemini 3 Flash',
-    provider: 'gemini',
-    model: 'gemini-3-flash-preview',
-    description: 'Latest Gemini 3 Flash model with improved performance',
-    contextWindow: 1000000,    // 1M context
-    maxOutputTokens: 65536,     // 64K output
-    category: 'standard',
+    id: "gemini-flash-latest",
+    name: "Gemini 3 Flash",
+    provider: "gemini",
+    model: "gemini-3-flash-preview",
+    description: "Latest Gemini 3 Flash model with improved performance",
+    contextWindow: 1000000, // 1M context
+    maxOutputTokens: 65536, // 64K output
+    category: "standard",
     supportsThinking: true,
-    thinkingMode: 'none',
+    thinkingMode: "none",
     thinkingConfig: { thinkingBudget: 0 },
     // Caching: Flash models have 1024 min tokens
     supportsPromptCache: true,
     minCacheTokens: 1024,
-    cacheReadsPrice: 0.03,     // ~10x cheaper than input
+    cacheReadsPrice: 0.03, // ~10x cheaper than input
   },
 
   // ===========================
   // Gemini Thinking Models - Auto Mode
   // ===========================
   {
-    id: 'gemini-flash-thinking-auto',
-    name: 'Gemini 3 Flash (Dynamic Thinking)',
-    provider: 'gemini',
-    model: 'gemini-3-flash-preview',
-    description: 'Gemini 3 Flash with dynamic thinking budget',
-    contextWindow: 1000000,    // 1M context
-    maxOutputTokens: 65536,     // 64K output
-    category: 'thinking',
+    id: "gemini-flash-thinking-auto",
+    name: "Gemini 3 Flash (Dynamic Thinking)",
+    provider: "gemini",
+    model: "gemini-3-flash-preview",
+    description: "Gemini 3 Flash with dynamic thinking budget",
+    contextWindow: 1000000, // 1M context
+    maxOutputTokens: 65536, // 64K output
+    category: "thinking",
     supportsThinking: true,
-    thinkingMode: 'auto',
+    thinkingMode: "auto",
     thinkingConfig: { thinkingBudget: -1, includeThoughts: true },
     // Caching: Flash models have 1024 min tokens
     supportsPromptCache: true,
@@ -95,35 +101,87 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   // Gemini 3 Pro Thinking Models
   // ===========================
   {
-    id: 'gemini-3-pro-thinking-low',
-    name: 'Gemini 3 Pro (Thinking Low)',
-    provider: 'gemini',
-    model: 'gemini-3-pro-preview',
-    description: 'Gemini 3 Pro with low-depth reasoning',
-    contextWindow: 1048576,    // 1M context
-    maxOutputTokens: 65536,    // 64K output (Pro has higher limit)
-    category: 'thinking',
+    id: "gemini-3-pro-thinking-low",
+    name: "Gemini 3 Pro (Thinking Low)",
+    provider: "gemini",
+    model: "gemini-3-pro-preview",
+    description: "Gemini 3 Pro with low-depth reasoning",
+    contextWindow: 1048576, // 1M context
+    maxOutputTokens: 65536, // 64K output (Pro has higher limit)
+    category: "thinking",
     supportsThinking: true,
-    thinkingMode: 'low',
-    thinkingConfig: { thinkingLevel: 'LOW', includeThoughts: true },
+    thinkingMode: "low",
+    thinkingConfig: { thinkingLevel: "LOW", includeThoughts: true },
     // Caching: Pro models have 4096 min tokens
     supportsPromptCache: true,
     minCacheTokens: 4096,
     cacheReadsPrice: 0.4,
   },
   {
-    id: 'gemini-3-pro-thinking-high',
-    name: 'Gemini 3 Pro (Thinking High)',
-    provider: 'gemini',
-    model: 'gemini-3-pro-preview',
-    description: 'Gemini 3 Pro with high-depth reasoning',
-    contextWindow: 1048576,    // 1M context
-    maxOutputTokens: 65536,    // 64K output
-    category: 'thinking',
+    id: "gemini-3-pro-thinking-high",
+    name: "Gemini 3 Pro (Thinking High)",
+    provider: "gemini",
+    model: "gemini-3-pro-preview",
+    description: "Gemini 3 Pro with high-depth reasoning",
+    contextWindow: 1048576, // 1M context
+    maxOutputTokens: 65536, // 64K output
+    category: "thinking",
     supportsThinking: true,
-    thinkingMode: 'high',
-    thinkingConfig: { thinkingLevel: 'HIGH', includeThoughts: true },
+    thinkingMode: "high",
+    thinkingConfig: { thinkingLevel: "HIGH", includeThoughts: true },
     // Caching: Pro models have 4096 min tokens
+    supportsPromptCache: true,
+    minCacheTokens: 4096,
+    cacheReadsPrice: 0.4,
+  },
+
+  // ===========================
+  // Gemini 3.1 Pro Thinking Models
+  // ===========================
+  {
+    id: "gemini-3.1-pro-thinking-low",
+    name: "Gemini 3.1 Pro (Thinking Low)",
+    provider: "gemini",
+    model: "gemini-3.1-pro-preview",
+    description: "Gemini 3.1 Pro with low-depth reasoning",
+    contextWindow: 1048576, // 1M context
+    maxOutputTokens: 65536, // 64K output
+    category: "thinking",
+    supportsThinking: true,
+    thinkingMode: "low",
+    thinkingConfig: { thinkingLevel: "LOW", includeThoughts: true },
+    supportsPromptCache: true,
+    minCacheTokens: 4096,
+    cacheReadsPrice: 0.4,
+  },
+  {
+    id: "gemini-3.1-pro-thinking-medium",
+    name: "Gemini 3.1 Pro (Thinking Medium)",
+    provider: "gemini",
+    model: "gemini-3.1-pro-preview",
+    description: "Gemini 3.1 Pro with medium-depth reasoning",
+    contextWindow: 1048576, // 1M context
+    maxOutputTokens: 65536, // 64K output
+    category: "thinking",
+    supportsThinking: true,
+    thinkingMode: "medium",
+    thinkingConfig: { thinkingLevel: "MEDIUM", includeThoughts: true },
+    supportsPromptCache: true,
+    minCacheTokens: 4096,
+    cacheReadsPrice: 0.4,
+  },
+  {
+    id: "gemini-3.1-pro-thinking-high",
+    name: "Gemini 3.1 Pro (Thinking High)",
+    provider: "gemini",
+    model: "gemini-3.1-pro-preview",
+    description: "Gemini 3.1 Pro with high-depth reasoning",
+    contextWindow: 1048576, // 1M context
+    maxOutputTokens: 65536, // 64K output
+    category: "thinking",
+    supportsThinking: true,
+    thinkingMode: "high",
+    thinkingConfig: { thinkingLevel: "HIGH", includeThoughts: true },
     supportsPromptCache: true,
     minCacheTokens: 4096,
     cacheReadsPrice: 0.4,
@@ -134,23 +192,23 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   // ===========================
   // Note: Llama 3.3 70B supports function calling, Kimi K2 may not
   {
-    id: 'llama-3.3-70b',
-    name: 'Llama 3.3 70B (Groq)',
-    provider: 'groq',
-    model: 'llama-3.3-70b-versatile',
-    description: 'Meta Llama 3.3 70B on Groq infrastructure',
-    contextWindow: 128000,     // 128K context
-    maxOutputTokens: 8192,     // 8K output
+    id: "llama-3.3-70b",
+    name: "Llama 3.3 70B (Groq)",
+    provider: "groq",
+    model: "llama-3.3-70b-versatile",
+    description: "Meta Llama 3.3 70B on Groq infrastructure",
+    contextWindow: 128000, // 128K context
+    maxOutputTokens: 8192, // 8K output
     supportsTools: true,
   },
   {
-    id: 'moonshotai/kimi-k2-instruct-0905',
-    name: 'Kimi K2 Instruct 09/05',
-    provider: 'groq',
-    model: 'moonshotai/kimi-k2-instruct-0905',
-    description: 'Kimi K2 Instruct 09/05 on Groq',
-    contextWindow: 32000,      // 32K context
-    maxOutputTokens: 8192,     // 8K output
+    id: "moonshotai/kimi-k2-instruct-0905",
+    name: "Kimi K2 Instruct 09/05",
+    provider: "groq",
+    model: "moonshotai/kimi-k2-instruct-0905",
+    description: "Kimi K2 Instruct 09/05 on Groq",
+    contextWindow: 32000, // 32K context
+    maxOutputTokens: 8192, // 8K output
     supportsTools: false,
   },
 
@@ -158,13 +216,13 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   // Cerebras Models
   // ===========================
   {
-    id: 'zai-glm-4.6',
-    name: 'Zai GLM 4.6',
-    provider: 'cerebras',
-    model: 'zai-glm-4.6',
-    description: 'Cerebras Zai GLM 4.6 model',
-    contextWindow: 32000,      // 32K context
-    maxOutputTokens: 8192,     // 8K output
+    id: "zai-glm-4.6",
+    name: "Zai GLM 4.6",
+    provider: "cerebras",
+    model: "zai-glm-4.6",
+    description: "Cerebras Zai GLM 4.6 model",
+    contextWindow: 32000, // 32K context
+    maxOutputTokens: 8192, // 8K output
   },
 ];
 
@@ -184,7 +242,7 @@ export function createProvider(
   modelId: string,
   credentials: ProviderCredentials,
   temperature?: number,
-  maxTokens?: number
+  maxTokens?: number,
 ): AIProvider {
   const modelConfig = AVAILABLE_MODELS.find((m) => m.id === modelId);
 
@@ -196,23 +254,23 @@ export function createProvider(
   const effectiveMaxTokens = maxTokens ?? modelConfig.maxOutputTokens;
 
   const config: AIProviderConfig = {
-    apiKey: '',
+    apiKey: "",
     model: modelConfig.model,
     temperature,
     maxTokens: effectiveMaxTokens,
   };
 
   switch (modelConfig.provider) {
-    case 'gemini':
+    case "gemini":
       if (!credentials.geminiApiKey) {
-        throw new Error('Gemini API key not configured');
+        throw new Error("Gemini API key not configured");
       }
       config.apiKey = credentials.geminiApiKey;
       return new GeminiProvider(config, modelConfig.thinkingConfig);
 
-    case 'groq':
+    case "groq":
       if (!credentials.groqApiKey) {
-        throw new Error('Groq API key not configured');
+        throw new Error("Groq API key not configured");
       }
       config.apiKey = credentials.groqApiKey;
       return new GroqProvider(config);
@@ -239,9 +297,11 @@ export function getAllModels(): ModelConfig[] {
 /**
  * Get models by provider
  */
-export function getModelsByProvider(provider: 'gemini' | 'groq'): ModelConfig[] {
+export function getModelsByProvider(
+  provider: "gemini" | "groq",
+): ModelConfig[] {
   return AVAILABLE_MODELS.filter((m) => m.provider === provider);
 }
 
 // Re-export types
-export type { AIProvider, AIProviderConfig, StreamChunk } from './base';
+export type { AIProvider, AIProviderConfig, StreamChunk } from "./base";
