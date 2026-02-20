@@ -15,4 +15,5 @@ pub mod merge;
 pub mod remote;
 pub mod stash;
 pub mod status;
+pub mod tag;
 pub mod types;

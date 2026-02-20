@@ -37,6 +37,16 @@ pub struct RemoteInfo {
     pub push_url: String,
 }
 
+/// Tag information
+#[derive(Serialize, Debug, Clone)]
+pub struct TagInfo {
+    pub name: String,
+    pub commit: String,
+    pub message: Option<String>,
+    pub tagger: Option<String>,
+    pub date: Option<String>,
+}
+
 /// Stash entry
 #[derive(Serialize, Debug, Clone)]
 pub struct StashEntry {

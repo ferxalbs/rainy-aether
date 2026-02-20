@@ -320,6 +320,7 @@ pub fn run() {
         git::history::git_diff_commit_file,
         git::history::git_unpushed,
         git::history::git_sync_status,
+        git::history::git_get_commit_info,
         // Branch operations
         git::branch::git_branches,
         git::branch::git_get_current_branch,
@@ -342,6 +343,14 @@ pub fn run() {
         git::remote::git_add_remote,
         git::remote::git_remove_remote,
         git::remote::git_set_remote_url,
+        git::remote::git_rename_remote,
+        git::remote::git_fetch_all,
+        // Tag operations
+        git::tag::git_list_tags,
+        git::tag::git_create_tag,
+        git::tag::git_delete_tag,
+        git::tag::git_push_tag,
+        git::tag::git_push_all_tags,
         // Stash operations
         git::stash::git_stash_list,
         git::stash::git_stash_push,

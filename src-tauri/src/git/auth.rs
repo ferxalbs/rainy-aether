@@ -1,77 +1,47 @@
 //! Git Authentication
 //!
 //! Provides authentication callbacks for remote Git operations using libgit2.
-//! Supports: SSH keys, SSH agent, system git credentials (osxkeychain, credential-manager-core).
+//! Supports: SSH keys, SSH agent, and credential.helper via libgit2.
 
 use git2::{Cred, CredentialType, FetchOptions, PushOptions, RemoteCallbacks};
 use std::path::Path;
-use std::process::{Command, Stdio};
 
 pub struct AuthCallbacks;
 
-/// Try to get credentials from system git credential helper
-fn get_system_credentials(url: &str) -> Option<(String, String)> {
-    // Parse the URL to extract protocol and host
-    let protocol;
-    let host;
-    
-    if url.starts_with("https://") {
-        protocol = "https";
-        let rest = url.trim_start_matches("https://");
-        host = rest.split('/').next().unwrap_or("");
-    } else if url.starts_with("http://") {
-        protocol = "http";
-        let rest = url.trim_start_matches("http://");
-        host = rest.split('/').next().unwrap_or("");
-    } else {
-        return None;
-    }
-    
-    if host.is_empty() {
-        return None;
-    }
-    
-    // Build the input for git-credential
-    let input = format!("protocol={}\nhost={}\n\n", protocol, host);
-    
-    // Try git credential fill command
-    let output = Command::new("git")
-        .args(["credential", "fill"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()
-        .and_then(|mut child| {
-            use std::io::Write;
-            if let Some(stdin) = child.stdin.as_mut() {
-                stdin.write_all(input.as_bytes()).ok();
-            }
-            child.wait_with_output().ok()
-        });
-    
-    if let Some(output) = output {
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let mut username = None;
-            let mut password = None;
-            
-            for line in stdout.lines() {
-                if let Some(user) = line.strip_prefix("username=") {
-                    username = Some(user.to_string());
-                }
-                if let Some(pass) = line.strip_prefix("password=") {
-                    password = Some(pass.to_string());
-                }
-            }
-            
-            if let (Some(u), Some(p)) = (username, password) {
-                return Some((u, p));
+fn resolve_ssh_key_credential(username: Option<&str>) -> Option<Cred> {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".to_string());
+
+    let ssh_dir = Path::new(&home).join(".ssh");
+    let key_names = ["id_ed25519", "id_rsa", "id_ecdsa"];
+
+    for key_name in key_names {
+        let private_key = ssh_dir.join(key_name);
+        let public_key = ssh_dir.join(format!("{}.pub", key_name));
+
+        if private_key.exists() {
+            if let Ok(cred) = Cred::ssh_key(
+                username.unwrap_or("git"),
+                if public_key.exists() {
+                    Some(&public_key)
+                } else {
+                    None
+                },
+                &private_key,
+                None,
+            ) {
+                return Some(cred);
             }
         }
     }
-    
+
     None
+}
+
+fn resolve_helper_credential(url: &str, username: Option<&str>) -> Option<Cred> {
+    let config = git2::Config::open_default().ok()?;
+    Cred::credential_helper(&config, url, username).ok()
 }
 
 impl AuthCallbacks {
@@ -80,8 +50,7 @@ impl AuthCallbacks {
         let mut callbacks = RemoteCallbacks::new();
         let tried_ssh = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let tried_agent = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let tried_system = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let cached_creds = std::sync::Arc::new(std::sync::Mutex::new(Option::<(String, String)>::None));
+        let tried_helper = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
         callbacks.credentials(move |url, username, allowed| {
             // For SSH URLs, try SSH key and agent
@@ -89,28 +58,8 @@ impl AuthCallbacks {
                 // Try SSH key files
                 if !tried_ssh.load(std::sync::atomic::Ordering::Relaxed) {
                     tried_ssh.store(true, std::sync::atomic::Ordering::Relaxed);
-                    
-                    let home = std::env::var("HOME")
-                        .or_else(|_| std::env::var("USERPROFILE"))
-                        .unwrap_or_else(|_| ".".to_string());
-
-                    let ssh_dir = Path::new(&home).join(".ssh");
-                    let key_names = ["id_ed25519", "id_rsa", "id_ecdsa"];
-
-                    for key_name in key_names {
-                        let private_key = ssh_dir.join(key_name);
-                        let public_key = ssh_dir.join(format!("{}.pub", key_name));
-
-                        if private_key.exists() {
-                            if let Ok(cred) = Cred::ssh_key(
-                                username.unwrap_or("git"),
-                                if public_key.exists() { Some(&public_key) } else { None },
-                                &private_key,
-                                None,
-                            ) {
-                                return Ok(cred);
-                            }
-                        }
+                    if let Some(cred) = resolve_ssh_key_credential(username) {
+                        return Ok(cred);
                     }
                 }
 
@@ -123,26 +72,11 @@ impl AuthCallbacks {
                 }
             }
 
-            // For HTTPS URLs, use system git credential helper
+            // For HTTPS URLs, ask credential.helper via libgit2.
             if allowed.contains(CredentialType::USER_PASS_PLAINTEXT) {
-                if !tried_system.load(std::sync::atomic::Ordering::Relaxed) {
-                    tried_system.store(true, std::sync::atomic::Ordering::Relaxed);
-                    
-                    // Get credentials from system git
-                    if let Some((user, pass)) = get_system_credentials(url) {
-                        let mut cache = cached_creds.lock().unwrap();
-                        *cache = Some((user.clone(), pass.clone()));
-                        
-                        if let Ok(cred) = Cred::userpass_plaintext(&user, &pass) {
-                            return Ok(cred);
-                        }
-                    }
-                }
-                
-                // Try cached credentials on retry
-                let cache = cached_creds.lock().unwrap();
-                if let Some((ref user, ref pass)) = *cache {
-                    if let Ok(cred) = Cred::userpass_plaintext(user, pass) {
+                if !tried_helper.load(std::sync::atomic::Ordering::Relaxed) {
+                    tried_helper.store(true, std::sync::atomic::Ordering::Relaxed);
+                    if let Some(cred) = resolve_helper_credential(url, username) {
                         return Ok(cred);
                     }
                 }
@@ -183,8 +117,7 @@ impl AuthCallbacks {
         let mut callbacks = RemoteCallbacks::new();
         let tried_ssh = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let tried_agent = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let tried_system = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let cached_creds = std::sync::Arc::new(std::sync::Mutex::new(Option::<(String, String)>::None));
+        let tried_helper = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
         // Add authentication callbacks
         callbacks.credentials(move |url, username, allowed| {
@@ -192,28 +125,8 @@ impl AuthCallbacks {
             if allowed.contains(CredentialType::SSH_KEY) {
                 if !tried_ssh.load(std::sync::atomic::Ordering::Relaxed) {
                     tried_ssh.store(true, std::sync::atomic::Ordering::Relaxed);
-                    
-                    let home = std::env::var("HOME")
-                        .or_else(|_| std::env::var("USERPROFILE"))
-                        .unwrap_or_else(|_| ".".to_string());
-
-                    let ssh_dir = Path::new(&home).join(".ssh");
-                    let key_names = ["id_ed25519", "id_rsa", "id_ecdsa"];
-
-                    for key_name in key_names {
-                        let private_key = ssh_dir.join(key_name);
-                        let public_key = ssh_dir.join(format!("{}.pub", key_name));
-
-                        if private_key.exists() {
-                            if let Ok(cred) = Cred::ssh_key(
-                                username.unwrap_or("git"),
-                                if public_key.exists() { Some(&public_key) } else { None },
-                                &private_key,
-                                None,
-                            ) {
-                                return Ok(cred);
-                            }
-                        }
+                    if let Some(cred) = resolve_ssh_key_credential(username) {
+                        return Ok(cred);
                     }
                 }
 
@@ -225,24 +138,11 @@ impl AuthCallbacks {
                 }
             }
 
-            // For HTTPS - use system git credential
+            // For HTTPS - ask credential.helper via libgit2.
             if allowed.contains(CredentialType::USER_PASS_PLAINTEXT) {
-                if !tried_system.load(std::sync::atomic::Ordering::Relaxed) {
-                    tried_system.store(true, std::sync::atomic::Ordering::Relaxed);
-                    
-                    if let Some((user, pass)) = get_system_credentials(url) {
-                        let mut cache = cached_creds.lock().unwrap();
-                        *cache = Some((user.clone(), pass.clone()));
-                        
-                        if let Ok(cred) = Cred::userpass_plaintext(&user, &pass) {
-                            return Ok(cred);
-                        }
-                    }
-                }
-                
-                let cache = cached_creds.lock().unwrap();
-                if let Some((ref user, ref pass)) = *cache {
-                    if let Ok(cred) = Cred::userpass_plaintext(user, pass) {
+                if !tried_helper.load(std::sync::atomic::Ordering::Relaxed) {
+                    tried_helper.store(true, std::sync::atomic::Ordering::Relaxed);
+                    if let Some(cred) = resolve_helper_credential(url, username) {
                         return Ok(cred);
                     }
                 }

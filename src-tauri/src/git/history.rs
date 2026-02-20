@@ -4,7 +4,7 @@
 
 use super::error::GitError;
 use super::types::{CommitInfo, FileDiff};
-use git2::{DiffOptions, Repository, Time};
+use git2::{BranchType, DiffOptions, Repository, Time};
 
 /// Format git time to ISO 8601 format
 fn format_time(time: Time) -> String {
@@ -68,6 +68,21 @@ pub struct SyncStatus {
     pub remote: Option<String>,
 }
 
+fn resolve_upstream(repo: &Repository, branch_name: &str) -> Option<(git2::Oid, String)> {
+    let branch = repo.find_branch(branch_name, BranchType::Local).ok()?;
+    let upstream = branch.upstream().ok()?;
+    let upstream_ref = upstream.get();
+    let upstream_oid = upstream_ref.target()?;
+    let remote_name = upstream_ref
+        .name()
+        .and_then(|name| name.strip_prefix("refs/remotes/"))
+        .and_then(|rest| rest.split('/').next())
+        .unwrap_or("origin")
+        .to_string();
+
+    Some((upstream_oid, remote_name))
+}
+
 /// Get sync status (ahead/behind remote)
 #[tauri::command]
 pub fn git_sync_status(path: String) -> Result<SyncStatus, String> {
@@ -89,17 +104,9 @@ pub fn git_sync_status(path: String) -> Result<SyncStatus, String> {
 
     let branch_name = head.shorthand().map(|s| s.to_string());
 
-    // Check if we have a remote
+    // Check if any remote exists
     let remotes = repo.remotes().map_err(|e| GitError::from(e))?;
-    if remotes.is_empty() {
-        return Ok(SyncStatus {
-            ahead: 0,
-            behind: 0,
-            has_remote: false,
-            branch: branch_name,
-            remote: None,
-        });
-    }
+    let has_remote = remotes.iter().flatten().next().is_some();
 
     // Get branch name for upstream lookup
     let branch = match &branch_name {
@@ -108,25 +115,23 @@ pub fn git_sync_status(path: String) -> Result<SyncStatus, String> {
             return Ok(SyncStatus {
                 ahead: 0,
                 behind: 0,
-                has_remote: !remotes.is_empty(),
+                has_remote,
                 branch: None,
                 remote: None,
             });
         }
     };
 
-    // Try to find upstream
-    let upstream_name = format!("refs/remotes/origin/{}", branch);
-    let upstream = match repo.find_reference(&upstream_name) {
-        Ok(r) => r,
-        Err(_) => {
+    let (upstream_oid, remote_name) = match resolve_upstream(&repo, branch) {
+        Some(info) => info,
+        None => {
             return Ok(SyncStatus {
                 ahead: 0,
                 behind: 0,
-                has_remote: true,
+                has_remote,
                 branch: branch_name,
-                remote: Some("origin".to_string()),
-            });
+                remote: None,
+            })
         }
     };
 
@@ -136,22 +141,9 @@ pub fn git_sync_status(path: String) -> Result<SyncStatus, String> {
             return Ok(SyncStatus {
                 ahead: 0,
                 behind: 0,
-                has_remote: true,
+                has_remote,
                 branch: branch_name,
-                remote: Some("origin".to_string()),
-            });
-        }
-    };
-
-    let upstream_oid = match upstream.target() {
-        Some(oid) => oid,
-        None => {
-            return Ok(SyncStatus {
-                ahead: 0,
-                behind: 0,
-                has_remote: true,
-                branch: branch_name,
-                remote: Some("origin".to_string()),
+                remote: Some(remote_name),
             });
         }
     };
@@ -164,9 +156,9 @@ pub fn git_sync_status(path: String) -> Result<SyncStatus, String> {
     Ok(SyncStatus {
         ahead: ahead as u32,
         behind: behind as u32,
-        has_remote: true,
+        has_remote,
         branch: branch_name,
-        remote: Some("origin".to_string()),
+        remote: Some(remote_name),
     })
 }
 
@@ -187,18 +179,14 @@ pub fn git_unpushed(path: String) -> Result<Vec<String>, String> {
         None => return Ok(vec![]),
     };
 
-    let upstream_name = format!("refs/remotes/origin/{}", branch);
-    let upstream = match repo.find_reference(&upstream_name) {
-        Ok(r) => r,
-        Err(_) => return Ok(vec![]), // No upstream, so nothing is considered "unpushed"
+    let (upstream_oid, _remote_name) = match resolve_upstream(&repo, &branch) {
+        Some(info) => info,
+        None => return Ok(vec![]),
     };
 
     let head_oid = head
         .target()
         .ok_or_else(|| "HEAD has no target".to_string())?;
-    let upstream_oid = upstream
-        .target()
-        .ok_or_else(|| "Upstream has no target".to_string())?;
 
     // Find commits between upstream and HEAD
     let mut revwalk = repo.revwalk().map_err(|e| GitError::from(e))?;
@@ -211,6 +199,36 @@ pub fn git_unpushed(path: String) -> Result<Vec<String>, String> {
         .collect();
 
     Ok(unpushed)
+}
+
+#[derive(serde::Serialize)]
+pub struct HeadCommitInfo {
+    pub hash: String,
+    pub message: String,
+    pub author: String,
+    pub date: String,
+}
+
+/// Get current HEAD commit information.
+#[tauri::command]
+pub fn git_get_commit_info(path: String) -> Result<HeadCommitInfo, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+    let head = repo.head().map_err(|e| GitError::from(e))?;
+    let commit = head.peel_to_commit().map_err(|e| GitError::from(e))?;
+    let author = commit.author();
+
+    Ok(HeadCommitInfo {
+        hash: commit.id().to_string(),
+        message: commit
+            .message()
+            .unwrap_or("")
+            .lines()
+            .next()
+            .unwrap_or("")
+            .to_string(),
+        author: author.name().unwrap_or("").to_string(),
+        date: format_time(author.when()),
+    })
 }
 
 /// Show files changed in a commit

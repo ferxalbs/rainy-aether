@@ -159,15 +159,15 @@ pub fn git_revert(path: String, commit: String, no_commit: Option<bool>) -> Resu
     let oid = git2::Oid::from_str(&commit).map_err(|e| GitError::from(e))?;
     let commit_obj = repo.find_commit(oid).map_err(|e| GitError::from(e))?;
 
-    // Get parent (unused in revert logic)
-    let _parent = commit_obj.parent(0).map_err(|e| GitError::from(e))?;
-
-    // Perform the revert by cherrypicking in reverse
-    let mut opts = git2::CherrypickOptions::new();
-    opts.mainline(0);
-
-    repo.cherrypick(&commit_obj, Some(&mut opts))
+    let mut opts = git2::RevertOptions::new();
+    repo.revert(&commit_obj, Some(&mut opts))
         .map_err(|e| GitError::from(e))?;
+
+    let index = repo.index().map_err(|e| GitError::from(e))?;
+    if index.has_conflicts() {
+        return Err("Revert produced conflicts. Resolve conflicts and commit manually.".to_string());
+    }
+    drop(index);
 
     if no_commit.unwrap_or(false) {
         Ok(format!("Reverted {} (staged, not committed)", commit))
@@ -194,6 +194,9 @@ pub fn git_revert(path: String, commit: String, no_commit: Option<bool>) -> Resu
 
         repo.commit(Some("HEAD"), &sig, &sig, &message, &tree, &[&head_commit])
             .map_err(|e| GitError::from(e))?;
+
+        // Cleanup revert state
+        let _ = repo.cleanup_state();
 
         Ok(format!("Reverted {}", commit))
     }

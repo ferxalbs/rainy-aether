@@ -27,7 +27,15 @@ pub fn git_push(
         Some(b) => b.clone(),
         None => {
             let head = repo.head().map_err(|e| GitError::from(e))?;
-            head.shorthand().unwrap_or("HEAD").to_string()
+            match head.shorthand() {
+                Some("HEAD") | None => {
+                    return Err(
+                        "Cannot push from detached HEAD. Specify a branch or checkout a branch."
+                            .to_string(),
+                    )
+                }
+                Some(name) => name.to_string(),
+            }
         }
     };
 
@@ -65,7 +73,15 @@ pub fn git_pull(
         Some(b) => b.clone(),
         None => {
             let head = repo.head().map_err(|e| GitError::from(e))?;
-            head.shorthand().unwrap_or("HEAD").to_string()
+            match head.shorthand() {
+                Some("HEAD") | None => {
+                    return Err(
+                        "Cannot pull into detached HEAD. Specify a branch or checkout a branch."
+                            .to_string(),
+                    )
+                }
+                Some(name) => name.to_string(),
+            }
         }
     };
 
@@ -284,4 +300,44 @@ pub fn git_set_remote_url(path: String, name: String, url: String) -> Result<Str
     repo.remote_set_url(&name, &url)
         .map_err(|e| GitError::from(e))?;
     Ok(format!("Updated remote {} URL to {}", name, url))
+}
+
+/// Rename a remote
+#[tauri::command]
+pub fn git_rename_remote(path: String, old_name: String, new_name: String) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+    let _problems = repo
+        .remote_rename(&old_name, &new_name)
+        .map_err(|e| GitError::from(e))?;
+    Ok(format!("Renamed remote {} to {}", old_name, new_name))
+}
+
+/// Fetch all remotes
+#[tauri::command]
+pub fn git_fetch_all(path: String, prune: Option<bool>) -> Result<String, String> {
+    let repo = Repository::open(&path).map_err(|e| GitError::from(e))?;
+    let remote_names = repo.remotes().map_err(|e| GitError::from(e))?;
+    let names: Vec<String> = remote_names
+        .iter()
+        .flatten()
+        .map(|name| name.to_string())
+        .collect();
+
+    let mut fetched = 0usize;
+
+    for name in names {
+        let mut remote = repo.find_remote(&name).map_err(|e| GitError::from(e))?;
+        let mut fetch_opts = AuthCallbacks::fetch_options();
+        fetch_opts.download_tags(AutotagOption::All);
+        if prune.unwrap_or(false) {
+            fetch_opts.prune(git2::FetchPrune::On);
+        }
+
+        remote
+            .fetch::<&str>(&[], Some(&mut fetch_opts), None)
+            .map_err(|e| GitError::from(e))?;
+        fetched += 1;
+    }
+
+    Ok(format!("Fetched {} remotes", fetched))
 }
