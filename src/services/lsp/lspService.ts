@@ -3,10 +3,13 @@
  * Manages multiple language server clients and provides unified access to LSP features
  */
 
+import * as monaco from 'monaco-editor';
 import { LSPClient } from './lspClient';
 import { OptimizedLSPClient } from './OptimizedLSPClient';
 import type { LanguageServerConfig, Diagnostic } from './types';
-import { getDiagnosticService, DiagnosticSource, DiagnosticSeverity } from '../diagnosticService';
+import { getMarkerService, MarkerSeverity, type IMarkerData } from '../markerService';
+import { lspStatusActions } from '../../stores/lspStatusStore';
+import { LSPClientState } from './types';
 
 /**
  * LSP Service - Manages all language servers
@@ -14,7 +17,8 @@ import { getDiagnosticService, DiagnosticSource, DiagnosticSeverity } from '../d
 class LSPService {
   private clients: Map<string, LSPClient> = new Map();
   private languageToServer: Map<string, string> = new Map();
-  private diagnosticService = getDiagnosticService();
+  private markerService = getMarkerService();
+  private documentLanguages: Map<string, string> = new Map();
 
   /**
    * Register a language server
@@ -25,8 +29,18 @@ class LSPService {
       return;
     }
 
+    lspStatusActions.registerServer(config.id, config.name, config.languages);
+    lspStatusActions.setServerStatus(config.id, 'starting');
+
     // Use OptimizedLSPClient for better performance
     const client = new OptimizedLSPClient(config);
+
+    client.onStateChange((state) => {
+      lspStatusActions.setServerStatus(
+        config.id,
+        this.mapClientStateToStatus(state)
+      );
+    });
 
     // Map languages to this server
     for (const lang of config.languages) {
@@ -43,8 +57,20 @@ class LSPService {
     // Auto-start the server
     try {
       await client.start();
+      lspStatusActions.setServerStatus(config.id, 'running');
       console.info(`[LSP] Server registered and started: ${config.name}`);
     } catch (error) {
+      const errorMessage = this.stringifyError(error);
+      const unavailable = this.isUnavailableServerError(errorMessage);
+      lspStatusActions.setServerStatus(config.id, unavailable ? 'unavailable' : 'error', errorMessage);
+
+      this.clients.delete(config.id);
+      for (const [language, serverId] of this.languageToServer.entries()) {
+        if (serverId === config.id) {
+          this.languageToServer.delete(language);
+        }
+      }
+
       console.error(`[LSP] Failed to start server: ${config.name}`, error);
     }
   }
@@ -55,11 +81,14 @@ class LSPService {
   async unregisterServer(serverId: string): Promise<void> {
     const client = this.clients.get(serverId);
     if (!client) {
+      lspStatusActions.unregisterServer(serverId);
       return;
     }
 
     await client.stop();
     this.clients.delete(serverId);
+    lspStatusActions.setServerStatus(serverId, 'stopped');
+    lspStatusActions.unregisterServer(serverId);
 
     // Remove language mappings
     for (const [lang, id] of this.languageToServer.entries()) {
@@ -86,14 +115,18 @@ class LSPService {
    * Get client for a file URI
    */
   getClientForFile(uri: string): LSPClient | null {
-    const ext = uri.split('.').pop()?.toLowerCase() || '';
-    return this.getClientForLanguage(ext);
+    const languageId = this.documentLanguages.get(uri) || this.getLanguageIdFromUri(uri);
+    if (!languageId) {
+      return null;
+    }
+    return this.getClientForLanguage(languageId);
   }
 
   /**
    * Open a document in the appropriate language server
    */
   async openDocument(uri: string, languageId: string, content: string): Promise<void> {
+    this.documentLanguages.set(uri, languageId);
     const client = this.getClientForLanguage(languageId);
     if (client) {
       await client.openDocument(uri, languageId, content);
@@ -114,10 +147,12 @@ class LSPService {
    * Close a document
    */
   async closeDocument(uri: string): Promise<void> {
-    const client = this.getClientForFile(uri);
+    const languageId = this.documentLanguages.get(uri);
+    const client = languageId ? this.getClientForLanguage(languageId) : this.getClientForFile(uri);
     if (client) {
       await client.closeDocument(uri);
     }
+    this.documentLanguages.delete(uri);
   }
 
   /**
@@ -137,53 +172,133 @@ class LSPService {
     );
     this.clients.clear();
     this.languageToServer.clear();
+    this.documentLanguages.clear();
+    lspStatusActions.clearAll();
   }
 
   /**
    * Handle diagnostics from language servers
    */
   private handleDiagnostics(uri: string, diagnostics: Diagnostic[]): void {
-    // Clear previous LSP diagnostics for this file
-    const service = this.diagnosticService;
-    const allDiagnostics = service.getAllDiagnostics();
+    const markers: IMarkerData[] = diagnostics.map((diagnostic) => {
+      const startLineNumber = diagnostic.range.start.line + 1;
+      const startColumn = diagnostic.range.start.character + 1;
+      const endLineNumber = diagnostic.range.end.line + 1;
+      const endColumn = diagnostic.range.end.character + 1;
 
-    // Remove old LSP diagnostics for this file
-    allDiagnostics
-      .filter((d: { source: DiagnosticSource; file?: string }) => d.source === DiagnosticSource.LSP && d.file === uri)
-      .forEach((d: { id: string }) => service.removeDiagnostic(d.id));
-
-    // Add new diagnostics
-    diagnostics.forEach((diagnostic, index) => {
-      const severity = this.convertSeverity(diagnostic.severity || 1);
-
-      service.addDiagnostic({
-        id: `lsp-${uri}-${index}`,
-        source: DiagnosticSource.LSP,
-        severity,
+      return {
+        severity: this.convertSeverity(diagnostic.severity || 1),
         message: diagnostic.message,
-        file: uri,
-        line: diagnostic.range.start.line + 1, // LSP is 0-based, we use 1-based
-        column: diagnostic.range.start.character + 1,
-      });
+        startLineNumber,
+        startColumn,
+        endLineNumber: endLineNumber >= startLineNumber ? endLineNumber : startLineNumber,
+        endColumn: endColumn > 0 ? endColumn : startColumn + 1,
+        code: diagnostic.code ? String(diagnostic.code) : undefined,
+        source: 'lsp',
+      };
     });
+
+    const model = monaco.editor.getModel(monaco.Uri.parse(uri));
+    if (model) {
+      monaco.editor.setModelMarkers(
+        model,
+        'lsp',
+        markers.map((marker) => ({
+          severity: this.toMonacoSeverity(marker.severity),
+          message: marker.message,
+          startLineNumber: marker.startLineNumber,
+          startColumn: marker.startColumn,
+          endLineNumber: marker.endLineNumber,
+          endColumn: marker.endColumn,
+          code: typeof marker.code === 'string' ? marker.code : marker.code?.value,
+          source: marker.source,
+        }))
+      );
+    }
+
+    this.markerService.changeAll('lsp', [{ resource: uri, markers }]);
   }
 
   /**
    * Convert LSP severity to our diagnostic severity
    */
-  private convertSeverity(lspSeverity: number): DiagnosticSeverity {
+  private convertSeverity(lspSeverity: number): MarkerSeverity {
     // LSP severities: 1 = Error, 2 = Warning, 3 = Information, 4 = Hint
     switch (lspSeverity) {
       case 1:
-        return DiagnosticSeverity.Error;
+        return MarkerSeverity.Error;
       case 2:
-        return DiagnosticSeverity.Warning;
+        return MarkerSeverity.Warning;
       case 3:
+        return MarkerSeverity.Info;
       case 4:
-        return DiagnosticSeverity.Info;
+        return MarkerSeverity.Hint;
       default:
-        return DiagnosticSeverity.Info;
+        return MarkerSeverity.Info;
     }
+  }
+
+  private toMonacoSeverity(severity: MarkerSeverity): monaco.MarkerSeverity {
+    switch (severity) {
+      case MarkerSeverity.Error:
+        return monaco.MarkerSeverity.Error;
+      case MarkerSeverity.Warning:
+        return monaco.MarkerSeverity.Warning;
+      case MarkerSeverity.Info:
+        return monaco.MarkerSeverity.Info;
+      case MarkerSeverity.Hint:
+        return monaco.MarkerSeverity.Hint;
+      default:
+        return monaco.MarkerSeverity.Info;
+    }
+  }
+
+  private mapClientStateToStatus(state: LSPClientState): 'stopped' | 'starting' | 'running' | 'error' {
+    switch (state) {
+      case LSPClientState.Starting:
+        return 'starting';
+      case LSPClientState.Running:
+        return 'running';
+      case LSPClientState.Error:
+        return 'error';
+      case LSPClientState.Stopped:
+      default:
+        return 'stopped';
+    }
+  }
+
+  private stringifyError(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return String(error);
+  }
+
+  private isUnavailableServerError(message: string): boolean {
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes('not found') ||
+      normalized.includes('enoent') ||
+      normalized.includes('no such file') ||
+      normalized.includes('could not start')
+    );
+  }
+
+  private getLanguageIdFromUri(uri: string): string | null {
+    const cleanUri = uri.split('?')[0];
+    const ext = cleanUri.split('.').pop()?.toLowerCase() || '';
+
+    if (!ext) {
+      return null;
+    }
+
+    const extensionToLanguage: Record<string, string> = {
+      rs: 'rust',
+      py: 'python',
+      go: 'go',
+    };
+
+    return extensionToLanguage[ext] || ext;
   }
 }
 
@@ -214,21 +329,35 @@ export function getLSPService(): LSPService {
  * The LSP infrastructure is kept in place for future expansion.
  */
 export async function initializeLSP(): Promise<void> {
-  // DO NOT auto-register TypeScript server - Monaco handles this natively and better
-  // The external typescript-language-server would:
-  // 1. Require the user to install it globally
-  // 2. Compete with Monaco's built-in TS service
-  // 3. Cause confusion with duplicate diagnostics
+  const service = getLSPService();
 
-  // Future: Register language servers for non-TS languages here
-  // Example for Rust (when ready):
-  // await service.registerServer({
-  //   id: 'rust',
-  //   name: 'Rust Analyzer',
-  //   languages: ['rs'],
-  //   command: 'rust-analyzer',
-  //   args: [],
-  // });
+  const externalServers: LanguageServerConfig[] = [
+    {
+      id: 'rust-analyzer',
+      name: 'Rust Analyzer',
+      languages: ['rust'],
+      command: 'rust-analyzer',
+      args: [],
+    },
+    {
+      id: 'pylsp',
+      name: 'Python LSP',
+      languages: ['python'],
+      command: 'pylsp',
+      args: [],
+    },
+    {
+      id: 'gopls',
+      name: 'Go PLS',
+      languages: ['go'],
+      command: 'gopls',
+      args: [],
+    },
+  ];
 
-  console.info('[LSP] LSP service initialized (using Monaco built-in for TS/JS)');
+  for (const server of externalServers) {
+    await service.registerServer(server);
+  }
+
+  console.info('[LSP] LSP service initialized (Monaco built-in TS/JS + external servers)');
 }

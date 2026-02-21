@@ -2,6 +2,30 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.35] - 2026-02-20
+
+### Changes:
+
+- **[Improvements]** Reworked the compact Agent Chat input in the sidebar to be a seamless, flat, and completely solid panel seamlessly anchored to the bottom. Removed floating styles, inner boxes, and rounded corners to achieve a professional, deeply integrated native IDE feeling.
+
+---
+
+## [v0.1.34] - 2026-02-20
+
+### Changes:
+
+- **[Improvements]** Rebalanced the Agent Sidebar Chat Window margin and clipping. Restored a clean `m-1 rounded-lg` boundary to the text input so it fits precisely inside the frame without looking entirely flat/dull, preserving the intended premium style in the compact IDE configuration.
+
+---
+
+## [v0.1.33] - 2026-02-20
+
+### Changes:
+
+- **[Improvements]** Compacted the Agent Sidebar Chat Window and input area to follow a unified, tighter UI specification for better screen real-estate usage across the IDE.
+
+---
+
 ## [v0.1.32] - 2026-02-21
 
 ### Changes:

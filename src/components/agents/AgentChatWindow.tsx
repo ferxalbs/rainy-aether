@@ -281,12 +281,19 @@ const ChatInputArea = memo(function ChatInputArea({
   );
 
   return (
-    <div className={cn("shrink-0 p-3 sm:p-5", compact && "p-2.5")}>
+    <div
+      className={cn(
+        "shrink-0",
+        compact ? "bg-card border-t border-border" : "p-3 sm:p-5",
+      )}
+    >
       <div className="max-w-4xl mx-auto w-full relative">
         <div
           className={cn(
-            "relative rounded-xl bg-card border border-border ring-1 ring-border/50 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20 focus-within:shadow-lg focus-within:shadow-primary/5 transition-all duration-300 shadow-lg shadow-black/20",
-            compact && "rounded-lg",
+            "relative transition-all duration-300",
+            compact
+              ? "bg-transparent border-0 rounded-none shadow-none focus-within:ring-0"
+              : "bg-card border rounded-xl border-border ring-1 ring-border/50 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20 shadow-lg shadow-black/20",
             isDragging
               ? "border-primary/50 bg-primary/10 border-dashed ring-2 ring-primary/30"
               : "",
@@ -359,8 +366,10 @@ const ChatInputArea = memo(function ChatInputArea({
                   : "How can I help you build?"
             }
             className={cn(
-              "min-h-[44px] max-h-[180px] w-full resize-none border-0 bg-transparent px-4 sm:px-5 py-3 sm:py-3.5 text-[13px] sm:text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none placeholder:text-muted-foreground/40 text-foreground/90 leading-relaxed scrollbar-hide",
-              compact && "min-h-[40px] px-3 py-2 text-xs",
+              "w-full resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none placeholder:text-muted-foreground/40 text-foreground/90 leading-relaxed scrollbar-hide",
+              compact
+                ? "min-h-[48px] max-h-[300px] px-4 py-3 text-xs"
+                : "min-h-[44px] max-h-[180px] px-4 sm:px-5 py-3 sm:py-3.5 text-[13px] sm:text-sm",
             )}
             disabled={isLoading}
           />
@@ -368,8 +377,8 @@ const ChatInputArea = memo(function ChatInputArea({
           {/* Bottom Actions Bar */}
           <div
             className={cn(
-              "flex items-center justify-between px-3 sm:px-4 pb-2.5 sm:pb-3",
-              compact && "px-2 pb-2",
+              "flex items-center justify-between",
+              compact ? "px-3 pb-3" : "px-3 sm:px-4 pb-2.5 sm:pb-3",
             )}
           >
             <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
@@ -533,8 +542,8 @@ const ChatInputArea = memo(function ChatInputArea({
                   "h-8 w-8 sm:h-9 sm:w-9 rounded-full transition-all duration-300",
                   hasContent || pendingImages.length > 0
                     ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 active:scale-95"
-                    : "bg-muted/20 text-muted-foreground/30 hover:bg-muted/30 border border-primary/10 cursor-not-allowed",
-                  compact && "h-7 w-7",
+                    : "bg-muted/20 text-muted-foreground/30 hover:bg-muted/30 border border-border cursor-not-allowed",
+                  compact && "h-6 w-6 rounded-md",
                 )}
                 onClick={handleSendClick}
                 disabled={
@@ -549,6 +558,7 @@ const ChatInputArea = memo(function ChatInputArea({
                       "h-4 w-4 transition-transform duration-300",
                       (hasContent || pendingImages.length > 0) &&
                         "translate-x-0",
+                      compact && "h-3 w-3",
                     )}
                   />
                 )}
@@ -1073,20 +1083,45 @@ export function AgentChatWindow({
   const hasUserMessages = displayMessages.length > 0;
 
   return (
-    <div className="flex flex-col h-full w-full bg-background relative overflow-hidden">
+    <div className="flex flex-col h-full w-full bg-transparent relative overflow-hidden">
       {/* Topbar - only shown when sidebar is collapsed or standalone */}
       {showTopbar && (
-        <div className="h-12 border-b border-border/50 px-4 flex items-center justify-between bg-background z-10 shrink-0">
+        <div
+          className={cn(
+            "h-12 border-b border-border px-4 flex items-center justify-between bg-transparent z-10 shrink-0",
+            compact && "h-10 px-3",
+          )}
+        >
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="h-7 w-7 rounded-lg bg-primary/5 flex items-center justify-center border border-primary/10 shrink-0 shadow-inner">
-              <Brain className="h-3.5 w-3.5 text-primary/70" />
+            <div
+              className={cn(
+                "h-7 w-7 rounded-lg bg-primary/5 flex items-center justify-center border border-border shrink-0 shadow-inner",
+                compact && "h-6 w-6 rounded-md",
+              )}
+            >
+              <Brain
+                className={cn(
+                  "h-3.5 w-3.5 text-primary/70",
+                  compact && "h-3 w-3",
+                )}
+              />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-bold text-primary/60 uppercase tracking-[0.2em] leading-none mb-0.5">
-                {activeSession ? "Active Chat" : "New Chat"}
+              <span
+                className={cn(
+                  "text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.2em] leading-none mb-0.5",
+                  compact && "text-[9px]",
+                )}
+              >
+                ACTIVE CHAT
               </span>
-              <span className="text-[12px] font-semibold text-foreground/90 truncate tracking-tight">
-                {activeSession?.name || "Ready to assist"}
+              <span
+                className={cn(
+                  "text-[12px] font-semibold text-foreground/90 truncate tracking-tight",
+                  compact && "text-[11px]",
+                )}
+              >
+                {activeSession?.name || "New Chat"}
               </span>
             </div>
           </div>
@@ -1094,9 +1129,17 @@ export function AgentChatWindow({
             size="icon"
             variant="ghost"
             onClick={() => agentActions.createSession("New Chat")}
-            className="h-8 w-8 rounded-xl bg-primary/5 hover:bg-primary/10 text-primary border border-primary/10 transition-all duration-300 group shadow-lg shadow-primary/5 active:scale-95"
+            className={cn(
+              "h-8 w-8 rounded-xl bg-card hover:bg-accent text-primary border border-border transition-all duration-300 group shadow-sm active:scale-95",
+              compact && "h-6 w-6 rounded-md",
+            )}
           >
-            <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
+            <Plus
+              className={cn(
+                "h-4 w-4 group-hover:scale-110 transition-transform",
+                compact && "h-3 w-3",
+              )}
+            />
           </Button>
         </div>
       )}

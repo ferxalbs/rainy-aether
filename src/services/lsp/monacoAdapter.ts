@@ -5,17 +5,22 @@
 
 import * as monaco from 'monaco-editor';
 import { getLSPService } from './lspService';
-import { getDiagnosticService, DiagnosticSource, DiagnosticSeverity } from '../diagnosticService';
+import { registerLSPProviders } from './MonacoProviders';
+import { getMarkerService, type IMarkerData, MarkerSeverity } from '../markerService';
+
+const LSP_MARKER_OWNER = 'lsp';
+const MONACO_MARKER_OWNER = 'monaco';
+const BUILTIN_DIAGNOSTIC_LANGUAGES = new Set(['typescript', 'javascript', 'json', 'css', 'html']);
+
+const providerDisposablesByLanguage = new Map<string, monaco.IDisposable[]>();
+const openModelCountByLanguage = new Map<string, number>();
 
 /**
  * Register LSP features with Monaco Editor
  */
 export function registerLSPWithMonaco(): void {
   const lspService = getLSPService();
-  const diagnosticService = getDiagnosticService();
-
-  // Track open documents
-  const openDocuments = new Set<string>();
+  const markerService = getMarkerService();
 
   // Listen to model additions (file opened)
   monaco.editor.onDidCreateModel((model) => {
@@ -23,43 +28,76 @@ export function registerLSPWithMonaco(): void {
     const languageId = model.getLanguageId();
     const content = model.getValue();
 
-    openDocuments.add(uri);
-    lspService.openDocument(uri, languageId, content);
+    ensureProvidersForLanguage(languageId);
+    incrementLanguageUsage(languageId);
+    void lspService.openDocument(uri, languageId, content);
 
     // Listen to content changes
-    model.onDidChangeContent(() => {
+    const contentDisposable = model.onDidChangeContent(() => {
       const newContent = model.getValue();
-      lspService.updateDocument(uri, newContent, model.getVersionId());
+      void lspService.updateDocument(uri, newContent, model.getVersionId());
     });
 
     // Track Monaco's built-in diagnostics for supported languages
-    const languagesWithDiagnostics = ['typescript', 'javascript', 'json', 'css', 'html'];
-    if (languagesWithDiagnostics.includes(languageId)) {
-      registerMonacoDiagnosticTracking(model);
-    }
+    const monacoDiagnosticsDisposable = BUILTIN_DIAGNOSTIC_LANGUAGES.has(languageId)
+      ? registerMonacoDiagnosticTracking(model)
+      : null;
+
+    model.onWillDispose(() => {
+      contentDisposable.dispose();
+      monacoDiagnosticsDisposable?.dispose();
+      decrementLanguageUsage(languageId);
+      clearModelMarkers(model);
+      clearStoreMarkers(uri, markerService);
+    });
   });
 
   // Listen to model disposals (file closed)
   monaco.editor.onWillDisposeModel((model) => {
     const uri = model.uri.toString();
-    openDocuments.delete(uri);
-    lspService.closeDocument(uri);
-
-    // Clear diagnostics for closed file
-    const allDiagnostics = diagnosticService.getAllDiagnostics();
-    allDiagnostics
-      .filter((d: { file?: string }) => d.file === uri)
-      .forEach((d: { id: string }) => diagnosticService.removeDiagnostic(d.id));
+    void lspService.closeDocument(uri);
   });
 
-  console.info('[LSP] Monaco adapter registered with diagnostic tracking');
+  function ensureProvidersForLanguage(languageId: string): void {
+    if (providerDisposablesByLanguage.has(languageId)) {
+      return;
+    }
+
+    const client = lspService.getClientForLanguage(languageId);
+    if (!client) {
+      return;
+    }
+
+    providerDisposablesByLanguage.set(languageId, registerLSPProviders(languageId, client));
+  }
+
+  function incrementLanguageUsage(languageId: string): void {
+    openModelCountByLanguage.set(languageId, (openModelCountByLanguage.get(languageId) || 0) + 1);
+  }
+
+  function decrementLanguageUsage(languageId: string): void {
+    const current = openModelCountByLanguage.get(languageId) || 0;
+    if (current <= 1) {
+      openModelCountByLanguage.delete(languageId);
+      const disposables = providerDisposablesByLanguage.get(languageId);
+      if (disposables) {
+        disposables.forEach((disposable) => disposable.dispose());
+        providerDisposablesByLanguage.delete(languageId);
+      }
+      return;
+    }
+
+    openModelCountByLanguage.set(languageId, current - 1);
+  }
+
+  console.info('[LSP] Monaco adapter registered');
 }
 
 /**
  * Register Monaco's built-in TypeScript/JavaScript diagnostic tracking
  */
-function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void {
-  const diagnosticService = getDiagnosticService();
+function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): monaco.IDisposable {
+  const markerService = getMarkerService();
   const uri = model.uri;
   const uriString = uri.toString();
 
@@ -97,23 +135,17 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
 
     const markers = monaco.editor.getModelMarkers({ resource: uri });
 
-    // Clear previous Monaco diagnostics for this file
-    const allDiagnostics = diagnosticService.getAllDiagnostics();
-    allDiagnostics
-      .filter((d: { source: DiagnosticSource; file?: string }) =>
-        d.source === DiagnosticSource.Monaco && d.file === uriString)
-      .forEach((d: { id: string }) => diagnosticService.removeDiagnostic(d.id));
-
     // Filter and add new diagnostics with deduplication
     const relevantMarkers = markers.filter(shouldShowDiagnostic);
     const seenIds = new Set<string>();
+    const markerData: IMarkerData[] = [];
 
     relevantMarkers.forEach((marker) => {
       const severity = marker.severity === monaco.MarkerSeverity.Error
-        ? DiagnosticSeverity.Error
+        ? MarkerSeverity.Error
         : marker.severity === monaco.MarkerSeverity.Warning
-          ? DiagnosticSeverity.Warning
-          : DiagnosticSeverity.Info;
+          ? MarkerSeverity.Warning
+          : MarkerSeverity.Info;
 
       // Generate unique ID based on content (prevents duplicates)
       const codeStr = marker.code?.toString() || '';
@@ -125,17 +157,19 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
       }
       seenIds.add(diagnosticId);
 
-      diagnosticService.addDiagnostic({
-        id: diagnosticId,
-        source: DiagnosticSource.Monaco,
+      markerData.push({
         severity,
         message: marker.message,
-        file: uriString,
-        line: marker.startLineNumber,
-        column: marker.startColumn,
+        startLineNumber: marker.startLineNumber,
+        startColumn: marker.startColumn,
+        endLineNumber: marker.endLineNumber,
+        endColumn: marker.endColumn,
         code: codeStr,
+        source: marker.source || MONACO_MARKER_OWNER,
       });
     });
+
+    markerService.changeAll(MONACO_MARKER_OWNER, [{ resource: uriString, markers: markerData }]);
   };
 
   // Track changes with debouncing
@@ -165,34 +199,37 @@ function registerMonacoDiagnosticTracking(model: monaco.editor.ITextModel): void
   });
 
   // Cleanup on model disposal - CRITICAL to prevent memory leaks
-  model.onWillDispose(() => {
-    // Mark as disposed
-    isDisposed = true;
-
-    // Clear any pending timeout
-    if (syncTimeout !== null) {
-      clearTimeout(syncTimeout);
-      syncTimeout = null;
-    }
-
-    // Dispose event listeners
-    contentChangeDisposable.dispose();
-    markerChangeDisposable.dispose();
-
-    // Clear diagnostics for this file
-    const allDiagnostics = diagnosticService.getAllDiagnostics();
-    allDiagnostics
-      .filter((d: { source: DiagnosticSource; file?: string }) =>
-        d.source === DiagnosticSource.Monaco && d.file === uriString)
-      .forEach((d: { id: string }) => diagnosticService.removeDiagnostic(d.id));
-  });
-
   // Initial sync after a delay to let Monaco compute diagnostics
   setTimeout(() => {
     if (!isDisposed) {
       syncDiagnostics();
     }
   }, 500); // Reduced from 1.5s to 500ms for faster initial feedback
+
+  return {
+    dispose: () => {
+      isDisposed = true;
+
+      if (syncTimeout !== null) {
+        clearTimeout(syncTimeout);
+        syncTimeout = null;
+      }
+
+      contentChangeDisposable.dispose();
+      markerChangeDisposable.dispose();
+      markerService.remove(MONACO_MARKER_OWNER, [uriString]);
+    },
+  };
+}
+
+function clearModelMarkers(model: monaco.editor.ITextModel): void {
+  monaco.editor.setModelMarkers(model, LSP_MARKER_OWNER, []);
+  monaco.editor.setModelMarkers(model, MONACO_MARKER_OWNER, []);
+}
+
+function clearStoreMarkers(resource: string, markerService: ReturnType<typeof getMarkerService>): void {
+  markerService.remove(LSP_MARKER_OWNER, [resource]);
+  markerService.remove(MONACO_MARKER_OWNER, [resource]);
 }
 
 /**
