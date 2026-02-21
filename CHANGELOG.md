@@ -2,49 +2,25 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
-## [v0.1.42] - 2026-02-21
-
-### Changes:
-
-- **#1 [Fixes]** Eliminated flood of "Failed to connect to localhost:3847" errors on startup. `AgentChatWindow.tsx` and `SubagentManager.tsx` now gate all HTTP requests to the AgentKit server behind a reactive `serverReady` flag — no fetches fire until the sidecar server is confirmed alive.
-- **#2 [Improvements]** Added `isServerReady()` and `subscribeToServerReady()` exports to `agentServer.ts` so any component can reactively wait for the server without polling.
-- **#3 [Improvements]** Changed health-check poll interval from 5s → 10s and added a 3s initial boot delay before the first health probe, reducing console noise during server startup.
-- **#4 [Fixes]** Removed duplicate `agent_server_health` command registration in `lib.rs` that caused a Rust compiler warning.
-
-## [v0.1.41] - 2026-02-21
-
-### Changes:
-
-- **[Improvements]** Modularized `SettingsPage.tsx` into separate sub-components for better maintainability (QuickSettings, Editor, LSP, etc.).
-- **[UI/UX]** Redesigned the Settings layout to use dual floating glass panels (Sidebar + Content), perfectly aligning with the IDE's new floating island aesthetic.
-
-## [v0.1.40] - 2026-02-21
-
-- **[Improvements]** Refined the UI layout architecture: removed the global `padding: 8px` from the root `.ide-container` to allow the premium top `MenuBar` to stretch natively flush against the edges (respecting macOS traffic lights perfectly), while moving the `8px` (`p-2`) padding down into the specific Editor and Agents main layout wrappers so the IDE panels retain their floating "island" aesthetic without squeezing the MenuBar.
-
-## [v0.1.39] - 2026-02-21
-
-### Changes:
-
-- **[Fixes]** Restored the `8px` layout padding and gap to `.ide-container` to maintain the floating "island" container style for the IDE views and Agent Chat after they were inadvertently anchored to the edges.
-
-## [v0.1.38] - 2026-02-21
-
-### Changes:
-
-- **[Improvements]** Removed the 8px layout padding across the IDE's main container (`.ide-container`) making the interface dock perfectly to the window corners without floating gaps or wasted screen space.
-- **[Improvements]** Redesigned the `ModeSwitcher` component into a sleek, premium segmented control pill, applying enhanced scaling and glassmorphism styling for better integration into the top menubar.
-
-## [v0.1.37] - 2026-02-21
-
-### Changes:
-
-- **[Improvements]** Refactored the Topbar in `AgentChatWindow` to eliminate the floating appearance by bringing the elements closer to the top edge (reducing standard height) and properly applying the system glassmorphism blur configuration (`backdrop-blur-2xl`, `backdrop-saturate-150`).
-
 ## [v0.1.29] - 2026-02-21
 
 ### Changes:
 
+- **#1 [Fixes]** Replaced `fetch('/health')` HTTP health checks with `invoke('agent_server_health')` Rust TCP probe. Browser never makes an HTTP request for health polling → zero "Failed to load resource" errors regardless of server state.
+- **#2 [Fixes]** `AgentChatWindow.tsx`, `SubagentManager.tsx`, and `MCPManager.tsx` now gate all agent-server fetch calls behind a reactive `serverReady` flag — no requests fire until the sidecar is confirmed alive.
+- **#3 [Improvements]** Added `isServerReady()` and `subscribeToServerReady()` helpers to `agentServer.ts` for clean reactive server-readiness tracking.
+- **#4 [Improvements]** Health-check poll interval 5s → 10s with 3s initial boot delay.
+- **#5 [Fixes]** Removed duplicate `agent_server_health` Tauri command in `lib.rs`.
+
+- **[Improvements]** Modularized `SettingsPage.tsx` into separate sub-components for better maintainability (QuickSettings, Editor, LSP, etc.).
+- **[UI/UX]** Redesigned the Settings layout to use dual floating glass panels (Sidebar + Content), perfectly aligning with the IDE's new floating island aesthetic.
+
+- **[Improvements]** Refined the UI layout architecture: removed the global `padding: 8px` from the root `.ide-container` to allow the premium top `MenuBar` to stretch natively flush against the edges (respecting macOS traffic lights perfectly), while moving the `8px` (`p-2`) padding down into the specific Editor and Agents main layout wrappers so the IDE panels retain their floating "island" aesthetic without squeezing the MenuBar.
+
+- **[Fixes]** Restored the `8px` layout padding and gap to `.ide-container` to maintain the floating "island" container style for the IDE views and Agent Chat after they were inadvertently anchored to the edges.
+- **[Improvements]** Removed the 8px layout padding across the IDE's main container (`.ide-container`) making the interface dock perfectly to the window corners without floating gaps or wasted screen space.
+- **[Improvements]** Redesigned the `ModeSwitcher` component into a sleek, premium segmented control pill, applying enhanced scaling and glassmorphism styling for better integration into the top menubar.
+- **[Improvements]** Refactored the Topbar in `AgentChatWindow` to eliminate the floating appearance by bringing the elements closer to the top edge (reducing standard height) and properly applying the system glassmorphism blur configuration (`backdrop-blur-2xl`, `backdrop-saturate-150`).
 - **[Improvements]** Refactored the top window drag region ("MenuBar") for Windows and Linux to strictly adhere to a streamlined flexbox layout, fixing overflowing elements and a buggy drag area.
 - **[Improvements]** Redesigned the IDE/Agents `ModeSwitcher` into a premium, minimalist floating pill configuration with refined paddings and typography.
 - **[Improvements]** Cleaned up Windows and Linux native `WindowControls` by removing harsh hover boxing and relying on transparent backgrounds with standard iconography for a sleek, integrated look aligned with glassmorphism UI guidelines.

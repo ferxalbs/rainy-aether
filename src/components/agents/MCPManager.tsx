@@ -20,6 +20,10 @@ import {
 } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Switch } from "../ui/switch";
+import {
+  getCachedServerStatus,
+  subscribeToServerReady,
+} from "../../services/agentServer";
 
 // ===========================
 // Types
@@ -68,10 +72,23 @@ const MCPManager: React.FC<MCPManagerProps> = ({
 
   const serverUrl = "http://localhost:3847";
 
-  // Load servers from API
+  // Track server readiness — don't attempt API calls until server is alive
+  const [serverReady, setServerReady] = useState(
+    () => getCachedServerStatus()?.running ?? false,
+  );
+  useEffect(() => {
+    const unsub = subscribeToServerReady((ready) => setServerReady(ready));
+    return unsub;
+  }, []);
+
+  // Load servers from API — only when server is ready
   const loadServers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    if (!serverReady) {
+      setError("Agent server is starting. Please wait or start it manually.");
+      setServers([]);
+      setLoading(false);
+      return;
+    }
     try {
       const params = workspace
         ? `?workspace=${encodeURIComponent(workspace)}`
@@ -144,7 +161,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspace]);
+  }, [workspace, serverReady]);
 
   // Connect to an MCP server and fetch real tools
   const connectToServer = async (serverName: string) => {
@@ -221,7 +238,7 @@ const MCPManager: React.FC<MCPManagerProps> = ({
     if (isOpen) {
       loadServers();
     }
-  }, [isOpen, loadServers]);
+  }, [isOpen, loadServers, serverReady]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

@@ -2,7 +2,7 @@
  * Agent Server Service
  *
  * Manages communication with the Inngest/AgentKit sidecar server.
- * Uses HTTP health checks to detect server status (works for both manual and Tauri-spawned servers).
+ * Uses Rust TCP probe (invoke) for health checks — no browser fetch, no console noise.
  */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -86,56 +86,40 @@ export function subscribeToServerReady(
 }
 
 // ===========================
-// HTTP Health Check (Real Detection)
+// Rust TCP Health Check (silent — no browser fetch errors)
 // ===========================
 
 /**
- * Check if the agent server is running via HTTP
- * This works regardless of whether the server was started via Tauri or externally
+ * Check server health via Rust TCP probe.
+ * invoke('agent_server_health') attempts a TCP connect to 127.0.0.1:3847
+ * from the Rust backend — completely invisible to the browser DevTools.
  */
 export async function checkServerHealth(
-  port: number = DEFAULT_PORT,
+  _port: number = DEFAULT_PORT,
 ): Promise<boolean> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-    const response = await fetch(`http://localhost:${port}/health`, {
-      method: "GET",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-    return response.ok;
+    return await invoke<boolean>("agent_server_health");
   } catch {
     return false;
   }
 }
 
 /**
- * Get detailed status from the server
+ * Get detailed status using Rust TCP probe.
+ * Returns a minimal AgentServerStatus when alive, null when down.
  */
 export async function fetchServerStatus(
   port: number = DEFAULT_PORT,
 ): Promise<AgentServerStatus | null> {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    const response = await fetch(`http://localhost:${port}/health`, {
-      method: "GET",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
+    const alive = await invoke<boolean>("agent_server_health");
+    if (alive) {
       return {
         running: true,
         port,
         url: `http://localhost:${port}`,
         inngest_endpoint: `http://localhost:${port}/api/inngest`,
-        mode: "external", // Could be Tauri or external, we can't tell from HTTP
+        mode: "tauri",
       };
     }
     return null;
@@ -145,7 +129,7 @@ export async function fetchServerStatus(
 }
 
 /**
- * Refresh server status via HTTP health check
+ * Refresh server status via Rust TCP health check
  */
 export async function refreshServerStatus(): Promise<AgentServerStatus | null> {
   const status = await fetchServerStatus();
