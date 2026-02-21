@@ -4,8 +4,8 @@ import { editorState } from '../../stores/editorStore';
 import { getCurrentTheme } from '../../stores/themeStore';
 import { useGitState } from '../../stores/gitStore';
 import { getMarkerService, MarkerStatistics } from '../../services/markerService';
-import { useNotificationStats } from '../../stores/notificationStore';
-import { useLSPStatusStore, getLSPStatusDisplay, hasMonacoBuiltinSupport, lspStatusActions } from '../../stores/lspStatusStore';
+import { notificationActions, useNotificationStats } from '../../stores/notificationStore';
+import { useLSPStatusStore, getLSPStatusDisplay, hasMonacoBuiltinSupport, lspStatusActions, type LSPServerInfo } from '../../stores/lspStatusStore';
 import { IStatusBarEntry } from '@/types/statusbar';
 import { StatusBarItem } from './StatusBarItem';
 import { useCurrentProblemStatusBarEntry } from './CurrentProblemIndicator';
@@ -20,6 +20,9 @@ import { EOLSelector } from './EOLSelector';
 import { cn } from '@/lib/cn';
 import { invoke } from '@tauri-apps/api/core';
 import { getLanguageDisplayName } from '@/utils/languageMap';
+import { getLanguageFromFilename } from '@/services/monacoConfig';
+import { initializeLSP } from '@/services/lsp';
+import { installLSPBinary } from '@/services/lsp/lspBinaryService';
 import '../../styles/statusbar.css';
 
 // Problems interface (now using MarkerStatistics)
@@ -27,6 +30,7 @@ type Problems = MarkerStatistics;
 
 // Editor info interface
 interface EditorInfo {
+  languageId: string;
   language: string;
   encoding: string;
   line: number;
@@ -85,6 +89,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const eolButtonRef = useRef<HTMLElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
   const [editorInfo, setEditorInfo] = useState<EditorInfo>({
+    languageId: 'plaintext',
     language: 'Plain Text',
     encoding: 'UTF-8',
     line: 1,
@@ -94,6 +99,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     tabSize: 2
   });
   const [eol, setEOL] = useState<string>('LF');
+  const [installingLspServers, setInstallingLspServers] = useState<Set<string>>(new Set());
   const [platformName, setPlatformName] = useState<string>('');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const notificationStats = useNotificationStats();
@@ -243,6 +249,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       const options = model.getOptions();
       const languageId = model.getLanguageId();
       setEditorInfo({
+        languageId,
         language: getLanguageDisplayName(languageId),
         encoding: 'UTF-8', // Could be enhanced to detect actual encoding
         line: position.lineNumber,
@@ -395,6 +402,58 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     console.log('Encoding changed to:', encoding);
   };
 
+  const handleInstallMissingLSP = async (serverInfo: LSPServerInfo) => {
+    if (installingLspServers.has(serverInfo.serverId)) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Install ${serverInfo.name} now?\n\nThis will run its package manager install command on your system.`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setInstallingLspServers((prev) => {
+      const next = new Set(prev);
+      next.add(serverInfo.serverId);
+      return next;
+    });
+
+    notificationActions.info(`Installing ${serverInfo.name}...`, {
+      source: 'lsp',
+      autoHide: true,
+      autoHideDelay: 3000,
+    });
+
+    try {
+      const result = await installLSPBinary(serverInfo.serverId);
+      if (result.installed) {
+        notificationActions.success(result.message, {
+          source: 'lsp',
+          autoHide: true,
+          autoHideDelay: 6000,
+        });
+        await initializeLSP();
+      } else {
+        notificationActions.warning(result.message, {
+          source: 'lsp',
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      notificationActions.error(`Failed to install ${serverInfo.name}: ${message}`, {
+        source: 'lsp',
+      });
+    } finally {
+      setInstallingLspServers((prev) => {
+        const next = new Set(prev);
+        next.delete(serverInfo.serverId);
+        return next;
+      });
+    }
+  };
+
   // Handle language mode change
   const handleLanguageChange = (languageId: string) => {
     const editor = editorState.view;
@@ -405,27 +464,17 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
 
     // Handle "auto" mode - detect language from file extension
     if (languageId === 'auto') {
-      // Get the URI and detect language from extension
-      const uri = model.uri;
-      const detectedLanguages = monaco.languages.getLanguages();
-      const extension = uri.path.split('.').pop()?.toLowerCase() || '';
-
-      // Find matching language by extension
-      let detectedLang = 'plaintext';
-      for (const lang of detectedLanguages) {
-        if (lang.extensions?.some(ext => ext.toLowerCase().replace('.', '') === extension)) {
-          detectedLang = lang.id;
-          break;
-        }
-      }
+      const filePath = model.uri.path || '';
+      const detectedLang = getLanguageFromFilename(filePath);
 
       // Set the detected language
       monaco.editor.setModelLanguage(model, detectedLang);
 
-      // Update state - show "Auto" in the UI but use detected language internally
+      // Update state with the resolved language to keep selector and Monaco aligned
       setEditorInfo((prev) => ({
         ...prev,
-        language: 'Auto',
+        languageId: detectedLang,
+        language: getLanguageDisplayName(detectedLang),
       }));
 
       // Update LSP status with the actual detected language
@@ -439,6 +488,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     // Update state using imported function
     setEditorInfo((prev) => ({
       ...prev,
+      languageId,
       language: getLanguageDisplayName(languageId),
     }));
 
@@ -615,24 +665,32 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       // Check for external LSP server
       const serverInfo = lspStatusActions.getServerForLanguage(currentLanguageId);
       if (serverInfo) {
+        const isInstalling = installingLspServers.has(serverInfo.serverId);
         const display = getLSPStatusDisplay(serverInfo);
-        const iconSvg = display.icon === 'check'
+        const iconSvg = isInstalling
+          ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>'
+          : display.icon === 'check'
           ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>'
           : display.icon === 'loading'
             ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>'
             : display.icon === 'error'
               ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>'
               : '';
+        const canInstall = serverInfo.status === 'unavailable';
+        const tooltip = canInstall
+          ? `${display.tooltip}. Click to install ${serverInfo.name}`
+          : display.tooltip;
 
         return {
           id: 'lsp-status',
           name: 'Language Server Status',
-          text: iconSvg + (display.label ? ` ${display.label}` : ''),
-          tooltip: display.tooltip,
-          ariaLabel: display.tooltip,
+          text: iconSvg + (display.label ? ` ${display.label}` : '') + (canInstall ? ' Install' : ''),
+          tooltip,
+          ariaLabel: tooltip,
           kind: display.icon === 'error' ? 'error' as const : 'standard' as const,
           order: 2.5,
-          position: 'right' as const
+          position: 'right' as const,
+          onClick: canInstall ? () => void handleInstallMissingLSP(serverInfo) : undefined,
         };
       }
 
@@ -824,7 +882,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
         isOpen={isLanguageSelectorOpen}
         onClose={() => setIsLanguageSelectorOpen(false)}
         triggerRef={languageButtonRef as React.RefObject<HTMLElement>}
-        currentLanguage={editorInfo.language}
+        currentLanguage={editorInfo.languageId}
         onLanguageChange={handleLanguageChange}
       />
 

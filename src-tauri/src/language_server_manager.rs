@@ -83,6 +83,36 @@ pub struct ServerResponse {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct LSPBinaryStatus {
+    pub server_id: String,
+    pub name: String,
+    pub command: String,
+    pub installed: bool,
+    pub instructions: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LSPBinaryInstallResult {
+    pub server_id: String,
+    pub command: String,
+    pub attempted_commands: Vec<Vec<String>>,
+    pub installed: bool,
+    pub already_installed: bool,
+    pub stdout: String,
+    pub stderr: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone)]
+struct LSPInstallSpec {
+    server_id: &'static str,
+    name: &'static str,
+    command: &'static str,
+    instructions: &'static str,
+    install_candidates: Vec<Vec<String>>,
+}
+
 /// LSP Error types
 #[derive(Debug)]
 pub enum LSPError {
@@ -150,6 +180,118 @@ fn resolve_command_path(command: &str) -> String {
     {
         command.to_string()
     }
+}
+
+fn is_command_available(command: &str) -> bool {
+    let resolved = resolve_command_path(command);
+    match Command::new(&resolved)
+        .arg("--version")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+    {
+        Ok(_) => true,
+        Err(err) => err.kind() != std::io::ErrorKind::NotFound,
+    }
+}
+
+fn run_install_candidate(candidate: &[String]) -> Result<std::process::Output, String> {
+    if candidate.is_empty() {
+        return Err("Empty install command".to_string());
+    }
+
+    let program = resolve_command_path(&candidate[0]);
+    let mut command = Command::new(&program);
+    if candidate.len() > 1 {
+        command.args(&candidate[1..]);
+    }
+
+    command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|err| format!("Failed to execute '{}': {}", candidate.join(" "), err))
+}
+
+fn get_install_specs() -> Vec<LSPInstallSpec> {
+    let pylsp_candidates = if cfg!(target_os = "windows") {
+        vec![
+            vec![
+                "py".to_string(),
+                "-m".to_string(),
+                "pip".to_string(),
+                "install".to_string(),
+                "--user".to_string(),
+                "python-lsp-server[all]".to_string(),
+            ],
+            vec![
+                "python".to_string(),
+                "-m".to_string(),
+                "pip".to_string(),
+                "install".to_string(),
+                "--user".to_string(),
+                "python-lsp-server[all]".to_string(),
+            ],
+        ]
+    } else {
+        vec![
+            vec![
+                "python3".to_string(),
+                "-m".to_string(),
+                "pip".to_string(),
+                "install".to_string(),
+                "--user".to_string(),
+                "python-lsp-server[all]".to_string(),
+            ],
+            vec![
+                "python".to_string(),
+                "-m".to_string(),
+                "pip".to_string(),
+                "install".to_string(),
+                "--user".to_string(),
+                "python-lsp-server[all]".to_string(),
+            ],
+        ]
+    };
+
+    vec![
+        LSPInstallSpec {
+            server_id: "rust-analyzer",
+            name: "Rust Analyzer",
+            command: "rust-analyzer",
+            instructions: "Install with: rustup component add rust-analyzer",
+            install_candidates: vec![vec![
+                "rustup".to_string(),
+                "component".to_string(),
+                "add".to_string(),
+                "rust-analyzer".to_string(),
+            ]],
+        },
+        LSPInstallSpec {
+            server_id: "pylsp",
+            name: "Python LSP",
+            command: "pylsp",
+            instructions: "Install with: python -m pip install --user python-lsp-server[all]",
+            install_candidates: pylsp_candidates,
+        },
+        LSPInstallSpec {
+            server_id: "gopls",
+            name: "Go Language Server",
+            command: "gopls",
+            instructions: "Install with: go install golang.org/x/tools/gopls@latest",
+            install_candidates: vec![vec![
+                "go".to_string(),
+                "install".to_string(),
+                "golang.org/x/tools/gopls@latest".to_string(),
+            ]],
+        },
+    ]
+}
+
+fn get_install_spec(server_id: &str) -> Option<LSPInstallSpec> {
+    get_install_specs()
+        .into_iter()
+        .find(|spec| spec.server_id == server_id)
 }
 
 impl LanguageServerManager {
@@ -648,4 +790,93 @@ pub fn lsp_get_stats(state: tauri::State<'_, LanguageServerManager>) -> Option<s
             "active_sessions": stats.active_sessions,
         })
     })
+}
+
+/// Returns installed state for known language server binaries.
+#[tauri::command]
+pub fn lsp_get_binary_statuses() -> Vec<LSPBinaryStatus> {
+    get_install_specs()
+        .into_iter()
+        .map(|spec| LSPBinaryStatus {
+            server_id: spec.server_id.to_string(),
+            name: spec.name.to_string(),
+            command: spec.command.to_string(),
+            installed: is_command_available(spec.command),
+            instructions: spec.instructions.to_string(),
+        })
+        .collect()
+}
+
+/// Attempts to install a known language server binary.
+#[tauri::command]
+pub fn lsp_install_server_binary(server_id: String) -> Result<LSPBinaryInstallResult, String> {
+    let spec =
+        get_install_spec(&server_id).ok_or_else(|| format!("Unsupported LSP server: {}", server_id))?;
+
+    if is_command_available(spec.command) {
+        return Ok(LSPBinaryInstallResult {
+            server_id: spec.server_id.to_string(),
+            command: spec.command.to_string(),
+            attempted_commands: Vec::new(),
+            installed: true,
+            already_installed: true,
+            stdout: String::new(),
+            stderr: String::new(),
+            message: format!("{} is already installed", spec.name),
+        });
+    }
+
+    let attempted_commands = spec.install_candidates.clone();
+    let mut merged_stdout = String::new();
+    let mut merged_stderr = String::new();
+
+    for candidate in &spec.install_candidates {
+        match run_install_candidate(candidate) {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+                if !stdout.is_empty() {
+                    merged_stdout.push_str(&stdout);
+                    merged_stdout.push('\n');
+                }
+                if !stderr.is_empty() {
+                    merged_stderr.push_str(&stderr);
+                    merged_stderr.push('\n');
+                }
+
+                if output.status.success() {
+                    let installed = is_command_available(spec.command);
+                    return Ok(LSPBinaryInstallResult {
+                        server_id: spec.server_id.to_string(),
+                        command: spec.command.to_string(),
+                        attempted_commands,
+                        installed,
+                        already_installed: false,
+                        stdout: merged_stdout.trim().to_string(),
+                        stderr: merged_stderr.trim().to_string(),
+                        message: if installed {
+                            format!("{} installed successfully", spec.name)
+                        } else {
+                            format!(
+                                "{} install command completed, but binary is not visible in PATH yet. {}",
+                                spec.name, spec.instructions
+                            )
+                        },
+                    });
+                }
+            }
+            Err(err) => {
+                merged_stderr.push_str(&err);
+                merged_stderr.push('\n');
+            }
+        }
+    }
+
+    Err(format!(
+        "Failed to install {}. {}. Details: {}",
+        spec.name,
+        spec.instructions,
+        merged_stderr.trim()
+    ))
 }

@@ -65,6 +65,7 @@ export function StatusBarSelect({
             <CommandItem
               key={option.id}
               value={option.id}
+              keywords={[option.name, option.description || '', option.id]}
               onSelect={() => handleSelect(option.id)}
               className="gap-2"
             >
@@ -151,7 +152,7 @@ export function StatusBarSelect({
           e.preventDefault();
         }}
       >
-        <Command shouldFilter={!grouped} className="rounded-lg">
+        <Command shouldFilter={true} className="rounded-lg">
           {/* Header with title */}
           {title && (
             <div className="px-3 py-2.5 border-b border-border bg-muted/20">

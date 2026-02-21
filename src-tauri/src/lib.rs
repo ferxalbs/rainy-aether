@@ -424,6 +424,8 @@ pub fn run() {
         language_server_manager::lsp_stop_server,
         language_server_manager::lsp_send_message,
         language_server_manager::lsp_get_stats,
+        language_server_manager::lsp_get_binary_statuses,
+        language_server_manager::lsp_install_server_binary,
         // Configuration management
         configuration_manager::load_user_configuration,
         configuration_manager::load_workspace_configuration,

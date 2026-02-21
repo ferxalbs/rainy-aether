@@ -11,7 +11,7 @@ Scans your React codebase for security, performance, correctness, and architectu
 ## Usage
 
 ```bash
-npx -y react-doctor@latest . --verbose --diff
+npx -y react-doctor@latest
 ```
 
 ## Workflow
