@@ -2,6 +2,9 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [0.1.30] - 2026-02-21
+- #1 [Improvements] Redesigned Chat Window for a flatter, minimalist, and professional look, removing unnecessary badges and reducing visual clutter.
+
 ## [v0.1.29] - 2026-02-21
 
 ### Changes:

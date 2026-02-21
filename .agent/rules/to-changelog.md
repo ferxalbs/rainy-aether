@@ -19,9 +19,9 @@ trigger: always_on
 - **Consistency:** Maintain a professional tone and consistent bullet-point formatting.
 
 **Example Entry:**
-- `#1 [Improvements] Optimized auth middleware to reduce latency by 20%.`
-- `#2 [Fixes] Resolved race condition in the user profile update flow.`
-- `#3 [Patches] Internal cleanup of unused utility functions.`
+- `[Improvements] Optimized auth middleware to reduce latency by 20%.`
+- `Fixes] Resolved race condition in the user profile update flow.`
+- `[Patches] Internal cleanup of unused utility functions.`
 
 ### 2. Versioning Strategy (SemVer)
 - **Automatic Detection:** Determine the increment type based on the nature of the changes:
@@ -43,4 +43,4 @@ For every task, you must follow this sequence:
 4. **Integrity:** Never delete historical changelog data or overwrite existing versions. Only append new information.
 5. **Clarification:** If the intent of a change is ambiguous, ask the user for clarification before deciding on the version bump (e.g., "Is this a breaking change?").
 
-Ever upgrade the number version based in the changes in the files tauri.config.json, cargo.toml y package.json. And ever change is incremental.
+Ever upgrade the number version based in the changes in the files tauri.config.json, cargo.toml y package.json. And ever change is incremental. But only with introduce changes bigger or important.

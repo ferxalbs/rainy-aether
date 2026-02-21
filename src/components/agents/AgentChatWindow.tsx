@@ -294,13 +294,11 @@ const ChatInputArea = memo(function ChatInputArea({
       <div className="max-w-4xl mx-auto w-full relative">
         <div
           className={cn(
-            "relative transition-all duration-300",
+            "relative transition-colors duration-200",
             compact
               ? "bg-transparent border-0 rounded-none shadow-none focus-within:ring-0"
-              : "bg-card border rounded-xl border-border ring-1 ring-border/50 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/20 shadow-lg shadow-black/20",
-            isDragging
-              ? "border-primary/50 bg-primary/10 border-dashed ring-2 ring-primary/30"
-              : "",
+              : "bg-background/60 dark:bg-background/20 backdrop-blur-2xl backdrop-saturate-150 border rounded-xl border-border focus-within:border-primary/40 shadow-sm",
+            isDragging ? "border-primary/50 bg-primary/5 border-dashed" : "",
           )}
           onDragEnter={handleDragEnter}
           onDragOver={handleDragOver}
@@ -1087,14 +1085,14 @@ export function AgentChatWindow({
       {showTopbar && (
         <div
           className={cn(
-            "h-10 border-b border-border px-4 flex items-center justify-between bg-background/60 dark:bg-background/20 backdrop-blur-2xl backdrop-saturate-150 z-10 shrink-0 sticky top-0",
+            "h-10 border-b border-border px-4 flex items-center justify-between z-10 shrink-0 sticky top-0 py-2",
             compact && "h-8 px-3",
           )}
         >
           <div className="flex items-center gap-3 overflow-hidden">
             <div
               className={cn(
-                "h-7 w-7 rounded-lg bg-primary/5 flex items-center justify-center border border-border shrink-0 shadow-inner",
+                "h-7 w-7 rounded-lg flex items-center justify-center border border-border shrink-0 shadow-inner",
                 compact && "h-6 w-6 rounded-md",
               )}
             >
@@ -1108,26 +1106,18 @@ export function AgentChatWindow({
             <div className="flex flex-col min-w-0">
               <span
                 className={cn(
-                  "text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.2em] leading-none mb-0.5",
-                  compact && "text-[9px]",
-                )}
-              >
-                ACTIVE CHAT
-              </span>
-              <span
-                className={cn(
                   "text-[12px] font-semibold text-foreground/90 truncate tracking-tight",
                   compact && "text-[11px]",
                 )}
               >
-                {activeSession?.name || "New Chat"}
+                {activeSession?.name || "AGENT"}
               </span>
             </div>
           </div>
           <Button
             size="icon"
             variant="ghost"
-            onClick={() => agentActions.createSession("New Chat")}
+            onClick={() => agentActions.createSession("AGENT")}
             className={cn(
               "h-8 w-8 rounded-xl bg-card hover:bg-accent text-primary border border-border transition-all duration-300 group shadow-sm active:scale-95",
               compact && "h-6 w-6 rounded-md",
@@ -1158,40 +1148,35 @@ export function AgentChatWindow({
           >
             <div
               className={cn(
-                "flex flex-col items-center gap-5 sm:gap-6 max-w-2xl text-center animate-in fade-in zoom-in-95 self-center duration-700",
-                compact && "gap-4",
+                "flex flex-col items-center gap-4 sm:gap-5 max-w-2xl text-center self-center",
+                compact && "gap-3",
               )}
             >
               <div
                 className={cn(
-                  "h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center border border-primary/10 shadow-[0_0_50px_-12px_rgba(var(--primary),0.2)] group-hover:shadow-[0_0_60px_-12px_rgba(var(--primary),0.3)] transition-all duration-500",
+                  "h-12 w-12 sm:h-14 sm:w-14 rounded-xl bg-muted/20 flex items-center justify-center border border-border/40 transition-colors",
                   compact && "h-10 w-10 rounded-lg",
                 )}
               >
-                <div className="h-4 w-4 rounded-full bg-primary/40 animate-pulse" />
+                <Bot className="h-5 w-5 sm:h-6 sm:w-6 text-foreground/50" />
               </div>
-              <div
-                className={cn(
-                  "space-y-2.5 sm:space-y-3",
-                  compact && "space-y-2",
-                )}
-              >
+              <div className={cn("space-y-2", compact && "space-y-1.5")}>
                 <h3
                   className={cn(
-                    "text-xl sm:text-2xl font-semibold tracking-tight text-foreground/90",
+                    "text-lg sm:text-xl font-medium tracking-tight text-foreground/80",
                     compact && "text-base",
                   )}
                 >
-                  How can I help you build?
+                  What would you like to build?
                 </h3>
                 <p
                   className={cn(
-                    "text-muted-foreground/70 text-sm font-light max-w-sm mx-auto leading-relaxed",
+                    "text-muted-foreground/60 text-[13px] font-normal max-w-sm mx-auto leading-relaxed",
                     compact && "text-xs max-w-[200px]",
                   )}
                 >
-                  Your AI software engineer is ready. State your goal, and let's
-                  create something extraordinary together.
+                  I am ready to help you write code, debug issues, and
+                  architecture your project.
                 </p>
               </div>
 
@@ -1250,42 +1235,26 @@ export function AgentChatWindow({
                 )}
               >
                 {!compact && (
-                  <div className="shrink-0 mt-0.5">
+                  <div className="shrink-0 mt-1">
                     <div
                       className={cn(
-                        "h-8 w-8 rounded-lg flex items-center justify-center border transition-all duration-300",
+                        "h-7 w-7 rounded-sm flex items-center justify-center transition-colors",
                         msg.role === "user"
-                          ? "bg-muted/10 border-border/40 shadow-sm"
-                          : "bg-primary/5 border-primary/20 shadow-md shadow-primary/5",
+                          ? "bg-transparent"
+                          : "bg-transparent",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "text-[10px] font-bold",
-                          msg.role === "user"
-                            ? "text-muted-foreground/60"
-                            : "text-primary/80",
-                        )}
-                      >
-                        {msg.role === "user" ? "U" : "R"}
-                      </span>
+                      {msg.role === "user" ? (
+                        <div className="h-4 w-4 rounded-full border border-border/60 bg-muted/30" />
+                      ) : (
+                        <Bot className="h-5 w-5 text-primary/60" />
+                      )}
                     </div>
                   </div>
                 )}
-                <div className="flex flex-col gap-2.5 flex-1 min-w-0">
-                  <div className="flex items-center gap-2.5 mb-0.5">
-                    <span
-                      className={cn(
-                        "font-bold text-[10px] tracking-widest uppercase",
-                        msg.role === "user"
-                          ? "text-muted-foreground/50"
-                          : "text-primary/70",
-                      )}
-                    >
-                      {msg.role === "user" ? "YOU" : "RAINY"}
-                    </span>
-                    <div className="h-1 w-1 rounded-full bg-border/40" />
-                    <span className="text-[10px] text-muted-foreground/30 font-semibold tabular-nums tracking-tight">
+                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] text-muted-foreground/40 font-medium tabular-nums tracking-tight">
                       {new Date(msg.timestamp).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -1296,9 +1265,9 @@ export function AgentChatWindow({
 
                   <div
                     className={cn(
-                      "relative transition-all duration-300",
+                      "relative transition-all duration-200",
                       msg.role === "user"
-                        ? "bg-card border border-border rounded-2xl px-4 py-4 shadow-xl shadow-black/10"
+                        ? "bg-muted/20 border border-border/40 rounded-lg px-4 py-3"
                         : "w-full py-1",
                     )}
                   >
@@ -1313,7 +1282,7 @@ export function AgentChatWindow({
                       className={cn(
                         "text-[14px] leading-relaxed selection:bg-primary/20 prose prose-sm dark:prose-invert max-w-none antialiased",
                         msg.role === "user"
-                          ? "text-foreground/90 font-medium"
+                          ? "text-foreground/90 font-normal"
                           : "text-foreground/80 font-normal",
                       )}
                     >
@@ -1342,24 +1311,13 @@ export function AgentChatWindow({
                 )}
               >
                 {!compact && (
-                  <div className="shrink-0 mt-0">
-                    <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 shadow-[0_0_15px_-3px_rgba(var(--primary),0.3)]">
-                      <Sparkles className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-primary/80 animate-pulse" />
+                  <div className="shrink-0 mt-1">
+                    <div className="h-7 w-7 rounded-sm flex items-center justify-center">
+                      <Loader2 className="h-4 w-4 text-primary/60 animate-spin" />
                     </div>
                   </div>
                 )}
-                <div className="flex flex-col gap-4 flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium text-[13px] text-foreground/90 tracking-tight">
-                      Rainy
-                    </span>
-                    <span className="flex items-center gap-1.5 bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
-                      <Loader2 className="h-2.5 w-2.5 animate-spin text-primary" />
-                      <span className="text-[9px] font-bold text-primary uppercase tracking-widest hidden sm:inline">
-                        Generating
-                      </span>
-                    </span>
-                  </div>
+                <div className="flex flex-col gap-3 flex-1 min-w-0">
                   {streamingThoughts && (
                     <ThinkingAccordion
                       thoughts={streamingThoughts}
@@ -1368,23 +1326,16 @@ export function AgentChatWindow({
                     />
                   )}
                   {streamingContent ? (
-                    <div className="text-[15px] text-foreground/80 leading-relaxed font-light selection:bg-primary/20 prose prose-sm dark:prose-invert max-w-none">
+                    <div className="text-[14px] text-foreground/80 leading-relaxed font-normal selection:bg-primary/20 prose prose-sm dark:prose-invert max-w-none">
                       <MessageContent
                         content={streamingContent}
                         compact={compact}
                       />
-                      <span className="inline-block w-1 h-4 bg-primary animate-pulse ml-1 align-middle rounded-full" />
+                      <span className="inline-block w-1 h-4 bg-primary/60 animate-pulse ml-1 align-middle rounded-sm" />
                     </div>
                   ) : !streamingThoughts ? (
-                    <div className="flex items-center gap-3 py-2">
-                      <div className="flex gap-1">
-                        <div className="h-1.5 w-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                        <div className="h-1.5 w-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                        <div className="h-1.5 w-1.5 bg-primary/40 rounded-full animate-bounce"></div>
-                      </div>
-                      <span className="text-xs text-muted-foreground/50 font-medium uppercase tracking-widest">
-                        Processing
-                      </span>
+                    <div className="flex items-center gap-2 py-2">
+                      <Loader2 className="h-4 w-4 text-muted-foreground/50 animate-spin" />
                     </div>
                   ) : null}
                 </div>
