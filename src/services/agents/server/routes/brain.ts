@@ -12,6 +12,7 @@ import {
     setWorkspacePath,
     createToolCall,
     toAgentKitTools,
+    getToolHealthReport,
 } from '../tools';
 import { router, getAgentTypes, AgentType, getAgentsMetadata } from '../agents';
 
@@ -199,6 +200,13 @@ brain.get('/tools', (c: Context) => {
 });
 
 /**
+ * Get tool contract health (schema vs handlers vs AgentKit wrappers)
+ */
+brain.get('/tools/health', (c: Context) => {
+    return c.json(getToolHealthReport());
+});
+
+/**
  * Get available agents with full metadata
  */
 brain.get('/agents', (c: Context) => {
@@ -368,4 +376,3 @@ async function executeTask(taskId: string, request: TaskRequest): Promise<void> 
 }
 
 export default brain;
-

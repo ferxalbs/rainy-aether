@@ -37,24 +37,45 @@ export interface BridgeResponse {
 
 interface ToolArgs {
     path?: string;
+    new_content?: string;
+    diff?: string;
+    description?: string;
     content?: string;
+    find?: string;
+    replace?: string;
     old_string?: string;
     new_string?: string;
     max_depth?: number;
+    include?: string[];
+    response_format?: 'concise' | 'detailed';
     query?: string;
+    kind?: string;
+    pattern?: string;
+    symbol_types?: string[];
     file_pattern?: string;
     is_regex?: boolean;
     max_results?: number;
+    max_chars_per_file?: number;
     command?: string;
     cwd?: string;
     timeout?: number;
+    watch?: boolean;
     target?: string;
     framework?: string;
+    scope?: string;
+    fix?: boolean;
+    edits?: unknown[];
+    verify?: boolean;
+    start_line?: number;
+    end_line?: number;
     message?: string;
     paths?: string[];
+    target_paths?: string[];
     staged?: boolean;
     file?: string;
     encoding?: string;
+    max_files?: number;
+    history_limit?: number;
 }
 
 // ===========================
@@ -66,7 +87,7 @@ interface ToolArgs {
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { execSync, spawn } from 'child_process';
+import { execSync, spawn, spawnSync } from 'child_process';
 
 // CRITICAL: DO NOT use process.cwd() - that's the IDE's path, not user's project
 let workspacePath: string = '';
@@ -92,6 +113,122 @@ function resolvePath(relativePath: string): string {
         throw new Error('Workspace path not set. Make sure to pass workspace with each request.');
     }
     return path.join(workspacePath, relativePath);
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+    if (!value || typeof value !== 'object') return {};
+    return value as Record<string, unknown>;
+}
+
+function normalizeInclude(include: unknown): string[] | undefined {
+    if (!Array.isArray(include)) return undefined;
+    const mapped = include.flatMap(item => {
+        if (typeof item !== 'string') return [];
+        switch (item) {
+            case 'package':
+            case 'config':
+                return ['dependencies'];
+            default:
+                return [item];
+        }
+    });
+    return [...new Set(mapped)];
+}
+
+function normalizeLegacyArgs(toolName: string, rawArgs: Record<string, unknown>): { args: Record<string, unknown>; deprecatedArgsUsed: string[] } {
+    const args = { ...rawArgs };
+    const deprecatedArgsUsed: string[] = [];
+
+    if (toolName === 'edit_file') {
+        if (typeof args.find === 'string' && typeof args.old_string !== 'string') {
+            args.old_string = args.find;
+            deprecatedArgsUsed.push('find');
+        }
+        if (typeof args.replace === 'string' && typeof args.new_string !== 'string') {
+            args.new_string = args.replace;
+            deprecatedArgsUsed.push('replace');
+        }
+    }
+
+    if (toolName === 'find_symbols') {
+        if (typeof args.pattern === 'string' && typeof args.query !== 'string') {
+            args.query = args.pattern;
+            deprecatedArgsUsed.push('pattern');
+        }
+        if (!args.kind && Array.isArray(args.symbol_types) && args.symbol_types.length > 0) {
+            args.kind = args.symbol_types[0];
+            deprecatedArgsUsed.push('symbol_types');
+        }
+    }
+
+    if (toolName === 'run_tests') {
+        if (typeof args.pattern === 'string' && typeof args.target !== 'string') {
+            args.target = args.pattern;
+            deprecatedArgsUsed.push('pattern');
+        }
+    }
+
+    if (toolName === 'apply_file_diff') {
+        if (typeof args.diff === 'string' && typeof args.new_content !== 'string') {
+            args.new_content = args.diff;
+            deprecatedArgsUsed.push('diff');
+        }
+    }
+
+    if (toolName === 'git_diff') {
+        if (typeof args.path !== 'string' && Array.isArray(args.paths) && args.paths.length > 0) {
+            const first = args.paths[0];
+            if (typeof first === 'string' && first.length > 0) {
+                args.path = first;
+                deprecatedArgsUsed.push('paths');
+            }
+        }
+    }
+
+    if (toolName === 'get_project_context') {
+        const normalizedInclude = normalizeInclude(args.include);
+        if (normalizedInclude) {
+            if (Array.isArray(args.include) && normalizedInclude.join(',') !== args.include.join(',')) {
+                deprecatedArgsUsed.push('include(package/config)');
+            }
+            args.include = normalizedInclude;
+        }
+    }
+
+    if (toolName === 'get_diagnostics') {
+        if (typeof args.file !== 'string' && Array.isArray(args.paths) && args.paths.length > 0) {
+            const first = args.paths[0];
+            if (typeof first === 'string' && first.length > 0) {
+                args.file = first;
+                deprecatedArgsUsed.push('paths');
+            }
+        }
+    }
+
+    return { args, deprecatedArgsUsed };
+}
+
+function mergeMeta(result: ToolResult, meta: Record<string, unknown>): ToolResult {
+    const currentData = asObject(result.data);
+    return {
+        ...result,
+        data: {
+            ...currentData,
+            meta: {
+                ...(asObject(currentData.meta)),
+                ...meta,
+            },
+        },
+    };
+}
+
+function createNormalizedHandler(toolName: string, handler: ToolHandler): ToolHandler {
+    return async (rawArgs: Record<string, unknown>) => {
+        const { args, deprecatedArgsUsed } = normalizeLegacyArgs(toolName, rawArgs);
+        const result = await handler(args);
+        if (deprecatedArgsUsed.length === 0) return result;
+        return mergeMeta(result, { deprecatedArgsUsed });
+    };
 }
 
 // ===========================
@@ -284,24 +421,74 @@ export const toolHandlers: Record<string, ToolHandler> = {
         const query = args.query as string;
         const filePattern = args.file_pattern as string | undefined;
         const maxResults = (args.max_results as number) || 50;
+        const isRegex = (args.is_regex as boolean) || false;
         const responseFormat = (args as any).response_format || 'detailed';
 
-        try {
-            // Use grep/ripgrep for actual search
-            const cmd = process.platform === 'win32'
-                ? `findstr /s /n "${query}" *`
-                : `grep -rn "${query}" . --include="${filePattern || '*'}" 2>/dev/null | head -${maxResults}`;
+        if (!query || typeof query !== 'string') {
+            return { success: false, error: 'query parameter is required' };
+        }
 
-            const output = execSync(cmd, {
+        const ignoredGlobs = [
+            '!node_modules',
+            '!.git',
+            '!dist',
+            '!build',
+            '!.next',
+            '!out',
+            '!target',
+            '!.cache',
+            '!.turbo',
+            '!coverage',
+            '!.nyc_output',
+        ];
+
+        const rgArgs: string[] = [
+            '--line-number',
+            '--no-heading',
+            '--color=never',
+            '--max-count',
+            String(maxResults),
+        ];
+
+        if (!isRegex) {
+            rgArgs.push('--fixed-strings');
+        }
+
+        if (filePattern) {
+            rgArgs.push('--glob', filePattern);
+        }
+        for (const glob of ignoredGlobs) {
+            rgArgs.push('--glob', glob);
+        }
+        rgArgs.push(query, '.');
+
+        try {
+            const run = spawnSync('rg', rgArgs, {
                 cwd: workspacePath,
                 encoding: 'utf-8',
                 maxBuffer: 10 * 1024 * 1024,
             });
 
-            const results = output.split('\n').filter(Boolean).slice(0, maxResults).map(line => {
-                const [file, lineNum, ...rest] = line.split(':');
-                return { file: file.replace(/^\.\//, ''), line: parseInt(lineNum) || 0, content: rest.join(':').trim() };
-            });
+            // rg uses exit code 1 when there are no matches.
+            if (run.status === 1) {
+                return { success: true, data: { results: [], total: 0 } };
+            }
+            if (run.error) {
+                return { success: false, error: `search_code failed: ${run.error.message}` };
+            }
+            if (run.status !== 0) {
+                return { success: false, error: `search_code failed: ${run.stderr || run.stdout || 'unknown error'}` };
+            }
+
+            const output = run.stdout || '';
+            const results = output
+                .split('\n')
+                .filter(Boolean)
+                .slice(0, maxResults)
+                .map(line => {
+                    const [file, lineNum, ...rest] = line.split(':');
+                    return { file: file.replace(/^\.\//, ''), line: parseInt(lineNum, 10) || 0, content: rest.join(':').trim() };
+                });
 
             if (responseFormat === 'concise') {
                 return {
@@ -315,8 +502,7 @@ export const toolHandlers: Record<string, ToolHandler> = {
 
             return { success: true, data: { results, total: results.length } };
         } catch (error) {
-            // grep returns non-zero when no matches
-            return { success: true, data: { results: [], total: 0 } };
+            return { success: false, error: `search_code failed: ${error}` };
         }
     },
 
@@ -392,6 +578,52 @@ export const toolHandlers: Record<string, ToolHandler> = {
             };
         } catch (error) {
             return { success: false, error: `Failed to edit file: ${error}` };
+        }
+    },
+
+    apply_file_diff: async (args) => {
+        try {
+            const filePath = args.path as string;
+            const newContent = (args as any).new_content as string;
+            const description = (args as any).description as string | undefined;
+
+            if (!filePath || typeof filePath !== 'string') {
+                return { success: false, error: 'path is required' };
+            }
+            if (newContent === undefined || newContent === null) {
+                return { success: false, error: 'new_content is required' };
+            }
+
+            const resolved = resolvePath(filePath);
+            let previousContent = '';
+            try {
+                previousContent = await fs.readFile(resolved, 'utf-8');
+            } catch {
+                previousContent = '';
+            }
+
+            await fs.mkdir(path.dirname(resolved), { recursive: true });
+            await fs.writeFile(resolved, newContent, 'utf-8');
+
+            const oldLines = previousContent.split('\n');
+            const newLines = newContent.split('\n');
+            const changedLines = Math.abs(oldLines.length - newLines.length);
+
+            return {
+                success: true,
+                data: {
+                    path: filePath,
+                    applied: true,
+                    mode: 'direct_apply',
+                    previousLineCount: oldLines.length,
+                    newLineCount: newLines.length,
+                    changedLineDelta: changedLines,
+                    description,
+                    note: 'Sidecar mode applied changes directly. UI preview is available in the IDE-native tool runtime.',
+                }
+            };
+        } catch (error) {
+            return { success: false, error: `Failed to apply file diff: ${error}` };
         }
     },
 
@@ -484,12 +716,14 @@ export const toolHandlers: Record<string, ToolHandler> = {
     run_tests: async (args) => {
         const target = args.target as string | undefined;
         const framework = args.framework as string | undefined;
+        const watch = (args as any).watch as boolean | undefined;
 
         // Detect test command
         let testCommand = '';
 
         if (framework) {
-            testCommand = `${framework} test ${target || ''}`;
+            const watchFlag = watch ? ' --watch' : '';
+            testCommand = `${framework} test ${target || ''}${watchFlag}`;
         } else {
             // Auto-detect
             try {
@@ -498,12 +732,13 @@ export const toolHandlers: Record<string, ToolHandler> = {
                 const pkg = JSON.parse(pkgContent);
 
                 if (pkg.scripts?.test) {
-                    testCommand = `pnpm test ${target || ''}`;
+                    testCommand = `pnpm test ${target || ''}${watch ? ' --watch' : ''}`;
                 }
             } catch {
                 // Try Cargo
                 try {
                     await fs.access(path.join(workspacePath, 'Cargo.toml'));
+                    // Cargo has no stable watch flag equivalent.
                     testCommand = `cargo test ${target || ''}`;
                 } catch {
                     return { success: false, error: 'Could not detect test framework' };
@@ -557,10 +792,30 @@ export const toolHandlers: Record<string, ToolHandler> = {
     },
 
     // --- Analysis ---
-    get_diagnostics: async (_args) => {
-        // This would normally call the LSP
-        // For now, return empty
-        return { success: true, data: { diagnostics: [] } };
+    get_diagnostics: async (args) => {
+        // Placeholder implementation until LSP diagnostics stream is wired to sidecar.
+        const file = typeof args.file === 'string' ? args.file : undefined;
+        const responseFormat = (args as any).response_format || 'detailed';
+        if (responseFormat === 'concise') {
+            return {
+                success: true,
+                data: {
+                    file,
+                    errorCount: 0,
+                    warningCount: 0,
+                    source: 'sidecar-placeholder',
+                }
+            };
+        }
+        return {
+            success: true,
+            data: {
+                file,
+                diagnostics: [],
+                source: 'sidecar-placeholder',
+                note: 'Diagnostics are not yet streamed into sidecar; use verify_changes for compiler-level checks.',
+            }
+        };
     },
 
     analyze_imports: async (args) => {
@@ -767,6 +1022,8 @@ export const toolHandlers: Record<string, ToolHandler> = {
             const query = args.query;
             const kind = (args as any).kind || 'all';
             const filePattern = args.file_pattern || '*.{ts,tsx,js,jsx,rs,py}';
+            const responseFormat = (args as any).response_format || 'detailed';
+            const maxResults = Math.min((args as any).max_results || 50, 200);
 
             if (!query) {
                 return { success: false, error: 'query parameter is required' };
@@ -786,23 +1043,54 @@ export const toolHandlers: Record<string, ToolHandler> = {
                 case 'interface':
                     patterns = [`interface\\s+${escaped}\\s*[{<]`, `trait\\s+${escaped}\\s*[{<]`];
                     break;
+                case 'type':
+                    patterns = [`type\\s+${escaped}\\s*=`, `enum\\s+${escaped}\\s*[{<]`];
+                    break;
+                case 'const':
+                    patterns = [`(const|let|var)\\s+${escaped}\\s*[=:]`];
+                    break;
                 default:
                     patterns = [`\\b${escaped}\\b`];
             }
 
-            // Use grep to search
+            // Use ripgrep with structured args to avoid shell interpolation.
             const results: Array<{ file: string; line: number; content: string }> = [];
             for (const pattern of patterns) {
-                try {
-                    const cmd = `grep -rn -E "${pattern}" --include="${filePattern}" . 2>/dev/null | head -50`;
-                    const output = execSync(cmd, { cwd: workspacePath, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
-                    for (const line of output.split('\n').filter(Boolean)) {
-                        const match = line.match(/^\.\/([^:]+):(\d+):(.*)$/);
-                        if (match) {
-                            results.push({ file: match[1], line: parseInt(match[2]), content: match[3].trim() });
-                        }
-                    }
-                } catch { /* no matches */ }
+                const run = spawnSync(
+                    'rg',
+                    [
+                        '--line-number',
+                        '--no-heading',
+                        '--color=never',
+                        '--max-count',
+                        String(maxResults),
+                        '--glob',
+                        filePattern,
+                        '--glob',
+                        '!node_modules',
+                        '--glob',
+                        '!.git',
+                        '-e',
+                        pattern,
+                        '.',
+                    ],
+                    { cwd: workspacePath, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 }
+                );
+                if (run.error || (run.status !== 0 && run.status !== 1)) {
+                    return {
+                        success: false,
+                        error: `Symbol search failed: ${run.error?.message || run.stderr || 'unknown rg error'}`
+                    };
+                }
+                const output = run.stdout || '';
+                for (const line of output.split('\n').filter(Boolean)) {
+                    const [file, lineNum, ...rest] = line.split(':');
+                    results.push({
+                        file: file.replace(/^\.\//, ''),
+                        line: parseInt(lineNum, 10) || 0,
+                        content: rest.join(':').trim(),
+                    });
+                }
             }
 
             // Deduplicate
@@ -810,12 +1098,24 @@ export const toolHandlers: Record<string, ToolHandler> = {
                 arr.findIndex(x => x.file === r.file && x.line === r.line) === i
             );
 
+            if (responseFormat === 'concise') {
+                return {
+                    success: true,
+                    data: {
+                        query,
+                        kind,
+                        matches: unique.slice(0, maxResults).map(r => `${r.file}:${r.line}`),
+                        total: unique.length,
+                    }
+                };
+            }
+
             return {
                 success: true,
                 data: {
                     query,
                     kind,
-                    results: unique,
+                    results: unique.slice(0, maxResults),
                     total: unique.length,
                 }
             };
@@ -1228,6 +1528,194 @@ export const toolHandlers: Record<string, ToolHandler> = {
             return { success: false, error: `analyze_file failed: ${error}` };
         }
     },
+
+    review_diff_summary: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const staged = Boolean(args.staged);
+            const targetPath = typeof args.path === 'string' ? args.path : undefined;
+            const diffArgs = ['diff', '--numstat'];
+            if (staged) diffArgs.push('--staged');
+            if (targetPath) diffArgs.push('--', targetPath);
+
+            const run = spawnSync('git', diffArgs, {
+                cwd: workspacePath,
+                encoding: 'utf-8',
+                maxBuffer: 10 * 1024 * 1024,
+            });
+
+            if (run.error) {
+                return { success: false, error: `review_diff_summary failed: ${run.error.message}` };
+            }
+            if (run.status !== 0 && run.status !== 1) {
+                return { success: false, error: `review_diff_summary failed: ${run.stderr || 'git diff error'}` };
+            }
+
+            const files = (run.stdout || '')
+                .split('\n')
+                .filter(Boolean)
+                .map(line => {
+                    const [addedRaw, deletedRaw, file] = line.split('\t');
+                    const added = Number.isFinite(Number(addedRaw)) ? Number(addedRaw) : 0;
+                    const deleted = Number.isFinite(Number(deletedRaw)) ? Number(deletedRaw) : 0;
+                    return {
+                        path: file,
+                        additions: added,
+                        deletions: deleted,
+                        changes: added + deleted,
+                        risk: added + deleted > 300 ? 'high' : added + deleted > 80 ? 'medium' : 'low',
+                    };
+                })
+                .sort((a, b) => b.changes - a.changes);
+
+            const totals = files.reduce(
+                (acc, f) => {
+                    acc.files += 1;
+                    acc.additions += f.additions;
+                    acc.deletions += f.deletions;
+                    acc.changes += f.changes;
+                    return acc;
+                },
+                { files: 0, additions: 0, deletions: 0, changes: 0 }
+            );
+
+            return {
+                success: true,
+                data: {
+                    staged,
+                    targetPath,
+                    files,
+                    totals,
+                    summary: `${totals.files} file(s), +${totals.additions}/-${totals.deletions} (${totals.changes} changed lines)`,
+                }
+            };
+        } catch (error) {
+            return { success: false, error: `review_diff_summary failed: ${error}` };
+        }
+    },
+
+    review_hotspots: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const maxFiles = Math.min(Math.max(Number((args as any).max_files || 10), 1), 100);
+            const historyLimit = Math.min(Math.max(Number((args as any).history_limit || 300), 50), 2000);
+
+            const run = spawnSync('git', ['log', `-n${historyLimit}`, '--name-only', '--pretty=format:'], {
+                cwd: workspacePath,
+                encoding: 'utf-8',
+                maxBuffer: 20 * 1024 * 1024,
+            });
+            if (run.error) {
+                return { success: false, error: `review_hotspots failed: ${run.error.message}` };
+            }
+            if (run.status !== 0) {
+                return { success: false, error: `review_hotspots failed: ${run.stderr || 'git log error'}` };
+            }
+
+            const counts = new Map<string, number>();
+            for (const line of (run.stdout || '').split('\n')) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                counts.set(trimmed, (counts.get(trimmed) || 0) + 1);
+            }
+
+            const hotspots = Array.from(counts.entries())
+                .map(([file, commitsTouched]) => ({ file, commitsTouched }))
+                .sort((a, b) => b.commitsTouched - a.commitsTouched)
+                .slice(0, maxFiles);
+
+            return {
+                success: true,
+                data: {
+                    maxFiles,
+                    historyLimit,
+                    hotspots,
+                }
+            };
+        } catch (error) {
+            return { success: false, error: `review_hotspots failed: ${error}` };
+        }
+    },
+
+    review_checklist: async (args: ToolArgs): Promise<ToolResult> => {
+        try {
+            const targetPaths = Array.isArray((args as any).target_paths)
+                ? (args as any).target_paths.filter((p: unknown) => typeof p === 'string')
+                : [];
+            const staged = (args as any).staged !== false;
+
+            const diffArgs = ['diff'];
+            if (staged) diffArgs.push('--staged');
+            if (targetPaths.length > 0) {
+                diffArgs.push('--', ...targetPaths);
+            }
+
+            const run = spawnSync('git', diffArgs, {
+                cwd: workspacePath,
+                encoding: 'utf-8',
+                maxBuffer: 20 * 1024 * 1024,
+            });
+            if (run.error) {
+                return { success: false, error: `review_checklist failed: ${run.error.message}` };
+            }
+            if (run.status !== 0 && run.status !== 1) {
+                return { success: false, error: `review_checklist failed: ${run.stderr || 'git diff error'}` };
+            }
+
+            const diffText = run.stdout || '';
+            const addedLines = diffText
+                .split('\n')
+                .filter(line => line.startsWith('+') && !line.startsWith('+++'))
+                .join('\n');
+
+            const checks = [
+                {
+                    key: 'security.eval',
+                    severity: 'critical',
+                    pattern: /\beval\s*\(/,
+                    message: 'Avoid eval() usage in committed code.',
+                },
+                {
+                    key: 'security.dom',
+                    severity: 'warning',
+                    pattern: /\b(innerHTML|dangerouslySetInnerHTML)\b/,
+                    message: 'Potential unsafe HTML injection path detected.',
+                },
+                {
+                    key: 'quality.console',
+                    severity: 'info',
+                    pattern: /\bconsole\.log\s*\(/,
+                    message: 'Debug console.log found in changed lines.',
+                },
+                {
+                    key: 'quality.todo',
+                    severity: 'info',
+                    pattern: /\b(TODO|FIXME)\b/,
+                    message: 'TODO/FIXME marker present in changes.',
+                },
+            ];
+
+            const findings = checks
+                .filter(check => check.pattern.test(addedLines))
+                .map(check => ({
+                    key: check.key,
+                    severity: check.severity,
+                    message: check.message,
+                }));
+
+            return {
+                success: true,
+                data: {
+                    staged,
+                    targetPaths,
+                    checklist: {
+                        passed: findings.length === 0,
+                        findings,
+                    },
+                }
+            };
+        } catch (error) {
+            return { success: false, error: `review_checklist failed: ${error}` };
+        }
+    },
 };
 
 // ===========================
@@ -1266,16 +1754,21 @@ export function resolveToolAlias(name: string): string {
  * Register all tool handlers with an executor
  */
 export function registerToolHandlers(executor: ToolExecutor): void {
-    // Register canonical handlers
-    executor.registerHandlers(toolHandlers);
+    // Register canonical handlers with arg normalization and deprecation metadata.
+    for (const [name, handler] of Object.entries(toolHandlers)) {
+        executor.registerHandler(name, createNormalizedHandler(name, handler));
+    }
 
-    // Register aliases (pointing to same handlers)
+    // Register aliases (pointing to same canonical handlers).
     for (const [alias, canonical] of Object.entries(TOOL_ALIASES)) {
         const handler = toolHandlers[canonical];
-        if (handler) {
-            executor.registerHandler(alias, handler);
-        }
+        if (!handler) continue;
+        executor.registerHandler(alias, createNormalizedHandler(canonical, handler));
     }
+}
+
+export function getToolHandlerNames(): string[] {
+    return Object.keys(toolHandlers);
 }
 
 /**

@@ -41,11 +41,23 @@ export {
     getWorkspacePath,
     registerToolHandlers,
     createConfiguredExecutor,
+    getToolHandlerNames,
 } from './bridge';
+
+export type { ToolHealthReport } from './health';
+export { getToolHealthReport } from './health';
 
 // AgentKit tools (new)
 export {
     allAgentKitTools,
+    fsBatchReadTool,
+    verifyChangesTool,
+    smartEditTool,
+    editFileLinesTool,
+    multiEditTool,
+    reviewDiffSummaryTool,
+    reviewHotspotsTool,
+    reviewChecklistTool,
     readTools,
     writeTools,
     executeTools,

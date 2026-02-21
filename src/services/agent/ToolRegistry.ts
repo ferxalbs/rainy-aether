@@ -348,6 +348,21 @@ After calling this tool, the user will see the changes highlighted in the editor
             await new Promise(resolve => setTimeout(resolve, 300));
           }
 
+          // Guardrails: very large payloads can freeze the UI if fully diffed/decorated.
+          const MAX_PREVIEW_CHARS = 1_000_000;
+          const MAX_PRECISE_DIFF_TOTAL_LINES = 12_000;
+          const oldLineCount = originalContent.split('\n').length;
+          const newLineCount = new_content.split('\n').length;
+          const totalLines = oldLineCount + newLineCount;
+
+          if (new_content.length > MAX_PREVIEW_CHARS) {
+            return {
+              success: false,
+              error: `Proposed content is too large for inline preview (${new_content.length} chars).`,
+              hint: 'Split the change into smaller edits or use smart_edit/edit_file_lines for targeted updates.',
+            };
+          }
+
           // Start inline diff session FIRST (stores original content for rejection)
           inlineDiffActions.startInlineDiff({
             fileUri: resolvedPath,
@@ -367,9 +382,39 @@ After calling this tool, the user will see the changes highlighted in the editor
             }
           }
 
-          // NOW compute line-by-line differences (for decoration purposes only)
-          const diffResult = computeLineDiff(originalContent, new_content);
-          const inlineChanges = diffToInlineChanges(diffResult);
+          let diffResult;
+          let inlineChanges;
+
+          if (totalLines > MAX_PRECISE_DIFF_TOTAL_LINES) {
+            // Fallback to a compact single-range preview to avoid CPU/RAM spikes.
+            diffResult = {
+              changes: [{
+                type: 'modified' as const,
+                lineNumber: 1,
+                oldLine: '[Large diff preview condensed]',
+                newLine: '[Large diff preview condensed]',
+              }],
+              additions: Math.max(0, newLineCount - oldLineCount),
+              deletions: Math.max(0, oldLineCount - newLineCount),
+              modifications: Math.min(oldLineCount, newLineCount),
+            };
+
+            inlineChanges = [{
+              type: 'replace' as const,
+              range: {
+                startLine: 1,
+                startColumn: 1,
+                endLine: Math.max(1, oldLineCount),
+                endColumn: Number.MAX_SAFE_INTEGER,
+              },
+              newText: '[Large diff preview condensed]',
+              oldText: '[Large diff preview condensed]',
+            }];
+          } else {
+            // Compute detailed line-by-line differences for normal-size files.
+            diffResult = computeLineDiff(originalContent, new_content);
+            inlineChanges = diffToInlineChanges(diffResult);
+          }
 
           // Stream changes to apply decorations (now they match the new content)
           inlineDiffActions.streamChangesBatch(inlineChanges);

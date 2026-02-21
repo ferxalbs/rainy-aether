@@ -193,9 +193,8 @@
   flex-direction: column;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  /* New isolated padding for floating elements */
-  padding: 8px;
-  gap: 8px;
+  padding: 0; /* Changed from 8px to stick to corners */
+  gap: 0; /* Removed gap */
   box-sizing: border-box;
 }
 

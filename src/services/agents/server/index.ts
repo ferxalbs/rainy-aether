@@ -21,6 +21,7 @@ import agentkitRoutes from './routes/agentkit';
 import subagentRoutes from './routes/subagent-routes';
 import { inngest, allWorkflows } from './workflows';
 import { getAgentTypes, agentFactories } from './agents';
+import { TOOL_DEFINITIONS } from './tools';
 
 // ===========================
 // Hono App
@@ -64,7 +65,7 @@ app.get('/api/brain/status', (c: Context) => c.json({
     status: 'ready',
     agents: getAgentTypes(),
     workflows: allWorkflows.map(w => w.id),
-    tools: 18,
+    tools: TOOL_DEFINITIONS.length,
 }));
 
 // Root info
@@ -79,6 +80,7 @@ app.get('/', (c: Context) => c.json({
             stream: 'GET /api/brain/tasks/:id/stream',
             cancel: 'POST /api/brain/tasks/:id/cancel',
             tools: 'GET /api/brain/tools',
+            toolsHealth: 'GET /api/brain/tools/health',
             agents: 'GET /api/brain/agents',
             tool: 'POST /api/brain/tool',
             batch: 'POST /api/brain/tools/batch',
@@ -90,6 +92,7 @@ app.get('/', (c: Context) => c.json({
             route: 'POST /api/agentkit/route',
             agent: 'POST /api/agentkit/agent/:type',
             agents: 'GET /api/agentkit/agents',
+            toolsHealth: 'GET /api/agentkit/tools/health',
             conversations: 'GET /api/agentkit/conversations/:id',
             mcp: 'GET /api/agentkit/mcp/servers',
             subagents: {
@@ -125,7 +128,7 @@ serve({
     console.log(`   Brain:     http://localhost:${info.port}/api/brain`);
     console.log(`   AgentKit:  http://localhost:${info.port}/api/agentkit`);
     console.log(`   Inngest:   http://localhost:${info.port}/api/inngest`);
-    console.log(`   Tools:     18 registered`);
+    console.log(`   Tools:     ${TOOL_DEFINITIONS.length} registered`);
     console.log(`   Agents:    ${getAgentTypes().join(', ')}`);
     console.log(`   AgentKit:  ${Object.keys(agentFactories).join(', ')}`);
     console.log(`   Workflows: ${allWorkflows.length} durable`);

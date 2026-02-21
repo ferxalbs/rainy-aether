@@ -84,7 +84,7 @@ export class ToolPermissionManager {
         }
 
         const allTools = getAllTools();
-        const allToolNames = new Set(allTools.map(t => t.name));
+        const allToolNames = new Set<string>(allTools.map(t => t.name));
 
         // Check each tool exists
         for (const toolName of config.tools) {

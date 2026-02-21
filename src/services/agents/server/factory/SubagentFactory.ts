@@ -111,7 +111,7 @@ function getTools(permission: SubagentConfig['tools']): AgentKitTool[] {
  */
 function validateTools(toolNames: string[]): { valid: boolean; missing: string[] } {
     const availableTools = getAllTools();
-    const availableNames = new Set(availableTools.map(t => t.name));
+    const availableNames = new Set<string>(availableTools.map(t => t.name));
     const missing = toolNames.filter(name => !availableNames.has(name));
 
     return {

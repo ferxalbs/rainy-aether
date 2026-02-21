@@ -1,12 +1,6 @@
 import React from "react";
 import { useIDEStore, useIDEState } from "@/stores/ideStore";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 const ModeSwitcher: React.FC = () => {
   const { state, actions } = useIDEStore();
@@ -15,26 +9,30 @@ const ModeSwitcher: React.FC = () => {
   const currentMode = snapshot.viewMode;
 
   return (
-    <Select
-      value={currentMode}
-      onValueChange={(value: "ide" | "agents") => actions.setViewMode(value)}
-    >
-      <SelectTrigger className="h-5 px-1.5 py-0 text-[10px] font-medium bg-transparent border-none shadow-none focus:ring-0 hover:bg-muted/50 rounded-md transition-colors w-fit !ring-0 !outline-none gap-0.5 [&>svg]:size-3 text-foreground/80 hover:text-foreground">
-        {" "}
-        <SelectValue placeholder="IDE" />
-      </SelectTrigger>
-      <SelectContent align="center" className="min-w-[100px] z-[9999]">
-        <SelectItem value="ide" className="text-xs font-medium cursor-pointer">
-          IDE
-        </SelectItem>
-        <SelectItem
-          value="agents"
-          className="text-xs font-medium cursor-pointer"
-        >
-          AGENTS
-        </SelectItem>
-      </SelectContent>
-    </Select>
+    <div className="flex items-center bg-black/5 dark:bg-black/20 p-[3px] rounded-lg border border-border/40 shadow-inner">
+      <button
+        onClick={() => actions.setViewMode("ide")}
+        className={cn(
+          "px-3 py-1 text-[10px] font-bold tracking-widest rounded-md transition-all duration-300 ease-out outline-none flex items-center justify-center",
+          currentMode === "ide"
+            ? "bg-background text-foreground shadow-sm border border-border/80 scale-100"
+            : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent scale-95 opacity-70",
+        )}
+      >
+        IDE
+      </button>
+      <button
+        onClick={() => actions.setViewMode("agents")}
+        className={cn(
+          "px-3 py-1 text-[10px] font-bold tracking-widest rounded-md transition-all duration-300 ease-out outline-none flex items-center justify-center",
+          currentMode === "agents"
+            ? "bg-gradient-to-br from-indigo-500/10 to-purple-500/10 dark:from-indigo-500/20 dark:to-purple-500/20 bg-background text-foreground shadow-sm border border-indigo-500/30 dark:border-indigo-500/40 scale-100"
+            : "text-muted-foreground hover:text-foreground hover:bg-white/5 border border-transparent scale-95 opacity-70",
+        )}
+      >
+        AGENTS
+      </button>
+    </div>
   );
 };
 

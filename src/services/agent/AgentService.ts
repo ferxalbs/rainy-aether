@@ -411,6 +411,24 @@ Would you like me to:
       }
     }
 
+    // Stop tool recursion when a tool is waiting for explicit user approval.
+    // This prevents expensive loops where the model keeps calling apply_file_diff
+    // before the user accepts/rejects the pending diff.
+    const hasPendingApproval = response.toolCalls.some(tc => {
+      if (tc.status !== 'success' || !tc.result || typeof tc.result !== 'object') {
+        return false;
+      }
+      const result = tc.result as Record<string, unknown>;
+      return result.status === 'pending_approval';
+    });
+
+    if (hasPendingApproval) {
+      if (!response.content || response.content.trim().length === 0) {
+        response.content = 'I proposed code changes and I am waiting for your approval in the editor (Cmd/Ctrl+Enter to accept, Escape to reject).';
+      }
+      return response;
+    }
+
     // Create a message with tool results to send back to the LLM
     const toolResultsContent = response.toolCalls.map(tc => {
       if (tc.status === 'success') {

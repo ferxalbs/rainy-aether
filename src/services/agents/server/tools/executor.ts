@@ -15,6 +15,10 @@ import type {
 } from './schema';
 import { getToolByName } from './schema';
 
+const CACHE_INVALIDATION_TOOLS = new Set([
+    'format_file',
+]);
+
 // ===========================
 // Types
 // ===========================
@@ -186,6 +190,11 @@ export class ToolExecutor {
             if (result.success && this.config.enableCache && schema.cacheable) {
                 const cacheKey = this.getCacheKey(call);
                 this.cache.set(cacheKey, result, schema.cacheTimeout || 30000);
+            }
+
+            // Writes can invalidate read/analysis cache entries.
+            if (result.success && (schema.category === 'write' || CACHE_INVALIDATION_TOOLS.has(schema.name))) {
+                this.cache.clear();
             }
 
             this.config.onToolComplete?.(execution);

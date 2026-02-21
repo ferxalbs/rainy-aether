@@ -2,6 +2,19 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.38] - 2026-02-21
+
+### Changes:
+
+- **[Improvements]** Removed the 8px layout padding across the IDE's main container (`.ide-container`) making the interface dock perfectly to the window corners without floating gaps or wasted screen space.
+- **[Improvements]** Redesigned the `ModeSwitcher` component into a sleek, premium segmented control pill, applying enhanced scaling and glassmorphism styling for better integration into the top menubar.
+
+## [v0.1.37] - 2026-02-21
+
+### Changes:
+
+- **[Improvements]** Refactored the Topbar in `AgentChatWindow` to eliminate the floating appearance by bringing the elements closer to the top edge (reducing standard height) and properly applying the system glassmorphism blur configuration (`backdrop-blur-2xl`, `backdrop-saturate-150`).
+
 ## [v0.1.29] - 2026-02-21
 
 ### Changes:

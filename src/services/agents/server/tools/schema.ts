@@ -994,6 +994,97 @@ RETURNS: Combined analysis with imports, exports, function/class definitions, an
             required: ['path'],
         },
     },
+
+    {
+        name: 'review_diff_summary',
+        description: `Summarize current git diff risk and volume.
+
+WHEN TO USE: Before code review or commit to get a structured snapshot of changed files.
+RETURNS: per-file additions/deletions, total change volume, and lightweight risk labels.`,
+        category: 'analysis',
+        executor: 'hybrid',
+        parallel: true,
+        timeout: 20000,
+        retryable: true,
+        cacheable: true,
+        cacheTimeout: 5000,
+        parameters: {
+            type: 'object',
+            properties: {
+                staged: {
+                    type: 'boolean',
+                    description: 'Review staged diff only. Default: false.',
+                    default: false,
+                },
+                path: {
+                    type: 'string',
+                    description: 'Optional file/directory filter.',
+                },
+            },
+            required: [],
+        },
+    },
+
+    {
+        name: 'review_hotspots',
+        description: `Identify high-churn files from recent git history.
+
+WHEN TO USE: Prioritize review focus on historically risky files.
+RETURNS: files sorted by commit-touch frequency.`,
+        category: 'analysis',
+        executor: 'hybrid',
+        parallel: true,
+        timeout: 30000,
+        retryable: true,
+        cacheable: true,
+        cacheTimeout: 15000,
+        parameters: {
+            type: 'object',
+            properties: {
+                max_files: {
+                    type: 'number',
+                    description: 'Maximum hotspot files to return. Default: 10.',
+                    default: 10,
+                },
+                history_limit: {
+                    type: 'number',
+                    description: 'How many commits to inspect. Default: 300.',
+                    default: 300,
+                },
+            },
+            required: [],
+        },
+    },
+
+    {
+        name: 'review_checklist',
+        description: `Run a deterministic lightweight checklist against changed lines.
+
+WHEN TO USE: Quick pre-review gate for common security/quality anti-patterns.
+RETURNS: checklist pass/fail and structured findings.`,
+        category: 'analysis',
+        executor: 'hybrid',
+        parallel: true,
+        timeout: 30000,
+        retryable: true,
+        cacheable: false,
+        parameters: {
+            type: 'object',
+            properties: {
+                staged: {
+                    type: 'boolean',
+                    description: 'Check staged diff by default. Set false for unstaged.',
+                    default: true,
+                },
+                target_paths: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Optional list of paths to scope checklist.',
+                },
+            },
+            required: [],
+        },
+    },
 ];
 
 // ===========================

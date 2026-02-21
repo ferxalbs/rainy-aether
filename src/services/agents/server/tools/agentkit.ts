@@ -129,7 +129,8 @@ export const getProjectContextTool = createTool({
 WHEN TO USE: Starting a new task to understand the full project.
 RETURNS: Combined analysis of project dependencies, configuration, and structure.`,
     parameters: z.object({
-        include: z.array(z.string()).optional().default(['package', 'config', 'readme', 'structure']),
+        include: z.array(z.enum(['structure', 'dependencies', 'git', 'readme', 'entry_points'])).optional()
+            .default(['structure', 'dependencies', 'git', 'readme', 'entry_points']),
         response_format: z.enum(['concise', 'detailed']).optional().default('detailed'),
     }),
     handler: async (args, ctx) => {
@@ -143,12 +144,27 @@ export const findSymbolsTool = createTool({
 WHEN TO USE: Finding where a function/class is defined.
 RETURNS: Array of { name, type, file, line } definitions.`,
     parameters: z.object({
-        pattern: z.string().describe('Name pattern to search for'),
+        query: z.string().describe('Name pattern to search for'),
+        kind: z.enum(['function', 'class', 'interface', 'type', 'const', 'all']).optional().default('all'),
         file_pattern: z.string().optional().describe('Glob to filter files'),
-        symbol_types: z.array(z.enum(['function', 'class', 'type', 'interface', 'const'])).optional(),
+        response_format: z.enum(['concise', 'detailed']).optional().default('detailed'),
+        max_results: z.number().optional().default(50),
     }),
     handler: async (args, ctx) => {
         return executeWithStep('find_symbols', args, ctx as ToolContext);
+    },
+});
+
+export const fsBatchReadTool = createTool({
+    name: 'fs_batch_read',
+    description: `Read multiple files in one tool call for token-efficient context loading.`,
+    parameters: z.object({
+        paths: z.array(z.string()).min(1).describe('List of file paths to read'),
+        response_format: z.enum(['concise', 'detailed']).optional().default('detailed'),
+        max_chars_per_file: z.number().optional().default(50000),
+    }),
+    handler: async (args, ctx) => {
+        return executeWithStep('fs_batch_read', args, ctx as ToolContext);
     },
 });
 
@@ -192,8 +208,11 @@ WHEN TO USE: Making targeted changes to a file.
 IMPORTANT: Always read the file first to understand the content.`,
     parameters: z.object({
         path: z.string().describe('File to edit'),
-        find: z.string().describe('Text to find (must be unique in file)'),
-        replace: z.string().describe('Replacement text'),
+        old_string: z.string().describe('Text to find (must be unique in file)'),
+        new_string: z.string().describe('Replacement text'),
+        // Back-compat aliases (normalized in bridge)
+        find: z.string().optional().describe('Deprecated alias of old_string'),
+        replace: z.string().optional().describe('Deprecated alias of new_string'),
     }),
     handler: async (args, ctx) => {
         return executeWithStep('edit_file', args, ctx as ToolContext);
@@ -214,12 +233,15 @@ WARNING: This action cannot be undone.`,
 
 export const applyFileDiffTool = createTool({
     name: 'apply_file_diff',
-    description: `Apply changes to a file using unified diff format.
+    description: `Apply changes to a file using full new content.
 PREFERRED: Shows visual diff preview before applying.
 WHEN TO USE: Making multiple changes to a file in one operation.`,
     parameters: z.object({
         path: z.string().describe('File to edit'),
-        diff: z.string().describe('Unified diff format changes'),
+        new_content: z.string().describe('Complete new file content'),
+        description: z.string().optional().describe('Optional summary shown in tool output'),
+        // Back-compat alias (normalized in bridge)
+        diff: z.string().optional().describe('Deprecated alias of new_content'),
     }),
     handler: async (args, ctx) => {
         return executeWithStep('apply_file_diff', args, ctx as ToolContext);
@@ -250,7 +272,10 @@ export const runTestsTool = createTool({
     description: `Run project tests (npm test, cargo test, etc).
 RETURNS: Test results with pass/fail counts.`,
     parameters: z.object({
-        pattern: z.string().optional().describe('Test file pattern'),
+        target: z.string().optional().describe('Specific test target or pattern'),
+        framework: z.enum(['pnpm', 'npm', 'cargo', 'pytest']).optional(),
+        // Back-compat alias (normalized in bridge)
+        pattern: z.string().optional().describe('Deprecated alias of target'),
         watch: z.boolean().optional().default(false),
     }),
     handler: async (args, ctx) => {
@@ -266,6 +291,76 @@ export const formatFileTool = createTool({
     }),
     handler: async (args, ctx) => {
         return executeWithStep('format_file', args, ctx as ToolContext);
+    },
+});
+
+export const verifyChangesTool = createTool({
+    name: 'verify_changes',
+    description: `Verify changed code by running type-check, lint, test, or build.`,
+    parameters: z.object({
+        scope: z.enum(['type-check', 'lint', 'test', 'build']).optional().default('type-check'),
+        fix: z.boolean().optional().default(false),
+    }),
+    handler: async (args, ctx) => {
+        return executeWithStep('verify_changes', args, ctx as ToolContext);
+    },
+});
+
+export const smartEditTool = createTool({
+    name: 'smart_edit',
+    description: `Apply multiple text edits reliably with optional verification.`,
+    parameters: z.object({
+        path: z.string(),
+        edits: z.array(z.object({
+            find: z.string(),
+            replace: z.string(),
+        })).min(1),
+        verify: z.boolean().optional().default(true),
+    }),
+    handler: async (args, ctx) => {
+        return executeWithStep('smart_edit', args, ctx as ToolContext);
+    },
+});
+
+export const editFileLinesTool = createTool({
+    name: 'edit_file_lines',
+    description: `Replace an exact line range in a file.`,
+    parameters: z.object({
+        path: z.string(),
+        start_line: z.number().int().min(1),
+        end_line: z.number().int().min(1),
+        new_content: z.string(),
+        verify: z.boolean().optional().default(true),
+    }),
+    handler: async (args, ctx) => {
+        return executeWithStep('edit_file_lines', args, ctx as ToolContext);
+    },
+});
+
+export const multiEditTool = createTool({
+    name: 'multi_edit',
+    description: `Apply multiple line/text edits in one atomic operation.`,
+    parameters: z.object({
+        path: z.string(),
+        edits: z.array(
+            z.discriminatedUnion('type', [
+                z.object({
+                    type: z.literal('line'),
+                    start_line: z.number().int().min(1),
+                    end_line: z.number().int().min(1),
+                    replace: z.string(),
+                }),
+                z.object({
+                    type: z.literal('text'),
+                    find: z.string(),
+                    replace: z.string(),
+                }),
+            ])
+        ).min(1),
+        verify: z.boolean().optional().default(true),
+    }),
+    handler: async (args, ctx) => {
+        return executeWithStep('multi_edit', args, ctx as ToolContext);
     },
 });
 
@@ -288,7 +383,8 @@ export const gitDiffTool = createTool({
     name: 'git_diff',
     description: `Get git diff for specific files or entire workspace.`,
     parameters: z.object({
-        paths: z.array(z.string()).optional(),
+        path: z.string().optional().describe('Optional file/directory filter'),
+        paths: z.array(z.string()).optional().describe('Deprecated alias; first item is used'),
         staged: z.boolean().optional().default(false),
     }),
     handler: async (args, ctx) => {
@@ -327,8 +423,11 @@ export const getDiagnosticsTool = createTool({
     description: `Get TypeScript/ESLint diagnostics for files.
 RETURNS: Array of { file, line, message, severity } issues.`,
     parameters: z.object({
-        paths: z.array(z.string()).optional().describe('Specific files to check'),
-        severity: z.enum(['error', 'warning', 'all']).optional().default('all'),
+        file: z.string().optional().describe('Optional file path to scope diagnostics'),
+        response_format: z.enum(['concise', 'detailed']).optional().default('detailed'),
+        // Back-compat aliases (normalized in bridge)
+        paths: z.array(z.string()).optional().describe('Deprecated alias for file'),
+        severity: z.enum(['error', 'warning', 'all']).optional().describe('Deprecated alias'),
     }),
     handler: async (args, ctx) => {
         return executeWithStep('get_diagnostics', args, ctx as ToolContext);
@@ -362,6 +461,42 @@ BENEFITS: Avoids multiple tool calls (read_file + analyze_imports + get_diagnost
     },
 });
 
+export const reviewDiffSummaryTool = createTool({
+    name: 'review_diff_summary',
+    description: `Summarize changed files/additions/deletions with lightweight risk labels.`,
+    parameters: z.object({
+        staged: z.boolean().optional().default(false),
+        path: z.string().optional(),
+    }),
+    handler: async (args, ctx) => {
+        return executeWithStep('review_diff_summary', args, ctx as ToolContext);
+    },
+});
+
+export const reviewHotspotsTool = createTool({
+    name: 'review_hotspots',
+    description: `Rank files by recent commit churn to prioritize review focus.`,
+    parameters: z.object({
+        max_files: z.number().optional().default(10),
+        history_limit: z.number().optional().default(300),
+    }),
+    handler: async (args, ctx) => {
+        return executeWithStep('review_hotspots', args, ctx as ToolContext);
+    },
+});
+
+export const reviewChecklistTool = createTool({
+    name: 'review_checklist',
+    description: `Run a deterministic pre-review checklist on changed lines.`,
+    parameters: z.object({
+        staged: z.boolean().optional().default(true),
+        target_paths: z.array(z.string()).optional(),
+    }),
+    handler: async (args, ctx) => {
+        return executeWithStep('review_checklist', args, ctx as ToolContext);
+    },
+});
+
 // ===========================
 // Tool Collections
 // ===========================
@@ -376,16 +511,21 @@ export const allAgentKitTools = [
     searchCodeTool,
     getProjectContextTool,
     findSymbolsTool,
+    fsBatchReadTool,
     // Write
     createFileTool,
     writeFileTool,
     editFileTool,
     deleteFileTool,
     applyFileDiffTool,
+    smartEditTool,
+    editFileLinesTool,
+    multiEditTool,
     // Execute
     runCommandTool,
     runTestsTool,
     formatFileTool,
+    verifyChangesTool,
     // Git
     gitStatusTool,
     gitDiffTool,
@@ -395,6 +535,9 @@ export const allAgentKitTools = [
     getDiagnosticsTool,
     analyzeImportsTool,
     analyzeFileTool,
+    reviewDiffSummaryTool,
+    reviewHotspotsTool,
+    reviewChecklistTool,
 ];
 
 // Categorized tool collections for agents
@@ -406,6 +549,7 @@ export const readTools = [
     searchCodeTool,
     getProjectContextTool,
     findSymbolsTool,
+    fsBatchReadTool,
 ];
 
 export const writeTools = [
@@ -414,12 +558,16 @@ export const writeTools = [
     editFileTool,
     deleteFileTool,
     applyFileDiffTool,
+    smartEditTool,
+    editFileLinesTool,
+    multiEditTool,
 ];
 
 export const executeTools = [
     runCommandTool,
     runTestsTool,
     formatFileTool,
+    verifyChangesTool,
 ];
 
 export const gitTools = [
@@ -433,48 +581,65 @@ export const analysisTools = [
     getDiagnosticsTool,
     analyzeImportsTool,
     analyzeFileTool,
+    reviewDiffSummaryTool,
+    reviewHotspotsTool,
+    reviewChecklistTool,
 ];
 
 // Agent-specific tool sets
 export const plannerTools = [
     getWorkspaceInfoTool,
     readFileTool,
+    fsBatchReadTool,
     listDirTool,
     readDirectoryTreeTool,
     searchCodeTool,
     getProjectContextTool,
     findSymbolsTool,
+    reviewDiffSummaryTool,
 ];
 
 export const coderTools = [
     getWorkspaceInfoTool,
     readFileTool,
+    fsBatchReadTool,
     listDirTool,
     searchCodeTool,
     createFileTool,
     writeFileTool,
     editFileTool,
     applyFileDiffTool,
+    smartEditTool,
+    editFileLinesTool,
+    multiEditTool,
     deleteFileTool,
     formatFileTool,
+    verifyChangesTool,
 ];
 
 export const reviewerTools = [
     getWorkspaceInfoTool,
     readFileTool,
+    fsBatchReadTool,
     listDirTool,
     searchCodeTool,
+    findSymbolsTool,
+    getProjectContextTool,
     gitStatusTool,
     gitDiffTool,
     getDiagnosticsTool,
     analyzeImportsTool,
     analyzeFileTool,
+    reviewDiffSummaryTool,
+    reviewHotspotsTool,
+    reviewChecklistTool,
 ];
 
 export const terminalTools = [
     getWorkspaceInfoTool,
     runCommandTool,
     runTestsTool,
+    verifyChangesTool,
     gitStatusTool,
     gitDiffTool,
     gitAddTool,
@@ -484,9 +649,12 @@ export const terminalTools = [
 export const docsTools = [
     getWorkspaceInfoTool,
     readFileTool,
+    fsBatchReadTool,
     listDirTool,
     readDirectoryTreeTool,
     searchCodeTool,
+    findSymbolsTool,
+    getProjectContextTool,
     analyzeImportsTool,
 ];
 
@@ -511,7 +679,7 @@ export function getAllTools(): AgentKitTool[] {
  * Throws error if any tool name is invalid
  */
 export function getToolsByNames(names: string[]): AgentKitTool[] {
-    const toolMap = new Map(allAgentKitTools.map(tool => [tool.name, tool]));
+    const toolMap = new Map<string, AgentKitTool>(allAgentKitTools.map(tool => [tool.name, tool]));
     const tools: AgentKitTool[] = [];
     const missing: string[] = [];
 
@@ -575,15 +743,23 @@ export function getToolMetadata(toolName: string): {
     let riskLevel: 'safe' | 'moderate' | 'destructive' = 'safe';
     if (['delete_file', 'git_commit'].includes(toolName)) {
         riskLevel = 'destructive';
-    } else if (['write_file', 'edit_file', 'run_command', 'git_add'].includes(toolName)) {
+    } else if ([
+        'write_file',
+        'edit_file',
+        'smart_edit',
+        'edit_file_lines',
+        'multi_edit',
+        'apply_file_diff',
+        'run_command',
+        'git_add'
+    ].includes(toolName)) {
         riskLevel = 'moderate';
     }
 
     return {
         name: tool.name,
-        description: tool.description,
+        description: tool.description ?? '',
         category,
         riskLevel,
     };
 }
-

@@ -20,141 +20,110 @@ export interface DiffResult {
 }
 
 /**
- * Simple Longest Common Subsequence (LCS) based diff
+ * Compute line-by-line diff using a linear strategy:
+ * - Detect common prefix/suffix quickly
+ * - Diff only the middle section
+ * - Avoid expensive LCS/matrix-style behavior that can spike CPU/RAM
  */
 export function computeLineDiff(oldContent: string, newContent: string): DiffResult {
     const oldLines = oldContent.split('\n');
     const newLines = newContent.split('\n');
+
+    if (oldContent === newContent) {
+        return {
+            changes: [],
+            additions: 0,
+            deletions: 0,
+            modifications: 0,
+        };
+    }
 
     const changes: LineDiff[] = [];
     let additions = 0;
     let deletions = 0;
     let modifications = 0;
 
-    // Use a simple line-by-line comparison with context matching
-    const lcs = computeLCS(oldLines, newLines);
+    let prefix = 0;
+    while (
+        prefix < oldLines.length &&
+        prefix < newLines.length &&
+        oldLines[prefix] === newLines[prefix]
+    ) {
+        prefix++;
+    }
 
-    let oldIdx = 0;
-    let newIdx = 0;
-    let lcsIdx = 0;
+    let oldEnd = oldLines.length - 1;
+    let newEnd = newLines.length - 1;
+    while (
+        oldEnd >= prefix &&
+        newEnd >= prefix &&
+        oldLines[oldEnd] === newLines[newEnd]
+    ) {
+        oldEnd--;
+        newEnd--;
+    }
 
-    while (oldIdx < oldLines.length || newIdx < newLines.length) {
-        const currentLCS = lcsIdx < lcs.length ? lcs[lcsIdx] : null;
+    const oldMiddle = oldLines.slice(prefix, oldEnd + 1);
+    const newMiddle = newLines.slice(prefix, newEnd + 1);
 
-        // Check if current old line is in LCS
-        if (currentLCS && oldIdx === currentLCS.oldIndex && newIdx === currentLCS.newIndex) {
-            // Unchanged line
+    // Cap the number of preview change entries to keep Monaco decoration cost bounded.
+    const MAX_CHANGE_ENTRIES = 5000;
+    const estimatedEntries = Math.max(oldMiddle.length, newMiddle.length);
+    if (estimatedEntries > MAX_CHANGE_ENTRIES) {
+        additions = Math.max(0, newMiddle.length - oldMiddle.length);
+        deletions = Math.max(0, oldMiddle.length - newMiddle.length);
+        modifications = Math.min(oldMiddle.length, newMiddle.length);
+        return {
+            changes: [{
+                type: 'modified',
+                lineNumber: Math.max(1, prefix + 1),
+                oldLine: '[Large diff preview condensed]',
+                newLine: '[Large diff preview condensed]',
+            }],
+            additions,
+            deletions,
+            modifications,
+        };
+    }
+
+    const overlap = Math.min(oldMiddle.length, newMiddle.length);
+    for (let i = 0; i < overlap; i++) {
+        const oldLine = oldMiddle[i];
+        const newLine = newMiddle[i];
+        if (oldLine !== newLine) {
             changes.push({
-                type: 'unchanged',
-                lineNumber: newIdx + 1,
-                oldLine: oldLines[oldIdx],
-                newLine: newLines[newIdx],
+                type: 'modified',
+                lineNumber: prefix + i + 1,
+                oldLine,
+                newLine,
             });
-            oldIdx++;
-            newIdx++;
-            lcsIdx++;
-        } else if (currentLCS && oldIdx < currentLCS.oldIndex && newIdx < currentLCS.newIndex) {
-            // Both have differences before the next LCS match - check if modification
-            if (newLines[newIdx] !== undefined && oldLines[oldIdx] !== undefined) {
-                changes.push({
-                    type: 'modified',
-                    lineNumber: newIdx + 1,
-                    oldLine: oldLines[oldIdx],
-                    newLine: newLines[newIdx],
-                });
-                modifications++;
-                oldIdx++;
-                newIdx++;
-            }
-        } else if (!currentLCS || (currentLCS && oldIdx < currentLCS.oldIndex)) {
-            // Line was deleted from old
+            modifications++;
+        }
+    }
+
+    if (oldMiddle.length > overlap) {
+        for (let i = overlap; i < oldMiddle.length; i++) {
             changes.push({
                 type: 'removed',
-                lineNumber: newIdx + 1,
-                oldLine: oldLines[oldIdx],
+                lineNumber: prefix + overlap + 1,
+                oldLine: oldMiddle[i],
             });
             deletions++;
-            oldIdx++;
-        } else if (!currentLCS || (currentLCS && newIdx < currentLCS.newIndex)) {
-            // Line was added in new
+        }
+    }
+
+    if (newMiddle.length > overlap) {
+        for (let i = overlap; i < newMiddle.length; i++) {
             changes.push({
                 type: 'added',
-                lineNumber: newIdx + 1,
-                newLine: newLines[newIdx],
+                lineNumber: prefix + i + 1,
+                newLine: newMiddle[i],
             });
             additions++;
-            newIdx++;
-        } else {
-            // Fallback - shouldn't happen but handle gracefully
-            if (newIdx < newLines.length) {
-                changes.push({
-                    type: 'added',
-                    lineNumber: newIdx + 1,
-                    newLine: newLines[newIdx],
-                });
-                additions++;
-                newIdx++;
-            } else if (oldIdx < oldLines.length) {
-                changes.push({
-                    type: 'removed',
-                    lineNumber: newIdx + 1,
-                    oldLine: oldLines[oldIdx],
-                });
-                deletions++;
-                oldIdx++;
-            }
         }
     }
 
     return { changes, additions, deletions, modifications };
-}
-
-interface LCSMatch {
-    oldIndex: number;
-    newIndex: number;
-    line: string;
-}
-
-/**
- * Compute Longest Common Subsequence of lines
- */
-function computeLCS(oldLines: string[], newLines: string[]): LCSMatch[] {
-    const m = oldLines.length;
-
-    // Create a map for quick lookup
-    const newLineMap = new Map<string, number[]>();
-    newLines.forEach((line, idx) => {
-        if (!newLineMap.has(line)) {
-            newLineMap.set(line, []);
-        }
-        newLineMap.get(line)!.push(idx);
-    });
-
-    // Find matches
-    const matches: LCSMatch[] = [];
-    let lastNewIdx = -1;
-
-    for (let i = 0; i < m; i++) {
-        const line = oldLines[i];
-        const candidates = newLineMap.get(line);
-
-        if (candidates) {
-            // Find the first candidate that's after our last match
-            for (const candidate of candidates) {
-                if (candidate > lastNewIdx) {
-                    matches.push({
-                        oldIndex: i,
-                        newIndex: candidate,
-                        line,
-                    });
-                    lastNewIdx = candidate;
-                    break;
-                }
-            }
-        }
-    }
-
-    return matches;
 }
 
 /**

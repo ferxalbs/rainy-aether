@@ -1088,8 +1088,8 @@ export function AgentChatWindow({
       {showTopbar && (
         <div
           className={cn(
-            "h-12 border-b border-border px-4 flex items-center justify-between bg-transparent z-10 shrink-0",
-            compact && "h-10 px-3",
+            "h-10 border-b border-border px-4 flex items-center justify-between bg-background/60 dark:bg-background/20 backdrop-blur-2xl backdrop-saturate-150 z-10 shrink-0 sticky top-0",
+            compact && "h-8 px-3",
           )}
         >
           <div className="flex items-center gap-3 overflow-hidden">

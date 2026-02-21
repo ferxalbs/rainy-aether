@@ -22,7 +22,7 @@ import {
 } from '../agents';
 import type { AgentKitAgentType, RoutingContext } from '../agents';
 import { agentEvents } from '../streaming/events';
-import { setWorkspacePath, createToolCall, createConfiguredExecutor } from '../tools';
+import { setWorkspacePath, createToolCall, createConfiguredExecutor, getToolHealthReport } from '../tools';
 import { getMCPConfigs, getConfigByName } from '../mcp/config';
 import type { MCPServerConfig } from '../mcp/config';
 
@@ -51,7 +51,7 @@ interface AgentKitTaskResponse {
     taskId: string;
     conversationId: string;
     routing: {
-        agent: AgentKitAgentType;
+        agent: string;
         confidence: number;
         reasoning: string;
     };
@@ -73,6 +73,10 @@ interface TaskResult {
 
 // In-memory task store
 const taskResults = new Map<string, TaskResult>();
+
+function isBuiltInAgentType(agent: string): agent is AgentKitAgentType {
+    return agent in agentFactories;
+}
 
 // ===========================
 // Routes
@@ -290,6 +294,13 @@ agentkit.get('/agents', (c: Context) => {
     }));
 
     return c.json({ agents });
+});
+
+/**
+ * Get tool contract health (schema vs handlers vs AgentKit wrappers)
+ */
+agentkit.get('/tools/health', (c: Context) => {
+    return c.json(getToolHealthReport());
 });
 
 /**
@@ -780,7 +791,7 @@ async function executeAgentKitTask(
     taskId: string,
     conversationId: string,
     request: AgentKitTaskRequest,
-    routedAgent: AgentKitAgentType
+    routedAgent: string
 ): Promise<void> {
     const task = taskResults.get(taskId);
     if (!task) return;
@@ -807,12 +818,18 @@ async function executeAgentKitTask(
 
         // Update conversation context
         const convContext = createConversationContext(conversationId, request.context?.workspace || process.cwd());
-        convContext.addAssistantMessage(result.output, routedAgent);
+        if (isBuiltInAgentType(routedAgent)) {
+            convContext.addAssistantMessage(result.output, routedAgent);
+        } else {
+            convContext.addAssistantMessage(result.output);
+        }
         convContext.completeTask(result.success, result.error);
 
         // Store in state
         for (const agent of result.agentsUsed) {
-            stateStore.recordAgentUsed(agent as AgentKitAgentType);
+            if (isBuiltInAgentType(agent)) {
+                stateStore.recordAgentUsed(agent);
+            }
         }
         for (const tool of result.toolsUsed) {
             stateStore.recordToolUsed(tool);
