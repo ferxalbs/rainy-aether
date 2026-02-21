@@ -480,6 +480,8 @@ pub fn run() {
         state_manager::get_session_state,
         state_manager::save_session_state,
         state_manager::clear_session_state,
+        state_manager::get_language_mode_preferences,
+        state_manager::save_language_mode_preferences,
         // Menu mode switching (cross-platform, macOS has real implementation)
         set_menu_mode,
     ]);

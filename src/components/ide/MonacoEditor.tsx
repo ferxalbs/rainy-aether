@@ -571,7 +571,9 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
     }
 
     const model = editor.getModel();
-    if (model) {
+    // Only force language for synthetic/untitled models. For real files,
+    // language is controlled by filename detection + StatusBar mode changes.
+    if (model && !filename) {
       monaco.editor.setModelLanguage(model, getMonacoLanguage());
     }
 
@@ -584,7 +586,7 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
         editorRef.current.focus();
       }
     }, 50);
-  }, [getMonacoLanguage, readOnly]);
+  }, [filename, getMonacoLanguage, readOnly]);
 
   // Inline Diff Decorations Effect
   useEffect(() => {

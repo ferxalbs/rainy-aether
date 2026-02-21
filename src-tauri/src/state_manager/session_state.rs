@@ -2,10 +2,18 @@
 // Single source of truth for session state (replaces fragmented TS persistence)
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct LanguageModePreference {
+    pub auto: bool,
+    pub language_id: Option<String>,
+}
 
 /// Session state - persisted across app restarts
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -16,6 +24,9 @@ pub struct SessionState {
     pub active_workspace_path: Option<String>,
     /// Whether a project is currently open
     pub is_project_open: bool,
+    /// Per-file language mode preferences (Auto/Manual + language)
+    #[serde(default)]
+    pub language_mode_preferences: HashMap<String, LanguageModePreference>,
 }
 
 /// Managed state for session persistence
@@ -152,4 +163,35 @@ pub fn clear_session_state(
 
     eprintln!("[SessionState] Cleared");
     Ok(())
+}
+
+/// Get all language mode preferences
+#[tauri::command]
+pub fn get_language_mode_preferences(
+    app: AppHandle,
+    state: State<'_, SessionStateManager>,
+) -> Result<HashMap<String, LanguageModePreference>, String> {
+    // Ensure memory is in sync with disk
+    let loaded = state.load_from_disk(&app)?;
+    if let Ok(mut guard) = state.state.lock() {
+        *guard = loaded.clone();
+    }
+    Ok(loaded.language_mode_preferences)
+}
+
+/// Save all language mode preferences
+#[tauri::command]
+pub fn save_language_mode_preferences(
+    app: AppHandle,
+    state: State<'_, SessionStateManager>,
+    preferences: HashMap<String, LanguageModePreference>,
+) -> Result<(), String> {
+    let mut current = state.load_from_disk(&app)?;
+    current.language_mode_preferences = preferences;
+
+    if let Ok(mut guard) = state.state.lock() {
+        *guard = current.clone();
+    }
+
+    state.save_to_disk(&app, &current)
 }

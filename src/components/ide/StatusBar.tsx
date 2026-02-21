@@ -22,7 +22,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { getLanguageDisplayName } from '@/utils/languageMap';
 import { initializeLSP } from '@/services/lsp';
 import { installLSPBinary } from '@/services/lsp/lspBinaryService';
-import { loadFromStore, saveToStore } from '@/stores/app-store';
 import '../../styles/statusbar.css';
 
 // Problems interface (now using MarkerStatistics)
@@ -69,7 +68,6 @@ type LanguageModePreference = {
   languageId?: string;
 };
 
-const LANGUAGE_MODE_PREFS_KEY = 'rainy-coder-language-mode-preferences-v1';
 const MAX_LANGUAGE_MODE_PREFS = 1000;
 const MAX_EXISTENCE_CHECKS_PER_RUN = 200;
 
@@ -293,7 +291,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     for (const [key, value] of languageModePreferencesRef.current.entries()) {
       serializable[key] = value;
     }
-    void saveToStore(LANGUAGE_MODE_PREFS_KEY, serializable);
+    void invoke('save_language_mode_preferences', { preferences: serializable });
   };
 
   const enforceLanguagePreferenceLimit = () => {
@@ -456,10 +454,12 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   useEffect(() => {
     let mounted = true;
     const loadPreferences = async () => {
-      const saved = await loadFromStore<Record<string, LanguageModePreference>>(
-        LANGUAGE_MODE_PREFS_KEY,
-        {}
-      );
+      let saved: Record<string, LanguageModePreference> = {};
+      try {
+        saved = await invoke<Record<string, LanguageModePreference>>('get_language_mode_preferences');
+      } catch (error) {
+        console.debug('[StatusBar] Failed to load language mode preferences from backend:', error);
+      }
       if (!mounted) return;
 
       const prefsMap = new Map<string, LanguageModePreference>(Object.entries(saved));
