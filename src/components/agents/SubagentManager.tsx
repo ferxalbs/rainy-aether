@@ -22,6 +22,10 @@ import { Switch } from "../ui/switch";
 import { SubagentFormDialog } from "./SubagentFormDialog";
 import { ScrollArea } from "../ui/scroll-area";
 import { getIDEState } from "../../stores/ideStore";
+import {
+  getCachedServerStatus,
+  subscribeToServerReady,
+} from "../../services/agentServer";
 
 // ===========================
 // Types
@@ -66,12 +70,25 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingAgent, setEditingAgent] = useState<SubagentConfig | null>(null);
+  const [serverReady, setServerReady] = useState(
+    () => getCachedServerStatus()?.running ?? false,
+  );
+
+  // Subscribe to server ready state
+  useEffect(() => {
+    const unsub = subscribeToServerReady((ready) => setServerReady(ready));
+    return unsub;
+  }, []);
 
   // Get current workspace path (dynamic based on open project)
   const workspacePath = getIDEState().workspace?.path;
 
-  // Load agents from API
+  // Load agents from API — only if server is running
   const loadAgents = useCallback(async () => {
+    if (!serverReady) {
+      setAgents([]);
+      return;
+    }
     setLoading(true);
     try {
       // Include workspace path to load project-level subagents
@@ -98,13 +115,13 @@ const SubagentManager: React.FC<SubagentManagerProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [selectedAgent, workspacePath]);
+  }, [selectedAgent, workspacePath, serverReady]);
 
   useEffect(() => {
     if (isOpen) {
       loadAgents();
     }
-  }, [isOpen, loadAgents]);
+  }, [isOpen, loadAgents, serverReady]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

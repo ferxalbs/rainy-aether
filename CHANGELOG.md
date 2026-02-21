@@ -2,6 +2,15 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.42] - 2026-02-21
+
+### Changes:
+
+- **#1 [Fixes]** Eliminated flood of "Failed to connect to localhost:3847" errors on startup. `AgentChatWindow.tsx` and `SubagentManager.tsx` now gate all HTTP requests to the AgentKit server behind a reactive `serverReady` flag — no fetches fire until the sidecar server is confirmed alive.
+- **#2 [Improvements]** Added `isServerReady()` and `subscribeToServerReady()` exports to `agentServer.ts` so any component can reactively wait for the server without polling.
+- **#3 [Improvements]** Changed health-check poll interval from 5s → 10s and added a 3s initial boot delay before the first health probe, reducing console noise during server startup.
+- **#4 [Fixes]** Removed duplicate `agent_server_health` command registration in `lib.rs` that caused a Rust compiler warning.
+
 ## [v0.1.41] - 2026-02-21
 
 ### Changes:

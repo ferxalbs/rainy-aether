@@ -197,14 +197,16 @@ export function AgentSettingsDialog() {
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-          >
-            <Settings className="h-3.5 w-3.5" />
-          </Button>
+        <DialogTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            />
+          }
+        >
+          <Settings className="h-3.5 w-3.5" />
         </DialogTrigger>
         <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-hidden flex flex-col bg-card border border-border rounded-2xl shadow-xl">
           <DialogHeader className="border-b border-border dark:border-border/30 pb-4">

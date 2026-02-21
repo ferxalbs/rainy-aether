@@ -114,17 +114,19 @@ const BranchManager: React.FC<BranchManagerProps> = ({ trigger }) => {
           </div>
 
           <div className="border-t border-border">
-            <DialogTrigger asChild>
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault();
-                  setIsCreateDialogOpen(true);
-                }}
-                className="flex items-center gap-2"
-              >
-                <Plus className="size-3" />
-                Create new branch...
-              </DropdownMenuItem>
+            <DialogTrigger
+              render={
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setIsCreateDialogOpen(true);
+                  }}
+                  className="flex items-center gap-2"
+                />
+              }
+            >
+              <Plus className="size-3" />
+              Create new branch...
             </DialogTrigger>
           </div>
         </DropdownMenuContent>

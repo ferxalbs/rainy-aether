@@ -451,7 +451,6 @@ pub fn run() {
         agent_server_manager::agent_server_stop,
         agent_server_manager::agent_server_status,
         agent_server_manager::agent_server_health,
-        agent_server_manager::agent_server_health,
         // Theme management (Rust backend)
         theme_manager::set_backend_theme,
         theme_manager::get_backend_theme,

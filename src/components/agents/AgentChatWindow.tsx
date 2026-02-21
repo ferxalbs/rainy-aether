@@ -28,6 +28,10 @@ import { ToolExecutionList } from "./ToolExecutionList";
 import { ImageAttachment } from "@/types/chat";
 import { getIDEState, useIDEState } from "@/stores/ideStore";
 import {
+  getCachedServerStatus,
+  subscribeToServerReady,
+} from "@/services/agentServer";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -922,21 +926,26 @@ export function AgentChatWindow({
   // Subagent state
   const [subagents, setSubagents] = useState<SubagentInfo[]>([]);
   const [selectedSubagent, setSelectedSubagent] = useState<string | null>(null);
+  // Track whether the agent server is ready
+  const [serverReady, setServerReady] = useState(
+    () => getCachedServerStatus()?.running ?? false,
+  );
 
-  // Fetch enabled subagents on mount with retry logic
+  // Subscribe to server ready state
   useEffect(() => {
+    const unsub = subscribeToServerReady((ready) => setServerReady(ready));
+    return unsub;
+  }, []);
+
+  // Fetch enabled subagents — only runs when the server is confirmed ready
+  useEffect(() => {
+    if (!serverReady) return; // wait until server is up
+
     let cancelled = false;
-    let retryCount = 0;
-    const maxRetries = 3;
 
     const doFetch = async () => {
       try {
-        console.log(
-          "[AgentChat] Fetching subagents... (attempt",
-          retryCount + 1,
-          ")",
-        );
-        // Include workspace to load project-level subagents
+        console.log("[AgentChat] Fetching subagents...");
         const workspacePath = getIDEState().workspace?.path;
         const url = workspacePath
           ? `http://localhost:3847/api/agentkit/subagents?enabled=true&workspace=${encodeURIComponent(
@@ -944,7 +953,6 @@ export function AgentChatWindow({
             )}`
           : "http://localhost:3847/api/agentkit/subagents?enabled=true";
 
-        // Suppress react-doctor by referencing fetch indirectly or wrapping it
         const fetchFn = window.fetch;
         const res = await fetchFn(url);
         if (res.ok) {
@@ -959,27 +967,18 @@ export function AgentChatWindow({
           }
         } else {
           console.error("[AgentChat] Failed to fetch subagents:", res.status);
-          if (retryCount < maxRetries && !cancelled) {
-            retryCount++;
-            setTimeout(doFetch, 1000 * retryCount);
-          }
         }
       } catch (err) {
         console.error("[AgentChat] Failed to fetch subagents:", err);
-        if (retryCount < maxRetries && !cancelled) {
-          retryCount++;
-          setTimeout(doFetch, 1000 * retryCount);
-        }
       }
     };
 
-    const timer = setTimeout(doFetch, 500);
+    doFetch();
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
     };
-  }, []);
+  }, [serverReady]); // re-runs whenever server comes online
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
