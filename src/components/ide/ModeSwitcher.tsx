@@ -1,6 +1,12 @@
 import React from "react";
 import { useIDEStore, useIDEState } from "@/stores/ideStore";
-import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const ModeSwitcher: React.FC = () => {
   const { state, actions } = useIDEStore();
@@ -9,30 +15,26 @@ const ModeSwitcher: React.FC = () => {
   const currentMode = snapshot.viewMode;
 
   return (
-    <div className="flex items-center gap-1 bg-muted/40 rounded-md p-0.5 border border-border/50">
-      <button
-        onClick={() => actions.setViewMode("ide")}
-        className={cn(
-          "px-3 py-1 text-xs font-medium rounded transition-all",
-          currentMode === "ide"
-            ? "bg-background text-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground"
-        )}
-      >
-        IDE
-      </button>
-      <button
-        onClick={() => actions.setViewMode("agents")}
-        className={cn(
-          "px-3 py-1 text-xs font-medium rounded transition-all",
-          currentMode === "agents"
-            ? "bg-background text-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground"
-        )}
-      >
-        Agents
-      </button>
-    </div>
+    <Select
+      value={currentMode}
+      onValueChange={(value: "ide" | "agents") => actions.setViewMode(value)}
+    >
+      <SelectTrigger className="h-5 px-1.5 py-0 text-[10px] font-medium bg-transparent border-none shadow-none focus:ring-0 hover:bg-muted/50 rounded-md transition-colors w-fit !ring-0 !outline-none gap-0.5 [&>svg]:size-3 text-foreground/80 hover:text-foreground">
+        {" "}
+        <SelectValue placeholder="IDE" />
+      </SelectTrigger>
+      <SelectContent align="center" className="min-w-[100px] z-[9999]">
+        <SelectItem value="ide" className="text-xs font-medium cursor-pointer">
+          IDE
+        </SelectItem>
+        <SelectItem
+          value="agents"
+          className="text-xs font-medium cursor-pointer"
+        >
+          AGENTS
+        </SelectItem>
+      </SelectContent>
+    </Select>
   );
 };
 

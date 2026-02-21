@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import * as monaco from 'monaco-editor';
-import { editorState } from '../../stores/editorStore';
+import { useEditorState } from '../../stores/editorStore';
 import { getCurrentTheme } from '../../stores/themeStore';
 import { useGitState } from '../../stores/gitStore';
 import { getMarkerService, MarkerStatistics } from '../../services/markerService';
@@ -22,6 +22,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { getLanguageDisplayName } from '@/utils/languageMap';
 import { initializeLSP } from '@/services/lsp';
 import { installLSPBinary } from '@/services/lsp/lspBinaryService';
+import { getLanguageFromFilename } from '@/services/monacoConfig';
 import '../../styles/statusbar.css';
 
 // Problems interface (now using MarkerStatistics)
@@ -63,15 +64,19 @@ interface SyncStatusResponse {
   branch?: string;
 }
 
-type LanguageModePreference = {
-  auto: boolean;
-  languageId?: string;
-};
-
-const MAX_LANGUAGE_MODE_PREFS = 1000;
-const MAX_EXISTENCE_CHECKS_PER_RUN = 200;
+const INSTALLABLE_LSP_ERROR_PATTERNS = [
+  'not found',
+  'enoent',
+  'no such file',
+  'unknown binary',
+  'toolchain',
+  'rustup component',
+  'exited immediately',
+  'request timeout: initialize',
+];
 
 const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
+  const { view: editorView } = useEditorState();
   const gitState = useGitState();
   const [syncStatus, setSyncStatus] = useState<SyncStatusResponse>({
     ahead: 0,
@@ -99,7 +104,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const [editorInfo, setEditorInfo] = useState<EditorInfo>({
     languageId: 'plaintext',
     language: 'Plain Text',
-    autoMode: false,
+    autoMode: true,
     encoding: 'UTF-8',
     line: 1,
     column: 1,
@@ -110,9 +115,6 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const [eol, setEOL] = useState<string>('LF');
   const [installingLspServers, setInstallingLspServers] = useState<Set<string>>(new Set());
   const autoLanguageModeByUriRef = useRef<Map<string, boolean>>(new Map());
-  const languageModePreferencesRef = useRef<Map<string, LanguageModePreference>>(new Map());
-  const pruneInProgressRef = useRef(false);
-  const prevWorkspacePathRef = useRef<string | null>(null);
   const [platformName, setPlatformName] = useState<string>('');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const notificationStats = useNotificationStats();
@@ -250,7 +252,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   // Update editor info with error handling
   const updateEditorInfo = () => {
     try {
-      const editor = editorState.view;
+      const editor = editorView;
       if (!editor) return;
 
       const model = editor.getModel();
@@ -286,102 +288,10 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     return model.uri.path || model.uri.toString();
   };
 
-  const saveLanguageModePreferences = () => {
-    const serializable: Record<string, LanguageModePreference> = {};
-    for (const [key, value] of languageModePreferencesRef.current.entries()) {
-      serializable[key] = value;
-    }
-    void invoke('save_language_mode_preferences', { preferences: serializable });
-  };
-
-  const enforceLanguagePreferenceLimit = () => {
-    const prefs = languageModePreferencesRef.current;
-    if (prefs.size <= MAX_LANGUAGE_MODE_PREFS) {
-      return;
-    }
-
-    const overflow = prefs.size - MAX_LANGUAGE_MODE_PREFS;
-    const oldestKeys = Array.from(prefs.keys()).slice(0, overflow);
-    for (const key of oldestKeys) {
-      prefs.delete(key);
-      autoLanguageModeByUriRef.current.delete(key);
-    }
-  };
-
-  const setLanguagePreferenceForModel = (
-    model: monaco.editor.ITextModel,
-    preference: LanguageModePreference
-  ) => {
+  const ensureAutoLanguageMode = (model: monaco.editor.ITextModel) => {
     const key = getModelPersistenceKey(model);
-    languageModePreferencesRef.current.delete(key);
-    languageModePreferencesRef.current.set(key, preference);
-    autoLanguageModeByUriRef.current.set(key, preference.auto);
-    enforceLanguagePreferenceLimit();
-    saveLanguageModePreferences();
-  };
-
-  const pruneMissingLanguagePreferences = async () => {
-    if (pruneInProgressRef.current) {
-      return;
-    }
-    pruneInProgressRef.current = true;
-
-    try {
-      const entries = Array.from(languageModePreferencesRef.current.entries());
-      const toCheck = entries.slice(0, MAX_EXISTENCE_CHECKS_PER_RUN);
-      if (toCheck.length === 0) {
-        return;
-      }
-
-      const missingKeys: string[] = [];
-      for (const [pathKey] of toCheck) {
-        // Ignore non-file URIs and synthetic paths
-        if (!pathKey || pathKey.startsWith('untitled:') || pathKey.startsWith('inmemory:')) {
-          continue;
-        }
-        try {
-          const exists = await invoke<boolean>('path_exists', { path: pathKey });
-          if (!exists) {
-            missingKeys.push(pathKey);
-          }
-        } catch {
-          // Ignore probe failures; keep preference to avoid accidental data loss.
-        }
-      }
-
-      if (missingKeys.length > 0) {
-        for (const key of missingKeys) {
-          languageModePreferencesRef.current.delete(key);
-          autoLanguageModeByUriRef.current.delete(key);
-        }
-        saveLanguageModePreferences();
-      }
-    } finally {
-      pruneInProgressRef.current = false;
-    }
-  };
-
-  const applyStoredLanguagePreference = (model: monaco.editor.ITextModel) => {
-    const key = getModelPersistenceKey(model);
-    const preference = languageModePreferencesRef.current.get(key);
-    if (!preference) {
-      // Default to Auto Detect when no explicit preference exists for a file.
-      autoLanguageModeByUriRef.current.set(key, true);
-      applyAutoLanguageDetection(model);
-      return;
-    }
-
-    autoLanguageModeByUriRef.current.set(key, preference.auto);
-
-    if (preference.auto) {
-      applyAutoLanguageDetection(model);
-      return;
-    }
-
-    if (preference.languageId && model.getLanguageId() !== preference.languageId) {
-      monaco.editor.setModelLanguage(model, preference.languageId);
-      lspStatusActions.setActiveLanguage(preference.languageId);
-    }
+    autoLanguageModeByUriRef.current.set(key, true);
+    applyAutoLanguageDetection(model);
   };
 
   const detectLanguageFromModel = (model: monaco.editor.ITextModel): string => {
@@ -389,6 +299,12 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     const uriPath = model.uri.path || model.uri.toString();
     const fileName = uriPath.split('/').pop()?.toLowerCase() || '';
     const firstLine = model.getLineCount() > 0 ? model.getLineContent(1) : '';
+
+    // Fast-path fallback map for common languages even when Monaco metadata is partial.
+    const mappedLanguage = getLanguageFromFilename(fileName);
+    if (mappedLanguage !== 'plaintext') {
+      return mappedLanguage;
+    }
 
     for (const language of allLanguages) {
       const filenames = (language.filenames || []).map((name) => name.toLowerCase());
@@ -450,57 +366,19 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     return unsubscribe;
   }, []);
 
-  // Load persisted language mode preferences once.
+  // Enforce auto mode on the currently active model.
   useEffect(() => {
-    let mounted = true;
-    const loadPreferences = async () => {
-      let saved: Record<string, LanguageModePreference> = {};
-      try {
-        saved = await invoke<Record<string, LanguageModePreference>>('get_language_mode_preferences');
-      } catch (error) {
-        console.debug('[StatusBar] Failed to load language mode preferences from backend:', error);
-      }
-      if (!mounted) return;
-
-      const prefsMap = new Map<string, LanguageModePreference>(Object.entries(saved));
-      languageModePreferencesRef.current = prefsMap;
-      autoLanguageModeByUriRef.current = new Map(
-        Array.from(prefsMap.entries()).map(([key, value]) => [key, value.auto])
-      );
-      enforceLanguagePreferenceLimit();
-      saveLanguageModePreferences();
-
-      const editor = editorState.view;
-      const model = editor?.getModel();
-      if (model) {
-        applyStoredLanguagePreference(model);
-        updateEditorInfo();
-      }
-
-      void pruneMissingLanguagePreferences();
-    };
-
-    void loadPreferences();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const currentWorkspacePath = gitState.workspacePath || null;
-    const previousWorkspacePath = prevWorkspacePathRef.current;
-
-    // Workspace closed: run a background prune pass.
-    if (previousWorkspacePath && !currentWorkspacePath) {
-      void pruneMissingLanguagePreferences();
+    const editor = editorView;
+    const model = editor?.getModel();
+    if (model) {
+      ensureAutoLanguageMode(model);
+      updateEditorInfo();
     }
-
-    prevWorkspacePathRef.current = currentWorkspacePath;
-  }, [gitState.workspacePath]);
+  }, [editorView]);
 
   // Update editor info when editor changes with debouncing
   useEffect(() => {
-    const editor = editorState.view;
+    const editor = editorView;
     if (!editor) return;
 
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -522,7 +400,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     const modelDisposable = editor.onDidChangeModel(() => {
       const model = editor.getModel();
       if (model) {
-        applyStoredLanguagePreference(model);
+        ensureAutoLanguageMode(model);
       }
       debouncedUpdate();
     });
@@ -541,7 +419,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
 
     const initialModel = editor.getModel();
     if (initialModel) {
-      applyStoredLanguagePreference(initialModel);
+      ensureAutoLanguageMode(initialModel);
     }
     updateEditorInfo();
 
@@ -554,7 +432,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       modelDisposable.dispose();
       modelLanguageDisposable.dispose();
     };
-  }, []);
+  }, [editorView]);
 
   // Keep ahead/behind sync info in status bar without re-requesting full file status.
   useEffect(() => {
@@ -696,42 +574,37 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     }
   };
 
+  const shouldOfferLSPInstall = (serverInfo: LSPServerInfo): boolean => {
+    if (serverInfo.status === 'unavailable') {
+      return true;
+    }
+    if (serverInfo.status !== 'error') {
+      return false;
+    }
+
+    const error = (serverInfo.error || '').toLowerCase();
+    return INSTALLABLE_LSP_ERROR_PATTERNS.some((pattern) => error.includes(pattern));
+  };
+
   // Handle language mode change
   const handleLanguageChange = (languageId: string) => {
-    const editor = editorState.view;
+    const editor = editorView;
     if (!editor) return;
 
     const model = editor.getModel();
     if (!model) return;
 
-    // Handle "auto" mode with Monaco-native detection
-    if (languageId === 'auto') {
-      setLanguagePreferenceForModel(model, { auto: true });
-      applyAutoLanguageDetection(model);
-      updateEditorInfo();
-      return;
+    // Language mode is always auto-detect; ignore manual selections.
+    if (languageId !== 'auto') {
+      console.debug('[StatusBar] Manual language selection ignored; auto mode is enforced.');
     }
-
-    setLanguagePreferenceForModel(model, { auto: false, languageId });
-
-    // Set language mode in Monaco
-    monaco.editor.setModelLanguage(model, languageId);
-
-    // Update state using imported function
-    setEditorInfo((prev) => ({
-      ...prev,
-      languageId,
-      language: getLanguageDisplayName(languageId),
-      autoMode: false,
-    }));
-
-    // Update LSP status
-    lspStatusActions.setActiveLanguage(languageId);
+    ensureAutoLanguageMode(model);
+    updateEditorInfo();
   };
 
   // Handle EOL change
   const handleEOLChange = (newEOL: string) => {
-    const editor = editorState.view;
+    const editor = editorView;
     if (!editor) return;
 
     const model = editor.getModel();
@@ -909,7 +782,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
             : display.icon === 'error'
               ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>'
               : '';
-        const canInstall = serverInfo.status === 'unavailable';
+        const canInstall = shouldOfferLSPInstall(serverInfo);
         const tooltip = canInstall
           ? `${display.tooltip}. Click to install ${serverInfo.name}`
           : display.tooltip;

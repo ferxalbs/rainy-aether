@@ -172,11 +172,15 @@ pub fn get_language_mode_preferences(
     state: State<'_, SessionStateManager>,
 ) -> Result<HashMap<String, LanguageModePreference>, String> {
     // Ensure memory is in sync with disk
-    let loaded = state.load_from_disk(&app)?;
+    let mut loaded = state.load_from_disk(&app)?;
+    // Global policy: language mode runs in auto-detect only.
+    // Clear persisted manual overrides from previous versions.
+    loaded.language_mode_preferences.clear();
     if let Ok(mut guard) = state.state.lock() {
         *guard = loaded.clone();
     }
-    Ok(loaded.language_mode_preferences)
+    state.save_to_disk(&app, &loaded)?;
+    Ok(HashMap::new())
 }
 
 /// Save all language mode preferences
@@ -184,10 +188,11 @@ pub fn get_language_mode_preferences(
 pub fn save_language_mode_preferences(
     app: AppHandle,
     state: State<'_, SessionStateManager>,
-    preferences: HashMap<String, LanguageModePreference>,
+    _preferences: HashMap<String, LanguageModePreference>,
 ) -> Result<(), String> {
     let mut current = state.load_from_disk(&app)?;
-    current.language_mode_preferences = preferences;
+    // Global policy: keep this empty to enforce auto mode everywhere.
+    current.language_mode_preferences.clear();
 
     if let Ok(mut guard) = state.state.lock() {
         *guard = current.clone();

@@ -302,15 +302,23 @@ export function AgentsSidebar({ className }: { className?: string }) {
           </div>
         ) : (
           filteredSessions.map((session) => (
-            <button
+            <div
               key={session.id}
               onClick={() => agentActions.setActiveSession(session.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  agentActions.setActiveSession(session.id);
+                }
+              }}
               className={cn(
                 "group flex flex-col gap-1.5 p-3 rounded-2xl cursor-pointer transition-all duration-300 border w-full text-left",
                 activeSession?.id === session.id
                   ? "bg-primary/5 border-primary/20 shadow-lg shadow-black/10 text-foreground"
                   : "bg-transparent border-transparent hover:bg-background/20 hover:border-primary/10 text-muted-foreground/70 hover:text-foreground",
               )}
+              role="button"
+              tabIndex={0}
             >
               <div className="flex items-center justify-between w-full">
                 <span
@@ -384,7 +392,7 @@ export function AgentsSidebar({ className }: { className?: string }) {
                     : "Just now"}
                 </span>
               </div>
-            </button>
+            </div>
           ))
         )}
       </div>

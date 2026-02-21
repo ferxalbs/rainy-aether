@@ -15,6 +15,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
+use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
@@ -62,7 +63,7 @@ pub struct ServerStats {
 /// Parameters for starting a language server
 #[derive(Debug, Deserialize)]
 pub struct StartServerParams {
-    #[serde(rename = "serverId")]
+    #[serde(rename = "serverId", alias = "server_id")]
     pub server_id: String,
     pub command: String,
     #[serde(default)]
@@ -73,10 +74,24 @@ pub struct StartServerParams {
     pub env: HashMap<String, String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ServerIdParams {
+    #[serde(rename = "serverId", alias = "server_id")]
+    pub server_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SendMessageParams {
+    #[serde(rename = "serverId", alias = "server_id")]
+    pub server_id: String,
+    pub message: String,
+}
+
 /// Response for server operations
 #[derive(Debug, Serialize)]
 pub struct ServerResponse {
     pub success: bool,
+    #[serde(rename = "sessionId")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -119,6 +134,7 @@ pub enum LSPError {
     ServerAlreadyRunning(String),
     ServerNotRunning(String),
     ProcessSpawnFailed(std::io::Error),
+    ServerExitedEarly(String),
     StdioCaptureFailed,
     MessageSendFailed(std::io::Error),
     LockAcquisitionFailed,
@@ -133,6 +149,9 @@ impl std::fmt::Display for LSPError {
             LSPError::ServerNotRunning(id) => write!(f, "Server {} is not running", id),
             LSPError::ProcessSpawnFailed(e) => {
                 write!(f, "Failed to spawn language server process: {}", e)
+            }
+            LSPError::ServerExitedEarly(msg) => {
+                write!(f, "Language server exited immediately: {}", msg)
             }
             LSPError::StdioCaptureFailed => write!(f, "Failed to capture stdout/stderr"),
             LSPError::MessageSendFailed(e) => write!(f, "Failed to send message: {}", e),
@@ -182,17 +201,98 @@ fn resolve_command_path(command: &str) -> String {
     }
 }
 
+/// Build an augmented PATH that includes common user-level binary directories.
+fn build_augmented_path(existing: Option<String>) -> Option<String> {
+    let mut paths: Vec<PathBuf> = Vec::new();
+
+    // 1) Keep caller-provided PATH first (if present).
+    if let Some(path) = existing.as_deref() {
+        paths.extend(std::env::split_paths(path));
+    }
+
+    // 2) Always merge current process PATH to avoid dropping system toolchains.
+    if let Ok(current_path) = std::env::var("PATH") {
+        paths.extend(std::env::split_paths(&current_path));
+    }
+
+    if let Ok(home) = std::env::var("HOME") {
+        paths.push(PathBuf::from(&home).join(".cargo").join("bin"));
+        paths.push(PathBuf::from(&home).join(".local").join("bin"));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        paths.push(PathBuf::from("/opt/homebrew/bin"));
+        paths.push(PathBuf::from("/usr/local/bin"));
+        paths.push(PathBuf::from("/usr/bin"));
+        paths.push(PathBuf::from("/bin"));
+        paths.push(PathBuf::from("/usr/sbin"));
+        paths.push(PathBuf::from("/sbin"));
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        paths.push(PathBuf::from("/usr/local/bin"));
+        paths.push(PathBuf::from("/usr/bin"));
+        paths.push(PathBuf::from("/snap/bin"));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(profile) = std::env::var("USERPROFILE") {
+            paths.push(PathBuf::from(&profile).join(".cargo").join("bin"));
+            paths.push(PathBuf::from(&profile).join(".local").join("bin"));
+        }
+        if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+            paths.push(PathBuf::from(&local_app_data).join("Microsoft").join("WindowsApps"));
+        }
+        if let Ok(system_root) = std::env::var("SystemRoot") {
+            paths.push(PathBuf::from(&system_root).join("System32"));
+            paths.push(PathBuf::from(&system_root));
+        }
+    }
+
+    // De-duplicate while preserving order.
+    let mut unique = Vec::<PathBuf>::new();
+    for path in paths {
+        if !unique.iter().any(|existing_path| existing_path == &path) {
+            unique.push(path);
+        }
+    }
+
+    std::env::join_paths(unique)
+        .ok()
+        .map(|joined| joined.to_string_lossy().to_string())
+}
+
 fn is_command_available(command: &str) -> bool {
     let resolved = resolve_command_path(command);
-    match Command::new(&resolved)
-        .arg("--version")
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-    {
-        Ok(_) => true,
-        Err(err) => err.kind() != std::io::ErrorKind::NotFound,
+    let probes = [["--version"], ["-V"], ["--help"]];
+    let augmented_path = build_augmented_path(std::env::var("PATH").ok());
+
+    for probe in probes {
+        let mut cmd = Command::new(&resolved);
+        cmd.args(probe)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        if let Some(path) = &augmented_path {
+            cmd.env("PATH", path);
+        }
+
+        match cmd.status() {
+            Ok(status) if status.success() => return true,
+            Ok(_) => {
+                // Command was found but probe failed (common with broken shims).
+                // Keep trying other probes before marking unavailable.
+            }
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return false,
+            Err(_) => {
+                // Permission or execution error: treat as unavailable for safe UX.
+            }
+        }
     }
+
+    false
 }
 
 fn run_install_candidate(candidate: &[String]) -> Result<std::process::Output, String> {
@@ -204,6 +304,10 @@ fn run_install_candidate(candidate: &[String]) -> Result<std::process::Output, S
     let mut command = Command::new(&program);
     if candidate.len() > 1 {
         command.args(&candidate[1..]);
+    }
+
+    if let Some(path) = build_augmented_path(std::env::var("PATH").ok()) {
+        command.env("PATH", path);
     }
 
     command
@@ -356,8 +460,13 @@ impl LanguageServerManager {
         }
 
         // Set environment variables
+        if let Some(path) = build_augmented_path(params.env.get("PATH").cloned()) {
+            cmd.env("PATH", path);
+        }
         for (key, value) in &params.env {
-            cmd.env(key, value);
+            if key != "PATH" {
+                cmd.env(key, value);
+            }
         }
 
         // Configure stdio with proper buffering
@@ -383,6 +492,21 @@ impl LanguageServerManager {
                 return Err(LSPError::ProcessSpawnFailed(e));
             }
         };
+
+        // Guard against wrappers/shims that spawn successfully but terminate immediately.
+        thread::sleep(Duration::from_millis(120));
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                return Err(LSPError::ServerExitedEarly(format!(
+                    "{} ({}) exited with status {:?}",
+                    server_id, params.command, status.code()
+                )));
+            }
+            Ok(None) => {}
+            Err(e) => {
+                return Err(LSPError::ProcessSpawnFailed(e));
+            }
+        }
 
         // Get handles with validation
         let stdin = child.stdin.take();
@@ -767,10 +891,10 @@ pub fn lsp_start_server(
 /// Stop a language server
 #[tauri::command]
 pub fn lsp_stop_server(
-    server_id: String,
+    params: ServerIdParams,
     state: tauri::State<'_, LanguageServerManager>,
 ) -> Result<ServerResponse, String> {
-    state.stop_server(&server_id)?;
+    state.stop_server(&params.server_id)?;
     Ok(ServerResponse {
         success: true,
         session_id: None,
@@ -781,11 +905,10 @@ pub fn lsp_stop_server(
 /// Send a message to a language server
 #[tauri::command]
 pub fn lsp_send_message(
-    server_id: String,
-    message: String,
+    params: SendMessageParams,
     state: tauri::State<'_, LanguageServerManager>,
 ) -> Result<ServerResponse, String> {
-    state.send_message(&server_id, &message)?;
+    state.send_message(&params.server_id, &params.message)?;
     Ok(ServerResponse {
         success: true,
         session_id: None,
@@ -823,7 +946,10 @@ pub fn lsp_get_binary_statuses() -> Vec<LSPBinaryStatus> {
 
 /// Attempts to install a known language server binary.
 #[tauri::command]
-pub fn lsp_install_server_binary(server_id: String) -> Result<LSPBinaryInstallResult, String> {
+pub fn lsp_install_server_binary(
+    params: ServerIdParams,
+) -> Result<LSPBinaryInstallResult, String> {
+    let server_id = params.server_id;
     let spec =
         get_install_spec(&server_id).ok_or_else(|| format!("Unsupported LSP server: {}", server_id))?;
 

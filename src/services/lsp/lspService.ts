@@ -288,7 +288,10 @@ class LSPService {
       normalized.includes('not found') ||
       normalized.includes('enoent') ||
       normalized.includes('no such file') ||
-      normalized.includes('could not start')
+      normalized.includes('could not start') ||
+      normalized.includes('unknown binary') ||
+      normalized.includes('rustup component') ||
+      normalized.includes('toolchain')
     );
   }
 
@@ -317,6 +320,8 @@ let initializePromise: Promise<void> | null = null;
 interface LSPBinaryStatus {
   server_id: string;
   installed: boolean;
+  command?: string;
+  instructions?: string;
 }
 
 /**
@@ -376,25 +381,29 @@ export async function initializeLSP(): Promise<void> {
 
   // Preflight check for installed binaries. If this fails (e.g. non-Tauri env),
   // we fall back to the previous behavior and attempt normal registration.
-  let installedByServerId: Record<string, boolean> | null = null;
+  let statusesByServerId: Record<string, LSPBinaryStatus> | null = null;
   try {
     const statuses = await invoke<LSPBinaryStatus[]>('lsp_get_binary_statuses');
-    installedByServerId = Object.fromEntries(
-      statuses.map((entry) => [entry.server_id, entry.installed])
+    statusesByServerId = Object.fromEntries(
+      statuses.map((entry) => [entry.server_id, entry])
     );
   } catch (error) {
     console.debug('[LSP] Binary preflight unavailable, falling back to direct startup:', error);
   }
 
   for (const server of externalServers) {
-    const isInstalled = installedByServerId ? installedByServerId[server.id] === true : true;
+    const status = statusesByServerId?.[server.id];
+    const isInstalled = status ? status.installed === true : true;
 
     if (!isInstalled) {
+      const installHint = status?.instructions
+        ? ` ${status.instructions}`
+        : '';
       lspStatusActions.registerServer(server.id, server.name, server.languages);
       lspStatusActions.setServerStatus(
         server.id,
         'unavailable',
-        `Command not found: ${server.command}. Install it from Settings > LSP & Binaries.`
+        `Language server binary unavailable or not runnable (${server.command}).${installHint}`
       );
       continue;
     }

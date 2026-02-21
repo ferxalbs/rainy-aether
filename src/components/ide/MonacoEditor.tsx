@@ -243,6 +243,9 @@ const MonacoEditorComponent: React.FC<MonacoEditorProps> = ({
     let model = monaco.editor.getModel(modelUri);
     if (!model) {
       model = monaco.editor.createModel(value, detectedLanguage, modelUri);
+    } else if (model.getLanguageId() !== detectedLanguage) {
+      // Keep reused models aligned with the current filename-based language.
+      monaco.editor.setModelLanguage(model, detectedLanguage);
     }
 
     // Get editor configuration from settings store (prioritized) and configuration service (fallback)

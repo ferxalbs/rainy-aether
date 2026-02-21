@@ -94,7 +94,12 @@ export class ConnectionManager {
 
     try {
       // Start the language server via Tauri backend (using improved implementation)
-      const result = await invoke<{ success: boolean; sessionId?: number; error?: string }>('lsp_start_server', {
+      const result = await invoke<{
+        success: boolean;
+        sessionId?: number;
+        session_id?: number;
+        error?: string;
+      }>('lsp_start_server', {
         params: {
           serverId: this.serverId,
           command: options.command,
@@ -104,12 +109,13 @@ export class ConnectionManager {
         }
       });
 
-      if (!result.success || !result.sessionId) {
+      const sessionId = result.sessionId ?? result.session_id;
+      if (!result.success || !sessionId) {
         throw new Error(result.error || 'Failed to start LSP server');
       }
 
       // Store session ID
-      this.sessionId = result.sessionId;
+      this.sessionId = sessionId;
       console.info(`[LSP Connection] Server started with session ID: ${this.sessionId}`);
 
       // Set up event listeners using session ID
@@ -137,7 +143,11 @@ export class ConnectionManager {
       this.protocol.cancelAllRequests();
 
       // Stop the language server (using improved implementation)
-      await invoke('lsp_stop_server', { serverId: this.serverId });
+      await invoke('lsp_stop_server', {
+        params: {
+          serverId: this.serverId,
+        },
+      });
 
       // Clean up event listeners
       await this.cleanupEventListeners();
@@ -207,8 +217,25 @@ export class ConnectionManager {
     // Listen for server errors (using session ID)
     this.unlistenError = await listen(`lsp-error-${this.sessionId}`, (event) => {
       const payload = event.payload as { error: string };
-      console.error(`[LSP Connection] Server error:`, payload.error);
-      this.setState(ConnectionState.Error);
+      const errorText = String(payload.error || '').trim();
+      if (!errorText) {
+        return;
+      }
+
+      const normalized = errorText.toLowerCase();
+      const isCritical =
+        normalized.includes('malformed lsp payload') ||
+        normalized.includes('panicked') ||
+        normalized.includes('stack backtrace');
+
+      if (isCritical) {
+        console.error(`[LSP Connection] Server error:`, errorText);
+        this.protocol.cancelAllRequests();
+        this.setState(ConnectionState.Error);
+        return;
+      }
+
+      console.debug(`[LSP Connection] Server log:`, errorText);
     });
 
     // Listen for server close (using session ID)
@@ -257,10 +284,16 @@ export class ConnectionManager {
    */
   private async sendToServer(message: JSONRPCMessage): Promise<void> {
     try {
-      const serialized = this.protocol.serializeMessage(message);
+      // Transport contract:
+      // - Frontend sends raw JSON payload
+      // - Rust backend applies LSP Content-Length framing
+      // Sending already-framed payload here causes malformed LSP messages.
+      const serialized = JSON.stringify(message);
       await invoke('lsp_send_message', {
-        serverId: this.serverId,
-        message: serialized,
+        params: {
+          serverId: this.serverId,
+          message: serialized,
+        },
       });
     } catch (error) {
       console.error('[LSP Connection] Failed to send message to server:', error);

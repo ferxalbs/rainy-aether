@@ -1,7 +1,5 @@
 import React, { useMemo } from 'react';
-import * as monaco from 'monaco-editor';
 import { StatusBarSelect, SelectGroup } from '@/components/ui/statusbar-select';
-import { getLanguageDisplayName } from '@/utils/languageMap';
 
 interface LanguageModeSelectorProps {
   isOpen: boolean;
@@ -36,16 +34,6 @@ export function LanguageModeSelector({
   onLanguageChange,
 }: LanguageModeSelectorProps) {
   const languageGroups = useMemo<SelectGroup[]>(() => {
-    const monacoLanguages = monaco.languages
-      .getLanguages()
-      .filter((lang) => lang.id && lang.id !== 'vs.editor.nullLanguage')
-      .map((lang) => ({
-        id: lang.id,
-        name: getLanguageDisplayName(lang.id),
-        description: lang.extensions?.slice(0, 4).join(', ') || lang.aliases?.[0] || lang.id,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
     return [
       {
         label: 'Auto Detection',
@@ -53,14 +41,10 @@ export function LanguageModeSelector({
           {
             id: 'auto',
             name: 'Auto Detect',
-            description: 'Detect language from file extension',
+            description: 'Always enabled. Language is detected from file name and content.',
             icon: <AutoDetectIcon />,
           },
         ],
-      },
-      {
-        label: 'Available Languages',
-        options: monacoLanguages,
       },
     ];
   }, []);

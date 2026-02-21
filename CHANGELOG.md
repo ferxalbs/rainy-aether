@@ -2,58 +2,19 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
-## [v0.1.35] - 2026-02-20
+## [v0.1.29] - 2026-02-21
 
 ### Changes:
 
+- **[Improvements]** Refactored the top window drag region ("MenuBar") for Windows and Linux to strictly adhere to a streamlined flexbox layout, fixing overflowing elements and a buggy drag area.
+- **[Improvements]** Redesigned the IDE/Agents `ModeSwitcher` into a premium, minimalist floating pill configuration with refined paddings and typography.
+- **[Improvements]** Cleaned up Windows and Linux native `WindowControls` by removing harsh hover boxing and relying on transparent backgrounds with standard iconography for a sleek, integrated look aligned with glassmorphism UI guidelines.
 - **[Improvements]** Reworked the compact Agent Chat input in the sidebar to be a seamless, flat, and completely solid panel seamlessly anchored to the bottom. Removed floating styles, inner boxes, and rounded corners to achieve a professional, deeply integrated native IDE feeling.
-
----
-
-## [v0.1.34] - 2026-02-20
-
-### Changes:
-
 - **[Improvements]** Rebalanced the Agent Sidebar Chat Window margin and clipping. Restored a clean `m-1 rounded-lg` boundary to the text input so it fits precisely inside the frame without looking entirely flat/dull, preserving the intended premium style in the compact IDE configuration.
-
----
-
-## [v0.1.33] - 2026-02-20
-
-### Changes:
-
 - **[Improvements]** Compacted the Agent Sidebar Chat Window and input area to follow a unified, tighter UI specification for better screen real-estate usage across the IDE.
-
----
-
-## [v0.1.32] - 2026-02-21
-
-### Changes:
-
 - **[Improvements]** Removed remaining glassmorphism properties (backdrop-blur, backdrop-saturate) across the `src/components/agents` directory to apply a solid, high-end theme compliant with the IDE's core aesthetics. Fixed a thinking mode mapping typing issue within the `ModelSelector`.
-
----
-
-## [v0.1.31] - 2026-02-20
-
-### Changes:
-
 - **[Improvements]** Added support for the newly announced Gemini 3.1 Pro model (`gemini-3.1-pro-preview`) with Low, Medium, and High reasoning (thinking) levels. Extended `ThinkingMode` and `GeminiThinkingConfig` to support the `'MEDIUM'` reasoning configuration.
-
----
-
-## [v0.1.30] - 2026-02-20
-
-### Changes:
-
 - **[Fixes]** Resolved a Base UI crash (`MenuGroupRootContext is missing`) within the model and agent selectors of `AgentChatWindow.tsx` by adding the required `DropdownMenuGroup` wrapper.
-
----
-
-## [v0.1.29] - 2026-02-20
-
-### Changes:
-
 - **[Fixes]** Replaced `asChild` with `render` prop in `DropdownMenuTrigger` across multiple components (`AgentChatWindow`, `AgentsSidebar`, `BranchManager`, `GitHistoryPanel`, `StashManager`) to fix TypeScript compatibility issues with `@base-ui/react`.
 - **[Improvements]** Resolved multiple accessibility and performance warnings from `react-doctor` in `AgentChatWindow.tsx` and `AgentsSidebar.tsx`, including extracting inline render components, fixing accessible headings, ensuring unique list keys, and fixing missing semantic button roles. React Doctor score improved to 98/100.
 

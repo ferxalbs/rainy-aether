@@ -16,7 +16,11 @@ import { editorActions } from "../../stores/editorStore";
 import { terminalActions, getTerminalState } from "../../stores/terminalStore";
 import { panelActions, usePanelState } from "../../stores/panelStore";
 import ModeSwitcher from "./ModeSwitcher";
-import { PanelLeft, PanelBottom, PanelRight } from "lucide-react";
+import {
+  IconLayoutSidebar,
+  IconLayoutBottombar,
+  IconLayoutSidebarRight,
+} from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
 import {
@@ -317,18 +321,18 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // These control sidebar, bottom panel, and right sidebar which are IDE-specific
   const RightControls =
     viewMode === "ide" ? (
-      <div className="ml-auto flex items-center pr-2 gap-1">
+      <div className="ml-auto flex items-center pr-1 gap-0.5">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => actions.toggleSidebar()}
           title="Toggle Sidebar"
           className={cn(
-            "h-7 w-7 text-secondary p-1",
+            "h-6 w-6 text-secondary p-0.5",
             snapshot.isSidebarOpen && "bg-muted text-foreground",
           )}
         >
-          <PanelLeft size={16} />
+          <IconLayoutSidebar size={14} stroke={1.5} />
         </Button>
 
         <Button
@@ -337,11 +341,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
           onClick={() => panelActions.togglePanel("terminal")}
           title="Toggle Panel"
           className={cn(
-            "h-7 w-7 text-secondary p-1",
+            "h-6 w-6 text-secondary p-0.5",
             panelState.isBottomPanelOpen && "bg-muted text-foreground",
           )}
         >
-          <PanelBottom size={16} />
+          <IconLayoutBottombar size={14} stroke={1.5} />
         </Button>
 
         <Button
@@ -350,11 +354,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
           onClick={() => actions.toggleRightSidebar()}
           title="Toggle Agents View"
           className={cn(
-            "h-7 w-7 text-secondary p-1",
+            "h-6 w-6 text-secondary p-0.5",
             snapshot.isRightSidebarOpen && "bg-muted text-foreground",
           )}
         >
-          <PanelRight size={16} />
+          <IconLayoutSidebarRight size={14} stroke={1.5} />
         </Button>
       </div>
     ) : null;
@@ -364,26 +368,26 @@ const MenuBar: React.FC<MenuBarProps> = ({
   // Traffic lights center at ~14px from top, so we position our content to match
   if (useNative) {
     return (
-      <div className="h-12 flex items-center select-none w-full shrink-0 relative z-50 mb-1">
+      <div
+        className="h-[38px] flex items-center select-none w-full shrink-0 relative z-50 mb-0 bg-background/60 dark:bg-background/20 backdrop-blur-2xl backdrop-saturate-150 border-b border-border/20"
+        data-tauri-drag-region
+      >
         {/* Left padding for native macOS traffic lights */}
-        <div className="w-[78px] shrink-0 h-full" />
+        <div className="w-[78px] shrink-0 h-full" data-tauri-drag-region />
 
-        {/* Mode Switcher - Centered floating pill */}
-        {currentView === "editor" && (
-          <div className="flex flex-1 items-center justify-center h-full pointer-events-none">
-            <div className="glass-panel rounded-full px-2 py-1 flex items-center shadow-lg pointer-events-auto">
-              <ModeSwitcher />
-            </div>
-          </div>
-        )}
+        <div
+          className="flex items-center h-full mr-1 pl-1"
+          data-tauri-drag-region
+        >
+          {/* Mode Switcher */}
+          {currentView === "editor" && <ModeSwitcher />}
+        </div>
 
-        {/* Right-aligned Layout Controls - floating pill */}
+        <div className="flex-1 h-full" data-tauri-drag-region />
+
+        {/* Right-aligned Layout Controls */}
         {currentView === "editor" && RightControls && (
-          <div className="flex items-center absolute right-0 pr-1 h-full pointer-events-none">
-            <div className="glass-panel rounded-full px-2 py-1 flex items-center shadow-lg pointer-events-auto">
-              {RightControls}
-            </div>
-          </div>
+          <div className="flex items-center h-full pr-1">{RightControls}</div>
         )}
       </div>
     );
@@ -391,14 +395,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   // On Windows/Linux: render the full shadcn menu bar inside a floating glass panel
   return (
-    <div className="h-12 w-full shrink-0 select-none mb-1 shadow-sm">
-      <div
-        className="glass-panel rounded-xl h-full w-full flex items-center px-2 shadow-lg"
-        data-tauri-drag-region
-      >
+    <div className="h-8 w-full shrink-0 select-none flex items-center bg-background/60 dark:bg-background/20 backdrop-blur-2xl backdrop-saturate-150 border-b border-border/20 z-50">
+      {/* Left side: Menu and Mode Switcher */}
+      <div className="flex items-center px-1 h-full shrink-0">
         {/* Mode Switcher - only visible in editor view */}
         {currentView === "editor" && (
-          <div className="flex items-center px-2 border-r border-border/50 h-6 shrink-0 mr-2">
+          <div className="flex items-center border-r border-border/50 h-5 shrink-0 mr-1 pr-1">
             <ModeSwitcher />
           </div>
         )}
@@ -1137,7 +1139,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
       <div className="flex-1 h-full" data-tauri-drag-region />
 
-      <div className="flex items-center h-full gap-2 pr-2">
+      <div className="flex items-center h-full shrink-0">
         {/* Layout controls only visible in editor view with IDE mode */}
         {currentView === "editor" && RightControls}
         <WindowControls />

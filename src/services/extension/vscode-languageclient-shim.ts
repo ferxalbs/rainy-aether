@@ -104,6 +104,7 @@ export class LanguageClient {
   private serverOptions: ServerOptions;
   private state: State = State.Stopped;
   private serverId: string | null = null;
+  private serverSessionId: number | null = null;
   private disposables: (() => void)[] = [];
   private unlistenFunctions: UnlistenFn[] = [];
   private messageHandlers: Map<string, (params: any) => void> = new Map();
@@ -164,11 +165,16 @@ export class LanguageClient {
     // Stop the language server process
     if (this.serverId) {
       try {
-        await invoke('lsp_stop_server', { serverId: this.serverId });
+        await invoke('lsp_stop_server', {
+          params: {
+            serverId: this.serverId,
+          },
+        });
       } catch (error) {
         console.error('[LanguageClient] Failed to stop server:', error);
       }
       this.serverId = null;
+      this.serverSessionId = null;
     }
 
     // Clean up event listeners
@@ -216,8 +222,10 @@ export class LanguageClient {
       this.pendingRequests.set(id, { resolve, reject });
 
       invoke('lsp_send_message', {
-        serverId: this.serverId,
-        message: JSON.stringify(message),
+        params: {
+          serverId: this.serverId,
+          message: JSON.stringify(message),
+        },
       }).catch((error) => {
         this.pendingRequests.delete(id);
         reject(error);
@@ -240,8 +248,10 @@ export class LanguageClient {
     };
 
     invoke('lsp_send_message', {
-      serverId: this.serverId,
-      message: JSON.stringify(message),
+      params: {
+        serverId: this.serverId,
+        message: JSON.stringify(message),
+      },
     }).catch((error) => {
       console.error('[LanguageClient] Failed to send notification:', error);
     });
@@ -281,7 +291,7 @@ export class LanguageClient {
     // Start language server process via Tauri
     this.serverId = `${this.id}-${Date.now()}`;
 
-    const result = await invoke<{ success: boolean; error?: string }>('lsp_start_server', {
+    const result = await invoke<{ success: boolean; sessionId?: number; session_id?: number; error?: string }>('lsp_start_server', {
       params: {
         serverId: this.serverId,
         command: this.serverOptions.command,
@@ -291,14 +301,16 @@ export class LanguageClient {
       },
     });
 
-    if (!result.success) {
+    const sessionId = result.sessionId ?? result.session_id;
+    if (!result.success || !sessionId) {
       throw new Error(`Failed to start language server: ${result.error}`);
     }
+    this.serverSessionId = sessionId;
 
     console.log(`[LanguageClient] Server started with ID: ${this.serverId}`);
 
     // Listen to messages from language server
-    const messageEvent = `lsp-message-${this.serverId}`;
+    const messageEvent = `lsp-message-${this.serverSessionId}`;
     const unlistenMessages = await listen<{ message: string }>(messageEvent, (event) => {
       try {
         const message = JSON.parse(event.payload.message);
@@ -310,7 +322,7 @@ export class LanguageClient {
     this.unlistenFunctions.push(unlistenMessages);
 
     // Listen to server close events
-    const closeEvent = `lsp-close-${this.serverId}`;
+    const closeEvent = `lsp-close-${this.serverSessionId}`;
     const unlistenClose = await listen(closeEvent, () => {
       console.log(`[LanguageClient] Server closed: ${this.name}`);
       this.stop();
@@ -318,7 +330,7 @@ export class LanguageClient {
     this.unlistenFunctions.push(unlistenClose);
 
     // Listen to server errors
-    const errorEvent = `lsp-error-${this.serverId}`;
+    const errorEvent = `lsp-error-${this.serverSessionId}`;
     const unlistenError = await listen<{ error: string }>(errorEvent, (event) => {
       console.error(`[LanguageClient] Server error: ${event.payload.error}`);
     });

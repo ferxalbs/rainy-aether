@@ -25,6 +25,8 @@ export async function getLSPBinaryStatuses(): Promise<LSPBinaryStatus[]> {
 
 export async function installLSPBinary(serverId: string): Promise<LSPBinaryInstallResult> {
   return invoke<LSPBinaryInstallResult>('lsp_install_server_binary', {
-    serverId,
+    params: {
+      serverId,
+    },
   });
 }
