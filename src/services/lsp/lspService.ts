@@ -4,6 +4,7 @@
  */
 
 import * as monaco from 'monaco-editor';
+import { invoke } from '@tauri-apps/api/core';
 import { LSPClient } from './lspClient';
 import { OptimizedLSPClient } from './OptimizedLSPClient';
 import type { LanguageServerConfig, Diagnostic } from './types';
@@ -25,7 +26,7 @@ class LSPService {
    */
   async registerServer(config: LanguageServerConfig): Promise<void> {
     if (this.clients.has(config.id)) {
-      console.warn(`[LSP] Server ${config.id} already registered`);
+      console.debug(`[LSP] Server ${config.id} already registered`);
       return;
     }
 
@@ -73,6 +74,13 @@ class LSPService {
 
       console.error(`[LSP] Failed to start server: ${config.name}`, error);
     }
+  }
+
+  /**
+   * Check if a server is already registered
+   */
+  isServerRegistered(serverId: string): boolean {
+    return this.clients.has(serverId);
   }
 
   /**
@@ -304,6 +312,12 @@ class LSPService {
 
 // Singleton instance
 let lspService: LSPService | null = null;
+let initializePromise: Promise<void> | null = null;
+
+interface LSPBinaryStatus {
+  server_id: string;
+  installed: boolean;
+}
 
 /**
  * Get the LSP service singleton
@@ -329,6 +343,11 @@ export function getLSPService(): LSPService {
  * The LSP infrastructure is kept in place for future expansion.
  */
 export async function initializeLSP(): Promise<void> {
+  if (initializePromise) {
+    return initializePromise;
+  }
+
+  initializePromise = (async () => {
   const service = getLSPService();
 
   const externalServers: LanguageServerConfig[] = [
@@ -355,9 +374,42 @@ export async function initializeLSP(): Promise<void> {
     },
   ];
 
+  // Preflight check for installed binaries. If this fails (e.g. non-Tauri env),
+  // we fall back to the previous behavior and attempt normal registration.
+  let installedByServerId: Record<string, boolean> | null = null;
+  try {
+    const statuses = await invoke<LSPBinaryStatus[]>('lsp_get_binary_statuses');
+    installedByServerId = Object.fromEntries(
+      statuses.map((entry) => [entry.server_id, entry.installed])
+    );
+  } catch (error) {
+    console.debug('[LSP] Binary preflight unavailable, falling back to direct startup:', error);
+  }
+
   for (const server of externalServers) {
+    const isInstalled = installedByServerId ? installedByServerId[server.id] === true : true;
+
+    if (!isInstalled) {
+      lspStatusActions.registerServer(server.id, server.name, server.languages);
+      lspStatusActions.setServerStatus(
+        server.id,
+        'unavailable',
+        `Command not found: ${server.command}. Install it from Settings > LSP & Binaries.`
+      );
+      continue;
+    }
+
+    if (service.isServerRegistered(server.id)) {
+      continue;
+    }
+
     await service.registerServer(server);
   }
 
   console.info('[LSP] LSP service initialized (Monaco built-in TS/JS + external servers)');
+  })().finally(() => {
+    initializePromise = null;
+  });
+
+  return initializePromise;
 }

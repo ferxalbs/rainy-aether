@@ -286,6 +286,7 @@ pub fn run() {
         project_manager::create_folder,
         project_manager::rename_path,
         project_manager::delete_path,
+        project_manager::path_exists,
         project_manager::get_temp_dir,
         project_manager::search_in_workspace,
         project_manager::replace_in_file,

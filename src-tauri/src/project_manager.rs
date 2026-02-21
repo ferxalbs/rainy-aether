@@ -295,6 +295,12 @@ pub async fn delete_path(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn path_exists(path: String) -> Result<bool, String> {
+    let p = PathBuf::from(&path);
+    Ok(p.exists())
+}
+
+#[tauri::command]
 pub async fn watch_project_changes(
     window: tauri::Window,
     path: String,

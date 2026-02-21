@@ -20,9 +20,9 @@ import { EOLSelector } from './EOLSelector';
 import { cn } from '@/lib/cn';
 import { invoke } from '@tauri-apps/api/core';
 import { getLanguageDisplayName } from '@/utils/languageMap';
-import { getLanguageFromFilename } from '@/services/monacoConfig';
 import { initializeLSP } from '@/services/lsp';
 import { installLSPBinary } from '@/services/lsp/lspBinaryService';
+import { loadFromStore, saveToStore } from '@/stores/app-store';
 import '../../styles/statusbar.css';
 
 // Problems interface (now using MarkerStatistics)
@@ -32,6 +32,7 @@ type Problems = MarkerStatistics;
 interface EditorInfo {
   languageId: string;
   language: string;
+  autoMode: boolean;
   encoding: string;
   line: number;
   column: number;
@@ -63,6 +64,15 @@ interface SyncStatusResponse {
   branch?: string;
 }
 
+type LanguageModePreference = {
+  auto: boolean;
+  languageId?: string;
+};
+
+const LANGUAGE_MODE_PREFS_KEY = 'rainy-coder-language-mode-preferences-v1';
+const MAX_LANGUAGE_MODE_PREFS = 1000;
+const MAX_EXISTENCE_CHECKS_PER_RUN = 200;
+
 const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const gitState = useGitState();
   const [syncStatus, setSyncStatus] = useState<SyncStatusResponse>({
@@ -91,6 +101,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   const [editorInfo, setEditorInfo] = useState<EditorInfo>({
     languageId: 'plaintext',
     language: 'Plain Text',
+    autoMode: false,
     encoding: 'UTF-8',
     line: 1,
     column: 1,
@@ -100,6 +111,10 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
   });
   const [eol, setEOL] = useState<string>('LF');
   const [installingLspServers, setInstallingLspServers] = useState<Set<string>>(new Set());
+  const autoLanguageModeByUriRef = useRef<Map<string, boolean>>(new Map());
+  const languageModePreferencesRef = useRef<Map<string, LanguageModePreference>>(new Map());
+  const pruneInProgressRef = useRef(false);
+  const prevWorkspacePathRef = useRef<string | null>(null);
   const [platformName, setPlatformName] = useState<string>('');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const notificationStats = useNotificationStats();
@@ -247,10 +262,13 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       if (!position) return;
 
       const options = model.getOptions();
+      const modelKey = getModelPersistenceKey(model);
+      const isAutoMode = autoLanguageModeByUriRef.current.get(modelKey) === true;
       const languageId = model.getLanguageId();
       setEditorInfo({
         languageId,
-        language: getLanguageDisplayName(languageId),
+        language: isAutoMode ? `Auto (${getLanguageDisplayName(languageId)})` : getLanguageDisplayName(languageId),
+        autoMode: isAutoMode,
         encoding: 'UTF-8', // Could be enhanced to detect actual encoding
         line: position.lineNumber,
         column: position.column,
@@ -264,6 +282,159 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     } catch (error) {
       console.debug('[StatusBar] Failed to update editor info:', error);
     }
+  };
+
+  const getModelPersistenceKey = (model: monaco.editor.ITextModel): string => {
+    return model.uri.path || model.uri.toString();
+  };
+
+  const saveLanguageModePreferences = () => {
+    const serializable: Record<string, LanguageModePreference> = {};
+    for (const [key, value] of languageModePreferencesRef.current.entries()) {
+      serializable[key] = value;
+    }
+    void saveToStore(LANGUAGE_MODE_PREFS_KEY, serializable);
+  };
+
+  const enforceLanguagePreferenceLimit = () => {
+    const prefs = languageModePreferencesRef.current;
+    if (prefs.size <= MAX_LANGUAGE_MODE_PREFS) {
+      return;
+    }
+
+    const overflow = prefs.size - MAX_LANGUAGE_MODE_PREFS;
+    const oldestKeys = Array.from(prefs.keys()).slice(0, overflow);
+    for (const key of oldestKeys) {
+      prefs.delete(key);
+      autoLanguageModeByUriRef.current.delete(key);
+    }
+  };
+
+  const setLanguagePreferenceForModel = (
+    model: monaco.editor.ITextModel,
+    preference: LanguageModePreference
+  ) => {
+    const key = getModelPersistenceKey(model);
+    languageModePreferencesRef.current.delete(key);
+    languageModePreferencesRef.current.set(key, preference);
+    autoLanguageModeByUriRef.current.set(key, preference.auto);
+    enforceLanguagePreferenceLimit();
+    saveLanguageModePreferences();
+  };
+
+  const pruneMissingLanguagePreferences = async () => {
+    if (pruneInProgressRef.current) {
+      return;
+    }
+    pruneInProgressRef.current = true;
+
+    try {
+      const entries = Array.from(languageModePreferencesRef.current.entries());
+      const toCheck = entries.slice(0, MAX_EXISTENCE_CHECKS_PER_RUN);
+      if (toCheck.length === 0) {
+        return;
+      }
+
+      const missingKeys: string[] = [];
+      for (const [pathKey] of toCheck) {
+        // Ignore non-file URIs and synthetic paths
+        if (!pathKey || pathKey.startsWith('untitled:') || pathKey.startsWith('inmemory:')) {
+          continue;
+        }
+        try {
+          const exists = await invoke<boolean>('path_exists', { path: pathKey });
+          if (!exists) {
+            missingKeys.push(pathKey);
+          }
+        } catch {
+          // Ignore probe failures; keep preference to avoid accidental data loss.
+        }
+      }
+
+      if (missingKeys.length > 0) {
+        for (const key of missingKeys) {
+          languageModePreferencesRef.current.delete(key);
+          autoLanguageModeByUriRef.current.delete(key);
+        }
+        saveLanguageModePreferences();
+      }
+    } finally {
+      pruneInProgressRef.current = false;
+    }
+  };
+
+  const applyStoredLanguagePreference = (model: monaco.editor.ITextModel) => {
+    const key = getModelPersistenceKey(model);
+    const preference = languageModePreferencesRef.current.get(key);
+    if (!preference) {
+      // Default to Auto Detect when no explicit preference exists for a file.
+      autoLanguageModeByUriRef.current.set(key, true);
+      applyAutoLanguageDetection(model);
+      return;
+    }
+
+    autoLanguageModeByUriRef.current.set(key, preference.auto);
+
+    if (preference.auto) {
+      applyAutoLanguageDetection(model);
+      return;
+    }
+
+    if (preference.languageId && model.getLanguageId() !== preference.languageId) {
+      monaco.editor.setModelLanguage(model, preference.languageId);
+      lspStatusActions.setActiveLanguage(preference.languageId);
+    }
+  };
+
+  const detectLanguageFromModel = (model: monaco.editor.ITextModel): string => {
+    const allLanguages = monaco.languages.getLanguages();
+    const uriPath = model.uri.path || model.uri.toString();
+    const fileName = uriPath.split('/').pop()?.toLowerCase() || '';
+    const firstLine = model.getLineCount() > 0 ? model.getLineContent(1) : '';
+
+    for (const language of allLanguages) {
+      const filenames = (language.filenames || []).map((name) => name.toLowerCase());
+      if (filenames.includes(fileName)) {
+        return language.id;
+      }
+    }
+
+    let bestMatch: { languageId: string; length: number } | null = null;
+    for (const language of allLanguages) {
+      for (const ext of language.extensions || []) {
+        const normalized = ext.toLowerCase();
+        if (fileName.endsWith(normalized)) {
+          if (!bestMatch || normalized.length > bestMatch.length) {
+            bestMatch = { languageId: language.id, length: normalized.length };
+          }
+        }
+      }
+    }
+    if (bestMatch) {
+      return bestMatch.languageId;
+    }
+
+    for (const language of allLanguages) {
+      if (!language.firstLine) continue;
+      try {
+        const regex = new RegExp(language.firstLine);
+        if (regex.test(firstLine)) {
+          return language.id;
+        }
+      } catch {
+        // Ignore invalid metadata pattern
+      }
+    }
+
+    return 'plaintext';
+  };
+
+  const applyAutoLanguageDetection = (model: monaco.editor.ITextModel) => {
+    const detectedLanguage = detectLanguageFromModel(model);
+    if (model.getLanguageId() !== detectedLanguage) {
+      monaco.editor.setModelLanguage(model, detectedLanguage);
+    }
+    lspStatusActions.setActiveLanguage(detectedLanguage);
   };
 
   // Subscribe to marker service for real-time problem updates
@@ -280,6 +451,52 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
 
     return unsubscribe;
   }, []);
+
+  // Load persisted language mode preferences once.
+  useEffect(() => {
+    let mounted = true;
+    const loadPreferences = async () => {
+      const saved = await loadFromStore<Record<string, LanguageModePreference>>(
+        LANGUAGE_MODE_PREFS_KEY,
+        {}
+      );
+      if (!mounted) return;
+
+      const prefsMap = new Map<string, LanguageModePreference>(Object.entries(saved));
+      languageModePreferencesRef.current = prefsMap;
+      autoLanguageModeByUriRef.current = new Map(
+        Array.from(prefsMap.entries()).map(([key, value]) => [key, value.auto])
+      );
+      enforceLanguagePreferenceLimit();
+      saveLanguageModePreferences();
+
+      const editor = editorState.view;
+      const model = editor?.getModel();
+      if (model) {
+        applyStoredLanguagePreference(model);
+        updateEditorInfo();
+      }
+
+      void pruneMissingLanguagePreferences();
+    };
+
+    void loadPreferences();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const currentWorkspacePath = gitState.workspacePath || null;
+    const previousWorkspacePath = prevWorkspacePathRef.current;
+
+    // Workspace closed: run a background prune pass.
+    if (previousWorkspacePath && !currentWorkspacePath) {
+      void pruneMissingLanguagePreferences();
+    }
+
+    prevWorkspacePathRef.current = currentWorkspacePath;
+  }, [gitState.workspacePath]);
 
   // Update editor info when editor changes with debouncing
   useEffect(() => {
@@ -302,7 +519,30 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     const cursorDisposable = editor.onDidChangeCursorPosition(debouncedUpdate);
     const selectionDisposable = editor.onDidChangeCursorSelection(debouncedUpdate);
     const contentDisposable = editor.onDidChangeModelContent(debouncedUpdate);
+    const modelDisposable = editor.onDidChangeModel(() => {
+      const model = editor.getModel();
+      if (model) {
+        applyStoredLanguagePreference(model);
+      }
+      debouncedUpdate();
+    });
+    const modelLanguageDisposable = editor.onDidChangeModelLanguage(() => {
+      const model = editor.getModel();
+      if (!model) return;
+      const modelKey = getModelPersistenceKey(model);
+      if (autoLanguageModeByUriRef.current.get(modelKey) === true) {
+        const detectedLanguage = detectLanguageFromModel(model);
+        if (model.getLanguageId() !== detectedLanguage) {
+          monaco.editor.setModelLanguage(model, detectedLanguage);
+        }
+      }
+      debouncedUpdate();
+    });
 
+    const initialModel = editor.getModel();
+    if (initialModel) {
+      applyStoredLanguagePreference(initialModel);
+    }
     updateEditorInfo();
 
     return () => {
@@ -311,6 +551,8 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       cursorDisposable.dispose();
       selectionDisposable.dispose();
       contentDisposable.dispose();
+      modelDisposable.dispose();
+      modelLanguageDisposable.dispose();
     };
   }, []);
 
@@ -462,25 +704,15 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
     const model = editor.getModel();
     if (!model) return;
 
-    // Handle "auto" mode - detect language from file extension
+    // Handle "auto" mode with Monaco-native detection
     if (languageId === 'auto') {
-      const filePath = model.uri.path || '';
-      const detectedLang = getLanguageFromFilename(filePath);
-
-      // Set the detected language
-      monaco.editor.setModelLanguage(model, detectedLang);
-
-      // Update state with the resolved language to keep selector and Monaco aligned
-      setEditorInfo((prev) => ({
-        ...prev,
-        languageId: detectedLang,
-        language: getLanguageDisplayName(detectedLang),
-      }));
-
-      // Update LSP status with the actual detected language
-      lspStatusActions.setActiveLanguage(detectedLang);
+      setLanguagePreferenceForModel(model, { auto: true });
+      applyAutoLanguageDetection(model);
+      updateEditorInfo();
       return;
     }
+
+    setLanguagePreferenceForModel(model, { auto: false, languageId });
 
     // Set language mode in Monaco
     monaco.editor.setModelLanguage(model, languageId);
@@ -490,6 +722,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
       ...prev,
       languageId,
       language: getLanguageDisplayName(languageId),
+      autoMode: false,
     }));
 
     // Update LSP status
@@ -883,6 +1116,7 @@ const StatusBar: React.FC<StatusBarProps> = ({ onToggleProblemsPanel }) => {
         onClose={() => setIsLanguageSelectorOpen(false)}
         triggerRef={languageButtonRef as React.RefObject<HTMLElement>}
         currentLanguage={editorInfo.languageId}
+        isAutoMode={editorInfo.autoMode}
         onLanguageChange={handleLanguageChange}
       />
 

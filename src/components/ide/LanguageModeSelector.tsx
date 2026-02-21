@@ -8,6 +8,7 @@ interface LanguageModeSelectorProps {
   onClose: () => void;
   triggerRef: React.RefObject<HTMLElement>;
   currentLanguage: string;
+  isAutoMode: boolean;
   onLanguageChange: (languageId: string) => void;
 }
 
@@ -31,6 +32,7 @@ export function LanguageModeSelector({
   onClose,
   triggerRef,
   currentLanguage,
+  isAutoMode,
   onLanguageChange,
 }: LanguageModeSelectorProps) {
   const languageGroups = useMemo<SelectGroup[]>(() => {
@@ -69,7 +71,7 @@ export function LanguageModeSelector({
       onClose={onClose}
       triggerRef={triggerRef}
       options={languageGroups}
-      selectedId={currentLanguage}
+      selectedId={isAutoMode ? 'auto' : currentLanguage}
       onSelect={onLanguageChange}
       title="Select Language Mode"
       placeholder="Search languages..."

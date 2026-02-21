@@ -312,12 +312,26 @@ impl LanguageServerManager {
 
         // Check if server is already running
         {
-            let servers = self
+            let mut servers = self
                 .servers
                 .lock()
                 .map_err(|_| LSPError::LockAcquisitionFailed)?;
-            if servers.contains_key(&server_id) {
-                return Err(LSPError::ServerAlreadyRunning(server_id));
+            if let Some(existing) = servers.get_mut(&server_id) {
+                // Reuse an existing process if it is still alive, otherwise clean stale entry.
+                match existing.child.try_wait() {
+                    Ok(None) => {
+                        println!(
+                            "[LSP] Server already running, reusing session: {} ({})",
+                            server_id, existing.session_id
+                        );
+                        return Ok(existing.session_id);
+                    }
+                    Ok(Some(_)) | Err(_) => {
+                        let _ = existing.child.kill();
+                        let _ = existing.child.wait();
+                        servers.remove(&server_id);
+                    }
+                }
             }
         }
 
