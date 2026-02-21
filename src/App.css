@@ -193,8 +193,8 @@
   flex-direction: column;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  padding: 0; /* Changed from 8px to stick to corners */
-  gap: 0; /* Removed gap */
+  padding: 0;
+  gap: 0;
   box-sizing: border-box;
 }
 

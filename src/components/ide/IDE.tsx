@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import MenuBar from "./MenuBar";
 import AboutDialog from "./AboutDialog";
-
 import Sidebar from "./Sidebar";
 import FileViewer from "./FileViewer";
 import StatusBar from "./StatusBar";
@@ -551,9 +550,17 @@ const IDE: React.FC = () => {
         onOpenAbout={() => setIsAboutOpen(true)}
       />
 
-      {currentView === "startup" && <StartupPage />}
+      {currentView === "startup" && (
+        <div className="flex-1 overflow-hidden p-2">
+          <StartupPage />
+        </div>
+      )}
 
-      {currentView === "settings" && <SettingsPage />}
+      {currentView === "settings" && (
+        <div className="flex-1 overflow-hidden p-2">
+          <SettingsPage />
+        </div>
+      )}
 
       {currentView === "editor" && (
         <>
@@ -562,7 +569,7 @@ const IDE: React.FC = () => {
           {/* Agents View - Always mounted, hidden when not active */}
           <div
             className={cn(
-              "flex flex-1 min-h-0 overflow-hidden",
+              "flex flex-1 min-h-0 overflow-hidden p-2",
               viewMode !== "agents" && "hidden",
             )}
           >
@@ -572,7 +579,7 @@ const IDE: React.FC = () => {
           {/* Main Editor Layout - Always mounted, hidden when acting as agents view */}
           <div
             className={cn(
-              "flex flex-1 gap-2 overflow-hidden",
+              "flex flex-1 gap-2 overflow-hidden p-2",
               viewMode === "agents" && "hidden",
             )}
           >

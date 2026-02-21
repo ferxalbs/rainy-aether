@@ -2,6 +2,23 @@
 
 All notable changes to Rainy Aether IDE will be documented in this file.
 
+## [v0.1.41] - 2026-02-21
+
+### Changes:
+
+- **[Improvements]** Modularized `SettingsPage.tsx` into separate sub-components for better maintainability (QuickSettings, Editor, LSP, etc.).
+- **[UI/UX]** Redesigned the Settings layout to use dual floating glass panels (Sidebar + Content), perfectly aligning with the IDE's new floating island aesthetic.
+
+## [v0.1.40] - 2026-02-21
+
+- **[Improvements]** Refined the UI layout architecture: removed the global `padding: 8px` from the root `.ide-container` to allow the premium top `MenuBar` to stretch natively flush against the edges (respecting macOS traffic lights perfectly), while moving the `8px` (`p-2`) padding down into the specific Editor and Agents main layout wrappers so the IDE panels retain their floating "island" aesthetic without squeezing the MenuBar.
+
+## [v0.1.39] - 2026-02-21
+
+### Changes:
+
+- **[Fixes]** Restored the `8px` layout padding and gap to `.ide-container` to maintain the floating "island" container style for the IDE views and Agent Chat after they were inadvertently anchored to the edges.
+
 ## [v0.1.38] - 2026-02-21
 
 ### Changes:
